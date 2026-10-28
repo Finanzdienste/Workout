@@ -191,6 +191,13 @@ check(Object.keys(nachAbschluss.log || {}).length === 4, 'und die eben abgeschlo
 const vorRuhe = geschrieben().length;
 await warte(a, 5 * 60000);
 check(geschrieben().length === vorRuhe, `ohne Änderung nichts – auch nach fünf Minuten (${geschrieben().length - vorRuhe})`);
+// Unter Mehr → Daten: „vor 5 Min." endet schon mit dem Punkt der Abkürzung –
+// bis zur Prüfung von v247 stand dort „Zuletzt gesichert: vor 5 Min.." (wie
+// bis v247 unter Mehr → Kalender „nachgeschickt vor 1 Min..").
+await zuMehr(a);
+const standRuhe = await text(a, '#sicherungStand');
+check(/Zuletzt gesichert: vor \d+ Min\.(?!\.)/.test(standRuhe) && !/\.\./.test(standRuhe),
+  `„Zuletzt gesichert: vor 5 Min." – mit einem Punkt, nicht zweien („${standRuhe.trim()}")`);
 await a.reload({ waitUntil: 'networkidle' });
 await warte(a, 10000);
 check(geschrieben().length === vorRuhe, `ein Neustart ohne Änderung schickt nichts (${geschrieben().length - vorRuhe})`);
@@ -239,6 +246,18 @@ await warte(a, 1100);
 await warte(a, 2 * 60000 + 5000);
 check(geschrieben().length === vorNetz + 2 && (await meta(a)).fehler === null,
   `sobald das Netz zurück ist, wird nachgeholt (${geschrieben().length - vorNetz - 1})`);
+
+// --- „+Wdh." meldet sich wie jede Änderung -------------------------------
+// Bis v247 schwieg store.addBwPlus() beim Store: Die Sicherung erfuhr vom
+// Aufschlag erst mit der nächsten Meldung, und wer danach nichts mehr
+// antippte, hatte ihn nur auf diesem Gerät.
+const vorPlus = geschrieben().length;
+await a.evaluate(async (id) => (await import('./js/store.js')).addBwPlus(id, 2), uebung);
+await warte(a, 1100);
+await warte(a, 2 * 60000 + 5000);
+const mitPlus = JSON.parse(await entschluesseln(mA.key, zeilen.get(mA.id).daten, zeilen.get(mA.id).iv));
+check(geschrieben().length === vorPlus + 1 && (mitPlus.bwPlus || {})[uebung] === 2,
+  `„+Wdh." (store.addBwPlus) geht von selbst in die Sicherung – ohne eine weitere Änderung (${geschrieben().length - vorPlus}, bwPlus ${(mitPlus.bwPlus || {})[uebung]})`);
 
 /* ================================================================== *
  * B – ein frisches Gerät, Schlüssel aus dem Passwortmanager

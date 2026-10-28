@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v246';
+const VERSION = 'v247';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -383,10 +383,16 @@ async function kalenderNachsenden() {
       code = j && typeof j.code === 'string' ? j.code.slice(0, 20) : null;
       version = j && Number.isInteger(j.version) ? j.version : null;
       // Was das Skript über den Abgleich sagt (Fassung 2) – die App prüft es
-      // wie die Antwort auf eine eigene Sendung (kalAbgleich()).
+      // wie die Antwort auf eine eigene Sendung (kalAbgleich()). Dazu der
+      // Trainingsstand, der beim Skript gilt: Sagt es „aelter", ist es der
+      // eines anderen Geräts, und die App merkt sich, dass dort dessen Plan
+      // gilt (kalNachLesen() – seit der Prüfung von v247; sie prüft ihn mit
+      // kalStandLesen(), nur Zahlen).
       if (j && typeof j === 'object') {
         antwort = {
           tag: j.tag, geaendert: j.geaendert, offen: j.offen, bis: j.bis, stehen: j.stehen, folge: j.folge, morgen: j.morgen,
+          stand: j.stand && typeof j.stand === 'object'
+            ? { einheiten: j.stand.einheiten, saetze: j.stand.saetze, zuletzt: j.stand.zuletzt } : null,
         };
       }
     } catch {
@@ -407,11 +413,16 @@ async function kalenderNachsenden() {
   // die App dieselbe Vorschau nicht noch einmal (kalNachLesen() in
   // js/kalender-sync.js) – und die Fassung des Skripts erfährt sie auch.
   // Dazu Vertrag, Kürzung und was die Antwort über den Abgleich sagt: Die App
-  // vermerkt die Sendung dann als die, die zuletzt ankam.
+  // vermerkt die Sendung dann als die, die zuletzt ankam. Und der Grund, aus
+  // dem sie hier lag (netz, wegschalten, fehler, zeit, gross –
+  // kalAusgangLegen()): Nur bei „netz" war wirklich ohne Netz trainiert; die
+  // Karte sagte es bis v247 bei jeder nachgeschickten Sendung, auch bei der,
+  // die nur über 64 KiB groß war.
   await c.put(new URL('kalender-ausgang-nach', self.registration.scope).href,
     new Response(JSON.stringify({
       seq: s.seq, zeit: Date.now(), code, version, hash: typeof s.hash === 'string' ? s.hash : null, ziel: typeof s.ziel === 'string' ? s.ziel : null,
       vertrag: Number.isInteger(s.vertrag) ? s.vertrag : null, gekuerzt: Number.isInteger(s.gekuerzt) ? s.gekuerzt : null, antwort,
+      grund: typeof s.grund === 'string' ? s.grund.slice(0, 20) : null,
     }), { headers: { 'content-type': 'application/json' } }));
 }
 

@@ -641,10 +641,13 @@ export function flush() {
 
 /**
  * Alle, die zuhören, nach einer Änderung. `was` sagt es genauer, wo das einen
- * Unterschied macht – bisher nur 'pause': Geändert hat sich allein die
- * laufende Pause (setRest() – Start, Ende, „+30 s"). Die Vorschau für den
- * Kalender liest sie nicht und rechnet dann nicht neu (kalenderGeaendert() in
- * js/kalender-sync.js).
+ * Unterschied macht: 'pause' – geändert hat sich allein die laufende Pause
+ * (setRest() – Start, Ende, „+30 s"); 'ansicht' – nur, was die App gerade
+ * zeigt (der Reiter, die offene Einheit; setSetting() aus js/app.js, seit
+ * v247). Die Vorschau für den Kalender liest beides nicht und rechnet dann
+ * nicht neu (kalenderGeaendert() in js/kalender-sync.js); die Sicherung hört
+ * wie immer und zählt beides ohnehin nicht als Änderung (SICHERUNG_FLUECHTIG
+ * in js/sicherung.js).
  */
 function emit(was) {
   listeners.forEach((fn) => fn(state, was));
@@ -1543,9 +1546,25 @@ export function setBand(exId, farbe) {
 /** Aufschlag an Wiederholungen im Bodyweight-Modus. */
 export function bwPlusOf(exId) { return state.bwPlus[exId] || 0; }
 
+/**
+ * „+Wdh." – meldet sich wie jede Änderung. Bis v247 schwieg es: Die
+ * automatische Sicherung erfuhr vom Aufschlag erst mit der nächsten Meldung,
+ * und wer danach nichts mehr antippte, hatte ihn nur auf diesem Gerät.
+ *
+ * Die Vorschau für den Kalender rechnet dabei mit, und das mit Grund: Die
+ * Texte der Termine nennen zwar die geplanten Wiederholungen, nicht den
+ * Aufschlag (terminText() in js/ics.js), aber `bwPlus` zählt zur Einstufung
+ * (leistungsStand() in js/stufen.js). Die prüft jeder Start, also auch jeder
+ * Tag der Vorschau (pruefeAufstieg() in tagNachziehen(), js/tagstart.js) –
+ * hebt ein Aufschlag den Median über die nächste Stufe, steht ab morgen ein
+ * Satz mehr in den Terminen. Kommt dasselbe heraus, geht nichts hinaus
+ * (gleicher Fingerabdruck); ein Tipp auf „+Wdh." ist selten, und er kostet
+ * eine Rechnung im Worker.
+ */
 export function addBwPlus(exId, delta) {
   state.bwPlus[exId] = Math.max(0, (state.bwPlus[exId] || 0) + delta);
   persist();
+  emit();
 }
 
 /**
@@ -1571,10 +1590,11 @@ export function clearInjuries() {
   emit();
 }
 
-export function setSetting(key, value) {
+/** `was`: wie bei emit() – 'ansicht' für den Reiter und die offene Einheit. */
+export function setSetting(key, value, was) {
   state[key] = value;
   persist();
-  emit();
+  emit(was);
 }
 
 /** Hält fest, dass gesichert wurde – gemessen an der Zahl erledigter Einheiten. */

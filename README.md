@@ -2580,14 +2580,21 @@ Sendung der App Kalender und Auslöser selbst an (und sagt es in der Antwort).
 Steht dann noch die Probe da (die Eigenschaft `kal` in diesem Projekt), räumt
 dieselbe Sendung sie weg wie `einrichten` – nur einen eigenen Kalender mit genau
 dem Namen „Workout-Probe" – und sagt es; „Verbinden" kündigt es vorher an.
-Ohne das blieb „Workout-Probe" still neben „Workout" stehen.
+Ohne das blieb „Workout-Probe" still neben „Workout" stehen. Einen Haken hat
+der so angelegte Auslöser: Er entsteht aus `doPost`, also aus der
+bereitgestellten Version, und hängt an ihr. Bei Tobi lief er nach dem nächsten
+Code-Tausch weiter mit dem alten Code – darum gehört `einrichten` seit v247 zu
+jedem Code-Tausch (unten, *Nach jedem Code-Tausch: einrichten*).
 
 **Neue Fassung, alter Speicher.** Die Web-App läuft auf der bereitgestellten
-Fassung, der stündliche Auslöser wahrscheinlich auf dem zuletzt gespeicherten
-Code. Vergisst Tobi „Neue Version", schreibt also ein alter `doPost`, und ein
-neuer Abgleich liest. Deshalb ist `doPost` klein (prüfen, ablegen, abgleichen
-versuchen), und jede Fassung liest jedes Speicherformat, das eine frühere
-geschrieben hat. Format 1: die Sendung ohne Kennwort als JSON in Stücken von
+Fassung, ein stündlicher Auslöser aus dem Editor (`einrichten`) auf dem
+zuletzt gespeicherten Code – einer, den `doPost` angelegt hat, auf der Fassung
+der Bereitstellung, aus der er entstand (bis v247 stand hier nur
+„wahrscheinlich auf dem zuletzt gespeicherten Code"; Tobis 28.10. zeigte den
+anderen Fall). Vergisst Tobi „Neue Version", schreibt also ein alter `doPost`,
+und ein neuer Abgleich liest. Deshalb ist `doPost` klein (prüfen, ablegen,
+abgleichen versuchen), und jede Fassung liest jedes Speicherformat, das eine
+frühere geschrieben hat. Format 1: die Sendung ohne Kennwort als JSON in Stücken von
 höchstens 8000 Byte (Google erlaubt 9 KB je Wert und 500 KB insgesamt; eine
 Vorschau von 64 KiB sind höchstens neun Stücke, eine mit Ferne bis 192 KiB
 höchstens 25), dazu eine Meta-Zeile mit Format,
@@ -2596,7 +2603,10 @@ Meta-Zeile auf sie, erst dann gehen die alten (seit v246 dazu vorher alles,
 was zu keiner geltenden Sendung gehört – unten, *Ein Jahr im Voraus*). Ist der
 Speicher beschädigt oder in einem unbekannten Format, fasst das Skript den
 Kalender nicht an und der Auslöser wirft (dann schickt Google eine Mail); die
-nächste gültige Sendung ersetzt ihn.
+nächste gültige Sendung ersetzt ihn. Den umgekehrten Fall – die Web-App neu,
+der Auslöser alt – fängt das nicht auf: Fassung 1 kann die Sendung mit dem
+Jahr nicht lesen und wirft bei jedem Lauf, auch nach der nächsten Sendung; da
+hilft nur `einrichten` (unten, *Nach jedem Code-Tausch: einrichten*).
 
 **Annehmen.** Erst die Größe (über 192 KiB wird gar nicht ausgepackt, eine
 v 1 darf wie bisher höchstens 64 KiB haben), dann
@@ -2768,12 +2778,13 @@ ganze Sitzung lang. Bittet das Skript schon beim Verbinden um etwas
 (`einrichten`, ein anderes Projekt pflegt den Kalender) oder ist sein Code zu
 alt, steht dessen Satz in der Farbe für „da ist etwas zu tun" und ohne „nach
 etwa einer Minute stehen die Termine". „Code kopieren" im verbundenen Zustand
-sagt alle Schritte zum Erneuern (im selben Projekt ersetzen, speichern, *Neue
-Version*) statt auf nummerierte Schritte zu zeigen, die dort nicht stehen –
-seit v246 ohne `einrichten`: Kalender und Auslöser bestehen schon (unten, *Ein
-Jahr im Voraus*). Steht die Bitte um neuen Code für das Jahr mit ihren
-nummerierten Schritten auf der Karte, verweist die Meldung nur auf sie
-(„… Weiter mit Schritt 2.").
+sagt alle Schritte zum Erneuern (im selben Projekt ersetzen, speichern,
+`einrichten`, *Neue Version*) statt auf nummerierte Schritte zu zeigen, die
+dort nicht stehen. In v246 stand dort kein `einrichten` („Kalender und
+Auslöser bestehen schon") – das war falsch, seit v247 gehört es zu jedem
+Code-Tausch (unten, *Nach jedem Code-Tausch: einrichten*). Steht die Bitte um
+neuen Code für das Jahr mit ihren nummerierten Schritten auf der Karte,
+verweist die Meldung nur auf sie („… Weiter mit Schritt 2.").
 
 **Das Dashboard** bekommt eine Zeile nur, wenn Tobi selbst etwas richten muss:
 Das Skript kennt das Kennwort nicht, der Code in Apps Script ist älter als die
@@ -2782,7 +2793,9 @@ Skript bittet um `einrichten` (Kalender gelöscht, ein anderes Projekt pflegt
 ihn, kein stündlicher Auslöser). Kein Netz, ein beschäftigtes Skript, eine
 ausgebliebene Antwort oder ein anderes Gerät, das zuletzt trainiert hat,
 richten sich von selbst – die App schickt dieselbe Vorschau nach 2, 5 und 15
-Minuten noch einmal (unten) – und stehen nur unter *Mehr*. Hat die Verbindung
+Minuten noch einmal (unten) – und stehen nur unter *Mehr*; das andere Gerät
+seit v247 als deutlicher Hinweis mit „Trennen" (unten, *Zwei Geräte*), und
+dort auch, wenn das Skript nichts nachträgt. Hat die Verbindung
 schon einmal geklappt, ist auch „nicht das Skript" erst nach diesen drei
 Wiederholungen ein Alarm: Meist ist das ein Aussetzer bei Google. Bleibt es
 nach drei Wiederholungen bei `fehler`, ist das kein Beschäftigtsein mehr –
@@ -2812,8 +2825,8 @@ Satz, der sagt, was zu tun ist:
 | … und der GET antwortet wie der neue Code | „Der neue Code ist bereitgestellt, aber das Senden kam bei ihm nicht an": noch einmal *Verbinden* |
 | … und auch der GET kommt gar nicht durch | „Google hat geantwortet, aber nicht das Skript" mit allen drei Ursachen: Neue Version, „Zugriff: Jeder", „Ausführen als: Ich", URL auf `/exec` |
 | lesbare Fehlerseite | „Unerwartete Antwort von Google (HTTP 404) – stimmt die URL?" |
-| `token` | Code kopieren, in Apps Script ersetzen, Neue Version |
-| `format` mit „erneuern" (zu einer Sendung in der Fassung, die das Skript spricht) | „Kalender-Code erneuern" samt *Bereitstellungen verwalten → Bearbeiten → Version: Neue Version* |
+| `token` | Code kopieren, in Apps Script ersetzen, speichern, `einrichten`, Neue Version (seit v247 mit `einrichten`) |
+| `format` mit „erneuern" (zu einer Sendung in der Fassung, die das Skript spricht) | „Kalender-Code erneuern" samt `einrichten` und *Bereitstellungen verwalten → Bearbeiten → Version: Neue Version* |
 | eine ältere `version` als die Vorlage (Fassung 1) | verbunden – es läuft mit v 1 weiter; die Karte bittet um den neuen Code für das Jahr (unten) |
 | 30 s keine Antwort | noch einmal *Verbinden* |
 
@@ -2890,7 +2903,10 @@ Minuten später noch einmal. Scheitert die Anfrage mit CORS, schickt er dieselbe
 ohne CORS – die wirft nur ohne Netz; eine Seite ohne Freigabe hielte ihn sonst
 endlos auf. Nur an eine Web-App-Adresse von Apps Script. Vermerkt wird, dass es
 hinausging, und, wenn lesbar, was das Skript sagte; die Karte sagt „Im
-Hintergrund nachgeschickt". Auf dem iPhone gibt es das nicht.
+Hintergrund nachgeschickt" – „Ohne Netz trainiert: …" davor seit v247 nur,
+wenn die Sendung wirklich mangels Netz im Ausgang lag, und nur bis zur
+nächsten eigenen Sendung, die ankommt (unten, *Nach jedem Code-Tausch:
+einrichten*). Auf dem iPhone gibt es das nicht.
 
 **Wer was sieht.**
 
@@ -2927,7 +2943,13 @@ verschwinden, und es schiebt nichts mehr – und vergisst die URL. Das Kennwort
 bleibt, es steht ja noch im Skript. Ohne Netz wartet das „aus" und geht nach,
 sobald welches da ist. *Alle Daten löschen* tut dasselbe. Ganz weg ist das
 Skript erst, wenn Tobi das Projekt in Apps Script löscht und unter
-`myaccount.google.com/permissions` den Zugriff entzieht.
+`myaccount.google.com/permissions` den Zugriff entzieht. Eine Ausnahme seit
+v247: Sagte eine Antwort `aelter` – beim Skript gilt der Plan eines anderen
+Geräts –, und kam danach von diesem Gerät nichts mehr an, geht kein „aus",
+weder beim Trennen noch beim Löschen noch an die alte URL beim Wechsel; ein
+Versuch dazwischen, der scheitert, ändert daran nichts. Das Skript nimmt ein
+„aus" von jedem Gerät mit dem Kennwort an und räumte damit die Termine des
+Geräts weg, mit dem trainiert wird (unten, *Zwei Geräte*).
 
 **In der Einzeldatei** steht die Karte ohne Knöpfe, mit dem Satz, dass es nur
 in der App aus dem Netz geht: Aus einer Datei startet kein Modul-Worker, und
@@ -3223,7 +3245,8 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
 Antwort und schickt ihm weiter v 1 – es läuft also alles weiter wie bisher. Auf
 der Startseite steht einmal, ohne Warnfarbe (kaputt ist nichts): „Google
 Kalender: Ein Jahr im Voraus geht jetzt – dafür einmal den Code im Skript
-erneuern." mit *Ansehen*. Einmal heißt: bis er sie angesehen oder den Code
+erneuern und einrichten ausführen." mit *Ansehen* (bis v247 ohne „und
+einrichten ausführen"). Einmal heißt: bis er sie angesehen oder den Code
 kopiert hat – Mehr → Kalender schaut er von sich aus nicht an, dort allein sähe
 er die Bitte nie. Klein gesetzt wie die Zeile zum Ton, und sie eilt nicht:
 Steht oben schon eine andere Zeile (Tagesabschluss, Ton, Sicherung, Kalender)
@@ -3250,21 +3273,22 @@ selbst steht auf der Karte, bis die App die neue Fassung sieht, wörtlich so:
 > 2. In Chrome script.google.com öffnen, im Drei-Punkte-Menü Desktopwebsite
 >    anhaken und dein Projekt öffnen – dasselbe wie beim Einrichten.
 > 3. Den ganzen Code dort durch den kopierten ersetzen und speichern.
-> 4. Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version:
+> 4. Oben die Funktion einrichten wählen und Ausführen tippen. Fragt Google
+>    noch einmal nach Zugriff: erlauben wie beim Einrichten. Es gleicht sofort
+>    ab und kann ein paar Minuten laufen – warten, bis unten „Ausführung
+>    abgeschlossen" steht.
+> 5. Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version:
 >    Neue Version → Bereitstellen.
 >
 > Fertig. Die App merkt den neuen Code von selbst und schickt dann das ganze
 > Jahr. Bis dahin läuft alles weiter wie bisher.
 
-`einrichten` gehört nicht dazu: Der Kalender steht über seine gespeicherte id
-im selben Projekt; der stündliche Auslöser bleibt und ruft `stuendlich` beim
-Namen – mit dem gespeicherten neuen Code, und läse er noch eine Weile den
-alten, schadet auch das nicht (jede Fassung liest jedes Speicherformat, oben
-*Neue Fassung, alter Speicher*); und Fassung 2 ruft dieselben Dienste wie
-Fassung 1 (CalendarApp, ScriptApp, PropertiesService, LockService,
-ContentService, Utilities), Google braucht also keine neuen Rechte. Fehlt doch
-etwas, sagt es das Skript in seiner Antwort, und die App sagt dann
-„einrichten".
+Schritt 4 kam mit v247 dazu. Bis dahin stand hier, `einrichten` gehöre nicht
+dazu: Der stündliche Auslöser bleibe und rufe `stuendlich` beim Namen – mit dem
+gespeicherten neuen Code. Das stimmt nur für einen Auslöser, der im Editor
+entstand. Tobis hatte `doPost` angelegt, und der lief nach dem Code-Tausch
+weiter mit Fassung 1 – was genau passierte und woran die App es jetzt merkt,
+steht unten (*Nach jedem Code-Tausch: einrichten*).
 
 Nach *Code kopieren* steht unter den Schritten nur: „Code kopiert – mit
 demselben Kennwort wie bisher. Weiter mit Schritt 2." Bis zur Prüfung des
@@ -3303,14 +3327,21 @@ Versuch" auf der Karte.
 
 **Wenn „Neue Version" fehlt.** Das ist der Schritt, den man am leichtesten
 vergisst (oben, *Einrichten*), und ohne ihn läuft die Web-App mit dem alten
-Code weiter – der stündliche Auslöser nimmt schon den neuen, und beides geht
-gut zusammen, nur das Jahr kommt nicht. Meldet eine Antwort drei Minuten oder
-länger nach „Code kopieren" noch Fassung 1, steht über der Bitte:
+Code weiter – ein stündlicher Auslöser aus dem Editor nimmt schon den neuen,
+und beides geht gut zusammen, nur das Jahr kommt nicht. Meldet eine Antwort
+drei Minuten oder länger nach „Code kopieren" noch Fassung 1, steht über der
+Bitte:
 
 > Der Code ist kopiert, aber das Skript meldet noch Fassung 1. Meist fehlt der
 > letzte Schritt: Bereitstellen → Bereitstellungen verwalten → Bearbeiten
 > (Stift) → Version: Neue Version → Bereitstellen – oder das Speichern davor.
-> Ohne beides läuft die Web-App mit dem alten Code weiter.
+> Ohne beides läuft die Web-App mit dem alten Code weiter. Und hast du
+> einrichten (Schritt 4) noch nicht ausgeführt: das auch – sonst bleibt der
+> stündliche Auslöser womöglich beim alten Code.
+
+Den letzten Satz gibt es seit v247. Ob `einrichten` lief, sieht die App an der
+Fassung nicht – die meldet die Web-App; darum steht er als Erinnerung da, und
+ob der Auslöser nachträgt, zeigt sich danach am Stand (unten).
 
 Gezählt wird die Zeit der Antwort, nicht die des Anzeigens. Bis zur Prüfung des
 Entwurfs hing der Satz an der Uhr beim Zeichnen: Kam Tobi nach sechs Minuten mit
@@ -3326,8 +3357,14 @@ stand dort gleich nach dem Code-Update „Termine bis 27.10.2027", als erst die
 vier Wochen da waren. Ist die letzte Auskunft drei Minuten alt und noch etwas
 offen, fragt die App beim Zurückkommen oder beim Öffnen der Karte mit einer
 Probe nach – höchstens alle zwei Minuten: „… – noch 95 Änderungen (Stand gerade
-eben)." Ist alles eingetragen, steht dort „Im Kalender: Termine bis
-27.10.2027.", und die App fragt nicht mehr.
+eben)." Seit v247 auch von selbst, solange die Karte aufgeschlagen ist (bis
+dahin fragte sie nur beim Zeichnen – wer auf der Karte wartete, bekam eine
+einzige Probe); und sinkt `offen` über mehr als eine Stunde nicht, sagt sie
+das (unten, *Nach jedem Code-Tausch: einrichten*). „In den nächsten Minuten"
+verspricht sie seit der Prüfung von v247 nur eine Viertelstunde lang nach der
+Auskunft, danach steht „(Stand vor …)" da (ebenda). Ist alles eingetragen,
+steht dort „Im Kalender: Termine bis 27.10.2027.", und die App fragt nicht
+mehr.
 
 **Geprüft.** `tests/test-kalender-vorschau.mjs`: die Ferne über das
 Rundenende, die Kennungen gegen den echten Rundenwechsel, jeder geprüfte Tag
@@ -3338,7 +3375,10 @@ aus derselben Rechnung, kaputte Fernen, `bleibtStehen()` am Rundenwechsel, der
 Worker in Chromium. `tests/test-kalender-gas.mjs`: die Regeln des Skripts
 gegen den Kern (`fernListe_()` an 294 Tagen), Tobis Weg von Fassung 1
 (`tests/kalender-fassung1.gs` ist der Code von v245 wörtlich) mit Codetausch
-ohne `einrichten` – 18 Termine übernommen, dieselben ids –, ein Jahr von
+ohne `einrichten` – 18 Termine übernommen, dieselben ids; so wörtlich war es
+nicht: Dort hatte `einrichten` den Auslöser für Fassung 1 im Editor angelegt,
+bei Tobi legte ihn `doPost` an, und der hing an der alten Version (v247,
+unten) –, ein Jahr von
 Grund auf in mehreren Läufen, die nächsten vier Wochen zuerst, ein verpasster
 Tag, die ruhige Stunde, Handarbeit in Nähe und Ferne, v 1 und v 2
 abwechselnd, eine gekürzte Ferne, Rundenwechsel, Abschalten, Bremsen.
@@ -3420,9 +3460,11 @@ passt in einen Lauf. Ist Google langsamer, dauert es länger; die vier Wochen
 kommen trotzdem zuerst, und die Beschreibung des Kalenders sagt, wie viel noch
 offen ist. Dass Google nach dem Codetausch nicht neu nach Zugriff fragt, folgt
 aus denselben Diensten, zeigt aber erst Tobis Konto. Fragt es doch, erlaubt Tobi
-es wie beim Einrichten; bliebe es unerlaubt, käme keine Sendung beim Skript an,
-die Karte sagte „nicht das Skript", Google schickte die Mail „Summary of
-failures" – und `einrichten` einmal ausführen hilft, wie die Karte schon sagt.
+es wie beim Einrichten – seit v247 im Schritt `einrichten`, der dazugehört;
+bliebe es unerlaubt, käme keine Sendung beim Skript an, die Karte sagte „nicht
+das Skript", und Google schickte die Mail „Summary of failures". Dass der
+stündliche Auslöser den neuen Code nimmt, stand hier bis v247 als sicher – es
+gilt nur für einen aus dem Editor (unten).
 Dass ein gefeuerter einmaliger Auslöser bei Google gelistet bleibt, bis ihn
 jemand löscht, sagen Erfahrungsberichte, nicht Googles Dokumentation – das
 Skript rechnet damit (oben, nur der gemerkte zählt), `weiter` löscht ihn
@@ -3449,6 +3491,341 @@ Bis zur Prüfung des Entwurfs ging sie dort beim Wegschalten gar nicht, und
 nichts holte sie nach bis zur nächsten Änderung. Und die Ferne bleibt eine
 Schätzung – nach sechs Wochen ohne Sendung verschiebt der Kalender auch sie
 nicht mehr.
+
+#### Nach jedem Code-Tausch: einrichten (v247)
+
+> „Es soll von selbst einfach das optimale passieren"
+
+Von selbst ging es am 28.10. nicht – und die App hatte gesagt, es gehe. Was in
+Tobis Google-Konto passiert war (abgelesen am Kalender „Workout"): Am 27.10.
+hatte er die App mit dem Skript der Fassung 1 verbunden, ohne je `einrichten`
+auszuführen. Den stündlichen Auslöser legte darum das Skript selbst an, aus
+`doPost` heraus (`ausloeserSichern_()`), also aus einer Ausführung der
+bereitgestellten Version. Am 28.10. um 12:04 stellte er Fassung 2 als „Neue
+Version" bereit; die App meldete sofort „Skript Fassung 2", 204 Änderungen
+offen. Der stündliche Lauf um 12:14 schrieb aber „(Fassung 1)" in die
+Beschreibung des Kalenders, mit dem Plan von 11:55, der bis 08.12. reicht – und
+kein einziger neuer Termin kam.
+
+Das passt zu dem, wie Google Auslöser behandelt: Einer, den Code aus einer
+bereitgestellten Version anlegt, hängt an dieser Version und läuft auch nach
+„Neue Version" mit ihr weiter; nur einer, der im Editor entsteht, nimmt immer
+den zuletzt gespeicherten Code. Dokumentiert ist das bei Google nicht in diesem
+Wortlaut – es ist die Erklärung, die zu Tobis 12:14-Lauf passt. In v246 ließ
+die Bitte um neuen Code `einrichten` mit Absicht weg, und README und Vorlage
+sagten, es brauche es nicht („der Auslöser ruft `stuendlich` beim Namen, und
+das ist jetzt der neue Code"). Das stimmt nur für einen Auslöser aus dem
+Editor. `einrichten` löscht alle Auslöser des Projekts (`ausloeserNeu_()`),
+legt einen neuen im Editor an und gleicht sofort ab. Für Tobi heißt das jetzt:
+einmal `einrichten` im Editor ausführen – den Code nicht noch einmal tauschen,
+das Skript bleibt Fassung 2.
+
+**Die Anleitung**, überall, wo die App zum Code-Tausch auffordert – die
+Startseite, die Bitte um neuen Code auf der Karte samt „Code kopieren", die
+Meldung danach, „Neue Version fehlt", „Kalender-Code erneuern", das falsche
+Kennwort, und in der Vorlage der Kopf und die letzte Zeile von `einrichten()`:
+Code ersetzen, speichern, oben `einrichten` wählen und *Ausführen* (Google
+fragt womöglich noch einmal nach Zugriff; es gleicht sofort ab und kann ein
+paar Minuten laufen), dann *Bereitstellen → Bereitstellungen verwalten →
+Bearbeiten* (Stift) *→ Version: Neue Version → Bereitstellen*. Die Bitte um
+neuen Code steht oben (*Das Update für Tobi*), mit `einrichten` als Schritt 4.
+Verbunden, ohne Bitte, sagt die Meldung nach „Code kopieren" dasselbe in einem
+Satz:
+
+> Code kopiert – mit demselben Kennwort wie bisher. In Apps Script im selben
+> Projekt den ganzen Code damit ersetzen, speichern, oben einrichten wählen und
+> Ausführen tippen (fragt Google noch einmal nach Zugriff: erlauben; es gleicht
+> sofort ab und kann ein paar Minuten laufen), dann Bereitstellen →
+> Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version →
+> Bereitstellen. Die App merkt den neuen Code von selbst.
+
+Erst `einrichten`, dann „Neue Version": `einrichten` braucht nur den
+gespeicherten Code, und so endet die Anleitung wie beim ersten Einrichten. Am
+Skript ist nichts geändert außer Kommentaren und der letzten Zeile, die
+`einrichten` ins Protokoll schreibt („Nach jedem neuen Code hier wieder erst
+„einrichten", dann „Neue Version"."); `FASSUNG` bleibt 2, die App bittet also
+niemanden um neuen Code.
+
+**Was ein Auslöser mit dem alten Code tut**, nachgestellt in
+`tests/test-kalender-gas.mjs` (Abschnitt 12 – die Attrappe kennt keine
+Versionen, der Lauf des Auslösers bekommt dort den Code von Fassung 1): Liegt
+das Jahr schon beim Skript, kann Fassung 1 die Sendung nicht lesen („passt
+nicht zum Vertrag (v)"), der Lauf wirft, und Google schickt die Mail „Summary
+of failures"; in `workout.abgleich` steht danach kein `offen`, und die Probe
+der Web-App (Fassung 2) sagt nichts darüber, wie viel noch offen ist. Liegt
+dort noch eine Sendung von Fassung 1, gleicht er wie bisher die vier Wochen
+an – so sah die Beschreibung um 12:14 aus. Was bei Tobi genau im Speicher lag
+und ob dazwischen ein `weiter` lief, sieht die App nicht; neue Termine kamen
+keine. In beiden Fällen richtet `einrichten` es: ein neuer Auslöser, sofort
+abgeglichen (in der Attrappe 98 statt 186 offen danach), die nächste Stunde
+mit Fassung 2.
+
+**Woran die App es merkt.** An der Fassung nicht – die meldet die Web-App, und
+die stimmt. Aber `offen` sinkt nicht. Jede Auskunft des Skripts der Fassung 2
+über den Abgleich kommt an `kalStockenMerken()` vorbei (`js/kalender-sync.js`):
+die Antwort auf eine eigene Sendung, eine vom Service Worker nachgeschickte und
+jede Probe. Gemerkt wird ein Bezug – so viel war offen, seit wann, und wie
+viele Proben seitdem nichts anderes gesagt haben. Ein anderer Stand als der
+Bezug setzt ihn neu: weniger heißt, das Skript trägt nach; mehr heißt neue
+Arbeit (eine Sendung, nach der das ganze Jahr einen Tag weiterrückt, oder die
+eines anderen Geräts), und bis `weiter` damit anfängt, vergehen ein paar
+Minuten. Eine Probe mit demselben Stand oder ganz ohne `offen` zählt – ohne
+`offen` antwortet Fassung 2, wenn den letzten Abgleich ein Lauf des alten
+Codes schrieb, aber auch, wenn ein eigener Lauf vor dem Ende scheiterte
+(unten, *Was die Prüfung von v247 fand*). Haben über mindestens 75 Minuten
+mindestens zwei Proben nichts anderes gesagt, und ist noch etwas offen, steht
+auf der Karte, in der Farbe für „da ist etwas zu tun":
+
+> Das Skript trägt nichts nach – wahrscheinlich läuft der stündliche Auslöser
+> noch mit dem alten Code. In Apps Script einmal „einrichten" ausführen.
+
+Darüber verspricht der Stand nichts mehr („in den nächsten Minuten"), sondern
+sagt, seit wann nichts weniger wird: „Im Kalender: Termine bis 05.11.2026.
+Bis 08.10.2027 fehlen noch 204 Änderungen, seit 80 Min. nicht weniger." 75
+Minuten, weil dazwischen ein stündlicher Lauf gelegen haben muss – ein
+`weiter` kommt sonst nach Minuten, und ein kleiner Rest wartet höchstens eine
+Stunde. Sobald eine Auskunft weniger sagt, ist der Satz weg. Nicht, wenn die
+jüngste Auskunft „morgen" sagt: Ist das Tageskontingent aufgebraucht, sinkt
+bis morgen nichts, mit keinem Code. Kein Alarm auf dem Dashboard – die
+nächsten vier Wochen stimmen ja, es fehlt das Jahr dahinter. Ins
+Diagnoseprotokoll kommt es einmal (`was=stockt offen=204 minuten=80
+proben=8`), in seinen Kopf „· 204 offen, trägt nichts nach". Steht noch kein
+Bezug da – das erste Mal nach dem Update auf v247 –, gilt der Stand, den die App
+schon kennt: die Antwort von 12:04, solange seitdem keine Sendung ankam. Kommt
+vorher eine an, die einen anderen Stand sagt – am nächsten Tag etwa die beim
+Start, deren `doPost` in seinen 25 Sekunden ein paar Termine schafft –,
+beginnt der Bezug dort neu, und der Satz kommt frühestens 75 Minuten und zwei
+Proben danach (nachgestellt bei der Prüfung von v247: Startsendung 196 statt
+204 offen, der Satz nach 80 Minuten). Für Tobi heißt das: `einrichten` jetzt
+ausführen, nicht erst, wenn die Karte es sagt.
+
+Damit die App das bemerkt, während Tobi auf der Karte wartet, fragt die Karte
+seit v247 von selbst nach, solange sie aufgeschlagen ist und noch etwas offen
+ist: drei Minuten nach der letzten Auskunft, höchstens alle zwei Minuten. In
+v246 tat sie das nicht, nachgesehen: Sie fragte nur beim Zeichnen der Karte
+und beim Zurückkommen, von selbst nur in der halben Stunde nach „Code
+kopieren" – wer auf der Karte wartete, bekam eine einzige Probe. Auf den
+anderen Seiten fragt sie weiterhin nicht von selbst: Ein Training dauert eine
+Stunde, und jede Probe ist ein Aufruf bei Google. Gezählt wird dann, was beim
+Öffnen, beim Zurückkommen und auf der Karte ohnehin gefragt wird.
+
+**Die Nachlese aus den Prüfungen von v246**, alles nur in der App:
+
+* **„Ohne Netz trainiert"** stand vor jeder Sendung, die der Service Worker
+  nachgeschickt hatte – auch vor der, die nur über 64 KiB groß war und beim
+  Wegschalten mit Netz über ihn ging (bei Tobis Jahr mit rund 75 KiB häufig) –,
+  und blieb, weil der Vermerk nie verfiel; dazu „vor 1 Min.." mit zwei
+  Punkten. Jetzt reist der Grund mit (App → Ausgang → `sw.js` → Vermerk):
+  `netz`, `wegschalten` (keepalive scheiterte – ohne Netz oder an der 64-KiB-
+  Grenze, die keepalive mit der Sicherung teilt; das sagt der Browser nicht),
+  `fehler`, `zeit`, `gross`. „Ohne Netz trainiert: Im Hintergrund nachgeschickt
+  vor 2 Min." nur bei `netz`, sonst „Im Hintergrund nachgeschickt vor 3 Min.";
+  ein Vermerk eines Service Workers von vor v247 ohne Grund ebenso ohne. Der
+  Vermerk verfällt, sobald eine neuere eigene Sendung angekommen ist, und gilt
+  nur für die Verbindung, an die er ging.
+* **„Google bremst gerade – der Rest folgt mit dem nächsten stündlichen
+  Abgleich."** blieb unter „Das Skript sagt:" stehen, auch neben einer Probe,
+  die längst einen neueren Stand sagte – wie bis zur Nachbesserung von v246 der
+  Hinweis zum Tageskontingent. Ein eigenes Feld hat die Antwort dafür nicht;
+  die App erkennt den Satz am Wortlaut (`KALENDER_SPAETER`, in
+  `tests/test-kalender-sync.mjs` mit der Vorlage und mit Fassung 1 verglichen,
+  das Tageskontingent ebenso). Beide gelten nur, bis danach eine Auskunft kam:
+  eine Probe oder eine vom Service Worker nachgeschickte Sendung. Was Tobi tun
+  soll – `einrichten`, eine URL, „Zugriff: Jeder" –, bleibt stehen.
+* **Reiter und offene Einheit.** `go()` schrieb den Reiter mit
+  `setSetting('tab')` in den Zustand (damit die App nach dem Neuladen dort
+  wieder aufgeht), `render()` ebenso, welche Einheit in der Fokusansicht offen
+  ist – beides meldete sich ohne `was` beim Store, und jeder Wechsel rechnete
+  die Vorschau samt Jahr im Worker neu. Geschickt wurde nie etwas (gleicher
+  Fingerabdruck), aber am Handy kostet jede Rechnung an Tobis Stand geschätzt
+  eine knappe Sekunde, mit vielen Terminen viele. Jetzt melden sich beide als
+  `ansicht`, und `kalenderGeaendert()` überspringt das wie die Pause. Die
+  Sicherung hört weiter mit und zählt beides ohnehin nicht als Änderung.
+  Gemessen in `tests/test-kalender-sync.mjs` (17 e): sechs Wechsel des Reiters
+  und drei Übungen weiter in der Einheit, 0 und 0 Rechnungen im Worker; gegen
+  v246 5 und 3 (zwei der sechs Wechsel lagen keine zwei Sekunden auseinander
+  und wurden eine Rechnung).
+* **„+Wdh."** (`store.addBwPlus()`) meldete sich nicht beim Store: Die
+  automatische Sicherung erfuhr vom Aufschlag erst mit der nächsten Meldung –
+  wer danach nichts mehr antippte, hatte ihn nur auf diesem Gerät. Jetzt meldet
+  es sich. Die Vorschau rechnet dabei mit, mit Absicht: Die Termine nennen den
+  Aufschlag zwar nicht, aber `bwPlus` zählt zur Einstufung
+  (`leistungsStand()`), und die prüft jeder Tag der Vorschau
+  (`pruefeAufstieg()` in den Startschritten) – hebt ein Aufschlag den Median
+  über die nächste Stufe, steht ab morgen ein Satz mehr in den Terminen. Kommt
+  dasselbe heraus, geht nichts hinaus. Geprüft in
+  `tests/test-sicherung-auto.mjs`.
+
+**Zwei Geräte.** Tobi hat die App auch im Browser am Rechner – eigener
+Speicher, eigener Trainingsstand: Dort fehlte Workout 13 vom Montag, trainiert
+hatte er am Handy. Er hatte sie dort mit einem zweiten Skript-Projekt in einem
+anderen Google-Konto verbunden, und dessen Kalender zeigte einen Plan, der eine
+Einheit hinterherhinkte (So/Mo/Mi/Fr statt Mo/Mi/Fr/Sa). Nichts in der App
+sagte, warum. Jetzt steht auf der verbundenen Karte, welchen Stand dieses
+Gerät schickt, aus dem echten Zustand – das jüngste Lebenszeichen einer
+Einheit, so wie `stand.zuletzt` in der Sendung, ohne Lebenszeichen der jüngste
+Trainingstag:
+
+> Dieses Gerät schickt: zuletzt trainiert Workout 13 am Mo 26.10. Verbunden
+> sein soll nur das Gerät, auf dem du trainierst – jedes Gerät hat seinen
+> eigenen Stand, und ein zweites schickt einen Plan, der hinterherhinkt.
+
+Ohne Training ehrlich „Dieses Gerät schickt: noch nie trainiert." Hängen zwei
+Geräte am selben Skript, sagt die Antwort sogar mehr: `aelter` heißt, beim
+Skript gilt der Plan eines anderen Geräts, das zuletzt trainiert hat, und die
+Antwort trägt dessen Stand (`stand`). Das stand bisher nur als „Letzter
+Versuch …: Ein anderes Gerät hat zuletzt trainiert …" im Stand der Karte. Jetzt
+als eigener Hinweis in Warnfarbe, mit dem Tag, an dem dort zuletzt trainiert
+wurde:
+
+> Ein anderes Gerät mit neuerem Training ist mit diesem Kalender verbunden –
+> dieses hier nicht mehr verbinden („Trennen" unten; die Termine des anderen
+> bleiben stehen). Im Kalender gilt dessen Plan; trainierst du doch hier
+> weiter, gilt mit dem ersten Satz wieder dieses. Dort zuletzt trainiert am
+> Mo 26.10.
+
+Nicht auf dem Dashboard: Der Kalender stimmt ja, für das Gerät, mit dem
+trainiert wird. Und „Trennen" schickt in diesem Fall kein „aus" – das war die
+Lücke, die der Rat erst aufgemacht hätte: Das Skript nimmt ein „aus" von jedem
+Gerät mit dem Kennwort an und räumt dann die Termine ab heute weg, also die des
+Geräts, mit dem trainiert wird, bis es wieder etwas schickt. Getrennt wird nur
+dieses Gerät („Getrennt – dieses Gerät schickt nichts mehr. Den Kalender pflegt
+weiter das andere Gerät."); dasselbe bei *Alle Daten löschen* und beim Wechsel
+zu einer anderen URL. Gemerkt wird das für sich, nicht am letzten Versuch
+(unten, *Was die Prüfung von v247 fand*). Ob das andere Gerät inzwischen selbst
+getrennt ist, weiß die App nicht – dann bleibt eben dessen letzter Plan beim
+Skript, bis Tobi dort trennt.
+
+**Was die Prüfung von v247 fand**, nachgestellt und behoben, alles in der App:
+
+* **`aelter` hing am letzten Versuch.** Jeder Versuch danach überschrieb ihn,
+  auch einer, der nicht ankam: Sagte das Skript „beschäftigt" – ein Lauf
+  `weiter` des anderen Geräts hält die Sperre bis zu viereinhalb Minuten – oder
+  fehlte das Netz, war der Hinweis weg, und „Trennen", *Alle Daten löschen* und
+  eine neue URL schickten das „aus" doch, das die Termine des Geräts wegräumt,
+  mit dem trainiert wird. Jetzt steht es für sich im Speicher des Geräts
+  (`fremd` in `workout.kalender.v1`, mit dem Stand, der beim Skript gilt),
+  gesetzt von jeder Antwort `aelter` – auch der auf eine Sendung, die der
+  Service Worker nachgeschickt hat; sein Vermerk trägt dafür jetzt den Stand
+  mit (`sw.js`) –, und weg erst, wenn eine eigene Sendung ankommt. Der
+  gescheiterte Versuch steht darüber im Stand der Karte („Letzter Versuch
+  gerade eben: Das Skript ist gerade beschäftigt …"), der Hinweis bleibt. Im
+  Kopf des Diagnoseprotokolls steht dann „· beim Skript gilt ein anderes
+  Gerät".
+* **Die Sätze dazu.** Der Dialog von *Alle Daten löschen* kündigte auch dann
+  an: „Die Termine ab heute verschwinden dort." Jetzt: „Dieses Gerät wird vom
+  Kalender „Workout" getrennt; die Termine des anderen Geräts bleiben dort
+  stehen." Unter „Neues Skript-Projekt?" stand „Das alte bekommt dann ein
+  „Trennen"." – jetzt „Das alte behält dann den Plan des anderen Geräts – es
+  bekommt kein „Trennen"."
+* **Eine alte Auskunft versprach weiter.** „In den nächsten Minuten" stand da,
+  bis die zweite Probe den Stillstand zeigte: nach fünf Stunden weg beim
+  Zurückkommen anderthalb Minuten lang, ohne Wegschalten bis zur 75. Minute;
+  ein „morgen" von gestern blieb „morgen". Jetzt hält jedes Versprechen nur so
+  lange, wie es gelten kann (`KALENDER_VERSPRECHEN` in `js/app.js`): „in den
+  nächsten Minuten" eine Viertelstunde – ein `weiter` kommt drei Minuten nach
+  dem vorigen Lauf, und auf der Karte fragt die App alle paar Minuten nach –,
+  „mit dem nächsten stündlichen Abgleich" 75 Minuten, „morgen" am Tag der
+  Auskunft. Danach sagt der Stand, was die Auskunft wusste und wann sie kam:
+  „Den Rest bis 08.10.2027 trägt das Skript nach – noch 204 Änderungen (Stand
+  vor 5 Std.)."
+* **„Zuletzt gesichert: vor 3 Min.."** unter Mehr → Daten – dieselbe Ursache wie
+  die zwei Punkte unter Mehr → Kalender, nur älter: `vorWann()` endet mit dem
+  Punkt der Abkürzung oder des Datums. Beide Stellen nehmen jetzt `punkt()`.
+* **Was sich ohne neuen Code im Skript nicht unterscheiden lässt.** Ohne
+  `offen` antwortet Fassung 2 auch, wenn ihr eigener letzter Lauf vor dem Ende
+  scheiterte – ein Fehler vor dem Abarbeiten, oder ein Tageskontingent, das
+  auch die Beschreibung des Kalenders trifft. Dann sagt die Probe auch kein
+  „morgen" (`probeAntwort_()` gibt es nur mit `offen` weiter, obwohl
+  `workout.abgleich` es weiß), und für die App sieht es aus wie der alte
+  Auslöser: Die Karte rät bis zum nächsten Tag zu `einrichten`. Schaden kann
+  das nicht – `einrichten` legt den Auslöser neu an, oder es scheitert an
+  derselben Grenze, bevor es einen Auslöser anfasst (`kalenderSichern_()`
+  schreibt die Beschreibung vor `ausloeserNeu_()`). Nachgestellt in
+  `tests/test-kalender-gas.mjs`, Abschnitt 12; vorgemerkt für die nächste
+  Fassung des Skripts: `morgen` und `fehler` auch ohne `offen` weitergeben.
+  Jetzt nicht – Tobi soll den Code nicht noch einmal tauschen. Dass der Bezug
+  mit der ersten Sendung neu beginnt, die einen anderen Stand sagt, steht oben
+  bei *Woran die App es merkt*.
+
+**Geprüft.** `tests/test-kalender-sync.mjs`, Abschnitt 17 (das Skript wie
+immer per `page.route` gespielt): die Anleitung an jeder Stelle mit
+`einrichten` vor „Neue Version", nirgends mehr „nicht nötig", auch nicht in der
+Vorlage, die Fassung 2 bleibt; die Erkennung mit einer Attrappe, die nach der
+Sendung (204 offen, `weiter` in Minuten) in keiner Probe mehr `offen` sagt – die
+Uhr in Schritten von zehn Minuten, die Karte aufgeschlagen: nach 40 Minuten und
+vier Proben, von selbst gefragt, noch kein Satz, nach 80 Minuten und acht der
+Satz in Akzentfarbe, der Stand ohne Versprechen, einmal im Diagnoseprotokoll,
+nichts auf dem Dashboard, auf dem Dashboard 30 Minuten lang keine Probe, und
+sobald eine Probe 150 sagt, ist der Satz weg; das Tageskontingent zwei Stunden
+und vier Proben lang ohne Satz; „Ohne Netz trainiert" nur mit dem Grund `netz`,
+ohne „Min..", der Vermerk weg nach der nächsten eigenen Sendung; „Google bremst"
+weg neben einer Probe danach, `einrichten` nicht (auch nicht vom Dashboard);
+Reiter und Einheit ohne Rechnung; „Dieses Gerät schickt" aus dem echten
+Zustand (nach einem Satz in Workout 9: „zuletzt trainiert Workout 9 am Do
+08.10.") und ehrlich ohne Training; `aelter` deutlich auf der Karte, nicht auf
+dem Dashboard, und Trennen danach ohne „aus" an das Skript. Angepasst, was
+v247 bewusst anders sagt (Abschnitte 2, 4, 5, 13, 15 c, 16 e), und dazu: der
+Grund durch den echten Service Worker (9: ohne Netz „Ohne Netz trainiert", 14:
+über 64 KiB ohne) und die zwei Hinweise wörtlich wie in der Vorlage und in
+Fassung 1 (12). `tests/test-kalender-gas.mjs`, Abschnitt 12: der Auslöser mit
+Fassung 1 nach „Neue Version" (oben). `tests/test-sicherung-auto.mjs`: „+Wdh."
+geht von selbst in die Sicherung. Gegen v246 (0f27b54, mit deren Vorlage)
+gelaufen: die App an 28 Stellen rot, alle bei dem, was v247 ändert. Grün
+blieben dort nur Prüfungen auf ein Fehlen, die v246 ohne Erkennung ohnehin
+besteht – nichts auf dem Dashboard, keine Probe auf den anderen Seiten, kein
+Satz beim Tageskontingent und keiner mehr, nachdem `offen` sank. Die Sicherung
+an einer Stelle rot, das Skript an einer, der neuen letzten Zeile von
+`einrichten()`; alles andere in Abschnitt 12 läuft mit dem Skript von v246
+genauso, mit denselben Zahlen – am Skript ist nur Text geändert.
+
+**Geprüft, nach der Prüfung von v247.** `tests/test-kalender-sync.mjs`,
+Abschnitt 18: `aelter`, dann ein Versuch, auf den das Skript „beschäftigt"
+sagt, dann „Trennen" – der Hinweis bleibt, mit dem Stand des anderen Geräts,
+der Versuch steht darüber, und kein „aus" geht hinaus; `aelter`, dann kein
+Netz, dann *Alle Daten löschen* – der Dialog sagt, dass die Termine des anderen
+Geräts stehen bleiben, und auch mit Netz geht kein „aus" nach; dasselbe mit
+„Trennen" ohne Netz – es wartet keins; eine neue URL nach `aelter` und
+„beschäftigt" – an die alte geht kein „aus", und der Satz unter „Neues
+Skript-Projekt?" sagt es vorher; trainiert Tobi doch hier, ist der Hinweis weg,
+und „Trennen" schickt wieder ein „aus"; fünf Stunden weg, die Probe beim
+Zurückkommen ohne `offen` – vor der zweiten Probe kein „in den nächsten
+Minuten", sondern „(Stand vor 5 Std.)"; ein „morgen" von gestern ohne neuere
+Auskunft – kein Versprechen. Abschnitt 9, mit dem echten Service Worker: Sagt
+das Skript ihm `aelter`, trägt sein Vermerk den Stand, die Karte sagt es, obwohl
+der letzte eigene Versuch „beschäftigt" war, und „Trennen" schickt kein „aus".
+Dafür bekommt dort auch der erste Vermerk die Zeit der Seite, wie in 16 d: Die
+Uhr des Service Workers geht echt, die der Seite steht am 08.10. – ohne das lag
+das, was er nachgeschickt hatte, Wochen nach allem, was die Seite danach
+vermerkte. 17 b sagt nach 40 Minuten „(Stand vor 40 Min.)" statt „in den
+nächsten Minuten". `tests/test-kalender-gas.mjs`, Abschnitt 12: was die App an
+der Probe nicht unterscheiden kann (oben). `tests/test-sicherung-auto.mjs`:
+„Zuletzt gesichert: vor 5 Min." mit einem Punkt. Gegen den Stand vor dieser
+Nachbesserung (c072dcf) gelaufen: die App an 13 Stellen rot – Abschnitt 18
+überall außer dort, wo Tobi hier trainiert (das galt schon vorher), 9 an zwei
+Stellen, 17 b an einer –, die Sicherung an einer („vor 5 Min.."). Die neue
+Prüfung im Skript-Test ist auch dort grün: Sie hält fest, wie Fassung 2
+antwortet, und die ist unverändert. Danach einzeln gelaufen:
+`test-kalender-sync` 269, `test-kalender-gas` 195, `test-sicherung-auto` 77,
+`test-kalender-vorschau` 164, `test-tagesabschluss` 218, `test-diagnose` 151,
+`test-bodyweight` 45, `test-single` 18, `test-tabs` 11, `test-update` 5
+Prüfungen, alle grün.
+
+**Ehrlich dazugesagt.** Dass ein Auslöser an der Version hängt, aus der er
+entstand, ist aus Tobis 12:14-Lauf geschlossen, nicht aus Googles
+Dokumentation gelesen; dass `einrichten` es richtet, folgt daraus und aus
+`ausloeserNeu_()`, gesehen ist es erst, wenn Tobi es ausgeführt hat und `offen`
+sinkt (die Karte zeigt es dann). Ob Google bei `einrichten` noch einmal nach
+Zugriff fragt, ist ungeprüft – die Anleitung sagt deshalb „womöglich". Die
+Erkennung kann sich irren: Bremst Google länger als eine Stunde, hängen die
+Läufe aus einem anderen Grund, oder scheiterte ein Lauf von Fassung 2 selbst
+(oben: ein Tageskontingent, das auch die Beschreibung trifft), steht derselbe
+Satz da – `einrichten` schadet dann nicht und schreibt ins
+Ausführungsprotokoll, was los ist. Gefragt wird von selbst nur auf der
+aufgeschlagenen Karte; liegt die App die ganze Zeit auf einer anderen Seite,
+kommt der Satz erst mit den Proben beim Öffnen und Zurückkommen. Und die Zeile
+„Dieses Gerät schickt" sagt, was dieses Gerät weiß – welches Gerät Tobi für das
+richtige hält, weiß nur er.
 
 ## Übungsvorrat
 

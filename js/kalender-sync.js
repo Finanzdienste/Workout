@@ -34,6 +34,23 @@
  * sehen ist, alle zwei Minuten) – Tobi kommt aus Apps Script zurück, und die
  * App sieht von selbst, dass es geklappt hat. Keine Wahl, kein Knopf.
  *
+ * **Ob das Skript nachträgt.** Zum Code-Tausch gehört seit v247 `einrichten`
+ * (KALENDER_JAHR). Tobi hatte Fassung 1 am 27.10. verbunden, ohne je
+ * `einrichten` auszuführen – den stündlichen Auslöser legte darum das Skript
+ * selbst an, aus `doPost` der bereitgestellten Version (ausloeserSichern_() in
+ * kalender/workout-kalender.gs). So ein Auslöser hängt, zu Googles Verhalten
+ * passend, an der Version, aus der er entstand: Nach „Neue Version" am 28.10.
+ * meldete die Web-App Fassung 2 und 204 Änderungen offen, der stündliche Lauf
+ * um 12:14 schrieb aber „(Fassung 1)" in die Beschreibung des Kalenders, und
+ * kein neuer Termin kam. An der Fassung sieht die App das nicht – die stimmt
+ * ja –, sondern daran, dass `offen` nicht sinkt: Sagt über mindestens 75
+ * Minuten und mindestens zwei Proben keine Auskunft einen kleineren Stand
+ * (kalStockenMerken()), sagt die Karte, dass das Skript nichts nachträgt und
+ * `einrichten` hilft (KALENDER_STOCKT) – ohne Zeile auf dem Dashboard. Damit
+ * sie es auch merkt, während Tobi auf der Karte wartet, fragt sie dort von
+ * selbst nach, solange etwas offen ist (kalNachfrageSpaeter()). Bis v247
+ * fragte sie nach dem Stand nur beim Zeichnen der Karte und beim Zurückkommen.
+ *
  * **Wann.** Nur mit Verbindung (state.kalender mit url), und nur, wenn sich die
  * Vorschau seit der zuletzt angekommenen geändert hat. In einem Training ist
  * das dreimal so: beim ersten Haken, beim zweiten (ab zwei Sätzen schließt der
@@ -136,6 +153,13 @@ const KAL_FRAGEN_MIN = 10 * 1000;
 // Erst so lange nach der letzten Auskunft lohnt es, nach dem Stand zu fragen:
 // Ein Lauf „weiter" kommt frühestens drei Minuten nach dem vorigen.
 const KAL_STAND_FRAGEN = 3 * 60 * 1000;
+// Sinkt `offen` so lange nicht, obwohl so viele Proben danach gefragt haben,
+// trägt das Skript nichts nach (kalStockenMerken()). 75 Minuten, weil ein
+// stündlicher Lauf dazwischen gelegen haben muss – ein „weiter" kommt sonst
+// nach Minuten, und ein kleiner Rest wartet höchstens eine Stunde; zwei
+// Proben, damit nicht eine einzelne Auskunft allein etwas behauptet.
+const KAL_STOCKT_NACH = 75 * 60 * 1000;
+const KAL_STOCKT_PROBEN = 2;
 
 const KAL_VORBEREITEN = 2000;
 const KAL_ERSTE = 5000;
@@ -165,6 +189,11 @@ const KAL_NOCHMAL = new Set(['netz', 'fehler', 'zeit']);
 // mit der nächsten Änderung, beim Start, bei „online" oder beim Zurückkommen.
 // Ist die Seite zu, übernimmt der Service Worker (der Ausgang unten).
 const KAL_WIEDER = [2 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
+// Warum eine Sendung im Ausgang lag (kalAusgangLegen()): kein Netz, beim
+// Wegschalten mit keepalive gescheitert (ohne Netz oder an der 64-KiB-Grenze,
+// die keepalive mit der Sicherung teilt – das sagt der Browser nicht), das
+// Skript beschäftigt, keine Antwort, über 64 KiB beim Wegschalten.
+const KAL_GRUENDE = new Set(['netz', 'wegschalten', 'fehler', 'zeit', 'gross']);
 
 /* ------------------------------------------------------------------ *
  * Was dieses Gerät weiß – in workout.kalender.v1, nicht im Zustand
@@ -184,6 +213,11 @@ const KAL_WIEDER = [2 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
  *               hinweis, tag, geaendert, bytes, status, ziel, wieder,
  *               erschoepft } – wieder: die App versucht es gleich noch
  *               einmal; erschoepft: auch die Wiederholungen scheiterten
+ *   fremd       beim Skript gilt der Plan eines anderen Geräts: { ziel, zeit,
+ *               stand } aus der letzten Antwort „aelter" – stand: der
+ *               Trainingsstand, der dort gilt ({ einheiten, saetze,
+ *               zuletzt }). Weg, sobald eine eigene Sendung ankam
+ *               (kalFremd()) – nicht mit dem nächsten Versuch, der scheitert
  *   angekommen  der letzte, der ankam – auch einer, den der Service Worker
  *               nachgeschickt hat: { zeit, version, tag, ziel, vertrag, … }
  *               mit dem, was die Antwort über den Abgleich sagt (kalAbgleich())
@@ -193,7 +227,15 @@ const KAL_WIEDER = [2 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
  *   aus         Abschalten, das noch nicht beim Skript ist: [{ url, token,
  *               geraet, seq, gesendet }] – bis es ankommt, beim Start und bei
  *               „online" wieder versucht
- *   nach        was der Service Worker im Hintergrund nachgeschickt hat
+ *   nach        was der Service Worker im Hintergrund nachgeschickt hat:
+ *               { zeit, seq, code, grund, ziel } – grund: warum es im
+ *               Ausgang lag (KAL_GRUENDE, kalAusgangLegen()). Verfällt,
+ *               sobald eine neuere eigene Sendung ankam.
+ *   stockt      { ziel, offen, seit, proben, zuletzt, gemeldet }: seit wann
+ *               keine Auskunft des Skripts (Fassung 2) einen anderen Stand
+ *               `offen` gesagt hat, und wie viele Proben seitdem – daran
+ *               erkennt die Karte, dass das Skript nichts nachträgt
+ *               (kalStockenMerken(), kalStockt())
  *   fassung     die Fassung des Skripts aus seiner letzten lesbaren Antwort:
  *               { ziel, version, zeit } – daran hängt, ob v 1 oder v 2
  *               hinausgeht; zeit: wann diese Antwort kam
@@ -467,10 +509,12 @@ async function kalSchicken(url, text, { keepalive = false, abbruch = KAL_ABBRUCH
 }
 
 /**
- * Was zurückkam → { ergebnis, ok, version, hinweis, tag, geaendert, status }.
- * `ergebnis` ist ein Code des Skripts (KAL_CODES) oder netz, zeit,
+ * Was zurückkam → { ergebnis, ok, version, hinweis, tag, geaendert, status,
+ * stand }. `ergebnis` ist ein Code des Skripts (KAL_CODES) oder netz, zeit,
  * undurchsichtig, http. Der Hinweis ist ein Satz des Skripts (ohne Kennwort
  * und ohne IDs, bereinigt_() dort) – er wird angezeigt, nicht protokolliert.
+ * `stand` ist der Trainingsstand, der beim Skript gilt – bei „aelter" der
+ * eines anderen Geräts (kalStandLesen()).
  */
 async function kalLesen(erg) {
   if (!erg.res) return { ergebnis: erg.art, ok: false };
@@ -488,7 +532,19 @@ async function kalLesen(erg) {
     hinweis: typeof roh.hinweis === 'string' ? roh.hinweis.slice(0, 300) : '',
     ...kalAbgleich(roh),
     status: res.status,
+    stand: kalStandLesen(roh.stand),
   };
+}
+
+/**
+ * Ein Trainingsstand aus einer Antwort ({ einheiten, saetze, zuletzt }, wie
+ * `stand` im Vertrag, js/kalender-vorschau.js) – oder null, wenn er nicht so
+ * aussieht. Nur Zahlen: Er kommt aus fremder Hand.
+ */
+function kalStandLesen(st) {
+  const ganz = (x) => Number.isInteger(x) && x >= 0 && x <= Number.MAX_SAFE_INTEGER;
+  return st && typeof st === 'object' && ganz(st.einheiten) && ganz(st.saetze) && ganz(st.zuletzt)
+    ? { einheiten: st.einheiten, saetze: st.saetze, zuletzt: st.zuletzt } : null;
 }
 
 /**
@@ -534,10 +590,24 @@ const kalNeuerCode = (fassung) => Number.isInteger(fassung) && !!kalVorlage && f
 
 /**
  * Die Bitte um neuen Code – für die Karte unter Mehr → Kalender, wörtlich so
- * auch im README. „einrichten" gehört nicht hinein: Kalender und stündlicher
- * Auslöser bestehen schon, der Auslöser ruft „stuendlich" beim Namen, und
- * Fassung 2 braucht keine neuen Rechte. Fehlt doch etwas, sagt es das Skript
- * selbst (kalenderHandeln()).
+ * auch im README. Seit v247 mit `einrichten` als Schritt 4, nach dem
+ * Speichern und vor „Neue Version":
+ *
+ *     Code ersetzen, speichern, einrichten ausführen, dann Neue Version.
+ *
+ * Bis dahin stand hier, „einrichten" brauche es nicht – Kalender und
+ * stündlicher Auslöser bestünden schon, und der Auslöser rufe „stuendlich"
+ * beim Namen, also den neuen Code. Das stimmt nur für einen Auslöser, der im
+ * Editor entstand. Tobis hatte das Skript selbst angelegt (ausloeserSichern_()
+ * aus doPost, weil er bei Fassung 1 nie `einrichten` ausgeführt hatte), und so
+ * einer hängt, zu Googles Verhalten passend, an der Version der
+ * Bereitstellung, aus der er entstand: Am 28.10. lief er nach „Neue Version"
+ * weiter mit Fassung 1 (12:14), und das Jahr kam nicht. `einrichten` löscht
+ * alle Auslöser des Projekts und legt einen aus dem Editor an – der nimmt
+ * immer den zuletzt gespeicherten Code –, gleicht sofort ab und kann dabei
+ * ein paar Minuten laufen (bis viereinhalb); Google fragt womöglich noch
+ * einmal nach Zugriff. Vor „Neue Version", weil es nur gespeicherten Code
+ * braucht und der Rest der Anleitung dann wie beim Einrichten endet.
  */
 export const KALENDER_JAHR = {
   titel: 'Ein Jahr im Voraus',
@@ -547,6 +617,8 @@ export const KALENDER_JAHR = {
     '„Code kopieren" tippen (gleich hier unten).',
     'In Chrome script.google.com öffnen, im Drei-Punkte-Menü Desktopwebsite anhaken und dein Projekt öffnen – dasselbe wie beim Einrichten.',
     'Den ganzen Code dort durch den kopierten ersetzen und speichern.',
+    'Oben die Funktion einrichten wählen und Ausführen tippen. Fragt Google noch einmal nach Zugriff: erlauben wie beim '
+      + 'Einrichten. Es gleicht sofort ab und kann ein paar Minuten laufen – warten, bis unten „Ausführung abgeschlossen" steht.',
     'Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.',
   ],
   danach: 'Fertig. Die App merkt den neuen Code von selbst und schickt dann das ganze Jahr. Bis dahin läuft alles weiter wie bisher.',
@@ -554,12 +626,37 @@ export const KALENDER_JAHR = {
   // Fassung: Am leichtesten vergisst man „Neue Version" (oder das Speichern
   // davor) – ohne läuft die Web-App mit dem alten Code. Gezählt wird die Zeit
   // der Antwort, nicht die des Anzeigens: Sonst blitzte der Satz beim
-  // Zurückkommen auf, bevor die Nachfrage die neue Fassung meldet.
+  // Zurückkommen auf, bevor die Nachfrage die neue Fassung meldet. Ob
+  // „einrichten" lief, sieht die App an der Fassung nicht – darum steht es als
+  // Erinnerung dabei; ob der Auslöser nachträgt, zeigt sich erst danach
+  // (KALENDER_STOCKT).
   fehltNach: 3 * 60 * 1000,
   fehlt: 'Der Code ist kopiert, aber das Skript meldet noch Fassung 1. Meist fehlt der letzte Schritt: Bereitstellen → '
     + 'Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen – oder das Speichern '
-    + 'davor. Ohne beides läuft die Web-App mit dem alten Code weiter.',
+    + 'davor. Ohne beides läuft die Web-App mit dem alten Code weiter. Und hast du einrichten (Schritt 4) noch nicht '
+    + 'ausgeführt: das auch – sonst bleibt der stündliche Auslöser womöglich beim alten Code.',
 };
+
+/**
+ * Das Skript trägt nichts nach (kalStockt()): für die Karte, in der Farbe für
+ * „da ist etwas zu tun", ohne Zeile auf dem Dashboard – die nächsten vier
+ * Wochen stimmen ja, nur das Jahr dahinter kommt nicht.
+ */
+export const KALENDER_STOCKT = 'Das Skript trägt nichts nach – wahrscheinlich läuft der stündliche Auslöser noch mit dem alten Code. '
+  + 'In Apps Script einmal „einrichten" ausführen.';
+
+/**
+ * Zwei Hinweise des Skripts, die nur den Augenblick ihrer Sendung beschreiben
+ * – wörtlich SPAETER und TAGESKONTINGENT in kalender/workout-kalender.gs
+ * (tests/test-kalender-sync.mjs vergleicht, auch mit Fassung 1). Neben einem
+ * neueren Stand zeigt die Karte sie nicht mehr (kalenderLage().hinweisAlt).
+ * „Google bremst" hat in der Antwort kein eigenes Feld, das Tageskontingent
+ * `morgen`; am Text erkannt werden beide – ein Feld dazu hieße neuer Code im
+ * Skript, und Tobi soll den Code nicht schon wieder tauschen.
+ */
+export const KALENDER_SPAETER = 'Google bremst gerade – der Rest folgt mit dem nächsten stündlichen Abgleich.';
+export const KALENDER_KONTINGENT = 'Google lässt heute keine weiteren Kalender-Änderungen zu (Tageskontingent aufgebraucht) – '
+  + 'morgen geht es von selbst weiter.';
 
 /** Ein Satz mit Punkt am Ende – ein Hinweis des Skripts kann ohne kommen. */
 const kalSatzEnde = (s) => (/[.!?…]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
@@ -575,8 +672,8 @@ export function kalenderSatz(a) {
   }
   if (kalZuAlt(a)) {
     return 'Kalender-Code erneuern: Der Code in Apps Script ist älter als die App. „Code kopieren", in Apps Script den '
-      + 'ganzen Code ersetzen, speichern, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → '
-      + 'Version: Neue Version → Bereitstellen.';
+      + 'ganzen Code ersetzen, speichern, oben „einrichten" ausführen, dann Bereitstellen → Bereitstellungen verwalten → '
+      + 'Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.';
   }
   switch (a.ergebnis) {
     case 'angekommen':
@@ -596,11 +693,22 @@ export function kalenderSatz(a) {
         + 'oder nicht „Ausführen als: Ich". (3) Die URL ist nicht die Web-App-URL (endet auf /exec).';
     case 'token':
       return 'Das Skript kennt dieses Kennwort nicht. „Code kopieren", in Apps Script den ganzen Code ersetzen, '
-        + 'speichern, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → '
-        + 'Bereitstellen.';
+        + 'speichern, oben „einrichten" ausführen, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → '
+        + 'Version: Neue Version → Bereitstellen.';
+    // Die Regel „Wer gilt" (sendungVergleichen() in js/kalender-vorschau.js):
+    // Beim Skript liegt die Vorschau eines anderen Geräts, das zuletzt
+    // trainiert hat, und diese hier nimmt es nicht. Seit v247 mit dem, was zu
+    // tun ist – zwei Geräte an einem Kalender sind ein Versehen: Tobi hatte
+    // die App auch im Browser am Rechner verbunden, dessen Stand eine
+    // Einheit hinterherhinkte (dort zwar mit einem zweiten Projekt, aber am
+    // selben hätte er genau so ausgesehen). Mit dem ersten Satz hier gilt
+    // wieder dieses Gerät – auch das gehört dazu, falls hier trainiert wird.
+    // „Trennen" schickt dann kein „aus" (kalFremd()): Die Termine des anderen
+    // Geräts bleiben stehen.
     case 'aelter':
-      return 'Ein anderes Gerät hat zuletzt trainiert – im Kalender gilt dessen Plan. Sobald du hier trainierst, '
-        + 'gilt wieder dieses.';
+      return 'Ein anderes Gerät mit neuerem Training ist mit diesem Kalender verbunden – dieses hier nicht mehr verbinden '
+        + '(„Trennen" unten; die Termine des anderen bleiben stehen). Im Kalender gilt dessen Plan; trainierst du doch '
+        + 'hier weiter, gilt mit dem ersten Satz wieder dieses.';
     case 'alt':
       return 'Schon angekommen – eine spätere Sendung dieses Geräts gilt.';
     case 'http':
@@ -672,9 +780,15 @@ const kalNachSchluessel = () => new URL('kalender-ausgang-nach', location.href).
  * Eine Sendung in den Ausgang. `hash` und `ziel` reisen mit und kommen im
  * Vermerk des Service Workers zurück (kalNachLesen()) – kam sie dort an, geht
  * dieselbe Vorschau nicht noch einmal hinaus. Ebenso `vertrag` und
- * `gekuerzt`: Die App vermerkt sie dann wie eine eigene, die ankam.
+ * `gekuerzt`: Die App vermerkt sie dann wie eine eigene, die ankam. Und
+ * `grund`, warum sie hier liegt (KAL_GRUENDE): 'netz' (kein Netz),
+ * 'wegschalten' (keepalive scheiterte), 'fehler' (das Skript beschäftigt),
+ * 'zeit' (keine Antwort) oder 'gross' (über 64 KiB beim Wegschalten,
+ * kalGrossWeg()). Bis v247 kam er nicht mit, und die Karte sagte zu jeder
+ * nachgeschickten Sendung „Ohne Netz trainiert" – bei Tobis Jahr mit rund
+ * 75 KiB ging beim Wegschalten häufig eine über den Ausgang, mit Netz.
  */
-async function kalAusgangLegen(v) {
+async function kalAusgangLegen(v, grund) {
   try {
     if (!window.caches || !navigator.serviceWorker) return false;
     const reg = await navigator.serviceWorker.getRegistration();
@@ -682,7 +796,7 @@ async function kalAusgangLegen(v) {
     const c = await caches.open(KALENDER_AUSGANG);
     await c.put(kalAusgangSchluessel(), new Response(JSON.stringify({
       url: v.url, text: v.text, seq: v.seq, hash: v.hash, ziel: v.ziel, vertrag: v.vertrag ?? null, gekuerzt: v.gekuerzt ?? null,
-      gelegt: Date.now(),
+      grund: KAL_GRUENDE.has(grund) ? grund : null, gelegt: Date.now(),
     }), { headers: { 'content-type': 'application/json' } }));
     await reg.sync.register(KALENDER_SYNC_TAG);
     return true;
@@ -712,12 +826,35 @@ async function kalNachLesen() {
     await c.delete(kalNachSchluessel());
     if (!n || !Number.isFinite(n.zeit)) return;
     const code = typeof n.code === 'string' && KAL_CODES.has(n.code) ? n.code : null;
-    const teil = { nach: { zeit: n.zeit, seq: Number.isInteger(n.seq) ? n.seq : null, code } };
+    // Warum sie im Ausgang lag (KAL_GRUENDE) und an welche Verbindung sie
+    // ging – die Karte sagt „Ohne Netz trainiert" nur bei 'netz' und nur zu
+    // dieser Verbindung. Ein Vermerk eines Service Workers von vor v247 trägt
+    // keinen Grund; dann steht nur „Im Hintergrund nachgeschickt".
+    const teil = {
+      nach: {
+        zeit: n.zeit, seq: Number.isInteger(n.seq) ? n.seq : null, code,
+        grund: KAL_GRUENDE.has(n.grund) ? n.grund : null, ziel: typeof n.ziel === 'string' ? n.ziel : null,
+      },
+    };
+    // „aelter": Beim Skript gilt der Plan eines anderen Geräts – wie bei einer
+    // eigenen Sendung (kalVermerken()), mit dem Stand, der dort gilt. Nicht,
+    // wenn schon Neueres vermerkt ist (kalFremd() vergleicht die Zeiten).
+    const mVorher = kalMeta();
+    const hier = typeof n.ziel === 'string' && n.ziel === kalZiel(store.kalender());
+    const fremdBekannt = mVorher.fremd && mVorher.fremd.ziel === n.ziel && Number.isFinite(mVorher.fremd.zeit) ? mVorher.fremd : null;
+    if (code === 'aelter' && hier && !(fremdBekannt && fremdBekannt.zeit >= n.zeit)) {
+      teil.fremd = { ziel: n.ziel, zeit: n.zeit, stand: kalStandLesen(n.antwort && n.antwort.stand) };
+    }
     // Angekommen: Diese Vorschau ist beim Skript – sie geht nicht noch einmal.
     if ((code === 'angekommen' || code === 'gleich') && typeof n.hash === 'string' && n.ziel === kalZiel(store.kalender())) {
       Object.assign(teil, { hash: n.hash, ziel: n.ziel, offen: false });
+      // Und dieses Gerät gilt wieder, falls es eben noch ein anderes war.
+      if (fremdBekannt && fremdBekannt.zeit < n.zeit) teil.fremd = null;
       const version = Number.isInteger(n.version) ? n.version : null;
       if (version !== null) teil.fassung = { ziel: n.ziel, version, zeit: n.zeit };
+      // Was sie über den Abgleich sagt, zählt auch dafür, ob das Skript
+      // nachträgt – wie bei einer eigenen Sendung (kalVermerken()).
+      kalStockenMerken(n.ziel, { version, ...kalAbgleich(n.antwort) }, 'sendung', n.zeit);
       // Und sie ist die, die zuletzt ankam – wie bei einer eigenen Sendung
       // (kalVermerken()), mit dem, was das Skript über den Abgleich sagt. Bis
       // zum Gegenlesen von v246 blieb `angekommen` bei der Sendung davor: War
@@ -742,7 +879,9 @@ async function kalNachLesen() {
  * Der Takt
  * ------------------------------------------------------------------ */
 
-let kalRuf = { nachher: () => {} };
+// Was die App dazu sagt (kalenderEinrichten()): `nachher` nach jedem Versuch,
+// `karte` – ist die Karte unter Mehr gerade aufgeschlagen?
+let kalRuf = { nachher: () => {}, karte: () => false };
 let kalVorbereitenUhr = null;
 let kalSendenUhr = null;
 let kalVorbereitet = null;      // { text, hash, bytes, seq, url, ziel }
@@ -811,7 +950,8 @@ function kalAnhalten() {
 
 function kalVermerken(art, a, mehr = {}) {
   const ziel = mehr.ziel || null;
-  const vorher = kalMeta().letzte;
+  const m0 = kalMeta();
+  const vorher = m0.letzte;
   const letzte = {
     // Zählt jeden Versuch – daran erkennt die Karte, ob ihre Meldung überholt
     // ist (die Uhrzeit taugt dafür nicht: zwei Versuche in derselben ms).
@@ -823,16 +963,39 @@ function kalVermerken(art, a, mehr = {}) {
     vertrag: mehr.vertrag ?? null, fern: mehr.fern ?? null, gekuerzt: mehr.gekuerzt ?? null, fernFehler: !!mehr.fernFehler,
   };
   const teil = { letzte };
+  // Gilt beim Skript der Plan eines anderen Geräts (kalFremd())? „aelter"
+  // sagt es, mit dem Stand, der dort gilt – die Karte sagt, wann dort zuletzt
+  // trainiert wurde. Vorbei ist es erst, wenn eine eigene Sendung ankam; ein
+  // Versuch, der scheitert, ändert daran nichts. Bis zur Prüfung von v247 stand
+  // es nur im letzten Versuch, und schon „das Skript ist beschäftigt" danach
+  // machte den Weg für ein „aus" frei, das die Termine des anderen Geräts
+  // wegräumt. Hat es eine App von vor v247 nur dort vermerkt, wird es hier
+  // festgehalten, bevor der Versuch überschrieben ist.
+  const fremdVorher = kalFremd(m0, ziel);
+  if (ziel && a.ergebnis === 'aelter') teil.fremd = { ziel, zeit: letzte.zeit, stand: a.stand || null };
+  else if (ziel && a.ok && art === 'vorschau') { if (m0.fremd && m0.fremd.ziel === ziel) teil.fremd = null; }
+  else if (fremdVorher && !(m0.fremd && m0.fremd.ziel === ziel)) teil.fremd = fremdVorher;
   if (a.ok && ziel) {
     teil.angekommen = {
       zeit: letzte.zeit, version: letzte.version, tag: letzte.tag, ziel, bis: letzte.bis, offen: letzte.offen,
       stehen: letzte.stehen, folge: letzte.folge, morgen: letzte.morgen, vertrag: letzte.vertrag, gekuerzt: letzte.gekuerzt,
     };
+    // Eine eigene Sendung ist angekommen: Was der Service Worker davor
+    // nachgeschickt hat, ist erzählt – der Vermerk verfällt. Bis v247 blieb er
+    // für immer, und „Im Hintergrund nachgeschickt vor 3 Tagen" stand neben
+    // jeder späteren Sendung.
+    const nach = kalMeta().nach;
+    if (art === 'vorschau' && nach && Number.isFinite(nach.zeit) && nach.zeit < letzte.zeit) teil.nach = null;
   }
   // Jede lesbare Antwort sagt, welche Fassung das Skript hat – daran hängt,
   // was als Nächstes hinausgeht (kalVertrag()).
   if (ziel && Number.isInteger(a.version)) teil.fassung = { ziel, version: a.version, zeit: letzte.zeit };
   kalMetaSchreiben(teil);
+  // Und ob es nachträgt (kalStockenMerken()): die Antwort auf eine Sendung,
+  // die ankam, und die Probe beim Verbinden.
+  if (a.ok && ziel && (art === 'vorschau' || a.ergebnis === 'probe')) {
+    kalStockenMerken(ziel, a, art === 'vorschau' ? 'sendung' : 'probe', letzte.zeit);
+  }
   // Nur, was die Sendung ergab – nie Kennwort, Adresse oder Hinweistext.
   notieren('kalender', {
     was: art, ergebnis: a.ergebnis, version: a.version ?? undefined, status: a.ergebnis === 'http' ? a.status : undefined,
@@ -958,8 +1121,11 @@ async function kalSenden(v, { keepalive = false } = {}) {
     kalMetaSchreiben({ offen: true });
     // Auch in den Ausgang: Schließt Tobi die App gleich nach dem Training,
     // schickt der Service Worker sie nach (sw.js) – bei bestehendem Netz
-    // sofort, und ist das Skript noch beschäftigt, einige Minuten später.
-    ausgang = await kalAusgangLegen(v);
+    // sofort, und ist das Skript noch beschäftigt, einige Minuten später. Mit
+    // dem Grund (KAL_GRUENDE): Mit keepalive heißt „netz" nur, dass die Anfrage
+    // nicht losging – womöglich an der 64-KiB-Grenze, bei bestehendem Netz.
+    const grund = a.ergebnis === 'netz' && keepalive && navigator.onLine !== false ? 'wegschalten' : a.ergebnis;
+    ausgang = await kalAusgangLegen(v, grund);
     wieder = kalWiederPlanen(v);
     erschoepft = !wieder;
   } else if ((a.ergebnis === 'undurchsichtig' || a.ergebnis === 'http') && bewaehrt && !keepalive && kalWiederPlanen(v)) {
@@ -995,6 +1161,10 @@ async function kalSenden(v, { keepalive = false } = {}) {
     kalFassungRunden = 0;
   }
   kalRuf.nachher();
+  // Bleibt nach dieser Sendung etwas offen und ist die Karte aufgeschlagen,
+  // fragt die App von selbst nach, wie weit das Skript kommt
+  // (kalNachfrageSpaeter()).
+  kalNachfrageSpaeter();
   return a;
 }
 
@@ -1020,6 +1190,95 @@ function kalStand(m, ziel) {
     zeit: s.zeit, offen: Number.isInteger(s.offen) ? s.offen : 0, bis: s.bis || a.bis, stehen: s.stehen || null,
     folge: s.folge ?? null, morgen: s.morgen === true, gekuerzt: a.gekuerzt ?? null, probe: !!g,
   };
+}
+
+/**
+ * Trägt das Skript noch nach? Jede Auskunft eines Skripts der Fassung 2 über
+ * den Abgleich kommt hier vorbei – die Antwort auf eine eigene oder vom
+ * Service Worker nachgeschickte Sendung (`art` 'sendung') und jede Probe
+ * ('probe'). `stockt` hält den Bezug: so viel war offen (`offen`), seit wann
+ * (`seit`), und wie viele Proben seitdem nichts anderes gesagt haben
+ * (`proben`, die letzte um `zuletzt`).
+ *
+ *   - Ein anderer Stand als der Bezug, aus einer Sendung oder einer Probe:
+ *     neuer Bezug. Weniger heißt, das Skript trägt nach – der Satz auf der
+ *     Karte ist weg. Mehr heißt neue Arbeit (eine Sendung, nach der das ganze
+ *     Jahr einen Tag weiterrückt, oder die eines anderen Geräts), und bis
+ *     „weiter" damit anfängt, vergehen ein paar Minuten.
+ *   - Eine Probe mit demselben Stand oder ganz ohne `offen`: zählt. Ohne
+ *     `offen` antwortet Fassung 2, wenn den letzten Abgleich ein Lauf des
+ *     alten Codes schrieb (Fassung 1 kennt das Feld nicht) – so sieht es aus,
+ *     solange ein Auslöser mit Fassung 1 läuft (tests/test-kalender-gas.mjs,
+ *     Abschnitt 12). Aber auch, wenn ein Lauf von Fassung 2 selbst vor dem
+ *     Ende scheiterte: ein Fehler vor dem Abarbeiten, oder ein
+ *     Tageskontingent, das auch die Beschreibung des Kalenders trifft. Dann
+ *     sagt die Probe auch kein „morgen" (probeAntwort_() gibt es nur mit
+ *     `offen` weiter), und von außen sieht es aus wie der alte Auslöser – die
+ *     Karte rät bis zum nächsten Tag zu „einrichten". Schaden kann das nicht;
+ *     unterscheiden ließe es sich nur mit neuem Code im Skript (gefunden bei
+ *     der Prüfung von v247, ebenda nachgestellt).
+ *   - Eine Sendung mit demselben Stand oder ohne `offen`: ändert nichts – ihr
+ *     doPost hat 25 Sekunden angeglichen und doch nichts geschafft.
+ *   - Nichts mehr offen: nichts zu merken.
+ *
+ * Gibt es noch keinen Bezug (gleich nach dem Update auf v247), ist es der
+ * Stand, den die App schon kennt (kalStand()) – darum kommt eine Probe hier
+ * vorbei, bevor ihr Stand vermerkt ist (kalNachfragen()). Das gilt nur, bis
+ * eine Sendung ankommt, die einen anderen Stand sagt: Schafft ihr doPost ein
+ * paar Termine (am nächsten Tag etwa die Sendung beim Start), beginnt der
+ * Bezug dort neu, und „trägt nichts nach" kommt frühestens 75 Minuten danach.
+ * Ein Skript der Fassung 1 sagt nichts über `offen`; was es sagt, zählt
+ * nicht. Wann daraus „trägt nichts nach" wird, sagt kalStockt().
+ */
+function kalStockenMerken(ziel, a, art, zeit = Date.now()) {
+  if (!ziel || !Number.isInteger(a.version) || a.version < 2) return;
+  const m = kalMeta();
+  const offen = Number.isInteger(a.offen) ? a.offen : null;
+  if (offen !== null && offen <= 0) {
+    if (m.stockt) kalMetaSchreiben({ stockt: null });
+    return;
+  }
+  const bezug = (o, t) => ({ ziel, offen: o, seit: t, proben: 0, zuletzt: t });
+  const gemerkt = m.stockt && m.stockt.ziel === ziel && Number.isInteger(m.stockt.offen) && Number.isFinite(m.stockt.seit)
+    ? m.stockt : null;
+  let s = gemerkt;
+  if (!s) {
+    const st = kalStand(m, ziel);
+    s = st && st.offen > 0 && Number.isFinite(st.zeit) ? bezug(st.offen, st.zeit) : null;
+  }
+  if (offen !== null && (!s || offen !== s.offen)) {
+    kalMetaSchreiben({ stockt: bezug(offen, zeit) });
+    return;
+  }
+  if (!s) return;
+  if (art !== 'probe') {
+    if (!gemerkt) kalMetaSchreiben({ stockt: s });
+    return;
+  }
+  const weiter = { ...s, proben: (Number.isInteger(s.proben) ? s.proben : 0) + 1, zuletzt: Math.max(zeit, s.zuletzt || 0) };
+  kalMetaSchreiben({ stockt: weiter });
+  // Einmal ins Diagnoseprotokoll, sobald es so aussieht – nur Zahlen.
+  if (!weiter.gemeldet && kalStockt(kalMeta(), ziel)) {
+    kalMetaSchreiben({ stockt: { ...weiter, gemeldet: true } });
+    notieren('kalender', {
+      was: 'stockt', offen: weiter.offen, minuten: Math.round((weiter.zuletzt - weiter.seit) / 60000), proben: weiter.proben,
+    }, true);
+  }
+}
+
+/**
+ * Das Skript trägt nichts nach: Über mindestens 75 Minuten und mindestens zwei
+ * Proben hat keine Auskunft einen kleineren Stand gesagt (kalStockenMerken()),
+ * und offen ist noch etwas. Nicht, wenn die jüngste Auskunft „morgen" sagt –
+ * dann ist das Tageskontingent aufgebraucht, und bis morgen sinkt nichts, mit
+ * keinem Code. Gibt { seit, proben, zuletzt, offen } zurück, sonst null.
+ */
+function kalStockt(m, ziel) {
+  const s = m.stockt && m.stockt.ziel === ziel ? m.stockt : null;
+  const stand = kalStand(m, ziel);
+  if (!s || !stand || !(stand.offen > 0) || stand.offen !== s.offen || stand.morgen) return null;
+  if (!(s.proben >= KAL_STOCKT_PROBEN) || !(s.zuletzt - s.seit >= KAL_STOCKT_NACH)) return null;
+  return { seit: s.seit, proben: s.proben, zuletzt: s.zuletzt, offen: s.offen };
 }
 
 /**
@@ -1078,6 +1337,10 @@ async function kalNachfragen({ sofort = false } = {}) {
     // Nur eine lesbare Antwort zählt; ein Netzfehler ist kein Befund.
     if (!Number.isInteger(a.version) || kalZiel(store.kalender()) !== ziel) return a;
     const vorher = kalVertrag(ziel);
+    // Jede Probe zählt dafür, ob das Skript nachträgt – auch eine, die
+    // `offen` nicht nennt (kalStockenMerken()). Vor dem Vermerken ihres
+    // Stands: Ohne Bezug gilt der, den die App bis eben kannte.
+    if (a.ok && a.ergebnis === 'probe') kalStockenMerken(ziel, a, 'probe');
     const teil = { fassung: { ziel, version: a.version, zeit: Date.now() } };
     if (a.ok && a.ergebnis === 'probe' && Number.isInteger(a.offen) && a.bis) {
       teil.abgleich = {
@@ -1101,16 +1364,48 @@ async function kalNachfragen({ sofort = false } = {}) {
 
 let kalNachfrageUhr = null;
 /**
- * Solange der neue Code unterwegs ist und die App zu sehen ist: in zwei
- * Minuten noch einmal fragen – höchstens ein Zeitgeber. Versteckt fragt
- * keiner; beim Zurückkommen tut es kalenderSichtbar().
+ * Ist noch etwas offen, das das Skript einträgt – und nicht erst morgen
+ * (Tageskontingent: bis dahin ändert Fragen nichts)? { zeit } der jüngsten
+ * Auskunft, sonst null.
  */
+function kalStandOffen() {
+  const stand = kalStand(kalMeta(), kalZiel(store.kalender()));
+  return stand && stand.offen > 0 && !stand.morgen ? stand : null;
+}
+
+/**
+ * Von selbst fragen – zwei Anlässe, höchstens ein Zeitgeber, und nur, solange
+ * die App zu sehen ist (versteckt fragt keiner; beim Zurückkommen tut es
+ * kalenderSichtbar()):
+ *
+ *   - Der neue Code ist unterwegs (kalCodeUnterwegs()): alle zwei Minuten,
+ *     wo immer Tobi in der App ist – er kommt gerade aus Apps Script.
+ *   - Das Skript trägt noch ein, und die Karte unter Mehr ist aufgeschlagen
+ *     (kalRuf.karte()): sobald die letzte Auskunft drei Minuten alt ist
+ *     (KAL_STAND_FRAGEN), höchstens alle zwei Minuten. Wer dort wartet, sieht
+ *     es weitergehen – oder dass nichts nachkommt (kalStockt()). Bis v247
+ *     fragte die Karte nur beim Zeichnen; eine Stunde auf der Karte war eine
+ *     einzige Probe. Auf den anderen Seiten nicht: Ein Training dauert eine
+ *     Stunde, und jede Probe ist ein Aufruf bei Google.
+ */
+function kalVonSelbstFragen() {
+  if (document.hidden || !kalenderVerbunden()) return null;
+  if (kalCodeUnterwegs()) return { code: true };
+  const stand = kalRuf.karte() ? kalStandOffen() : null;
+  return stand ? { stand } : null;
+}
+
 function kalNachfrageSpaeter() {
-  if (kalNachfrageUhr || document.hidden || !kalCodeUnterwegs()) return;
-  const warte = Math.max(KAL_FRAGEN_MIN, KAL_FASSUNG_FRAGEN - (Date.now() - kalFassungGefragt));
+  if (kalNachfrageUhr) return;
+  const anlass = kalVonSelbstFragen();
+  if (!anlass) return;
+  let warte = Math.max(KAL_FRAGEN_MIN, KAL_FASSUNG_FRAGEN - (Date.now() - kalFassungGefragt));
+  if (anlass.stand) warte = Math.max(warte, KAL_STAND_FRAGEN - (Date.now() - anlass.stand.zeit));
   kalNachfrageUhr = setTimeout(() => {
     kalNachfrageUhr = null;
-    if (document.hidden) return;
+    // Inzwischen weggeschaltet oder die Karte verlassen: nichts. Das nächste
+    // Zeichnen der Karte oder das Zurückkommen stellt den Zeitgeber neu.
+    if (!kalVonSelbstFragen()) return;
     // Läuft gerade etwas (eine Rechnung nach einem Tipp), kommt die Probe dahinter.
     if (kalNachfragenNoetig()) kalEinreihen(kalNachfragen);
     else kalNachfrageSpaeter();
@@ -1156,7 +1451,7 @@ function kalPlanen() {
  * Background Sync – Safari) schickt der Aufrufer sie, so gut es geht.
  */
 async function kalGrossWeg(v) {
-  const ausgang = await kalAusgangLegen(v);
+  const ausgang = await kalAusgangLegen(v, 'gross');
   if (ausgang) kalMetaSchreiben({ offen: true });
   notieren('kalender', { was: 'ausgang', grund: 'gross', bytes: v.bytes, ausgang }, true);
   return ausgang;
@@ -1186,10 +1481,12 @@ function kalZeichen(s) {
 
 /**
  * Die App sagt, wie sie neu zeichnet (`nachher` nach jedem Versuch – dort
- * entscheidet sie, ob es sich lohnt).
+ * entscheidet sie, ob es sich lohnt) und ob die Karte unter Mehr gerade
+ * aufgeschlagen ist (`karte` – dann fragt die App nach dem Stand von selbst,
+ * kalNachfrageSpaeter()).
  */
 export function kalenderEinrichten(ruf = {}) {
-  kalRuf = { nachher: () => {}, ...ruf };
+  kalRuf = { nachher: () => {}, karte: () => false, ...ruf };
   kalZeichenVorher = kalZeichen(store.getState());
   window.addEventListener('online', () => {
     if (!kalenderMoeglich()) return;
@@ -1206,10 +1503,16 @@ export function kalenderEinrichten(ruf = {}) {
  * rechnete jede davon die Vorschau samt Jahr neu – am ersten Haken zweimal
  * statt einmal, am Pausenende noch einmal: gemessen 13 statt 6 Rechnungen für
  * sechs Sätze mit Pause, also rund 40 statt 20 je Training. Mit Fußball jede
- * Woche kostet jede davon im Worker 2,6–2,8 s.
+ * Woche kostet jede davon im Worker 2,6–2,8 s. Ebenso wenig bei 'ansicht'
+ * (seit v247): der Reiter (go() in js/app.js) und welche Einheit in der
+ * Fokusansicht offen ist (`fokusOffen`, render()) – beides steht im Zustand,
+ * damit die App nach dem Neuladen dort wieder aufgeht, und die Vorschau liest
+ * beides nicht. Bis dahin rechnete jeder Tab-Wechsel das Jahr im Worker neu
+ * (am Handy an Tobis Stand geschätzt eine knappe Sekunde, mit vielen Terminen
+ * mehrere) und schickte nie etwas: gleicher Fingerabdruck.
  */
 export function kalenderGeaendert(was) {
-  if (was === 'pause' || !kalenderVerbunden()) return;
+  if (was === 'pause' || was === 'ansicht' || !kalenderVerbunden()) return;
   kalStandNr += 1;
   kalGeaendertUm = Date.now();
   const z = kalZeichen(store.getState());
@@ -1345,6 +1648,10 @@ export async function kalenderVerbinden(eingabe) {
     return { ok: false, satz: 'Erst „Code kopieren" und den Code in Apps Script einfügen – darin steckt das Kennwort, an dem das Skript die App erkennt.' };
   }
   return kalEinreihen(async () => {
+    // Galt bei der bisherigen Verbindung der Plan eines anderen Geräts, bekommt
+    // sie gleich kein „aus" (kalFremd()) – festgestellt, bevor die Probe an die
+    // neue den letzten Versuch überschreibt.
+    const altFremd = kalFremd(kalMeta(), kalZiel(store.kalender()));
     // Die Fassung der Vorlage, damit die Antwort sagen kann, ob der Code alt ist.
     await kalenderVorlage().catch(() => null);
     // v 1: Probe und „aus" versteht jede Fassung des Skripts gleich.
@@ -1367,7 +1674,7 @@ export async function kalenderVerbinden(eingabe) {
       return { ok: false, satz, ergebnis: a.ergebnis, befund, nr };
     }
     const alt = store.kalender();
-    if (alt && alt.url && alt.url !== u.url) kalAusDazu(alt);
+    if (alt && alt.url && alt.url !== u.url && !altFremd) kalAusDazu(alt);
     // Ein „aus" an genau diese Adresse, das noch wartete, gilt nicht mehr.
     kalMetaSchreiben({ aus: (kalMeta().aus || []).filter((x) => x.url !== u.url) });
     // Vor dem Speichern: Das meldet der Store sofort (kalenderGeaendert()),
@@ -1457,6 +1764,36 @@ function kalAusDazu(k) {
 }
 
 /**
+ * Gilt beim Skript dieser Verbindung der Plan eines anderen Geräts? Eine
+ * Antwort sagte „aelter" – auf eine eigene Sendung oder eine, die der Service
+ * Worker nachgeschickt hat (`fremd`, kalVermerken(), kalNachLesen()) –, und
+ * danach kam von hier nichts mehr an (sonst wäre es wieder dieses Gerät). Dann
+ * geht beim Trennen, bei „Alle Daten löschen" und beim Wechsel zu einer
+ * anderen URL kein „aus" hinaus: Das Skript nimmt ein „aus" von jedem Gerät mit
+ * dem Kennwort an und räumte damit die Termine ab heute weg – die des Geräts,
+ * mit dem trainiert wird. Die Karte rät in diesem Fall ja gerade zum Trennen
+ * (kalenderSatz(), „aelter").
+ *
+ * Bis zur Prüfung von v247 hing es am letzten Versuch – und jeder Versuch
+ * danach überschrieb ihn, auch einer, der nicht ankam: Sagte das Skript
+ * „beschäftigt" (ein Lauf „weiter" des anderen Geräts hält die Sperre bis zu
+ * viereinhalb Minuten) oder fehlte das Netz, war der Hinweis weg, und
+ * „Trennen" schickte das „aus" doch. Was eine App von vor v247 hinterließ – nur
+ * ein letzter Versuch „aelter" –, zählt hier noch mit.
+ *
+ * { ziel, zeit, stand } oder null.
+ */
+function kalFremd(m, ziel) {
+  if (!ziel) return null;
+  const a = m.angekommen && m.angekommen.ziel === ziel && Number.isFinite(m.angekommen.zeit) ? m.angekommen.zeit : null;
+  let f = m.fremd && m.fremd.ziel === ziel && Number.isFinite(m.fremd.zeit) ? m.fremd : null;
+  if (!f && m.letzte && m.letzte.ziel === ziel && m.letzte.ergebnis === 'aelter' && Number.isFinite(m.letzte.zeit)) {
+    f = { ziel, zeit: m.letzte.zeit, stand: null };
+  }
+  return f && !(a !== null && a > f.zeit) ? f : null;
+}
+
+/**
  * Alle ausstehenden „aus" schicken. Weg ist eins, sobald das Skript es
  * angenommen hat – oder sobald klar ist, dass es nie angenommen wird
  * (falsches Kennwort, keine Antwort vom Skript). Ohne Netz bleibt es liegen.
@@ -1482,17 +1819,27 @@ async function kalAusErledigen() {
  * steht ja noch im Skript, und ein erneutes „Verbinden" mit derselben URL
  * braucht dann keinen neuen Code. Ohne Netz geht das „aus" nach, sobald
  * welches da ist. { ok, wartet, satz }.
+ *
+ * Gilt beim Skript der Plan eines anderen Geräts (kalFremd(), „aelter"), geht
+ * seit v247 kein „aus": Getrennt wird nur dieses Gerät, den Kalender pflegt
+ * weiter das andere.
  */
 export async function kalenderTrennen() {
   const k = store.kalender();
   if (!k || !k.url) return { ok: true, wartet: false, satz: '' };
+  const fremd = kalFremd(kalMeta(), kalZiel(k));
   kalAnhalten();
   kalWiederWeg();
   kalVorbereitet = null;
-  kalAusDazu(k);
+  if (!fremd) kalAusDazu(k);
   store.setzeKalender({ url: null });
   kalMetaSchreiben({ hash: null, ziel: null, offen: false });
   await kalAusgangLeeren();
+  if (fremd) {
+    notieren('kalender', { was: 'getrennt', fremd: true }, true);
+    kalRuf.nachher();
+    return { ok: true, wartet: false, satz: 'Getrennt – dieses Gerät schickt nichts mehr. Den Kalender pflegt weiter das andere Gerät.' };
+  }
   const a = await kalEinreihen(kalAusErledigen);
   const wartet = (kalMeta().aus || []).length > 0;
   kalRuf.nachher();
@@ -1512,8 +1859,10 @@ export function kalenderVergessen() {
   kalAnhalten();
   kalWiederWeg();
   kalVorbereitet = null;
-  if (k && k.url) kalAusDazu(k);
-  kalMetaSchreiben({ hash: null, ziel: null, offen: false, letzte: null, angekommen: null, nach: null });
+  // Gilt beim Skript der Plan eines anderen Geräts, gibt es von hier nichts
+  // abzuschalten (kalFremd()).
+  if (k && k.url && !kalFremd(kalMeta(), kalZiel(k))) kalAusDazu(k);
+  kalMetaSchreiben({ hash: null, ziel: null, offen: false, letzte: null, angekommen: null, nach: null, stockt: null, fremd: null });
   kalAusgangLeeren();
   if ((kalMeta().aus || []).length && kalenderMoeglich()) kalEinreihen(kalAusErledigen);
 }
@@ -1544,6 +1893,20 @@ export function kalenderVergessen() {
  *              (der Service Worker hat nachgeschickt) – er ist überholt
  *   stand      wie weit das Skript mit dem Eintragen ist (kalStand()), oder
  *              null, wenn die letzte Sendung keine mit Ferne war
+ *   stockt     das Skript trägt nichts nach (kalStockt()): { seit, proben,
+ *              zuletzt, offen }, sonst null
+ *   nach       was der Service Worker nachgeschickt hat – nur zu dieser
+ *              Verbindung, und nur, solange keine neuere eigene Sendung ankam
+ *   hinweisAlt der Hinweis der letzten eigenen Sendung beschreibt nur ihren
+ *              Augenblick (Tageskontingent, Google bremst – KALENDER_SPAETER,
+ *              KALENDER_KONTINGENT), und danach kam eine neuere Auskunft: eine
+ *              Probe oder eine Sendung, die der Service Worker nachgeschickt
+ *              hat. Die Karte zeigt ihn dann nicht mehr. Was zu tun bleibt
+ *              („einrichten", eine URL, „Zugriff: Jeder"), bleibt stehen.
+ *   fremd      eine Antwort sagte „aelter", und danach kam von hier nichts an
+ *              (kalFremd()): Ein anderes Gerät mit neuerem Training speist
+ *              dieses Skript. { zuletzt, einheiten, saetze } – dessen Stand aus
+ *              der Antwort, soweit sie ihn trug (sonst die Felder null)
  */
 export function kalenderLage() {
   const k = store.kalender();
@@ -1551,6 +1914,11 @@ export function kalenderLage() {
   const ziel = kalZiel(k);
   const letzte = m.letzte && ziel && m.letzte.ziel === ziel ? m.letzte : null;
   const angekommen = m.angekommen && ziel && m.angekommen.ziel === ziel ? m.angekommen : null;
+  const stand = ziel ? kalStand(m, ziel) : null;
+  // Nur ein Vermerk zu dieser Verbindung, den keine eigene Sendung überholt
+  // hat (ein Vermerk von vor v247 trägt kein Ziel – der zählt wie bisher).
+  const nach = m.nach && Number.isFinite(m.nach.zeit) && !(m.nach.ziel && m.nach.ziel !== ziel)
+    && !(angekommen && angekommen.zeit > m.nach.zeit) ? m.nach : null;
   const fassung = kalFassung(ziel);
   const vorlage = kalenderVorlageFassung();
   const kopiert = m.kopiert && ziel && m.kopiert.ziel === ziel && m.kopiert.vorlage === vorlage && Number.isFinite(m.kopiert.zeit)
@@ -1558,6 +1926,17 @@ export function kalenderLage() {
   const neuerCode = !!ziel && kalNeuerCode(fassung);
   const antwort = m.fassung && m.fassung.ziel === ziel && Number.isFinite(m.fassung.zeit) ? m.fassung.zeit : null;
   const nachgeholt = !!letzte && !letzte.ok && !!angekommen && Number.isFinite(angekommen.zeit) && angekommen.zeit > letzte.zeit;
+  // Ein Hinweis, der nur den Augenblick der letzten eigenen Sendung beschreibt,
+  // ist überholt, sobald danach eine Auskunft kam – eine Probe (`fassung`
+  // trägt die Zeit jeder lesbaren Antwort), ein Stand von ihr oder eine
+  // Sendung, die der Service Worker nachgeschickt hat. Bis v247 galt das nur
+  // für das Tageskontingent und nur neben einem Stand mit Jahr.
+  const augenblick = !!letzte && letzte.ok && letzte.art !== 'probe' && !!letzte.hinweis
+    && (letzte.morgen === true || letzte.hinweis === KALENDER_SPAETER || letzte.hinweis === KALENDER_KONTINGENT);
+  const hinweisAlt = augenblick && [stand && stand.zeit, angekommen && angekommen.zeit, antwort]
+    .some((t) => Number.isFinite(t) && t > letzte.zeit);
+  const f = kalFremd(m, ziel);
+  const fremd = f ? { zuletzt: null, einheiten: null, saetze: null, ...(f.stand || {}) } : null;
   // Unterwegs, bis die erste Sendung mit dem Jahr ankommt (`angekommen`, auch
   // über den Service Worker) oder endgültig beantwortet ist: Bis zum
   // Gegenlesen von v246 stand „Neuer Code erkannt" nach „aelter" (ein anderes
@@ -1575,7 +1954,8 @@ export function kalenderLage() {
     erinnerung: k ? k.erinnerung : 30,
     letzte,
     angekommen,
-    nach: m.nach || null,
+    nach,
+    hinweisAlt,
     ausstehend: (m.aus || []).length,
     zuAlt: kalZuAlt(letzte),
     handeln: !!ziel && !nachgeholt && kalenderHandeln(letzte),
@@ -1589,7 +1969,9 @@ export function kalenderLage() {
     fehlt: neuerCode && kopiert !== null && antwort !== null && antwort - kopiert >= KALENDER_JAHR.fehltNach,
     unterwegs,
     nachgeholt,
-    stand: ziel ? kalStand(m, ziel) : null,
+    stand,
+    stockt: ziel ? kalStockt(m, ziel) : null,
+    fremd,
   };
 }
 
@@ -1625,5 +2007,7 @@ export function kalenderKurz() {
   };
   return `Kalender verbunden${l.angekommen ? `, zuletzt angekommen ${z(l.angekommen.zeit)}${l.angekommen.version ? ` (Skript ${l.angekommen.version})` : ''}` : ', noch nichts angekommen'}`
     + ` · Vertrag ${l.vertrag}${l.neuerCode ? ' · neuer Code steht aus' : ''}`
+    + `${l.stand && l.stand.offen > 0 ? ` · ${l.stand.offen} offen${l.stockt ? ', trägt nichts nach' : ''}` : ''}`
+    + `${l.fremd ? ' · beim Skript gilt ein anderes Gerät' : ''}`
     + `${l.letzte && !l.letzte.ok ? ` · zuletzt ${l.letzte.ergebnis}` : ''}${l.ausstehend ? ` · ${l.ausstehend} Abschalten offen` : ''}`;
 }

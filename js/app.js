@@ -29,7 +29,7 @@ import { EXERCISES, FOCUS, FOKUS_ERSATZ, PLAN, PLANS, TARGET, REST } from './dat
 import * as store from './store.js';
 import {
   todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD, tagMonat,
-  wochentag,
+  toISO, wochentag,
 } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
@@ -47,7 +47,7 @@ import {
   sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
 } from './sicherung.js';
 import {
-  KALENDER_JAHR, kalenderCode, kalenderCodeKopiert, kalenderEinrichten, kalenderGeaendert, kalenderJahrGesehen, kalenderJetzt,
+  KALENDER_JAHR, KALENDER_STOCKT, kalenderCode, kalenderCodeKopiert, kalenderEinrichten, kalenderGeaendert, kalenderJahrGesehen, kalenderJetzt,
   kalenderKurz, kalenderLage, kalenderNachfragen, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen,
   kalenderVerbinden, kalenderVergessen, kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
 } from './kalender-sync.js';
@@ -594,7 +594,7 @@ function ersetzenErlaubt() {
  * Planwechsel –, führt er selbst aufs Dashboard.
  */
 function neuStarten(meldung) {
-  store.setSetting('tab', ui.tab);
+  store.setSetting('tab', ui.tab, 'ansicht');
   store.flush();
   sessionStorage.setItem('workout.nachImport', meldung);
   vorDemNeuladen('import');
@@ -831,17 +831,85 @@ function kalenderZeile() {
  * waren es bei 360×740 vier Zeilen, 97 px, und der Fuß lag 26 px unter der
  * Leiste (Prüfung des Entwurfs). Und sie eilt nicht – steht oben schon etwas
  * anderes, tritt sie zurück und kommt, wenn das weg ist (renderOverview()).
+ * Seit v247 mit „einrichten": Es gehört zu jedem Code-Tausch (KALENDER_JAHR in
+ * js/kalender-sync.js), und schon die Zeile soll nicht nach weniger Arbeit
+ * klingen, als es ist.
  */
 function kalenderJahrZeile() {
   const l = kalenderLage();
   if (!l.verbunden || l.handeln || l.zuAlt || !l.neuerCode || l.gesehen) return '';
   return `<div class="notice zeile kurz" id="kalenderJahrZeile">📅 <span>Google Kalender: Ein Jahr im Voraus geht jetzt –
-      dafür einmal den Code im Skript erneuern.</span>
+      dafür einmal den Code im Skript erneuern und einrichten ausführen.</span>
       <button type="button" class="btn" data-act="kalender-jahr-ansehen">Ansehen</button></div>`;
+}
+
+/** Eine Dauer, kurz: „80 Min.", „2 Std.", „3 Tagen" – für „seit …". */
+function dauerKurz(ms) {
+  const min = Math.max(1, Math.round(ms / 60000));
+  if (min < 120) return `${min} Min.`;
+  if (min < 48 * 60) return `${Math.floor(min / 60)} Std.`;
+  return `${Math.floor(min / (24 * 60))} Tagen`;
+}
+
+/** Ein Tag als „Mo 26.10." – aus ms, in der Zeit dieses Geräts. */
+const kalenderTagKurz = (ms) => fmtDate(toISO(new Date(ms))).replace(',', '');
+
+/**
+ * Welchen Trainingsstand dieses Gerät dem Skript schickt – als Satzteil für
+ * die Karte: „zuletzt trainiert Workout 13 am Mo 26.10." oder „noch nie
+ * trainiert". Aus dem echten Zustand, so wie trainingsStand() in
+ * js/kalender-vorschau.js `stand.zuletzt` rechnet: das jüngste Lebenszeichen
+ * einer Einheit (store.lebenszeichen(), samt Uhr der Sitzung) über das
+ * laufende Protokoll und die abgelegten Runden. Daran entscheidet das Skript
+ * „Wer gilt", wenn zwei Geräte schicken. Trägt kein Eintrag ein Lebenszeichen
+ * (ein Stand von vor v241), der jüngste Trainingstag (startedOn) – der Satz
+ * soll nicht „noch nie" sagen, wo trainiert wurde.
+ *
+ * Seit v247, aus Tobis Tag am 28.10.: Er hat die App auch im Browser am
+ * Rechner, mit eigenem Speicher und eigenem Stand – dort fehlte Workout 13 vom
+ * Montag, trainiert hatte er am Handy –, und hatte sie dort mit einem zweiten
+ * Skript-Projekt in einem anderen Google-Konto verbunden. Dessen Kalender
+ * hinkte eine Einheit hinterher (So/Mo/Mi/Fr statt Mo/Mi/Fr/Sa), und nichts in
+ * der App sagte, warum. Jetzt steht auf jedem Gerät, was es weiß.
+ */
+function kalenderGeraetStand() {
+  const s = store.getState();
+  const jetzt = Date.now();
+  const name = (k) => {
+    if (/^\d+$/.test(k)) return `Workout ${k}`;
+    const c = store.customs().find((x) => x.id === k);
+    return c && c.name ? `„${c.name}"` : 'ein eigenes Workout';
+  };
+  let best = null;
+  const nimm = (t, k) => { if (t > 0 && (!best || t > best.t)) best = { t, k }; };
+  Object.keys(s.log || {}).forEach((k) => nimm(store.lebenszeichen(k, jetzt), k));
+  (Array.isArray(s.rounds) ? s.rounds : []).forEach((r) => Object.entries((r && r.log) || {}).forEach(([k, e]) => {
+    const t = e && Number.isFinite(e.zuletzt) && e.zuletzt <= jetzt + 60 * 1000 ? e.zuletzt : 0;
+    nimm(t, k);
+  }));
+  if (best) return `zuletzt trainiert ${name(best.k)} am ${kalenderTagKurz(best.t)}`;
+  // Ohne Lebenszeichen: der jüngste Tag, an dem eine Einheit angefangen wurde.
+  let tag = null;
+  const tagNimm = (iso, k) => { if (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso) && (!tag || iso > tag.iso)) tag = { iso, k }; };
+  Object.entries(s.log || {}).forEach(([k, e]) => tagNimm(e && e.startedOn, k));
+  (Array.isArray(s.rounds) ? s.rounds : []).forEach((r) => Object.entries((r && r.log) || {}).forEach(([k, e]) => tagNimm(e && e.startedOn, k)));
+  if (tag) return `zuletzt trainiert ${name(tag.k)} am ${fmtDate(tag.iso).replace(',', '')}`;
+  return 'noch nie trainiert';
 }
 
 /** Der Tag als „27.10.2027". */
 const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
+
+/**
+ * Wie lange ein Versprechen der Karte gilt, gezählt ab der Auskunft, aus der es
+ * kommt (kalenderImKalender()): „in den nächsten Minuten" eine Viertelstunde –
+ * ein „weiter" kommt drei Minuten nach dem vorigen Lauf, und auf der
+ * aufgeschlagenen Karte fragt die App alle paar Minuten nach –, „mit dem
+ * nächsten stündlichen Abgleich" 75 Minuten (dazwischen muss ein stündlicher
+ * Lauf gelegen haben, wie bei KAL_STOCKT_NACH in js/kalender-sync.js).
+ * „morgen" gilt am Tag der Auskunft.
+ */
+const KALENDER_VERSPRECHEN = { minuten: 15 * 60 * 1000, stunde: 75 * 60 * 1000 };
 
 /**
  * Was im Kalender steht – aus der letzten Auskunft des Skripts (Fassung 2,
@@ -855,19 +923,46 @@ const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${
  * dem nächsten stündlichen Abgleich" (die nächste Stunde schafft es nicht).
  * Es kommt aus derselben Auskunft wie `offen` (kalStand() in
  * js/kalender-sync.js), nicht aus dem Hinweis der letzten Sendung.
+ *
+ * `stockt` (kalenderLage().stockt): Über mindestens 75 Minuten und zwei Proben
+ * hat keine Auskunft einen kleineren Stand gesagt. Dann verspricht der Satz
+ * nichts mehr („in den nächsten Minuten" stimmte bei Tobi am 28.10. nicht),
+ * sondern sagt, seit wann nichts weniger wird; was zu tun ist, steht darunter
+ * in der Akzentfarbe (KALENDER_STOCKT, kalenderKarte()).
+ *
+ * Und keine Auskunft verspricht länger, als ihr Versprechen gilt
+ * (KALENDER_VERSPRECHEN): Danach sagt der Satz, was sie wusste und wann sie
+ * kam („Stand vor 5 Std."), statt etwas zuzusagen, das längst hätte
+ * eintreten müssen. Bis zur Prüfung von v247 stand nach fünf Stunden weg beim
+ * Zurückkommen anderthalb Minuten lang „in den nächsten Minuten" da – bis die
+ * zweite Probe den Stillstand zeigte –, ohne Wegschalten bis zur 75. Minute,
+ * und ein „morgen" von gestern blieb „morgen".
  */
-function kalenderImKalender(s, wann) {
+function kalenderImKalender(s, wann, stockt = null) {
   if (!s || !s.bis) return '';
   const kurz = s.gekuerzt ? ' Diesmal nicht ein ganzes Jahr – die Sendung wäre sonst zu groß geworden (viele verschiedene Termine).' : '';
+  if (s.offen > 0 && stockt) {
+    const fehlen = s.offen === 1 ? 'fehlt noch 1 Änderung' : `fehlen noch ${s.offen} Änderungen`;
+    return `Im Kalender: ${s.stehen ? `Termine bis ${kalenderDatum(s.stehen)}. Bis` : 'Bis'} ${kalenderDatum(s.bis)} ${fehlen}, `
+      + `seit ${dauerKurz(Date.now() - stockt.seit)} nicht weniger.${kurz}`;
+  }
   if (s.offen > 0) {
+    const bekannt = Number.isFinite(s.zeit);
+    const alter = bekannt ? Date.now() - s.zeit : Infinity;
     const spaet = s.morgen && !s.folge;
-    const wie = s.folge ? 'in den nächsten Minuten' : spaet ? 'morgen' : 'mit dem nächsten stündlichen Abgleich';
+    let wie = null;
+    if (s.folge) wie = alter <= KALENDER_VERSPRECHEN.minuten ? 'in den nächsten Minuten' : null;
+    else if (spaet) wie = bekannt && toISO(new Date(s.zeit)) === todayISO() ? 'morgen' : null;
+    else wie = alter <= KALENDER_VERSPRECHEN.stunde ? 'mit dem nächsten stündlichen Abgleich' : null;
     const noch = `noch ${s.offen} ${s.offen === 1 ? 'Änderung' : 'Änderungen'}`;
-    const stand = s.probe ? ` (Stand ${wann(s.zeit)})` : '';
-    return (s.stehen
-      ? `Im Kalender: Termine bis ${kalenderDatum(s.stehen)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript ${wie} nach – ${noch}${stand}.`
-      : `Im Kalender: Das Skript trägt die Termine bis ${kalenderDatum(s.bis)} ${spaet ? 'morgen' : 'gerade'} ein – ${noch}${
-        spaet ? '' : `, ${wie}`}${stand}.`) + kurz;
+    const stand = bekannt && (s.probe || !wie || alter > KALENDER_VERSPRECHEN.minuten) ? ` (Stand ${wann(s.zeit)})` : '';
+    if (s.stehen) {
+      return `Im Kalender: Termine bis ${kalenderDatum(s.stehen)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript `
+        + `${wie ? `${wie} ` : ''}nach – ${noch}${stand}.${kurz}`;
+    }
+    const zeitWort = !wie ? '' : spaet ? ' morgen' : ' gerade';
+    return `Im Kalender: Das Skript trägt die Termine bis ${kalenderDatum(s.bis)}${zeitWort} ein – ${noch}${wie && !spaet ? `, ${wie}` : ''}`
+      + `${stand}.${kurz}`;
   }
   return `Im Kalender: Termine bis ${kalenderDatum(s.bis)}.${kurz}`;
 }
@@ -882,8 +977,6 @@ function kalenderImKalender(s, wann) {
  */
 function kalenderStandText(l) {
   const wann = (ms) => vorWann(new Date(ms).toISOString());
-  // „vor 6 Min." endet schon mit dem Punkt der Abkürzung.
-  const punkt = (s) => (/[.!?…]$/.test(s) ? s : `${s}.`);
   const teile = [];
   const fassung = l.fassung ?? (l.angekommen ? l.angekommen.version : null);
   // Neuer Code erkannt, das Jahr ist unterwegs (kalenderLage().unterwegs).
@@ -896,36 +989,61 @@ function kalenderStandText(l) {
     teile.push(l.letzte && !l.letzte.ok ? 'Verbunden, aber beim Skript ist noch nichts angekommen.'
       : 'Verbunden – die erste Vorschau ist unterwegs.');
   }
-  const im = kalenderImKalender(l.stand, wann);
+  const im = kalenderImKalender(l.stand, wann, l.stockt);
   if (im) teile.push(im);
   // Ein gescheiterter Versuch, nach dem der Service Worker doch zugestellt
-  // hat, ist überholt (kalenderLage().nachgeholt). Und „Tageskontingent
-  // aufgebraucht – morgen …" galt der letzten Sendung: Ist der Stand jünger
-  // als sie – eine Probe danach oder eine Sendung, die der Service Worker
-  // nachgeschickt hat –, sagt der Satz darüber, wie es jetzt weitergeht. Kam
-  // der Stand mit ihr, ist er genauso alt, und der Hinweis bleibt. Bis zur
-  // Prüfung der Nachbesserung zählte nur die Probe: Neben dem Stand einer
-  // nachgeschickten Sendung (über 64 KiB beim Wegschalten, kalGrossWeg() in
-  // js/kalender-sync.js – sie wird nicht der letzte Versuch) stand „mit dem
-  // nächsten stündlichen Abgleich" und „morgen geht es von selbst weiter".
-  const kontingentAlt = !!(l.letzte && l.letzte.morgen && l.stand && Number.isFinite(l.stand.zeit) && l.stand.zeit > l.letzte.zeit);
-  if (l.letzte && !l.letzte.ok && !l.zuAlt && !l.nachgeholt) {
+  // hat, ist überholt (kalenderLage().nachgeholt); „aelter" steht seit v247 als
+  // eigener Hinweis darunter (kalenderKarte(), #kalenderFremd) – nur dieser
+  // Versuch selbst fällt hier weg. Scheitert danach einer (das Skript
+  // beschäftigt, kein Netz), steht er hier, und der Hinweis bleibt: Bis zur
+  // Prüfung von v247 nahm so ein Versuch ihn weg. Und ein
+  // Hinweis, der nur den Augenblick der letzten Sendung beschreibt –
+  // „Tageskontingent aufgebraucht – morgen …", „Google bremst gerade" –, gilt
+  // nur, bis eine neuere Auskunft da ist (kalenderLage().hinweisAlt): eine
+  // Probe danach oder eine Sendung, die der Service Worker nachgeschickt hat.
+  // Kam der Stand mit ihr, ist er genauso alt, und der Hinweis bleibt. Bis zur
+  // Prüfung der Nachbesserung von v246 zählte nur die Probe, und bis v247 nur
+  // das Kontingent: „Google bremst gerade – der Rest folgt mit dem nächsten
+  // stündlichen Abgleich" stand neben einer Probe, die längst einen neueren
+  // Stand sagte. Was Tobi tun soll („einrichten", eine URL), bleibt stehen.
+  if (l.letzte && !l.letzte.ok && !l.zuAlt && !l.nachgeholt && !(l.fremd && l.letzte.ergebnis === 'aelter')) {
     const satz = kalenderSatz(l.letzte);
     teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);
     if (l.letzte.wieder && !/noch einmal/.test(satz)) teile.push('Die App versucht es gleich noch einmal.');
-  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe' && !kontingentAlt) {
+  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe' && !l.hinweisAlt) {
     teile.push(`Das Skript sagt: ${l.letzte.hinweis}`);
   }
-  if (l.nach) teile.push(`Ohne Netz trainiert: Im Hintergrund nachgeschickt ${wann(l.nach.zeit)}.`);
+  // Nachgeschickt hat der Service Worker aus fünf Gründen (KAL_GRUENDE in
+  // js/kalender-sync.js); „Ohne Netz trainiert" stimmt nur bei einem. Bis
+  // v247 stand es bei jedem – an Tobis Stand geht beim Wegschalten jede
+  // Sendung über 64 KiB durch den Service Worker, mit Netz –, und es blieb,
+  // weil der Vermerk nie verfiel, dazu „vor 1 Min.." mit zwei Punkten. Jetzt
+  // verfällt er mit der nächsten eigenen Sendung, die ankommt.
+  if (l.nach) {
+    const netz = l.nach.grund === 'netz' ? 'Ohne Netz trainiert: ' : '';
+    teile.push(punkt(`${netz}Im Hintergrund nachgeschickt ${wann(l.nach.zeit)}`));
+  }
   return teile.join(' ');
 }
 
 /**
+ * Der Hinweis zu „aelter" (kalenderLage().fremd): deutlich, auf der Karte –
+ * mit dem, was zu tun ist, und wann dort zuletzt trainiert wurde, wenn die
+ * Antwort den Stand trug. Nicht auf dem Dashboard: Der Kalender stimmt ja –
+ * für das Gerät, mit dem trainiert wird –, nur dieses hier schickt umsonst.
+ */
+function kalenderFremdText(l) {
+  const satz = kalenderSatz({ ergebnis: 'aelter' });
+  const t = l.fremd && Number.isFinite(l.fremd.zuletzt) && l.fremd.zuletzt > 0 ? l.fremd.zuletzt : 0;
+  return t ? `${satz} Dort zuletzt trainiert am ${kalenderTagKurz(t)}` : satz;
+}
+
+/**
  * Die Bitte um neuen Code für das Jahr (KALENDER_JAHR in js/kalender-sync.js):
- * kurz, mit den Schritten und „Code kopieren" gleich darunter. Kein
- * „einrichten" – Kalender und Auslöser bestehen schon. Meldet eine Antwort
- * ein paar Minuten nach dem Kopieren noch die alte Fassung, steht darüber,
- * was meist fehlt: „Neue Version" (kalenderLage().fehlt).
+ * kurz, mit den Schritten und „Code kopieren" gleich darunter. Mit
+ * „einrichten" (Schritt 4) – seit v247, warum steht bei KALENDER_JAHR. Meldet
+ * eine Antwort ein paar Minuten nach dem Kopieren noch die alte Fassung,
+ * steht darüber, was meist fehlt: „Neue Version" (kalenderLage().fehlt).
  */
 function kalenderJahrBitte(l) {
   const j = KALENDER_JAHR;
@@ -1053,8 +1171,17 @@ function kalenderKarte() {
   // Ein neues Skript-Projekt braucht Tobi so gut wie nie – zugeklappt, und
   // „Verbinden" dort nicht als auffälligster Knopf der Karte.
   const neuOffen = !!ui.kalenderNeu;
+  // Welchen Stand dieses Gerät schickt, und dass nur eins verbunden sein soll
+  // (kalenderGeraetStand()) – kurz, unter dem Stand des Skripts.
+  const geraetStand = kalenderGeraetStand();
+  const geraet = `<div class="small muted" id="kalenderGeraet" style="margin-top:6px">Dieses Gerät schickt:
+        ${esc(/\.$/.test(geraetStand) ? geraetStand : `${geraetStand}.`)} Verbunden sein soll nur das Gerät, auf dem du
+        trainierst – jedes Gerät hat seinen eigenen Stand, und ein zweites schickt einen Plan, der hinterherhinkt.</div>`;
   return `<div class="card" id="kalenderAuto">${was}
       <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
+      ${l.stockt ? `<div class="small" id="kalenderStockt" style="margin-top:6px;color:var(--accent)">${esc(KALENDER_STOCKT)}</div>` : ''}
+      ${l.fremd ? `<div class="notice warn" id="kalenderFremd" style="margin-top:8px">${esc(kalenderFremdText(l))}</div>` : ''}
+      ${geraet}
       ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}
       ${l.neuerCode && !l.zuAlt ? kalenderJahrBitte(l) : ''}
       ${meldung}
@@ -1079,16 +1206,17 @@ function kalenderKarte() {
         <button type="button" class="btn btn-ghost" data-act="kalender-trennen"
                 ${ui.kalenderLaeuft ? 'disabled' : ''}>Trennen</button>
       </div>
-      <div class="small muted" style="margin-top:6px">„Code kopieren" brauchst du nur, wenn die App hier um neuen
-        Code bittet. „Trennen": Die Termine ab heute verschwinden aus „Workout", und das Skript schiebt nichts
-        mehr; ganz weg ist es erst, wenn du das Projekt in Apps Script löschst.</div>
+      <div class="small muted" id="kalenderTrennenText" style="margin-top:6px">„Code kopieren" brauchst du nur, wenn die
+        App hier um neuen Code bittet. ${l.fremd ? '„Trennen": Dieses Gerät schickt dann nichts mehr; die Termine des anderen Geräts bleiben stehen, und das Skript pflegt sie weiter.'
+    : '„Trennen": Die Termine ab heute verschwinden aus „Workout", und das Skript schiebt nichts mehr; ganz weg ist es erst, wenn du das Projekt in Apps Script löschst.'}</div>
       ${codeText}
       ${wer}
       <button type="button" class="detail-toggle ${neuOffen ? 'on' : ''}" data-act="kalender-neu" id="kalenderNeuKnopf"
               aria-expanded="${neuOffen}" aria-controls="kalenderNeu">Neues Skript-Projekt? <span class="chev">▼</span></button>
       <div id="kalenderNeu"${neuOffen ? '' : ' hidden'}>
         <div class="small muted" style="margin-top:6px">Nur, wenn du in Apps Script ein neues Projekt angelegt hast:
-          seine Web-App-URL hier einfügen. Das alte bekommt dann ein „Trennen".</div>
+          seine Web-App-URL hier einfügen. ${l.fremd ? 'Das alte behält dann den Plan des anderen Geräts – es bekommt kein „Trennen".'
+    : 'Das alte bekommt dann ein „Trennen".'}</div>
         ${urlFeld('https://script.google.com/macros/s/…/exec', false)}
       </div>
       ${offenAus}
@@ -1131,15 +1259,16 @@ async function kalenderCodeKopieren() {
     // Entwurfs wiederholte die Meldung darunter die Schritte 3 und 4 in sieben
     // Zeilen. Verbunden ohne Bitte (das Skript selbst bittet um neuen Code)
     // gibt es keine nummerierten Schritte: dann die ganze Folge – ohne „Neue
-    // Version" liefe die Web-App mit dem alten Code. Kein „einrichten":
-    // Kalender und Auslöser bestehen schon, und der neue Code braucht keine
-    // neuen Rechte. Fehlt doch etwas, sagt es das Skript selbst.
+    // Version" liefe die Web-App mit dem alten Code, und ohne „einrichten"
+    // womöglich der stündliche Auslöser (KALENDER_JAHR in js/kalender-sync.js
+    // sagt, warum; bis v247 stand hier, es brauche es nicht).
     const bitte = kalenderLage().neuerCode;
     const text = bitte ? 'Code kopiert – mit demselben Kennwort wie bisher. Weiter mit Schritt 2.'
       : kalenderVerbunden()
         ? 'Code kopiert – mit demselben Kennwort wie bisher. In Apps Script im selben Projekt den ganzen Code damit '
-          + 'ersetzen, speichern, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue '
-          + 'Version → Bereitstellen. Die App merkt den neuen Code von selbst.'
+          + 'ersetzen, speichern, oben einrichten wählen und Ausführen tippen (fragt Google noch einmal nach Zugriff: '
+          + 'erlauben; es gleicht sofort ab und kann ein paar Minuten laufen), dann Bereitstellen → Bereitstellungen '
+          + 'verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen. Die App merkt den neuen Code von selbst.'
         : 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).';
     kalenderMelden(text, true, null, bitte);
     notieren('kalender', { was: 'code', ok: true, kopiert: true });
@@ -3822,6 +3951,16 @@ function sicherungSatz() {
     sobald du ihn dort ablegst, in deinem Passwortmanager.`;
 }
 
+/**
+ * Ein Satzende hinter vorWann(): „vor 3 Min." endet schon mit dem Punkt der
+ * Abkürzung, „am Mo, 26.10." mit dem des Datums – dann kein zweiter. Bis zur
+ * Prüfung von v247 stand unter Mehr → Daten „Zuletzt gesichert: vor 3 Min.."
+ * (und bis v247 unter Mehr → Kalender „nachgeschickt vor 1 Min..").
+ */
+function punkt(s) {
+  return /[.!?…]$/.test(s) ? s : `${s}.`;
+}
+
 /** „vor 3 Min." – für „Zuletzt gesichert". */
 function vorWann(iso) {
   const t = Date.parse(iso || '');
@@ -3980,7 +4119,7 @@ function sicherungKarte() {
       ? `, nach der letzten Sicherung von hier (${vorWann(m.ok)})` : ''}. Damit dieses Gerät den
       neueren Stand nicht überschreibt, sichert es gerade nicht. Was soll gelten?`;
   } else if (m.ok) {
-    lage = `Zuletzt gesichert: ${vorWann(m.ok)}.${m.fehler
+    lage = `Zuletzt gesichert: ${punkt(vorWann(m.ok))}${m.fehler
       ? ` Der letzte Versuch ging nicht (${m.fehler}) – wird von selbst wiederholt.` : ''}`;
   } else if (m.fehler) {
     lage = `Noch nicht gesichert: ${m.fehler}. Wird von selbst wiederholt.`;
@@ -7695,15 +7834,24 @@ function render() {
     const x = ex[Math.min(Math.max(0, ui.focusIdx), ex.length - 1)];
     offen = { n: ui.workoutNo, id: x ? x.id : null };
   }
+  // Als 'ansicht' gemeldet, wie der Reiter in go(): Die Vorschau für den
+  // Kalender liest beides nicht (kalenderGeaendert() in js/kalender-sync.js).
   const war = store.getState().fokusOffen ?? null;
   if ((war === null) !== (offen === null) || (offen && (war.n !== offen.n || war.id !== offen.id))) {
-    store.setSetting('fokusOffen', offen);
+    store.setSetting('fokusOffen', offen, 'ansicht');
   }
 }
 
+/**
+ * Zu einem Reiter. Der Store meldet den Wechsel als 'ansicht': Die Vorschau
+ * für den Kalender liest weder den Reiter noch die offene Einheit, und bis
+ * v247 rechnete sie trotzdem bei jedem Wechsel das Jahr im Worker neu – am
+ * Handy an Tobis Stand geschätzt eine knappe Sekunde, mit vielen Terminen
+ * mehrere –, geschickt wurde nie etwas (gleicher Fingerabdruck).
+ */
 function go(tab) {
   ui.tab = tab;
-  store.setSetting('tab', tab);
+  store.setSetting('tab', tab, 'ansicht');
   render();
   window.scrollTo({ top: 0 });
   // Unter Mehr steht, wie es um die Sicherung steht – fehlten dem Server die
@@ -9176,10 +9324,16 @@ view.addEventListener('click', (e) => {
       })();
       break;
     }
-    case 'reset-all':
+    case 'reset-all': {
+      // Gilt beim Skript der Plan eines anderen Geräts, geht von hier kein „aus"
+      // hinaus (kalenderVergessen() in js/kalender-sync.js), und dort
+      // verschwinden auch keine Termine. Bis zur Prüfung von v247 kündigte der
+      // Dialog es trotzdem an.
+      const kalSatz = !kalenderVerbunden() ? ''
+        : kalenderLage().fremd ? ' Dieses Gerät wird vom Kalender „Workout" getrennt; die Termine des anderen Geräts bleiben dort stehen.'
+          : ' Der Kalender „Workout" wird getrennt: Die Termine ab heute verschwinden dort.';
       if (confirm(`Wirklich alle protokollierten Sätze und Einstellungen löschen?${
-        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${
-        kalenderVerbunden() ? ' Der Kalender „Workout" wird getrennt: Die Termine ab heute verschwinden dort.' : ''}`)) {
+        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${kalSatz}`)) {
         // Die Sicherung auf dem Server gehört dazu: Bliebe sie stehen, schriebe
         // das erste Training danach einen fast leeren Stand darüber – oder sie
         // läge für immer dort, ohne Schlüssel auf diesem Gerät, der an sie
@@ -9219,6 +9373,7 @@ view.addEventListener('click', (e) => {
         });
       }
       break;
+    }
     default:
       break;
   }
@@ -9928,8 +10083,12 @@ kalenderEinrichten({
       if ((ui.tab === 'settings' || dash) && !tippt) render();
     };
   })(),
+  // Unter Mehr steht die Karte (renderSettings()): Solange sie aufgeschlagen
+  // ist und das Skript noch einträgt, fragt die App von selbst nach dem Stand.
+  karte: () => ui.tab === 'settings',
 });
-// `was` 'pause': nur die Pause geändert – die rechnet die Vorschau nicht neu.
+// `was` 'pause' (nur die Pause geändert) und 'ansicht' (Reiter, offene
+// Einheit): die rechnen die Vorschau nicht neu.
 store.subscribe((s, was) => { kalenderGeaendert(was); });
 
 render();
