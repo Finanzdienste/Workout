@@ -191,6 +191,13 @@ check(Object.keys(nachAbschluss.log || {}).length === 4, 'und die eben abgeschlo
 const vorRuhe = geschrieben().length;
 await warte(a, 5 * 60000);
 check(geschrieben().length === vorRuhe, `ohne Änderung nichts – auch nach fünf Minuten (${geschrieben().length - vorRuhe})`);
+// Unter Mehr → Daten: „vor 5 Min." endet schon mit dem Punkt der Abkürzung –
+// bis zur Prüfung von v247 stand dort „Zuletzt gesichert: vor 5 Min.." (wie
+// bis v247 unter Mehr → Kalender „nachgeschickt vor 1 Min..").
+await zuMehr(a);
+const standRuhe = await text(a, '#sicherungStand');
+check(/Zuletzt gesichert: vor \d+ Min\.(?!\.)/.test(standRuhe) && !/\.\./.test(standRuhe),
+  `„Zuletzt gesichert: vor 5 Min." – mit einem Punkt, nicht zweien („${standRuhe.trim()}")`);
 await a.reload({ waitUntil: 'networkidle' });
 await warte(a, 10000);
 check(geschrieben().length === vorRuhe, `ein Neustart ohne Änderung schickt nichts (${geschrieben().length - vorRuhe})`);

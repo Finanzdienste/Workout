@@ -74,7 +74,10 @@
  *      nichts über `offen` (daran erkennt es die App), und „einrichten"
  *      richtet es. Seit v247 gehört „einrichten" zu jedem Code-Tausch; 9b
  *      zeigt weiter, dass der Code auch ohne zurechtkommt, wo der Auslöser
- *      im Editor entstand.
+ *      im Editor entstand. Dazu aus der Prüfung von v247, was die App nicht
+ *      unterscheiden kann: Scheitert ein Lauf von Fassung 2 selbst (das
+ *      Tageskontingent trifft auch die Beschreibung), sagt die Probe genauso
+ *      wenig über `offen` – und nichts über „morgen".
  */
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -2012,6 +2015,30 @@ const jahrBeginnt = () => {
   const r = feuern(p, '2026-10-27T20:14:00+01:00');
   check(r && !r.fehler && Number.isInteger(r.offen) && r.offen <= pr3.offen && /Fassung 2/.test(workout(w).beschreibung),
     `die nächste Stunde läuft mit Fassung 2 weiter (noch ${r && r.offen} offen)`);
+}
+{
+  // Aus der Prüfung von v247: was die App an der Probe nicht unterscheiden
+  // kann. Scheitert ein Lauf von Fassung 2 vor dem Ende – hier am
+  // Tageskontingent, das jeden Schreibzugriff trifft, auch die Beschreibung
+  // (wie in Abschnitt 8) –, steht in workout.abgleich kein offen, und die Probe
+  // sagt weder offen noch morgen: genau wie hinter dem Auslöser mit Fassung 1
+  // oben. Die Karte rät dann bis zum nächsten Tag zu „einrichten" (README,
+  // „Woran die App es merkt"); schaden kann es nicht. Ändern ließe es sich nur
+  // im Skript – vorgemerkt für die nächste Fassung: probeAntwort_() gibt morgen
+  // und fehler auch ohne offen weiter. Fassung 2 bleibt, wie sie ist.
+  const { w, p, a } = jahrBeginnt();
+  w.drosselText = 'Service invoked too many times for one day: calendar.';
+  w.drossel = 0;
+  let f = null;
+  try { weiterFeuern(p, spaeter(w, 4)); } catch (e) { f = e; }
+  const ab = JSON.parse(p.props.get('workout.abgleich') || '{}');
+  const pr = probe(p);
+  w.drossel = null;
+  w.drosselText = DROSSEL;
+  check(a.offen > 0 && !!f && /Tageskontingent/.test(f.message) && ab.offen === null && ab.morgen === true && ab.fehler === true
+    && pr.ok && pr.version === 2 && pr.offen === null && pr.morgen === null && pr.tag === null,
+  'Fassung 2, ein Lauf am Tageskontingent gescheitert (auch die Beschreibung): workout.abgleich weiß „morgen", die Probe sagt weder offen noch '
+    + 'morgen – für die App sieht es aus wie der Auslöser mit Fassung 1');
 }
 
 /* ------------------------------------------------------------------ *

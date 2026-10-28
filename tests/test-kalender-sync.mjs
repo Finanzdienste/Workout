@@ -45,7 +45,8 @@
  *   9. Ohne Netz trainiert: Der Service Worker schickt im Hintergrund nach
  *      (das „sync" per CDP ausgelöst – Background Sync ist im Chromium ohne
  *      Oberfläche abgeschaltet); nach „fehler" ebenso, und ist das Skript
- *      noch beschäftigt, behält er die Sendung.
+ *      noch beschäftigt, behält er die Sendung. Sagt das Skript ihm „aelter",
+ *      trägt sein Vermerk den Stand, der dort gilt (seit der Prüfung von v247).
  *  10. Last im Fenster, gemessen mit echter Uhr.
  *  11. Die Einzeldatei: Karte ohne Knöpfe, keine Fehler.
  *  12. Konstanten, die an zwei Stellen stehen, sind gleich.
@@ -96,6 +97,11 @@
  *      danach nicht mehr, „einrichten" schon; Reiter und offene Einheit
  *      rechnen die Vorschau nicht neu; zwei Geräte: welchen Stand dieses
  *      schickt, „aelter" deutlich auf der Karte, und „Trennen" dann ohne „aus".
+ *  18. Was die Prüfung von v247 fand: „aelter" bleibt, auch wenn danach ein
+ *      Versuch scheitert (beschäftigt, kein Netz) – „Trennen", „Alle Daten
+ *      löschen" und eine neue URL schicken dann kein „aus", und ihre Sätze
+ *      sagen es; trainiert Tobi hier, ist es vorbei. Eine alte Auskunft
+ *      verspricht nichts mehr („in den nächsten Minuten", „morgen").
  *
  *     node tests/test-kalender-sync.mjs            # alles
  *     node tests/test-kalender-sync.mjs 3 7        # nur Abschnitt 3 und 7
@@ -1324,6 +1330,16 @@ await abschnitt(9, async () => {
     return { weg, nach: nach ? await nach.json() : null };
   });
   check(nachher.weg && nachher.nach && nachher.nach.seq === ausgang.seq, 'danach ist der Ausgang leer, und ein Vermerk sagt, was hinausging');
+  // Wie in 16 d: Der Vermerk bekommt die Zeit der Seite – die Uhr des Service
+  // Workers geht echt, die der Seite steht am 08.10. Sonst läge das, was er
+  // nachgeschickt hat, Wochen nach allem, was die Seite danach vermerkt.
+  const vermerkAufSeitenzeit = () => page.evaluate(async () => {
+    const c = await caches.open('kalender-ausgang');
+    const schluessel = new URL('kalender-ausgang-nach', location.href).href;
+    const vermerk = await (await c.match(schluessel)).json();
+    await c.put(schluessel, new Response(JSON.stringify({ ...vermerk, zeit: Date.now() })));
+  });
+  await vermerkAufSeitenzeit();
   await verstecken(page);
   await zeigen(page);
   await bis(async () => !!(await meta(page)).nach, 3000);
@@ -1382,6 +1398,40 @@ await abschnitt(9, async () => {
   const nach2 = await vermerkNach();
   check(skript.anfragen.length === s2 + 1 && skript.anfragen[s2].roh === a1.text && !(await imAusgang()) && nach2 && nach2.seq === a1.seq && nach2.code === 'angekommen',
     'wieder frei: er schickt genau diese Sendung, der Ausgang ist leer, und der Vermerk sagt „angekommen"');
+
+  // „aelter" über den Service Worker (seit der Prüfung von v247): Sein Vermerk
+  // trägt den Stand, der beim Skript gilt, und die App merkt sich, dass dort
+  // der Plan eines anderen Geräts gilt – auch wenn ihr eigener letzter Versuch
+  // ein anderer war (hier „beschäftigt"). „Trennen" schickt dann kein „aus".
+  skript.code = 'fehler';
+  skript.hinweis = 'Das Skript ist gerade beschäftigt – die App schickt es später noch einmal.';
+  await page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+  await bis(async () => !!(await imAusgang()), 5000);
+  const fremdStand = { einheiten: 13, saetze: 400, zuletzt: Date.parse('2026-10-08T09:01:00+02:00') };
+  Object.assign(skript, { code: 'aelter', hinweis: 'Ein anderes Gerät hat zuletzt trainiert – der Kalender bleibt bei dessen Plan.', fremdStand });
+  const s3 = skript.anfragen.length;
+  await cdp.send('ServiceWorker.dispatchSyncEvent', { origin: ORIGIN, registrationId: regId, tag: 'kalender', lastChance: false });
+  await bis(async () => skript.anfragen.length > s3 && !(await imAusgang()), 5000);
+  await bis(async () => ((await vermerkNach()) || {}).code === 'aelter', 3000);
+  const nach3 = await vermerkNach();
+  await vermerkAufSeitenzeit();
+  Object.assign(skript, { code: null, hinweis: undefined, vorschauCode: 'aelter' });
+  await verstecken(page);
+  await zeigen(page);
+  await bis(async () => !!(await meta(page)).fremd, 3000);
+  await zumDashboard(page);
+  await zuMehr(page);
+  const fremdSW = await text(page, '#kalenderFremd');
+  check(!!nach3 && nach3.code === 'aelter' && !!nach3.antwort && !!nach3.antwort.stand && nach3.antwort.stand.zuletzt === fremdStand.zuletzt
+    && ((await meta(page)).letzte || {}).ergebnis === 'fehler'
+    && /Ein anderes Gerät mit neuerem Training/.test(fremdSW) && /Dort zuletzt trainiert am Do 08\.10\./.test(fremdSW),
+  `„aelter" über den Service Worker: sein Vermerk trägt den Stand, der beim Skript gilt, und die Karte sagt es, obwohl der letzte eigene Versuch „beschäftigt" war („${fremdSW.trim().slice(0, 70)}…")`);
+  const ausSW = skript.aus().length;
+  await page.locator('[data-act="kalender-trennen"]').click();
+  await bis(async () => /Getrennt/.test(await text(page, '#kalenderMeldung')), 4000);
+  await vor(page, 60 * 1000, 800);
+  check(skript.aus().length === ausSW && ((await meta(page)).aus || []).length === 0,
+    `… und „Trennen" schickt dann kein „aus" (${skript.aus().length - ausSW})`);
   void n;
   await zu(g);
 });
@@ -2378,8 +2428,12 @@ await abschnitt(17, async () => {
   const satz = (await text(s.page, '#kalenderStockt')).trim();
   const farbe = (await s.page.locator('#kalenderStockt').getAttribute('style').catch(() => '')) || '';
   const proben80 = s.skript.proben().length;
-  check(proben40 >= 3 && !nach40 && /in den nächsten Minuten nach – noch 204 Änderungen\./.test(stand40),
-    `40 Minuten nach der Sendung, ${proben40} Proben – von selbst gefragt, solange die Karte offen ist –, aber noch kein Satz: 75 Minuten muss es mindestens sein`);
+  // Seit der Prüfung von v247 ohne „in den nächsten Minuten": Das galt eine
+  // Viertelstunde nach der Auskunft, nicht vierzig Minuten danach.
+  check(proben40 >= 3 && !nach40 && /Den Rest bis 08\.10\.2027 trägt das Skript nach – noch 204 Änderungen \(Stand vor 4\d Min\.\)\./.test(stand40)
+    && !/in den nächsten Minuten/.test(stand40),
+  `40 Minuten nach der Sendung, ${proben40} Proben – von selbst gefragt, solange die Karte offen ist –, aber noch kein Satz: 75 Minuten muss es `
+    + `mindestens sein; versprochen wird nichts mehr („${stand40.replace(/^.*?(Im Kalender)/, '$1').slice(0, 120)}")`);
   check(satz === t.stockt && /Das Skript trägt nichts nach – wahrscheinlich läuft der stündliche Auslöser noch mit dem alten Code\. In Apps Script einmal „einrichten" ausführen\./.test(satz)
     && /var\(--accent\)/.test(farbe) && proben80 >= proben40 + 3,
   `nach 80 Minuten und ${proben80} Proben ohne Fortschritt: „${satz}" – in der Akzentfarbe`);
@@ -2583,6 +2637,197 @@ await abschnitt(17, async () => {
     && /Getrennt – dieses Gerät schickt nichts mehr\. Den Kalender pflegt weiter das andere Gerät\./.test(await text(zg.page, '#kalenderMeldung')),
   `getrennt, ohne „aus" an das Skript (${zg.skript.aus().length - ausVorher}) – der Kalender des anderen Geräts bleibt`);
   await zu(zg);
+});
+
+/* ================================================================== *
+ * 18. Was die Prüfung von v247 fand
+ *
+ * „aelter" hing am letzten Versuch: Ein Versuch danach, der nicht ankam – das
+ * Skript beschäftigt (ein Lauf „weiter" des anderen Geräts hält die Sperre bis
+ * zu viereinhalb Minuten), kein Netz –, nahm den Hinweis weg, und „Trennen",
+ * „Alle Daten löschen" und eine neue URL schickten wieder ein „aus". Das nimmt
+ * das Skript von jedem Gerät an und räumt die Termine ab heute weg – die des
+ * Geräts, mit dem trainiert wird. Der Dialog von „Alle Daten löschen" und der
+ * Satz unter „Neues Skript-Projekt?" kündigten das „aus" auch dann an, wenn es
+ * gar nicht kommt. Und eine Auskunft von vor Stunden versprach weiter „in den
+ * nächsten Minuten" – bis die zweite Probe den Stillstand zeigte, nach dem
+ * Zurückkommen anderthalb Minuten, ohne Wegschalten bis zur 75. Minute.
+ * ================================================================== */
+await abschnitt(18, async () => {
+  const FREMD = { einheiten: 13, saetze: 400, zuletzt: Date.parse('2026-10-08T09:01:00+02:00') };
+  const BESCHAEFTIGT = 'Das Skript ist gerade beschäftigt – die App schickt es später noch einmal.';
+  /** Bis „aelter": Beim Skript liegt der Plan eines anderen Geräts mit neuerem Training, und das bleibt so. */
+  const fremdWerden = async (g) => {
+    await vor(g.page, 4000, 1500);
+    await bis(() => g.skript.vorschauen().length >= 1, 8000);
+    Object.assign(g.skript, { vorschauCode: 'aelter', fremdStand: FREMD });
+    const nr = ((await meta(g.page)).letzte || {}).nr;
+    await g.page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+    await bis(async () => ((await meta(g.page)).letzte || {}).nr !== nr, 4000);
+  };
+  /** Noch ein Versuch, der nicht ankommt: das Skript beschäftigt oder kein Netz. */
+  const scheitern = async (g, wie) => {
+    if (wie === 'netz') g.skript.modus = 'netz';
+    else Object.assign(g.skript, { code: 'fehler', hinweis: BESCHAEFTIGT });
+    const nr = ((await meta(g.page)).letzte || {}).nr;
+    await g.page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+    await bis(async () => ((await meta(g.page)).letzte || {}).nr !== nr, 4000);
+    Object.assign(g.skript, { modus: 'ok', code: null, hinweis: undefined });
+    return ((await meta(g.page)).letzte || {}).ergebnis;
+  };
+  const ausAn = (g, url) => g.skript.aus().filter((x) => x.url === url).length;
+
+  // a) „aelter", dann beschäftigt, dann „Trennen".
+  const a = await geraet('18 aelter, dann beschäftigt', { kalender: { token: TOKEN, url: URL_A } });
+  await fremdWerden(a);
+  const aErg = await scheitern(a, 'fehler');
+  await zuMehr(a.page);
+  const aStand = await text(a.page, '#kalenderStand');
+  const aFremd = await text(a.page, '#kalenderFremd');
+  check(aErg === 'fehler' && /Ein anderes Gerät mit neuerem Training ist mit diesem Kalender verbunden/.test(aFremd)
+    && /Dort zuletzt trainiert am Do 08\.10\./.test(aFremd)
+    && new RegExp(`Letzter Versuch gerade eben: ${BESCHAEFTIGT}`).test(aStand)
+    && /„Trennen": Dieses Gerät schickt dann nichts mehr/.test(await text(a.page, '#kalenderTrennenText')),
+  `nach „aelter" ein Versuch, auf den das Skript „beschäftigt" sagt (${aErg}): der Hinweis bleibt, mit dem Stand des anderen Geräts – der Versuch steht darüber im Stand`);
+  const aAus = ausAn(a, URL_A);
+  await a.page.locator('[data-act="kalender-trennen"]').click();
+  await bis(async () => /Getrennt/.test(await text(a.page, '#kalenderMeldung')), 4000);
+  await vor(a.page, 60 * 1000, 800);
+  check(ausAn(a, URL_A) === aAus && ((await meta(a.page)).aus || []).length === 0
+    && /Getrennt – dieses Gerät schickt nichts mehr\./.test(await text(a.page, '#kalenderMeldung')),
+  `… und „Trennen" schickt kein „aus" (${ausAn(a, URL_A) - aAus}) – die Termine des Geräts, mit dem trainiert wird, bleiben`);
+  await zu(a);
+
+  // b) „aelter", dann kein Netz, dann „Alle Daten löschen": Der Dialog sagt,
+  // was wirklich geschieht, und auch mit Netz geht kein „aus" nach.
+  const b = await geraet('18 aelter, dann kein Netz', { kalender: { token: TOKEN, url: URL_A } });
+  await fremdWerden(b);
+  const bErg = await scheitern(b, 'netz');
+  await zuMehr(b.page);
+  check(bErg === 'netz' && await b.page.locator('#kalenderFremd').count() === 1
+    && /Letzter Versuch gerade eben: Kein Netz/.test(await text(b.page, '#kalenderStand')),
+  `nach „aelter" ein Versuch ohne Netz (${bErg}): der Hinweis bleibt`);
+  const dialoge = [];
+  b.page.on('dialog', (d) => dialoge.push(d.message()));
+  const bAus = ausAn(b, URL_A);
+  await b.page.locator('[data-act="reset-all"]').click();
+  await bis(() => dialoge.length > 0, 3000);
+  await vor(b.page, 2000, 500);
+  await b.page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await vor(b.page, 60 * 1000, 800);
+  const dialog = dialoge[0] || '';
+  check(/Dieses Gerät wird vom Kalender „Workout" getrennt; die Termine des anderen Geräts bleiben dort stehen\./.test(dialog)
+    && !/Die Termine ab heute verschwinden/.test(dialog),
+  `„Alle Daten löschen" kündigt kein Löschen der Termine an („${dialog.replace(/^.*?(Dieses Gerät|Der Kalender)/, '$1')}")`);
+  check(ausAn(b, URL_A) === bAus && ((await meta(b.page)).aus || []).length === 0 && (await kal(b.page)) === null,
+    `… und schickt kein „aus", auch nicht, als das Netz zurück ist (${ausAn(b, URL_A) - bAus})`);
+  await zu(b);
+  // Dasselbe mit „Trennen", noch ohne Netz: Es wartet auch kein „aus" darauf.
+  const bt = await geraet('18 aelter, dann kein Netz, dann Trennen', { kalender: { token: TOKEN, url: URL_A } });
+  await fremdWerden(bt);
+  await scheitern(bt, 'netz');
+  await zuMehr(bt.page);
+  bt.skript.modus = 'netz';
+  const btAus = ausAn(bt, URL_A);
+  await bt.page.locator('[data-act="kalender-trennen"]').click();
+  await bis(async () => /Getrennt/.test(await text(bt.page, '#kalenderMeldung')), 4000);
+  const btWartet = ((await meta(bt.page)).aus || []).length;
+  bt.skript.modus = 'ok';
+  await bt.page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await vor(bt.page, 60 * 1000, 800);
+  check(btWartet === 0 && ausAn(bt, URL_A) === btAus && await bt.page.locator('#kalenderAusOffen').count() === 0
+    && /dieses Gerät schickt nichts mehr/.test(await text(bt.page, '#kalenderMeldung')),
+  `„Trennen" ohne Netz nach „aelter" und einem Versuch ohne Netz: kein „aus" wartet (${btWartet}), keins geht nach (${ausAn(bt, URL_A) - btAus})`);
+  await zu(bt);
+
+  // c) „aelter", dann beschäftigt, dann ein neues Skript-Projekt: An die alte
+  // URL geht kein „aus", und der Satz dazu sagt das vorher.
+  const c = await geraet('18 aelter, dann neue URL', { kalender: { token: TOKEN, url: URL_A } });
+  await fremdWerden(c);
+  await scheitern(c, 'fehler');
+  await zuMehr(c.page);
+  await c.page.locator('#kalenderNeuKnopf').click();
+  const cNeu = await text(c.page, '#kalenderNeu');
+  check(/Das alte behält dann den Plan des anderen Geräts – es bekommt kein „Trennen"\./.test(cNeu) && !/bekommt dann ein „Trennen"/.test(cNeu),
+    `„Neues Skript-Projekt?" sagt, dass das alte kein „Trennen" bekommt („${cNeu.trim().slice(0, 150)}")`);
+  c.skript.vorschauCode = null;
+  const cAus = ausAn(c, URL_A);
+  await verbinden(c.page, URL_B);
+  await bis(() => c.skript.vorschauen().some((x) => x.url === URL_B), 5000);
+  await vor(c.page, 60 * 1000, 800);
+  check((await kal(c.page)).url === URL_B && ausAn(c, URL_A) === cAus,
+    `eine neue URL: an die alte geht kein „aus" (${ausAn(c, URL_A) - cAus})`);
+  await zu(c);
+
+  // d) Trainiert Tobi doch auf diesem Gerät, gilt es mit dem ersten Satz
+  // wieder: Die Sendung kommt an, der Hinweis ist weg – und „Trennen" schickt
+  // wieder ein „aus", wie sonst.
+  const d = await geraet('18 aelter, dann hier trainiert', { kalender: { token: TOKEN, url: URL_A } });
+  await fremdWerden(d);
+  await zuMehr(d.page);
+  const dVorher = await d.page.locator('#kalenderFremd').count();
+  d.skript.vorschauCode = null;
+  const dN = d.skript.vorschauen().length;
+  await haken(d.page);
+  await bis(() => d.skript.vorschauen().length > dN, 5000);
+  await bis(async () => (await d.page.locator('#kalenderFremd').count()) === 0, 4000);
+  check(dVorher === 1 && await d.page.locator('#kalenderFremd').count() === 0 && !(await meta(d.page)).fremd
+    && /„Trennen": Die Termine ab heute verschwinden aus „Workout"/.test(await text(d.page, '#kalenderTrennenText')),
+  'hier trainiert: die Sendung kommt an, und der Hinweis auf das andere Gerät ist weg');
+  const dAus = ausAn(d, URL_A);
+  await d.page.locator('[data-act="kalender-trennen"]').click();
+  await bis(() => ausAn(d, URL_A) > dAus, 5000);
+  check(ausAn(d, URL_A) === dAus + 1, '… dann schickt „Trennen" wieder ein „aus"');
+  await zu(d);
+
+  // e) Eine Auskunft von vor Stunden verspricht nichts mehr. Die Sendung mit
+  // dem Jahr kam an (204 offen, „weiter" in ein paar Minuten), dann war die
+  // App fünf Stunden weg; die Probe beim Zurückkommen sagt nichts über `offen`
+  // (so antwortet Fassung 2 hinter einem Auslöser mit dem alten Code). Bis zur
+  // Prüfung stand dann anderthalb Minuten lang „in den nächsten Minuten" da.
+  const e = await geraet('18 alte Auskunft', { kalender: { token: TOKEN, url: URL_A } });
+  Object.assign(e.skript, { offen: 204, stehen: '2026-11-05', folge: true });
+  await vor(e.page, 4000, 1500);
+  await bis(() => e.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(e.page);
+  const eFrisch = await text(e.page, '#kalenderStand');
+  e.skript.probeStand = { offen: null, bis: null, stehen: null, folge: null, morgen: null, tag: null };
+  await verstecken(e.page);
+  await vor(e.page, 5 * 3600 * 1000, 300);
+  const eP = e.skript.proben().length;
+  await zeigen(e.page);
+  await bis(() => e.skript.proben().length > eP, 4000);
+  await echteWarte(500);
+  await zumDashboard(e.page);
+  await zuMehr(e.page);
+  const eAlt = await text(e.page, '#kalenderStand');
+  check(/Den Rest bis 08\.10\.2027 trägt das Skript in den nächsten Minuten nach – noch 204 Änderungen\./.test(eFrisch)
+    && await e.page.locator('#kalenderStockt').count() === 0
+    && /Im Kalender: Termine bis 05\.11\.2026\. Den Rest bis 08\.10\.2027 trägt das Skript nach – noch 204 Änderungen \(Stand vor 5 Std\.\)\./.test(eAlt)
+    && !/in den nächsten Minuten/.test(eAlt),
+  `frisch „in den nächsten Minuten"; fünf Stunden später, vor der zweiten Probe, kein Versprechen mehr, sondern wann die Auskunft kam („${eAlt.replace(/^.*?(Im Kalender)/, '$1').slice(0, 130)}")`);
+  await zu(e);
+
+  // f) Ebenso „morgen" (Tageskontingent): von gestern gesagt, hieße es heute
+  // „übermorgen". Ohne Netz kommt keine neuere Auskunft.
+  const f = await geraet('18 morgen von gestern', { kalender: { token: TOKEN, url: URL_A } });
+  Object.assign(f.skript, { offen: 150, stehen: '2026-11-12', folge: false, morgen: true });
+  await vor(f.page, 4000, 1500);
+  await bis(() => f.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(f.page);
+  const fHeute = await text(f.page, '#kalenderStand');
+  f.skript.modus = 'netz';
+  await verstecken(f.page);
+  await vor(f.page, 16 * 3600 * 1000, 300);
+  await zeigen(f.page);
+  await echteWarte(1500);
+  await zumDashboard(f.page);
+  await zuMehr(f.page);
+  const fMorgen = await text(f.page, '#kalenderStand');
+  check(/trägt das Skript morgen nach – noch 150 Änderungen\./.test(fHeute)
+    && /Den Rest bis 08\.10\.2027 trägt das Skript nach – noch 150 Änderungen \(Stand vor 16 Std\.\)\./.test(fMorgen) && !/morgen nach/.test(fMorgen),
+  `„morgen" gilt am Tag der Auskunft; am nächsten Tag ohne neuere Auskunft kein Versprechen („${fMorgen.replace(/^.*?(Im Kalender)/, '$1').slice(0, 130)}")`);
+  await zu(f);
 });
 
 check(seitenFehler.length === 0, `keine Fehler auf den Seiten${seitenFehler.length ? `: ${seitenFehler.slice(0, 4).join(' | ')}` : ''}`);

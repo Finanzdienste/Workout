@@ -901,6 +901,17 @@ function kalenderGeraetStand() {
 const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
 
 /**
+ * Wie lange ein Versprechen der Karte gilt, gezählt ab der Auskunft, aus der es
+ * kommt (kalenderImKalender()): „in den nächsten Minuten" eine Viertelstunde –
+ * ein „weiter" kommt drei Minuten nach dem vorigen Lauf, und auf der
+ * aufgeschlagenen Karte fragt die App alle paar Minuten nach –, „mit dem
+ * nächsten stündlichen Abgleich" 75 Minuten (dazwischen muss ein stündlicher
+ * Lauf gelegen haben, wie bei KAL_STOCKT_NACH in js/kalender-sync.js).
+ * „morgen" gilt am Tag der Auskunft.
+ */
+const KALENDER_VERSPRECHEN = { minuten: 15 * 60 * 1000, stunde: 75 * 60 * 1000 };
+
+/**
  * Was im Kalender steht – aus der letzten Auskunft des Skripts (Fassung 2,
  * kalenderLage().stand). Solange es das Jahr noch einträgt, nur, was schon
  * steht, und dass der Rest folgt: Bis zur Prüfung stand hier gleich nach dem
@@ -918,6 +929,14 @@ const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${
  * nichts mehr („in den nächsten Minuten" stimmte bei Tobi am 28.10. nicht),
  * sondern sagt, seit wann nichts weniger wird; was zu tun ist, steht darunter
  * in der Akzentfarbe (KALENDER_STOCKT, kalenderKarte()).
+ *
+ * Und keine Auskunft verspricht länger, als ihr Versprechen gilt
+ * (KALENDER_VERSPRECHEN): Danach sagt der Satz, was sie wusste und wann sie
+ * kam („Stand vor 5 Std."), statt etwas zuzusagen, das längst hätte
+ * eintreten müssen. Bis zur Prüfung von v247 stand nach fünf Stunden weg beim
+ * Zurückkommen anderthalb Minuten lang „in den nächsten Minuten" da – bis die
+ * zweite Probe den Stillstand zeigte –, ohne Wegschalten bis zur 75. Minute,
+ * und ein „morgen" von gestern blieb „morgen".
  */
 function kalenderImKalender(s, wann, stockt = null) {
   if (!s || !s.bis) return '';
@@ -928,14 +947,22 @@ function kalenderImKalender(s, wann, stockt = null) {
       + `seit ${dauerKurz(Date.now() - stockt.seit)} nicht weniger.${kurz}`;
   }
   if (s.offen > 0) {
+    const bekannt = Number.isFinite(s.zeit);
+    const alter = bekannt ? Date.now() - s.zeit : Infinity;
     const spaet = s.morgen && !s.folge;
-    const wie = s.folge ? 'in den nächsten Minuten' : spaet ? 'morgen' : 'mit dem nächsten stündlichen Abgleich';
+    let wie = null;
+    if (s.folge) wie = alter <= KALENDER_VERSPRECHEN.minuten ? 'in den nächsten Minuten' : null;
+    else if (spaet) wie = bekannt && toISO(new Date(s.zeit)) === todayISO() ? 'morgen' : null;
+    else wie = alter <= KALENDER_VERSPRECHEN.stunde ? 'mit dem nächsten stündlichen Abgleich' : null;
     const noch = `noch ${s.offen} ${s.offen === 1 ? 'Änderung' : 'Änderungen'}`;
-    const stand = s.probe ? ` (Stand ${wann(s.zeit)})` : '';
-    return (s.stehen
-      ? `Im Kalender: Termine bis ${kalenderDatum(s.stehen)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript ${wie} nach – ${noch}${stand}.`
-      : `Im Kalender: Das Skript trägt die Termine bis ${kalenderDatum(s.bis)} ${spaet ? 'morgen' : 'gerade'} ein – ${noch}${
-        spaet ? '' : `, ${wie}`}${stand}.`) + kurz;
+    const stand = bekannt && (s.probe || !wie || alter > KALENDER_VERSPRECHEN.minuten) ? ` (Stand ${wann(s.zeit)})` : '';
+    if (s.stehen) {
+      return `Im Kalender: Termine bis ${kalenderDatum(s.stehen)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript `
+        + `${wie ? `${wie} ` : ''}nach – ${noch}${stand}.${kurz}`;
+    }
+    const zeitWort = !wie ? '' : spaet ? ' morgen' : ' gerade';
+    return `Im Kalender: Das Skript trägt die Termine bis ${kalenderDatum(s.bis)}${zeitWort} ein – ${noch}${wie && !spaet ? `, ${wie}` : ''}`
+      + `${stand}.${kurz}`;
   }
   return `Im Kalender: Termine bis ${kalenderDatum(s.bis)}.${kurz}`;
 }
@@ -950,8 +977,6 @@ function kalenderImKalender(s, wann, stockt = null) {
  */
 function kalenderStandText(l) {
   const wann = (ms) => vorWann(new Date(ms).toISOString());
-  // „vor 6 Min." endet schon mit dem Punkt der Abkürzung.
-  const punkt = (s) => (/[.!?…]$/.test(s) ? s : `${s}.`);
   const teile = [];
   const fassung = l.fassung ?? (l.angekommen ? l.angekommen.version : null);
   // Neuer Code erkannt, das Jahr ist unterwegs (kalenderLage().unterwegs).
@@ -968,7 +993,10 @@ function kalenderStandText(l) {
   if (im) teile.push(im);
   // Ein gescheiterter Versuch, nach dem der Service Worker doch zugestellt
   // hat, ist überholt (kalenderLage().nachgeholt); „aelter" steht seit v247 als
-  // eigener Hinweis darunter (kalenderKarte(), #kalenderFremd). Und ein
+  // eigener Hinweis darunter (kalenderKarte(), #kalenderFremd) – nur dieser
+  // Versuch selbst fällt hier weg. Scheitert danach einer (das Skript
+  // beschäftigt, kein Netz), steht er hier, und der Hinweis bleibt: Bis zur
+  // Prüfung von v247 nahm so ein Versuch ihn weg. Und ein
   // Hinweis, der nur den Augenblick der letzten Sendung beschreibt –
   // „Tageskontingent aufgebraucht – morgen …", „Google bremst gerade" –, gilt
   // nur, bis eine neuere Auskunft da ist (kalenderLage().hinweisAlt): eine
@@ -978,7 +1006,7 @@ function kalenderStandText(l) {
   // das Kontingent: „Google bremst gerade – der Rest folgt mit dem nächsten
   // stündlichen Abgleich" stand neben einer Probe, die längst einen neueren
   // Stand sagte. Was Tobi tun soll („einrichten", eine URL), bleibt stehen.
-  if (l.letzte && !l.letzte.ok && !l.zuAlt && !l.nachgeholt && !l.fremd) {
+  if (l.letzte && !l.letzte.ok && !l.zuAlt && !l.nachgeholt && !(l.fremd && l.letzte.ergebnis === 'aelter')) {
     const satz = kalenderSatz(l.letzte);
     teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);
     if (l.letzte.wieder && !/noch einmal/.test(satz)) teile.push('Die App versucht es gleich noch einmal.');
@@ -1187,7 +1215,8 @@ function kalenderKarte() {
               aria-expanded="${neuOffen}" aria-controls="kalenderNeu">Neues Skript-Projekt? <span class="chev">▼</span></button>
       <div id="kalenderNeu"${neuOffen ? '' : ' hidden'}>
         <div class="small muted" style="margin-top:6px">Nur, wenn du in Apps Script ein neues Projekt angelegt hast:
-          seine Web-App-URL hier einfügen. Das alte bekommt dann ein „Trennen".</div>
+          seine Web-App-URL hier einfügen. ${l.fremd ? 'Das alte behält dann den Plan des anderen Geräts – es bekommt kein „Trennen".'
+    : 'Das alte bekommt dann ein „Trennen".'}</div>
         ${urlFeld('https://script.google.com/macros/s/…/exec', false)}
       </div>
       ${offenAus}
@@ -3922,6 +3951,16 @@ function sicherungSatz() {
     sobald du ihn dort ablegst, in deinem Passwortmanager.`;
 }
 
+/**
+ * Ein Satzende hinter vorWann(): „vor 3 Min." endet schon mit dem Punkt der
+ * Abkürzung, „am Mo, 26.10." mit dem des Datums – dann kein zweiter. Bis zur
+ * Prüfung von v247 stand unter Mehr → Daten „Zuletzt gesichert: vor 3 Min.."
+ * (und bis v247 unter Mehr → Kalender „nachgeschickt vor 1 Min..").
+ */
+function punkt(s) {
+  return /[.!?…]$/.test(s) ? s : `${s}.`;
+}
+
 /** „vor 3 Min." – für „Zuletzt gesichert". */
 function vorWann(iso) {
   const t = Date.parse(iso || '');
@@ -4080,7 +4119,7 @@ function sicherungKarte() {
       ? `, nach der letzten Sicherung von hier (${vorWann(m.ok)})` : ''}. Damit dieses Gerät den
       neueren Stand nicht überschreibt, sichert es gerade nicht. Was soll gelten?`;
   } else if (m.ok) {
-    lage = `Zuletzt gesichert: ${vorWann(m.ok)}.${m.fehler
+    lage = `Zuletzt gesichert: ${punkt(vorWann(m.ok))}${m.fehler
       ? ` Der letzte Versuch ging nicht (${m.fehler}) – wird von selbst wiederholt.` : ''}`;
   } else if (m.fehler) {
     lage = `Noch nicht gesichert: ${m.fehler}. Wird von selbst wiederholt.`;
@@ -9285,10 +9324,16 @@ view.addEventListener('click', (e) => {
       })();
       break;
     }
-    case 'reset-all':
+    case 'reset-all': {
+      // Gilt beim Skript der Plan eines anderen Geräts, geht von hier kein „aus"
+      // hinaus (kalenderVergessen() in js/kalender-sync.js), und dort
+      // verschwinden auch keine Termine. Bis zur Prüfung von v247 kündigte der
+      // Dialog es trotzdem an.
+      const kalSatz = !kalenderVerbunden() ? ''
+        : kalenderLage().fremd ? ' Dieses Gerät wird vom Kalender „Workout" getrennt; die Termine des anderen Geräts bleiben dort stehen.'
+          : ' Der Kalender „Workout" wird getrennt: Die Termine ab heute verschwinden dort.';
       if (confirm(`Wirklich alle protokollierten Sätze und Einstellungen löschen?${
-        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${
-        kalenderVerbunden() ? ' Der Kalender „Workout" wird getrennt: Die Termine ab heute verschwinden dort.' : ''}`)) {
+        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${kalSatz}`)) {
         // Die Sicherung auf dem Server gehört dazu: Bliebe sie stehen, schriebe
         // das erste Training danach einen fast leeren Stand darüber – oder sie
         // läge für immer dort, ohne Schlüssel auf diesem Gerät, der an sie
@@ -9328,6 +9373,7 @@ view.addEventListener('click', (e) => {
         });
       }
       break;
+    }
     default:
       break;
   }

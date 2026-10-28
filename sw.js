@@ -383,10 +383,16 @@ async function kalenderNachsenden() {
       code = j && typeof j.code === 'string' ? j.code.slice(0, 20) : null;
       version = j && Number.isInteger(j.version) ? j.version : null;
       // Was das Skript über den Abgleich sagt (Fassung 2) – die App prüft es
-      // wie die Antwort auf eine eigene Sendung (kalAbgleich()).
+      // wie die Antwort auf eine eigene Sendung (kalAbgleich()). Dazu der
+      // Trainingsstand, der beim Skript gilt: Sagt es „aelter", ist es der
+      // eines anderen Geräts, und die App merkt sich, dass dort dessen Plan
+      // gilt (kalNachLesen() – seit der Prüfung von v247; sie prüft ihn mit
+      // kalStandLesen(), nur Zahlen).
       if (j && typeof j === 'object') {
         antwort = {
           tag: j.tag, geaendert: j.geaendert, offen: j.offen, bis: j.bis, stehen: j.stehen, folge: j.folge, morgen: j.morgen,
+          stand: j.stand && typeof j.stand === 'object'
+            ? { einheiten: j.stand.einheiten, saetze: j.stand.saetze, zuletzt: j.stand.zuletzt } : null,
         };
       }
     } catch {

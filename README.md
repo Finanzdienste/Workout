@@ -2944,11 +2944,12 @@ bleibt, es steht ja noch im Skript. Ohne Netz wartet das „aus" und geht nach,
 sobald welches da ist. *Alle Daten löschen* tut dasselbe. Ganz weg ist das
 Skript erst, wenn Tobi das Projekt in Apps Script löscht und unter
 `myaccount.google.com/permissions` den Zugriff entzieht. Eine Ausnahme seit
-v247: Kam der letzte Versuch als `aelter` zurück – beim Skript gilt der Plan
-eines anderen Geräts –, geht kein „aus", weder beim Trennen noch beim Löschen
-noch an die alte URL beim Wechsel. Das Skript nimmt ein „aus" von jedem Gerät
-mit dem Kennwort an und räumte damit die Termine des Geräts weg, mit dem
-trainiert wird (unten, *Zwei Geräte*).
+v247: Sagte eine Antwort `aelter` – beim Skript gilt der Plan eines anderen
+Geräts –, und kam danach von diesem Gerät nichts mehr an, geht kein „aus",
+weder beim Trennen noch beim Löschen noch an die alte URL beim Wechsel; ein
+Versuch dazwischen, der scheitert, ändert daran nichts. Das Skript nimmt ein
+„aus" von jedem Gerät mit dem Kennwort an und räumte damit die Termine des
+Geräts weg, mit dem trainiert wird (unten, *Zwei Geräte*).
 
 **In der Einzeldatei** steht die Karte ohne Knöpfe, mit dem Satz, dass es nur
 in der App aus dem Netz geht: Aus einer Datei startet kein Modul-Worker, und
@@ -3567,10 +3568,11 @@ Bezug setzt ihn neu: weniger heißt, das Skript trägt nach; mehr heißt neue
 Arbeit (eine Sendung, nach der das ganze Jahr einen Tag weiterrückt, oder die
 eines anderen Geräts), und bis `weiter` damit anfängt, vergehen ein paar
 Minuten. Eine Probe mit demselben Stand oder ganz ohne `offen` zählt – ohne
-`offen` antwortet Fassung 2 gerade dann, wenn den letzten Abgleich ein Lauf des
-alten Codes schrieb. Haben über mindestens 75 Minuten mindestens zwei Proben
-nichts anderes gesagt, und ist noch etwas offen, steht auf der Karte, in der
-Farbe für „da ist etwas zu tun":
+`offen` antwortet Fassung 2, wenn den letzten Abgleich ein Lauf des alten
+Codes schrieb, aber auch, wenn ein eigener Lauf vor dem Ende scheiterte
+(unten, *Was die Prüfung von v247 fand*). Haben über mindestens 75 Minuten
+mindestens zwei Proben nichts anderes gesagt, und ist noch etwas offen, steht
+auf der Karte, in der Farbe für „da ist etwas zu tun":
 
 > Das Skript trägt nichts nach – wahrscheinlich läuft der stündliche Auslöser
 > noch mit dem alten Code. In Apps Script einmal „einrichten" ausführen.
@@ -3587,7 +3589,13 @@ nächsten vier Wochen stimmen ja, es fehlt das Jahr dahinter. Ins
 Diagnoseprotokoll kommt es einmal (`was=stockt offen=204 minuten=80
 proben=8`), in seinen Kopf „· 204 offen, trägt nichts nach". Steht noch kein
 Bezug da – das erste Mal nach dem Update auf v247 –, gilt der Stand, den die App
-schon kennt; die Antwort von 12:04 reicht also.
+schon kennt: die Antwort von 12:04, solange seitdem keine Sendung ankam. Kommt
+vorher eine an, die einen anderen Stand sagt – am nächsten Tag etwa die beim
+Start, deren `doPost` in seinen 25 Sekunden ein paar Termine schafft –,
+beginnt der Bezug dort neu, und der Satz kommt frühestens 75 Minuten und zwei
+Proben danach (nachgestellt bei der Prüfung von v247: Startsendung 196 statt
+204 offen, der Satz nach 80 Minuten). Für Tobi heißt das: `einrichten` jetzt
+ausführen, nicht erst, wenn die Karte es sagt.
 
 Damit die App das bemerkt, während Tobi auf der Karte wartet, fragt die Karte
 seit v247 von selbst nach, solange sie aufgeschlagen ist und noch etwas offen
@@ -3681,9 +3689,62 @@ Gerät mit dem Kennwort an und räumt dann die Termine ab heute weg, also die de
 Geräts, mit dem trainiert wird, bis es wieder etwas schickt. Getrennt wird nur
 dieses Gerät („Getrennt – dieses Gerät schickt nichts mehr. Den Kalender pflegt
 weiter das andere Gerät."); dasselbe bei *Alle Daten löschen* und beim Wechsel
-zu einer anderen URL. Ob das andere Gerät inzwischen selbst getrennt ist, weiß
-die App nicht – dann bleibt eben dessen letzter Plan beim Skript, bis Tobi
-dort trennt.
+zu einer anderen URL. Gemerkt wird das für sich, nicht am letzten Versuch
+(unten, *Was die Prüfung von v247 fand*). Ob das andere Gerät inzwischen selbst
+getrennt ist, weiß die App nicht – dann bleibt eben dessen letzter Plan beim
+Skript, bis Tobi dort trennt.
+
+**Was die Prüfung von v247 fand**, nachgestellt und behoben, alles in der App:
+
+* **`aelter` hing am letzten Versuch.** Jeder Versuch danach überschrieb ihn,
+  auch einer, der nicht ankam: Sagte das Skript „beschäftigt" – ein Lauf
+  `weiter` des anderen Geräts hält die Sperre bis zu viereinhalb Minuten – oder
+  fehlte das Netz, war der Hinweis weg, und „Trennen", *Alle Daten löschen* und
+  eine neue URL schickten das „aus" doch, das die Termine des Geräts wegräumt,
+  mit dem trainiert wird. Jetzt steht es für sich im Speicher des Geräts
+  (`fremd` in `workout.kalender.v1`, mit dem Stand, der beim Skript gilt),
+  gesetzt von jeder Antwort `aelter` – auch der auf eine Sendung, die der
+  Service Worker nachgeschickt hat; sein Vermerk trägt dafür jetzt den Stand
+  mit (`sw.js`) –, und weg erst, wenn eine eigene Sendung ankommt. Der
+  gescheiterte Versuch steht darüber im Stand der Karte („Letzter Versuch
+  gerade eben: Das Skript ist gerade beschäftigt …"), der Hinweis bleibt. Im
+  Kopf des Diagnoseprotokolls steht dann „· beim Skript gilt ein anderes
+  Gerät".
+* **Die Sätze dazu.** Der Dialog von *Alle Daten löschen* kündigte auch dann
+  an: „Die Termine ab heute verschwinden dort." Jetzt: „Dieses Gerät wird vom
+  Kalender „Workout" getrennt; die Termine des anderen Geräts bleiben dort
+  stehen." Unter „Neues Skript-Projekt?" stand „Das alte bekommt dann ein
+  „Trennen"." – jetzt „Das alte behält dann den Plan des anderen Geräts – es
+  bekommt kein „Trennen"."
+* **Eine alte Auskunft versprach weiter.** „In den nächsten Minuten" stand da,
+  bis die zweite Probe den Stillstand zeigte: nach fünf Stunden weg beim
+  Zurückkommen anderthalb Minuten lang, ohne Wegschalten bis zur 75. Minute;
+  ein „morgen" von gestern blieb „morgen". Jetzt hält jedes Versprechen nur so
+  lange, wie es gelten kann (`KALENDER_VERSPRECHEN` in `js/app.js`): „in den
+  nächsten Minuten" eine Viertelstunde – ein `weiter` kommt drei Minuten nach
+  dem vorigen Lauf, und auf der Karte fragt die App alle paar Minuten nach –,
+  „mit dem nächsten stündlichen Abgleich" 75 Minuten, „morgen" am Tag der
+  Auskunft. Danach sagt der Stand, was die Auskunft wusste und wann sie kam:
+  „Den Rest bis 08.10.2027 trägt das Skript nach – noch 204 Änderungen (Stand
+  vor 5 Std.)."
+* **„Zuletzt gesichert: vor 3 Min.."** unter Mehr → Daten – dieselbe Ursache wie
+  die zwei Punkte unter Mehr → Kalender, nur älter: `vorWann()` endet mit dem
+  Punkt der Abkürzung oder des Datums. Beide Stellen nehmen jetzt `punkt()`.
+* **Was sich ohne neuen Code im Skript nicht unterscheiden lässt.** Ohne
+  `offen` antwortet Fassung 2 auch, wenn ihr eigener letzter Lauf vor dem Ende
+  scheiterte – ein Fehler vor dem Abarbeiten, oder ein Tageskontingent, das
+  auch die Beschreibung des Kalenders trifft. Dann sagt die Probe auch kein
+  „morgen" (`probeAntwort_()` gibt es nur mit `offen` weiter, obwohl
+  `workout.abgleich` es weiß), und für die App sieht es aus wie der alte
+  Auslöser: Die Karte rät bis zum nächsten Tag zu `einrichten`. Schaden kann
+  das nicht – `einrichten` legt den Auslöser neu an, oder es scheitert an
+  derselben Grenze, bevor es einen Auslöser anfasst (`kalenderSichern_()`
+  schreibt die Beschreibung vor `ausloeserNeu_()`). Nachgestellt in
+  `tests/test-kalender-gas.mjs`, Abschnitt 12; vorgemerkt für die nächste
+  Fassung des Skripts: `morgen` und `fehler` auch ohne `offen` weitergeben.
+  Jetzt nicht – Tobi soll den Code nicht noch einmal tauschen. Dass der Bezug
+  mit der ersten Sendung neu beginnt, die einen anderen Stand sagt, steht oben
+  bei *Woran die App es merkt*.
 
 **Geprüft.** `tests/test-kalender-sync.mjs`, Abschnitt 17 (das Skript wie
 immer per `page.route` gespielt): die Anleitung an jeder Stelle mit
@@ -3727,9 +3788,11 @@ Dokumentation gelesen; dass `einrichten` es richtet, folgt daraus und aus
 `ausloeserNeu_()`, gesehen ist es erst, wenn Tobi es ausgeführt hat und `offen`
 sinkt (die Karte zeigt es dann). Ob Google bei `einrichten` noch einmal nach
 Zugriff fragt, ist ungeprüft – die Anleitung sagt deshalb „womöglich". Die
-Erkennung kann sich irren: Bremst Google länger als eine Stunde, oder hängen
-die Läufe aus einem anderen Grund, steht derselbe Satz da – `einrichten` schadet
-dann nicht und schreibt ins Ausführungsprotokoll, was los ist. Gefragt wird
+Erkennung kann sich irren: Bremst Google länger als eine Stunde, hängen die
+Läufe aus einem anderen Grund, oder scheiterte ein Lauf von Fassung 2 selbst
+(oben: ein Tageskontingent, das auch die Beschreibung trifft), steht derselbe
+Satz da – `einrichten` schadet dann nicht und schreibt ins
+Ausführungsprotokoll, was los ist. Gefragt wird
 von selbst nur auf der aufgeschlagenen Karte; liegt die App die ganze Zeit
 auf einer anderen Seite, kommt der Satz erst mit den Proben beim Öffnen und
 Zurückkommen. Und die Zeile „Dieses Gerät schickt" sagt, was dieses Gerät
