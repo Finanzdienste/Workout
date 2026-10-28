@@ -32,16 +32,20 @@
  *      Google-Konto" – dann käme die App nie an).
  *   4. Die URL in der App einfügen und „Verbinden" tippen.
  *
- * NEUE FASSUNG (etwa von Fassung 1 auf 2 – die App sagt es dir): im selben
- * Projekt den ganzen Code ersetzen, speichern, dann Schritt 3. „einrichten"
- * braucht es dafür nicht: Kalender und stündlicher Auslöser bleiben (der
- * Auslöser ruft „stuendlich" beim Namen, und das ist jetzt der neue Code),
- * und Fassung 2 braucht keine Rechte, die Fassung 1 nicht schon hatte. Fehlt
- * doch etwas, sagt das Skript selbst, dass „einrichten" hilft. Ohne „Neue
- * Version" liefe die Web-App mit dem alten Code weiter, während der
- * stündliche Auslöser schon den neuen nimmt – darum liest der neue Code
- * alles, was ein alter gespeichert hat, und die App schickt dem alten weiter,
- * was er versteht.
+ * NEUER CODE (etwa von Fassung 1 auf 2 – die App sagt es dir): im selben
+ * Projekt den ganzen Code ersetzen, speichern, oben „einrichten" wählen und
+ * „Ausführen" tippen (fragt Google noch einmal nach Zugriff: erlauben; es
+ * gleicht sofort ab und kann ein paar Minuten laufen), dann Schritt 3.
+ * „einrichten" gehört zu jedem Code-Tausch: Einen stündlichen Auslöser, den
+ * das Skript selbst angelegt hat (die App kam an, bevor je eingerichtet
+ * wurde), legt doPost aus der bereitgestellten Version an – und so einer
+ * lief bei Tobi am 28.10. nach „Neue Version" weiter mit dem alten Code.
+ * „einrichten" legt den Auslöser im Editor neu an; der nimmt immer den
+ * zuletzt gespeicherten Code. Kalender und Termine bleiben dabei, wie sie
+ * sind. Ohne „Neue Version" liefe die Web-App mit dem alten Code weiter,
+ * während der stündliche Auslöser schon den neuen nimmt – darum liest der
+ * neue Code alles, was ein alter gespeichert hat, und die App schickt dem
+ * alten weiter, was er versteht.
  *
  * WAS ES DARF UND TUT
  * - Google fragt nach Zugriff auf alle deine Kalender; so ist CalendarApp
@@ -170,11 +174,12 @@ const TAGESKONTINGENT = 'Google lässt heute keine weiteren Kalender-Änderungen
  * ------------------------------------------------------------------ */
 
 /**
- * Einmal von Hand ausführen. Räumt die Probe weg, legt den Kalender „Workout"
- * an oder findet den eigenen wieder, legt genau einen stündlichen Auslöser an
- * und sagt im Protokoll, was es getan hat. Beliebig oft wiederholbar, ohne
- * dass etwas doppelt entsteht. Nach einer neuen Fassung des Codes nur nötig,
- * wenn das Skript oder die App darum bittet.
+ * Von Hand ausführen – beim Einrichten und nach jedem neuen Code, vor „Neue
+ * Version". Räumt die Probe weg, legt den Kalender „Workout" an oder findet
+ * den eigenen wieder, legt genau einen stündlichen Auslöser an – aus dem
+ * Editor, also mit dem zuletzt gespeicherten Code – und sagt im Protokoll,
+ * was es getan hat. Beliebig oft wiederholbar, ohne dass etwas doppelt
+ * entsteht.
  */
 function einrichten() {
   // Mit „einzelnen Häkchen" im Zustimmungsdialog fragt Google sonst nur
@@ -200,7 +205,7 @@ function einrichten() {
     else melde('– Noch keine Vorschau von der App. Bis sie kommt, bleibt der Kalender leer.');
     melde('Nächster Schritt: Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → '
       + 'Version: Neue Version → Bereitstellen. Danach in der App „Verbinden" – ist sie schon verbunden, '
-      + 'merkt sie den neuen Code von selbst.');
+      + 'merkt sie den neuen Code von selbst. Nach jedem neuen Code hier wieder erst „einrichten", dann „Neue Version".');
   } finally {
     lock.releaseLock();
   }
@@ -1262,7 +1267,8 @@ function teileAufraeumen_(P, gen) {
 /**
  * Die Meta-Zeile lesen. Jede Fassung dieses Codes liest alle Formate, die
  * eine frühere geschrieben hat: Die Web-App läuft auf der bereitgestellten
- * Fassung, der Auslöser auf der zuletzt gespeicherten. Bis jetzt gibt es
+ * Fassung, ein im Editor angelegter Auslöser auf der zuletzt gespeicherten –
+ * einer, den doPost anlegte, auf der Fassung seiner Bereitstellung. Bis jetzt gibt es
  * Format 1 – Fassung 1 und 2 schreiben es beide; Tobis Probe hatte keins
  * („kal" räumt einrichten() weg).
  */
