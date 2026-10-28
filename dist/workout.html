@@ -26989,9 +26989,15 @@ function kalenderStandText(l) {
   if (im) teile.push(im);
   // Ein gescheiterter Versuch, nach dem der Service Worker doch zugestellt
   // hat, ist überholt (kalenderLage().nachgeholt). Und „Tageskontingent
-  // aufgebraucht – morgen …" galt der letzten Sendung: Hat eine Probe seitdem
-  // den Stand geholt, sagt der Satz darüber, wie es jetzt weitergeht.
-  const kontingentAlt = !!(l.letzte && l.letzte.morgen && l.stand && l.stand.probe);
+  // aufgebraucht – morgen …" galt der letzten Sendung: Ist der Stand jünger
+  // als sie – eine Probe danach oder eine Sendung, die der Service Worker
+  // nachgeschickt hat –, sagt der Satz darüber, wie es jetzt weitergeht. Kam
+  // der Stand mit ihr, ist er genauso alt, und der Hinweis bleibt. Bis zur
+  // Prüfung der Nachbesserung zählte nur die Probe: Neben dem Stand einer
+  // nachgeschickten Sendung (über 64 KiB beim Wegschalten, kalGrossWeg() in
+  // js/kalender-sync.js – sie wird nicht der letzte Versuch) stand „mit dem
+  // nächsten stündlichen Abgleich" und „morgen geht es von selbst weiter".
+  const kontingentAlt = !!(l.letzte && l.letzte.morgen && l.stand && Number.isFinite(l.stand.zeit) && l.stand.zeit > l.letzte.zeit);
   if (l.letzte && !l.letzte.ok && !l.zuAlt && !l.nachgeholt) {
     const satz = kalenderSatz(l.letzte);
     teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);

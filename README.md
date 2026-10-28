@@ -3184,7 +3184,14 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
   trägt sich das Jahr gewöhnlich ein), versprach die Karte die nächste
   Stunde; und stand es im Hinweis, blieb „morgen" auch dann, als eine Probe am
   nächsten Tag einen kleinen Rest für die nächste Stunde meldete. Den Hinweis
-  von gestern wiederholt die Karte dann nicht mehr.
+  von gestern wiederholt die Karte nicht mehr, sobald ein neuerer Stand da ist
+  – aus einer Probe oder von einer Sendung, die der Service Worker
+  nachgeschickt hat. Bis zur Prüfung der Nachbesserung zählte dafür nur die
+  Probe: Eine Sendung über 64 KiB, die beim Wegschalten über den Service
+  Worker geht, wird nicht der letzte Versuch, und neben ihrem Stand („… mit
+  dem nächsten stündlichen Abgleich nach – noch 3 Änderungen") stand weiter
+  „morgen geht es von selbst weiter"; war nichts mehr offen, bis zur nächsten
+  eigenen Sendung, denn nachgefragt wird dann nicht mehr.
 * Der Speicher bleibt im Format 1 – eine Sendung mit Ferne ist nur länger. Die
   Termine von Fassung 1 tragen dieselben Markierungen und Kennungen und werden
   übernommen, nicht neu angelegt. Hinter der Ferne einer v 2 räumt das Skript
@@ -3390,6 +3397,17 @@ derselbe Vertrag mit einem Feld mehr in der Antwort (`morgen`), das eine
 Zeile ohne ihn gilt als nicht fertig – der Lauf liest das Jahr dann einmal
 ganz). Fassung 1 liest aus `workout.abgleich` nur Tag und Zeit; das neue Feld
 dort stört sie nicht.
+
+Die Prüfung dieser Nachbesserung fand eine Lücke, die erst die Nachbesserung
+selbst aufgemacht hatte. Seit ihr gilt eine Sendung, die der Service Worker
+nachgeschickt hat, als die, die zuletzt ankam – und neben ihrem Stand stand
+der Kontingent-Hinweis der letzten eigenen Sendung weiter da (oben beim
+Tageskontingent). Vorher blieb der Stand bei der eigenen Sendung – veraltet,
+aber ohne Widerspruch. Nachgestellt in Abschnitt 16 f mit echtem Service
+Worker und 52 Terminen (105,7 KiB, beim Wegschalten über den Ausgang): nach
+einer Probe, mit drei Änderungen offen, und dann ganz ohne Rest. Gegen 123c0d3
+gelaufen: zwei Zeilen rot, genau die beiden mit dem Widerspruch; danach
+230 Prüfungen, alle grün. Das Skript ist dafür nicht angefasst.
 
 **Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1 legte
 bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je Termin
