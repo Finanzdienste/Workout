@@ -81,7 +81,10 @@
  *      entfernen"; das Tageskontingent erst in einem Lauf „weiter" (die Probe
  *      sagt „morgen") und am nächsten Tag vorbei (kein „morgen" mehr); die
  *      erste v 2, vom Service Worker nachgeschickt, und als „aelter"
- *      beantwortet – beide Male kein „Neuer Code erkannt" mehr.
+ *      beantwortet – beide Male kein „Neuer Code erkannt" mehr. Und aus der
+ *      Prüfung der Nachbesserung: der Kontingent-Hinweis der letzten eigenen
+ *      Sendung neben dem Stand einer, die der Service Worker nachgeschickt hat
+ *      (über 64 KiB beim Wegschalten) – nach einer Probe und ganz ohne Rest.
  *
  *     node tests/test-kalender-sync.mjs            # alles
  *     node tests/test-kalender-sync.mjs 3 7        # nur Abschnitt 3 und 7
@@ -2158,6 +2161,107 @@ await abschnitt(16, async () => {
     && /Ein anderes Gerät hat zuletzt trainiert/.test(se),
   `die erste v 2 kommt als „aelter" zurück: kein „Neuer Code erkannt" mehr, sondern was gilt („${se.slice(0, 180)}")`);
   await zu(e);
+
+  // f) Aus der Prüfung der Nachbesserung: Die Antwort auf die letzte eigene
+  // Sendung sagte „Tageskontingent aufgebraucht", und die nächsten schickt der
+  // Service Worker. Ein Jahr mit vielen Terminen ist größer als 64 KiB (Tobis
+  // mit drei Terminen in der Ferne 75,1 KiB), und schaltet Tobi weg, während
+  // eine Sendung auf die Drossel wartet, geht sie über den Ausgang
+  // (kalGrossWeg()). Die App vermerkt sie als die, die zuletzt ankam – der
+  // letzte Versuch bleibt die Sendung mit dem Kontingent. Bis dahin blendete
+  // die Karte dessen Hinweis nur neben einer Probe aus: Neben dem Stand der
+  // nachgeschickten Sendung stand „mit dem nächsten stündlichen Abgleich nach –
+  // noch 3 Änderungen" und „morgen geht es von selbst weiter", auch wenn eine
+  // Probe den Satz schon ausgeblendet hatte; und war nichts mehr offen, blieb
+  // er bis zur nächsten eigenen Sendung – nachgefragt wird dann nicht mehr.
+  const KONTINGENT = 'Google lässt heute keine weiteren Kalender-Änderungen zu (Tageskontingent aufgebraucht) – morgen geht es von selbst weiter.';
+  const zKs = JSON.parse(JSON.stringify(ZUSTAND));
+  zKs.termine = Array.from({ length: 52 }, (_, i) => ({ datum: bisTag('2026-11-07', i * 7), name: 'Fußball', aktivitaet: 'fussball', minuten: 90 }));
+  const ks = await geraet('16 Kontingent und Service Worker', { zustand: zKs, kalender: { token: TOKEN, url: URL_A }, sw: true });
+  await bis(() => ks.page.evaluate(() => !!navigator.serviceWorker.controller), 10000);
+  Object.assign(ks.skript, { offen: 150, stehen: '2026-11-12', folge: false, morgen: true, hinweis: KONTINGENT });
+  await vor(ks.page, 4000, 1500);
+  await bis(() => ks.skript.vorschauen().some((x) => x.j.v === 2), 30000);
+  await zuMehr(ks.page);
+  const ksEigen = await text(ks.page, '#kalenderStand');
+  const ksNr = ((await meta(ks.page)).letzte || {}).nr;
+  // Drei Minuten später fragt die App nach: Das Kontingent ist noch aus.
+  ks.skript.probeStand = { offen: 150, bis: '2027-10-08', stehen: '2026-11-12', folge: false, morgen: true };
+  await vor(ks.page, 3 * 60 * 1000 + 1000, 300);
+  await verstecken(ks.page);
+  await zeigen(ks.page);
+  await bis(async () => /\(Stand gerade eben\)/.test(await text(ks.page, '#kalenderStand')), 6000);
+  const ksProbe = await text(ks.page, '#kalenderStand');
+  const ksCdp = await ks.ctx.newCDPSession(ks.page);
+  let ksReg = null;
+  ksCdp.on('ServiceWorker.workerRegistrationUpdated', (ev) => { (ev.registrations || []).forEach((r) => { if (!r.isDeleted) ksReg = r.registrationId; }); });
+  await ksCdp.send('ServiceWorker.enable');
+  await bis(() => ksReg !== null, 3000);
+  /** Eine Änderung, weggeschaltet, bevor sie hinausgeht: Der Service Worker schickt sie, eine Minute später ist Tobi zurück. */
+  const ksNachgeschickt = async (beschwerden) => {
+    const n = ks.skript.vorschauen().length;
+    await ks.page.evaluate(async (b) => (await import('./js/store.js')).setSetting('injuries', b), beschwerden);
+    await vor(ks.page, 2500, 300);
+    await echteWarte(10000);   // der Worker rechnet die 52 Termine in echter Zeit
+    await verstecken(ks.page);
+    await echteWarte(1500);
+    const imAusgang = await ks.page.evaluate(async () => {
+      const r = await (await caches.open('kalender-ausgang')).match(new URL('kalender-ausgang', location.href).href);
+      return r ? r.json() : null;
+    });
+    await ksCdp.send('ServiceWorker.dispatchSyncEvent', { origin: ORIGIN, registrationId: ksReg, tag: 'kalender', lastChance: false });
+    await bis(() => ks.skript.vorschauen().length > n, 8000);
+    // Wie in d): Der Vermerk des Service Workers bekommt die Zeit der Seite.
+    await bis(() => ks.page.evaluate(async () => !!(await (await caches.open('kalender-ausgang')).match(new URL('kalender-ausgang-nach', location.href).href))), 4000);
+    await ks.page.evaluate(async () => {
+      const c = await caches.open('kalender-ausgang');
+      const schluessel = new URL('kalender-ausgang-nach', location.href).href;
+      const vermerk = await (await c.match(schluessel)).json();
+      await c.put(schluessel, new Response(JSON.stringify({ ...vermerk, zeit: Date.now() })));
+    });
+    await vor(ks.page, 60 * 1000, 300);
+    await zeigen(ks.page);
+    await bis(async () => ((await meta(ks.page)).nach || {}).seq === (imAusgang ? imAusgang.seq : -1), 4000);
+    await echteWarte(500);
+    await zumDashboard(ks.page);
+    await zuMehr(ks.page);
+    return {
+      imAusgang, gesendet: ks.skript.vorschauen().slice(n), stand: await text(ks.page, '#kalenderStand'), letzte: (await meta(ks.page)).letzte,
+    };
+  };
+  // Dann ist das Kontingent wieder frei (bei Google am nächsten Tag): Nach der
+  // ersten nachgeschickten Sendung bleiben 3 Änderungen für die nächste
+  // Stunde, nach der zweiten keine.
+  Object.assign(ks.skript, { offen: 3, stehen: '2027-09-30', folge: false, morgen: false, hinweis: undefined });
+  const ks3 = await ksNachgeschickt(['tennisarm']);
+  ks.skript.offen = 0;
+  const ks0 = await ksNachgeschickt([]);
+  // Ohne Rest fragt die App nicht mehr nach – auch drei Minuten später nicht.
+  const ksProben = ks.skript.proben().length;
+  await vor(ks.page, 3 * 60 * 1000 + 1000, 300);
+  await verstecken(ks.page);
+  await zeigen(ks.page);
+  await echteWarte(1500);
+  await zumDashboard(ks.page);
+  await zuMehr(ks.page);
+  const ksSpaeter = await text(ks.page, '#kalenderStand');
+  const ksWeg = (r) => !!r.imAusgang && JSON.parse(r.imAusgang.text).v === 2 && Buffer.byteLength(r.imAusgang.text) > V.VORSCHAU_MAX_BYTES
+    && r.gesendet.length === 1 && r.gesendet[0].vonSW && r.gesendet[0].roh === r.imAusgang.text
+    && !!r.letzte && Number.isInteger(ksNr) && r.letzte.nr === ksNr && r.letzte.ok && r.letzte.morgen === true && r.letzte.hinweis === KONTINGENT;
+  const ksStand = (s) => s.replace(/^.*?(Im Kalender)/, '$1').slice(0, 200);
+  check(/Den Rest bis 08\.10\.2027 trägt das Skript morgen nach – noch 150 Änderungen\./.test(ksEigen) && ksEigen.includes(`Das Skript sagt: ${KONTINGENT}`)
+    && /trägt das Skript morgen nach – noch 150 Änderungen \(Stand gerade eben\)\./.test(ksProbe) && !/Das Skript sagt/.test(ksProbe),
+  'Tageskontingent aus: Neben dem Stand derselben Sendung steht der Hinweis, neben dem Stand einer Probe danach nicht');
+  check(ksWeg(ks3) && ksWeg(ks0),
+    `beide Sendungen danach schickt der Service Worker (${ks3.imAusgang ? (Buffer.byteLength(ks3.imAusgang.text) / 1024).toFixed(1) : '?'} KiB) – `
+    + 'letzter Versuch bleibt die eigene Sendung mit dem Kontingent');
+  check(/Den Rest bis 08\.10\.2027 trägt das Skript mit dem nächsten stündlichen Abgleich nach – noch 3 Änderungen\./.test(ks3.stand)
+    && !/Tageskontingent|morgen/.test(ks3.stand),
+  `nachgeschickt, 3 Änderungen offen: kein „morgen geht es von selbst weiter" mehr daneben, auch nach der Probe nicht („${ksStand(ks3.stand)}")`);
+  check(/Im Kalender: Termine bis 08\.10\.2027\./.test(ks0.stand) && !/Tageskontingent|morgen/.test(ks0.stand)
+    && ks.skript.proben().length === ksProben && /Im Kalender: Termine bis 08\.10\.2027\./.test(ksSpaeter) && !/Tageskontingent|morgen/.test(ksSpaeter),
+  `nachgeschickt, nichts mehr offen: kein Hinweis von gestern daneben, auch drei Minuten später nicht, ohne Nachfrage („${ksStand(ks0.stand)}")`);
+  await zu(ks);
 });
 
 check(seitenFehler.length === 0, `keine Fehler auf den Seiten${seitenFehler.length ? `: ${seitenFehler.slice(0, 4).join(' | ')}` : ''}`);
