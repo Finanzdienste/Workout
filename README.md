@@ -3368,8 +3368,28 @@ Fassung 1, die kurze Meldung nach dem Kopieren, schnell zurück nach 90 s, auf
 der Karte geblieben, „Neuer Code erkannt", solange die erste v 2 beim Skript
 liegt (und keine zweite), die grüne Meldung neben „Neue Version fehlt" und das
 Tageskontingent auf der Karte. Gegen den Stand vor dieser Prüfung (ed2a885)
-gelaufen: das Skript an acht Stellen rot, die App an 15 – jeder Befund. Am
-Stand von v246 einzeln gelaufen: 164, 178 und 219 Prüfungen, alle grün.
+gelaufen: das Skript an acht Stellen rot, die App an 15 – jeder Befund. Danach
+einzeln gelaufen: 164, 178 und 219 Prüfungen, alle grün.
+
+Aus dem Gegenlesen von v246 kamen sechs Befunde, jeder erst nachgestellt, dann
+behoben: im Skript (Abschnitt 11) das Tageskontingent in einem Lauf `weiter`
+(die Probe sagt `morgen`), ein Lesefehler an der Meta-Zeile mit einem zweiten
+Fehler beim Speichern (`doPost` löscht nichts und antwortet „fehler", und eine
+ältere Sendung gilt dabei nicht als neu) und „Workout", gelöscht und am selben
+Tag neu eingerichtet (213 Termine statt 21); in der App (Abschnitt 16) eine
+Beschwerde in der Pause an der Übung, ganz über die Oberfläche, Anhaken und
+„Alle Haken entfernen" unter Mehr → Verletzungen, das Kontingent in `weiter`
+und am nächsten Tag vorbei, die erste v 2 über den Service Worker und als
+`aelter` beantwortet; in `tests/test-injuries.mjs` je eine Meldung an den
+Store. Gegen ba32bd2 gelaufen: das Skript an neun Stellen rot, die App an
+sechs, die Beschwerden an einer – jeder Befund. Danach einzeln gelaufen:
+164, 187 und 226 Prüfungen, alle grün; Tobis Weg von Fassung 1 (9b) und v 1
+und v 2 im Wechsel (9e) unverändert. Die Fassung des Skripts bleibt 2:
+derselbe Vertrag mit einem Feld mehr in der Antwort (`morgen`), das eine
+ältere App überliest, und `workout.ferne` merkt sich den Kalender mit (eine
+Zeile ohne ihn gilt als nicht fertig – der Lauf liest das Jahr dann einmal
+ganz). Fassung 1 liest aus `workout.abgleich` nur Tag und Zeit; das neue Feld
+dort stört sie nicht.
 
 **Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1 legte
 bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je Termin
