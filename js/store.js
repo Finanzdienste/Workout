@@ -641,10 +641,11 @@ export function flush() {
 
 /**
  * Alle, die zuhören, nach einer Änderung. `was` sagt es genauer, wo das einen
- * Unterschied macht – bisher nur 'pause': Geändert hat sich allein die
- * laufende Pause (setRest() – Start, Ende, „+30 s"). Die Vorschau für den
- * Kalender liest sie nicht und rechnet dann nicht neu (kalenderGeaendert() in
- * js/kalender-sync.js).
+ * Unterschied macht: 'pause' – geändert hat sich allein die laufende Pause
+ * (setRest() – Start, Ende, „+30 s"); 'ansicht' – nur, was die App gerade
+ * zeigt (der Reiter, die offene Einheit; setSetting() aus js/app.js). Die
+ * Vorschau für den Kalender liest beides nicht und rechnet dann nicht neu
+ * (kalenderGeaendert() in js/kalender-sync.js); die Sicherung hört wie immer.
  */
 function emit(was) {
   listeners.forEach((fn) => fn(state, was));
@@ -1543,9 +1544,20 @@ export function setBand(exId, farbe) {
 /** Aufschlag an Wiederholungen im Bodyweight-Modus. */
 export function bwPlusOf(exId) { return state.bwPlus[exId] || 0; }
 
+/**
+ * „+Wdh." – meldet sich wie jede Änderung. Bis v247 schwieg es: Die
+ * automatische Sicherung erfuhr vom Aufschlag erst mit der nächsten Meldung,
+ * und wer danach nichts mehr antippte, hatte ihn nur auf diesem Gerät. Die
+ * Vorschau für den Kalender rechnet dabei ruhig mit: Sie liest `bwPlus` heute
+ * nicht (die Übungsliste eines Termins kommt aus resolve() in js/plan.js), ob
+ * sie es einmal tut, soll hier niemand nachhalten müssen – und ein gleicher
+ * Fingerabdruck heißt ohnehin: nichts geht hinaus. Ein Tipp auf „+Wdh." ist
+ * selten; eine Rechnung im Worker kostet er, keine Sendung.
+ */
 export function addBwPlus(exId, delta) {
   state.bwPlus[exId] = Math.max(0, (state.bwPlus[exId] || 0) + delta);
   persist();
+  emit();
 }
 
 /**
@@ -1571,10 +1583,11 @@ export function clearInjuries() {
   emit();
 }
 
-export function setSetting(key, value) {
+/** `was`: wie bei emit() – 'ansicht' für den Reiter und die offene Einheit. */
+export function setSetting(key, value, was) {
   state[key] = value;
   persist();
-  emit();
+  emit(was);
 }
 
 /** Hält fest, dass gesichert wurde – gemessen an der Zahl erledigter Einheiten. */

@@ -594,7 +594,7 @@ function ersetzenErlaubt() {
  * Planwechsel –, führt er selbst aufs Dashboard.
  */
 function neuStarten(meldung) {
-  store.setSetting('tab', ui.tab);
+  store.setSetting('tab', ui.tab, 'ansicht');
   store.flush();
   sessionStorage.setItem('workout.nachImport', meldung);
   vorDemNeuladen('import');
@@ -836,8 +836,16 @@ function kalenderJahrZeile() {
   const l = kalenderLage();
   if (!l.verbunden || l.handeln || l.zuAlt || !l.neuerCode || l.gesehen) return '';
   return `<div class="notice zeile kurz" id="kalenderJahrZeile">📅 <span>Google Kalender: Ein Jahr im Voraus geht jetzt –
-      dafür einmal den Code im Skript erneuern.</span>
+      dafür einmal den Code im Skript erneuern und einrichten ausführen.</span>
       <button type="button" class="btn" data-act="kalender-jahr-ansehen">Ansehen</button></div>`;
+}
+
+/** Eine Dauer, kurz: „80 Min.", „2 Std.", „3 Tagen" – für „seit …". */
+function dauerKurz(ms) {
+  const min = Math.max(1, Math.round(ms / 60000));
+  if (min < 120) return `${min} Min.`;
+  if (min < 48 * 60) return `${Math.floor(min / 60)} Std.`;
+  return `${Math.floor(min / (24 * 60))} Tagen`;
 }
 
 /** Der Tag als „27.10.2027". */
@@ -855,15 +863,22 @@ const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${
  * dem nächsten stündlichen Abgleich" (die nächste Stunde schafft es nicht).
  * Es kommt aus derselben Auskunft wie `offen` (kalStand() in
  * js/kalender-sync.js), nicht aus dem Hinweis der letzten Sendung.
+ *
+ * `stockt` (kalenderLage().stockt): Seit über einer Stunde sagt keine Auskunft
+ * einen kleineren Stand – dann verspricht der Satz nichts mehr („in den
+ * nächsten Minuten"), sondern sagt, seit wann nichts nachkommt; was zu tun
+ * ist, steht darunter (KALENDER_STOCKT, kalenderKarte()).
  */
-function kalenderImKalender(s, wann) {
+function kalenderImKalender(s, wann, stockt = null) {
   if (!s || !s.bis) return '';
   const kurz = s.gekuerzt ? ' Diesmal nicht ein ganzes Jahr – die Sendung wäre sonst zu groß geworden (viele verschiedene Termine).' : '';
   if (s.offen > 0) {
     const spaet = s.morgen && !s.folge;
-    const wie = s.folge ? 'in den nächsten Minuten' : spaet ? 'morgen' : 'mit dem nächsten stündlichen Abgleich';
+    const wie = stockt ? `seit ${dauerKurz(Date.now() - stockt.seit)} nicht`
+      : s.folge ? 'in den nächsten Minuten' : spaet ? 'morgen' : 'mit dem nächsten stündlichen Abgleich';
     const noch = `noch ${s.offen} ${s.offen === 1 ? 'Änderung' : 'Änderungen'}`;
     const stand = s.probe ? ` (Stand ${wann(s.zeit)})` : '';
+    if (stockt) return `Im Kalender: Termine bis ${kalenderDatum(s.stehen || s.bis)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript ${wie} nach – ${noch}.${kurz}`;
     return (s.stehen
       ? `Im Kalender: Termine bis ${kalenderDatum(s.stehen)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript ${wie} nach – ${noch}${stand}.`
       : `Im Kalender: Das Skript trägt die Termine bis ${kalenderDatum(s.bis)} ${spaet ? 'morgen' : 'gerade'} ein – ${noch}${
@@ -896,36 +911,44 @@ function kalenderStandText(l) {
     teile.push(l.letzte && !l.letzte.ok ? 'Verbunden, aber beim Skript ist noch nichts angekommen.'
       : 'Verbunden – die erste Vorschau ist unterwegs.');
   }
-  const im = kalenderImKalender(l.stand, wann);
+  const im = kalenderImKalender(l.stand, wann, l.stockt);
   if (im) teile.push(im);
   // Ein gescheiterter Versuch, nach dem der Service Worker doch zugestellt
-  // hat, ist überholt (kalenderLage().nachgeholt). Und „Tageskontingent
-  // aufgebraucht – morgen …" galt der letzten Sendung: Ist der Stand jünger
-  // als sie – eine Probe danach oder eine Sendung, die der Service Worker
-  // nachgeschickt hat –, sagt der Satz darüber, wie es jetzt weitergeht. Kam
-  // der Stand mit ihr, ist er genauso alt, und der Hinweis bleibt. Bis zur
-  // Prüfung der Nachbesserung zählte nur die Probe: Neben dem Stand einer
-  // nachgeschickten Sendung (über 64 KiB beim Wegschalten, kalGrossWeg() in
-  // js/kalender-sync.js – sie wird nicht der letzte Versuch) stand „mit dem
-  // nächsten stündlichen Abgleich" und „morgen geht es von selbst weiter".
-  const kontingentAlt = !!(l.letzte && l.letzte.morgen && l.stand && Number.isFinite(l.stand.zeit) && l.stand.zeit > l.letzte.zeit);
+  // hat, ist überholt (kalenderLage().nachgeholt). Und ein Hinweis, der nur den
+  // Augenblick der letzten Sendung beschreibt – „Tageskontingent aufgebraucht –
+  // morgen …", „Google bremst gerade" –, gilt nur, solange kein jüngerer Stand
+  // da ist (kalenderLage().hinweisAlt): eine Probe danach oder eine Sendung,
+  // die der Service Worker nachgeschickt hat. Kam der Stand mit ihr, ist er
+  // genauso alt, und der Hinweis bleibt. Bis zur Prüfung der Nachbesserung von
+  // v246 zählte nur die Probe, und bis v247 nur das Kontingent: „Google bremst
+  // gerade – der Rest folgt mit dem nächsten stündlichen Abgleich" stand neben
+  // einer Probe, die den Rest längst kleiner sagte. Was Tobi tun soll
+  // („einrichten", eine URL), bleibt stehen.
   if (l.letzte && !l.letzte.ok && !l.zuAlt && !l.nachgeholt) {
     const satz = kalenderSatz(l.letzte);
     teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);
     if (l.letzte.wieder && !/noch einmal/.test(satz)) teile.push('Die App versucht es gleich noch einmal.');
-  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe' && !kontingentAlt) {
+  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe' && !l.hinweisAlt) {
     teile.push(`Das Skript sagt: ${l.letzte.hinweis}`);
   }
-  if (l.nach) teile.push(`Ohne Netz trainiert: Im Hintergrund nachgeschickt ${wann(l.nach.zeit)}.`);
+  // Nachgeschickt hat der Service Worker aus vier Gründen (kalAusgangLegen()
+  // in js/kalender-sync.js); „Ohne Netz trainiert" stimmt nur bei einem. Bis
+  // v247 stand es bei jedem – an Tobis Stand geht beim Wegschalten jede
+  // Sendung über 64 KiB durch den Service Worker, mit Netz –, und blieb, weil
+  // der Vermerk nie verfiel; „vor 1 Min.." mit zwei Punkten dazu.
+  if (l.nach) {
+    const netz = l.nach.grund === 'netz' ? 'Ohne Netz trainiert: ' : '';
+    teile.push(punkt(`${netz}Im Hintergrund nachgeschickt ${wann(l.nach.zeit)}`));
+  }
   return teile.join(' ');
 }
 
 /**
  * Die Bitte um neuen Code für das Jahr (KALENDER_JAHR in js/kalender-sync.js):
- * kurz, mit den Schritten und „Code kopieren" gleich darunter. Kein
- * „einrichten" – Kalender und Auslöser bestehen schon. Meldet eine Antwort
- * ein paar Minuten nach dem Kopieren noch die alte Fassung, steht darüber,
- * was meist fehlt: „Neue Version" (kalenderLage().fehlt).
+ * kurz, mit den Schritten und „Code kopieren" gleich darunter. Mit
+ * „einrichten" (Schritt 4) – seit v247, warum steht bei KALENDER_JAHR. Meldet
+ * eine Antwort ein paar Minuten nach dem Kopieren noch die alte Fassung,
+ * steht darüber, was meist fehlt: „Neue Version" (kalenderLage().fehlt).
  */
 function kalenderJahrBitte(l) {
   const j = KALENDER_JAHR;
@@ -1055,6 +1078,7 @@ function kalenderKarte() {
   const neuOffen = !!ui.kalenderNeu;
   return `<div class="card" id="kalenderAuto">${was}
       <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
+      ${l.stockt ? `<div class="small" id="kalenderStockt" style="margin-top:6px;color:var(--accent)">${esc(KALENDER_STOCKT)}</div>` : ''}
       ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}
       ${l.neuerCode && !l.zuAlt ? kalenderJahrBitte(l) : ''}
       ${meldung}
@@ -1131,15 +1155,16 @@ async function kalenderCodeKopieren() {
     // Entwurfs wiederholte die Meldung darunter die Schritte 3 und 4 in sieben
     // Zeilen. Verbunden ohne Bitte (das Skript selbst bittet um neuen Code)
     // gibt es keine nummerierten Schritte: dann die ganze Folge – ohne „Neue
-    // Version" liefe die Web-App mit dem alten Code. Kein „einrichten":
-    // Kalender und Auslöser bestehen schon, und der neue Code braucht keine
-    // neuen Rechte. Fehlt doch etwas, sagt es das Skript selbst.
+    // Version" liefe die Web-App mit dem alten Code, und ohne „einrichten"
+    // womöglich der stündliche Auslöser (KALENDER_JAHR in js/kalender-sync.js
+    // sagt, warum; bis v247 stand hier, es brauche es nicht).
     const bitte = kalenderLage().neuerCode;
     const text = bitte ? 'Code kopiert – mit demselben Kennwort wie bisher. Weiter mit Schritt 2.'
       : kalenderVerbunden()
         ? 'Code kopiert – mit demselben Kennwort wie bisher. In Apps Script im selben Projekt den ganzen Code damit '
-          + 'ersetzen, speichern, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue '
-          + 'Version → Bereitstellen. Die App merkt den neuen Code von selbst.'
+          + 'ersetzen, speichern, oben einrichten wählen und Ausführen tippen (Google fragt vielleicht noch einmal nach '
+          + 'Rechten; es gleicht sofort ab und kann ein paar Minuten laufen), dann Bereitstellen → Bereitstellungen '
+          + 'verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen. Die App merkt den neuen Code von selbst.'
         : 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).';
     kalenderMelden(text, true, null, bitte);
     notieren('kalender', { was: 'code', ok: true, kopiert: true });
@@ -7695,15 +7720,23 @@ function render() {
     const x = ex[Math.min(Math.max(0, ui.focusIdx), ex.length - 1)];
     offen = { n: ui.workoutNo, id: x ? x.id : null };
   }
+  // Als 'ansicht' gemeldet, wie der Reiter in go(): Die Vorschau für den
+  // Kalender liest beides nicht (kalenderGeaendert() in js/kalender-sync.js).
   const war = store.getState().fokusOffen ?? null;
   if ((war === null) !== (offen === null) || (offen && (war.n !== offen.n || war.id !== offen.id))) {
-    store.setSetting('fokusOffen', offen);
+    store.setSetting('fokusOffen', offen, 'ansicht');
   }
 }
 
+/**
+ * Zu einem Reiter. Der Store meldet den Wechsel als 'ansicht': Die Vorschau
+ * für den Kalender liest weder den Reiter noch die offene Einheit, und bis
+ * v247 rechnete sie trotzdem bei jedem Wechsel das Jahr im Worker neu – am
+ * Handy Sekunden, geschickt wurde nie etwas (gleicher Fingerabdruck).
+ */
 function go(tab) {
   ui.tab = tab;
-  store.setSetting('tab', tab);
+  store.setSetting('tab', tab, 'ansicht');
   render();
   window.scrollTo({ top: 0 });
   // Unter Mehr steht, wie es um die Sicherung steht – fehlten dem Server die
@@ -9929,7 +9962,8 @@ kalenderEinrichten({
     };
   })(),
 });
-// `was` 'pause': nur die Pause geändert – die rechnet die Vorschau nicht neu.
+// `was` 'pause' (nur die Pause geändert) und 'ansicht' (Reiter, offene
+// Einheit): die rechnen die Vorschau nicht neu.
 store.subscribe((s, was) => { kalenderGeaendert(was); });
 
 render();
