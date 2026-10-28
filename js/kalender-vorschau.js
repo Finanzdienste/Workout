@@ -269,6 +269,10 @@
  *               ein paar Minuten (ein einmaliger Auslöser), false – mit dem
  *               nächsten stündlichen Abgleich (Google bremst, kleiner Rest);
  *               sonst null
+ *   morgen      Fassung 2, nur wenn etwas offen ist: true – Google lässt heute
+ *               keine Änderungen mehr zu (Tageskontingent), der Rest kommt
+ *               morgen (folge ist dann false); sonst false, null, wenn nichts
+ *               offen ist (bei der Probe: vom letzten Abgleich)
  *   stand, seq  was jetzt gilt (bei 'alt' und 'aelter' das Gespeicherte)
  *   hinweis     ein kurzer Satz zum Anzeigen (darf fehlen)
  *

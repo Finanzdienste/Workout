@@ -119,8 +119,9 @@ const P_OFFEN = 'workout.offen';
 // Der Anfang des Fensters der zuletzt ganz angeglichenen Liste – davor kann
 // kein offener eigener Termin mehr liegen (siehe angleichArbeit_()).
 const P_LISTE = 'workout.liste';
-// Welche Sendung an welchem Tag zuletzt samt Ferne ganz angeglichen ist –
-// solange beides gleich bleibt, prüft ein Lauf nur noch die Nähe.
+// Welche Sendung an welchem Tag in welchem Kalender zuletzt samt Ferne ganz
+// angeglichen ist – solange alles gleich bleibt, prüft ein Lauf nur noch die
+// Nähe.
 const P_FERNE = 'workout.ferne';
 // Der einmalige Auslöser „weiter", den das Skript zuletzt angelegt hat:
 // { id, faellig } – nur der zählt als unterwegs (folgeSichern_()).
@@ -336,8 +337,19 @@ function annehmen_(e) {
     return antwort_(false, 'fehler', { hinweis: 'Das Skript ist gerade beschäftigt – die App schickt es später noch einmal.' });
   }
   try {
-    // Ein unlesbarer Speicher heilt mit der nächsten gültigen Sendung.
-    const alt = metaLesenSanft_(P);
+    // Ein kaputter Speicher heilt mit der nächsten gültigen Sendung – aber nur
+    // einer, der sich lesen ließ. Scheitert schon das Lesen (Google: „Service
+    // error"), weiß das Skript nicht, was gilt: Eine ältere Sendung gälte als
+    // neu, und speichern_() räumte die Stücke der geltenden weg. Bis zum
+    // Gegenlesen von v246 ging es so weiter, und scheiterte danach noch ein
+    // Zugriff, zeigte die Meta-Zeile auf gelöschte Stücke – jeder Lauf warf, bis
+    // eine Sendung durchkam. Jetzt schickt die App es einfach noch einmal.
+    let alt;
+    try {
+      alt = metaVorSendung_(P);
+    } catch (err) {
+      return antwort_(false, 'fehler', { hinweis: 'Das Skript kam gerade nicht an seinen Speicher – die App schickt es später noch einmal.' });
+    }
     if (n.aus === true) return abschalten_(P, n, alt, budget);
     const urteil = sendungVergleichen_(alt, n);
     if (urteil === 'alt' || urteil === 'aelter') {
@@ -373,9 +385,9 @@ function annehmen_(e) {
     // Bleibt nach dem Warten nichts übrig, gleicht doPost so gut wie nichts an
     // – offen und folge sagen es, und „weiter" macht es in ein paar Minuten.
     const r = abgleichenSicher_(P, budget());
-    // Was offen bleibt, steht in offen, stehen und folge – daraus macht die
-    // App ihren eigenen Satz, auch später, wenn eine Probe den neuen Stand
-    // holt. Im Hinweis stünde es sonst doppelt und bald veraltet.
+    // Was offen bleibt, steht in offen, stehen, folge und morgen – daraus
+    // macht die App ihren eigenen Satz, auch später, wenn eine Probe den neuen
+    // Stand holt. Im Hinweis stünde es sonst doppelt und bald veraltet.
     return antwort_(true, urteil === 'neu' ? 'angekommen' : 'gleich', {
       tag: r.tag,
       geaendert: r.geaendert,
@@ -383,6 +395,7 @@ function annehmen_(e) {
       bis: r.bis,
       stehen: r.vollBis,
       folge: r.offen ? !!r.folge : null,
+      morgen: r.offen ? r.fehler === TAGESKONTINGENT : null,
       stand: meta.stand,
       seq: meta.seq,
       hinweis: r.fehler || r.hinweis || (r.fremd ? null : auslHinweis) || probeHinweis || undefined,
@@ -414,13 +427,18 @@ function probeAntwort_(P) {
       + (letzter && letzter.offen ? ' Noch ' + letzter.offen + (letzter.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen.' : '');
   }
   // Wie weit der letzte Abgleich kam – die App fragt so nach, solange das
-  // Skript das Jahr noch einträgt.
+  // Skript das Jahr noch einträgt. Dazu, ob das Tageskontingent aufgebraucht
+  // ist: Bis zum Gegenlesen von v246 erfuhr die App das nur, wenn es schon in
+  // doPost ausging. Ging es in einem Lauf „weiter" aus – so trägt sich das Jahr
+  // gewöhnlich ein –, versprach die Karte „mit dem nächsten stündlichen
+  // Abgleich", während die Beschreibung des Kalenders „morgen" sagte.
   return antwort_(true, 'probe', {
     tag: letzter ? letzter.tag : null,
     offen: letzter && Number.isInteger(letzter.offen) ? letzter.offen : null,
     bis: letzter && letzter.bis ? letzter.bis : null,
     stehen: letzter && letzter.stehen ? letzter.stehen : null,
     folge: letzter && letzter.offen ? !!letzter.folge : null,
+    morgen: letzter && letzter.offen ? !!letzter.morgen : null,
     stand: meta && !meta.aus ? meta.stand : null,
     seq: meta ? meta.seq : null,
     hinweis: hinweis,
@@ -463,9 +481,11 @@ function abgleichenSicher_(P, budget) {
   }
   if (r.gelaufen !== false) {
     try {
+      // morgen: Das Tageskontingent ist aufgebraucht – die Probe sagt es der
+      // App, auch wenn es erst in einem Lauf „weiter" ausging (probeAntwort_()).
       P.setProperty(P_ABGLEICH, JSON.stringify({
         zeit: Date.now(), tag: r.tag, geaendert: r.geaendert, offen: r.offen, bis: r.bis, stehen: r.vollBis, folge: !!r.folge,
-        spaeter: r.spaeter, fehler: !!r.fehler,
+        morgen: r.fehler === TAGESKONTINGENT, spaeter: r.spaeter, fehler: !!r.fehler,
       }));
     } catch (err) {
       // Nur eine Auskunft für „Verbinden" – der Abgleich selbst ist durch.
@@ -497,9 +517,9 @@ function leer_(mehr) {
  * vier Wochen, dann die letzten Tage, dann die Ferne der Reihe nach.
  *
  * Die Ferne wird nur geprüft, wenn sich etwas geändert haben kann: eine neue
- * Sendung, ein neuer Tag, oder der letzte Lauf wurde nicht fertig. Eine
- * Stunde wie die davor prüft nur die Nähe (P_FERNE) – sonst läse jede Stunde
- * rund 200 Termine, von denen sich nichts bewegt hat.
+ * Sendung, ein neuer Tag, ein anderer Kalender, oder der letzte Lauf wurde
+ * nicht fertig. Eine Stunde wie die davor prüft nur die Nähe (P_FERNE) –
+ * sonst läse jede Stunde rund 200 Termine, von denen sich nichts bewegt hat.
  */
 function abgleichen_(P, budget) {
   const start = Date.now();
@@ -555,8 +575,12 @@ function abgleichen_(P, budget) {
     const zweite = n.v === 2 && !!n.ferne;
     const nahBis = plusTage_(heute, n.fenster[1]);
     r.bis = zweite ? plusTage_(heute, n.ferne.bis) : nahBis;
+    // Fertig heißt auch: in diesem Kalender. Legt „einrichten" einen
+    // gelöschten neu an, ist er leer – bis zum Gegenlesen von v246 bekam er
+    // am selben Tag nur die vier Wochen, und die Beschreibung sagte trotzdem
+    // „Termine bis <in einem Jahr>".
     const fertig = jsonSanft_(P.getProperty(P_FERNE));
-    const voll = zweite && !(fertig && fertig.gen === meta.gen && fertig.heute === heute);
+    const voll = zweite && !(fertig && fertig.gen === meta.gen && fertig.heute === heute && fertig.kal === kal.getId());
     const umfang = voll
       ? { bis: r.bis, oben: plusTage_(heute, FERNE_MAX + SUCHE_VORAUS), weg: true }
       : { bis: nahBis, oben: plusTage_(nahBis, SUCHE_VORAUS), weg: false };
@@ -569,7 +593,7 @@ function abgleichen_(P, budget) {
     if (!r.offen && !r.fehler) {
       try {
         P.setProperty(P_LISTE, plusTage_(heute, -n.fenster[0]));
-        if (voll) P.setProperty(P_FERNE, JSON.stringify({ gen: meta.gen, heute: heute, bis: r.bis }));
+        if (voll) P.setProperty(P_FERNE, JSON.stringify({ gen: meta.gen, heute: heute, bis: r.bis, kal: kal.getId() }));
       } catch (err) {
         // Nur Suchgrenzen – ohne sie sucht der nächste Lauf wie bisher.
       }
@@ -1243,7 +1267,11 @@ function teileAufraeumen_(P, gen) {
  * („kal" räumt einrichten() weg).
  */
 function metaLesen_(P) {
-  const roh = P.getProperty(P_META);
+  return metaAus_(P.getProperty(P_META));
+}
+
+/** Die Meta-Zeile aus ihrem Text: null, wenn keine da ist; wirft, wenn sie kaputt ist oder ein unbekanntes Format hat. */
+function metaAus_(roh) {
   if (!roh) return null;
   let m;
   try {
@@ -1258,6 +1286,20 @@ function metaLesen_(P) {
 function metaLesenSanft_(P) {
   try {
     return metaLesen_(P);
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Die Meta-Zeile vor dem Annehmen einer Sendung: null, wenn keine da ist oder
+ * sie kaputt ist – die Sendung ersetzt sie. Wirft nur, wenn schon das Lesen
+ * scheitert (annehmen_()).
+ */
+function metaVorSendung_(P) {
+  const roh = P.getProperty(P_META);
+  try {
+    return metaAus_(roh);
   } catch (err) {
     return null;
   }
@@ -1604,7 +1646,7 @@ function bereinigt_(x) {
 function antwort_(ok, code, mehr) {
   const a = {
     ok: ok, code: code, version: FASSUNG, kalender: KALENDER_NAME, tag: null, geaendert: null, offen: null, bis: null, stehen: null, folge: null,
-    stand: null, seq: null,
+    morgen: null, stand: null, seq: null,
   };
   Object.keys(mehr || {}).forEach((k) => {
     if (mehr[k] !== undefined) a[k] = mehr[k];
