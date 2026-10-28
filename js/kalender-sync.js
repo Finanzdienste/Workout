@@ -782,8 +782,8 @@ const kalNachSchluessel = () => new URL('kalender-ausgang-nach', location.href).
  * 'wegschalten' (keepalive scheiterte), 'fehler' (das Skript beschäftigt),
  * 'zeit' (keine Antwort) oder 'gross' (über 64 KiB beim Wegschalten,
  * kalGrossWeg()). Bis v247 kam er nicht mit, und die Karte sagte zu jeder
- * nachgeschickten Sendung „Ohne Netz trainiert" – an Tobis Stand mit 75 KiB
- * ging beim Wegschalten jede über den Ausgang, mit Netz.
+ * nachgeschickten Sendung „Ohne Netz trainiert" – bei Tobis Jahr mit rund
+ * 75 KiB ging beim Wegschalten häufig eine über den Ausgang, mit Netz.
  */
 async function kalAusgangLegen(v, grund) {
   try {
@@ -1473,8 +1473,9 @@ export function kalenderEinrichten(ruf = {}) {
  * (seit v247): der Reiter (go() in js/app.js) und welche Einheit in der
  * Fokusansicht offen ist (`fokusOffen`, render()) – beides steht im Zustand,
  * damit die App nach dem Neuladen dort wieder aufgeht, und die Vorschau liest
- * beides nicht. Bis dahin rechnete jeder Tab-Wechsel das Jahr im Worker neu,
- * am Handy Sekunden, und schickte nie etwas: gleicher Fingerabdruck.
+ * beides nicht. Bis dahin rechnete jeder Tab-Wechsel das Jahr im Worker neu
+ * (am Handy an Tobis Stand geschätzt eine knappe Sekunde, mit vielen Terminen
+ * mehrere) und schickte nie etwas: gleicher Fingerabdruck.
  */
 export function kalenderGeaendert(was) {
   if (was === 'pause' || was === 'ansicht' || !kalenderVerbunden()) return;

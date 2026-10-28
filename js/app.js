@@ -7807,7 +7807,8 @@ function render() {
  * Zu einem Reiter. Der Store meldet den Wechsel als 'ansicht': Die Vorschau
  * für den Kalender liest weder den Reiter noch die offene Einheit, und bis
  * v247 rechnete sie trotzdem bei jedem Wechsel das Jahr im Worker neu – am
- * Handy Sekunden, geschickt wurde nie etwas (gleicher Fingerabdruck).
+ * Handy an Tobis Stand geschätzt eine knappe Sekunde, mit vielen Terminen
+ * mehrere –, geschickt wurde nie etwas (gleicher Fingerabdruck).
  */
 function go(tab) {
   ui.tab = tab;

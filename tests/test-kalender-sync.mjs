@@ -54,8 +54,9 @@
  *      v 1 hinaus wie bisher; die Startseite sagt es einmal dezent (und bleibt
  *      eine Seite, bei 414×896 und 360×740; neben einer anderen Zeile und mit
  *      Fortschritt tritt die Bitte zurück), die Karte bittet um den neuen Code
- *      – mit Schritten ohne „einrichten" und demselben Kennwort, nach
- *      „Ansehen" unter der Kopfleiste, oben „vier Wochen im Voraus".
+ *      – mit fünf Schritten (seit v247 mit „einrichten") und demselben
+ *      Kennwort, nach „Ansehen" unter der Kopfleiste, oben „vier Wochen im
+ *      Voraus".
  *      Zurück aus Apps Script – auch schon nach 90 s, oder auf der Karte
  *      geblieben – fragt die App nach, sieht Fassung 2 und schickt von selbst
  *      das Jahr, genau einmal; solange es beim Skript liegt, sagt die Karte
@@ -85,6 +86,16 @@
  *      Prüfung der Nachbesserung: der Kontingent-Hinweis der letzten eigenen
  *      Sendung neben dem Stand einer, die der Service Worker nachgeschickt hat
  *      (über 64 KiB beim Wegschalten) – nach einer Probe und ganz ohne Rest.
+ *  17. Was Tobis 28.10. zeigte (v247): die Anleitung zum Code-Tausch überall
+ *      mit „einrichten" vor „Neue Version"; das Skript trägt nichts nach
+ *      (`offen` sinkt über 80 Minuten und mehrere Proben nicht – die Karte
+ *      fragt dafür von selbst nach, solange sie aufgeschlagen ist) und dann
+ *      doch; das Tageskontingent ist kein Stillstand; „Ohne Netz trainiert"
+ *      nur mit dem Grund „netz", der Vermerk verfällt mit der nächsten
+ *      eigenen Sendung, ohne „Min.."; „Google bremst" neben einer Probe
+ *      danach nicht mehr, „einrichten" schon; Reiter und offene Einheit
+ *      rechnen die Vorschau nicht neu; zwei Geräte: welchen Stand dieses
+ *      schickt, „aelter" deutlich auf der Karte, und „Trennen" dann ohne „aus".
  *
  *     node tests/test-kalender-sync.mjs            # alles
  *     node tests/test-kalender-sync.mjs 3 7        # nur Abschnitt 3 und 7
@@ -151,6 +162,9 @@ function skriptAttrappe() {
     // Minuten, oder erst morgen (Tageskontingent); probeStand: was eine Probe
     // danach vom letzten Abgleich sagt.
     offen: 0, stehen: null, folge: null, morgen: false, probeStand: null,
+    // Bei „aelter" antwortet das Skript mit dem Stand, der gilt – dem des
+    // anderen Geräts (`stand: alt.stand` in kalender/workout-kalender.gs).
+    fremdStand: null,
   };
   s.route = async (route) => {
     const req = route.request();
@@ -206,7 +220,8 @@ function skriptAttrappe() {
       const fern = !s.fassung1 && j && j.ferne && a.ok ? bisTag(j.ab, j.ferne.bis) : null;
       const antwort = {
         ok: a.ok, code: a.code, version: s.fassung1 ? 1 : s.version, kalender: 'Workout', tag: a.tag || null,
-        geaendert: a.geaendert ?? null, stand: j && j.stand ? j.stand : null, seq: j ? j.seq : null,
+        geaendert: a.geaendert ?? null, stand: a.code === 'aelter' && s.fremdStand ? s.fremdStand : j && j.stand ? j.stand : null,
+        seq: j ? j.seq : null,
         // Fassung 2 sagt, bis wann die Liste reicht, was noch offen ist und
         // bis wann der Kalender schon steht – wie kalender/workout-kalender.gs.
         ...(fern ? {
@@ -634,7 +649,10 @@ await abschnitt(2, async () => {
   skript.code = 'format';
   skript.hinweis = 'Die App ist neuer als dieses Skript – „Kalender-Code erneuern".';
   const mZuAlt = await versuch(URL_A, /Kalender-Code erneuern.*Neue Version/, 'zu alter Code');
-  check(!/einrichten/.test(mZuAlt), '… ohne „einrichten" – Kalender und Auslöser bestehen schon');
+  // Seit v247 mit „einrichten" vor „Neue Version" – bis dahin stand hier, es
+  // brauche es nicht (Abschnitt 17).
+  check(/speichern, oben „einrichten" ausführen, dann Bereitstellen/.test(mZuAlt),
+    '… mit „einrichten" zwischen Speichern und „Neue Version" – der stündliche Auslöser soll den neuen Code nehmen');
   skript.code = null;
   skript.hinweis = undefined;
   // Keine Antwort: Die Probe hängt, nach 30 s gibt die App auf.
@@ -925,8 +943,10 @@ await abschnitt(4, async () => {
   skript.hinweis = 'Ein anderes Gerät hat zuletzt trainiert – der Kalender bleibt bei dessen Plan.';
   await jetzt();
   let l = await lage();
-  check(/anderes Gerät hat zuletzt trainiert/.test(l.karte) && /Sobald du hier trainierst/.test(l.karte) && !l.dash,
-    'ein anderes Gerät hat zuletzt trainiert: die Karte sagt es, das Dashboard nicht – es gibt nichts zu tun');
+  // Seit v247 mit dem, was zu tun ist (Abschnitt 17 f).
+  check(/Ein anderes Gerät mit neuerem Training ist mit diesem Kalender verbunden/.test(l.karte) && /„Trennen" unten/.test(l.karte)
+    && /gilt mit dem ersten Satz wieder dieses/.test(l.karte) && !l.dash,
+  'ein anderes Gerät hat zuletzt trainiert: die Karte sagt es samt „Trennen", das Dashboard nicht – der Kalender stimmt ja');
 
   skript.code = 'token';
   skript.hinweis = 'Das Kennwort passt nicht – in der App „Code kopieren" und in Apps Script alles ersetzen.';
@@ -1095,9 +1115,10 @@ await abschnitt(5, async () => {
   await page.locator('[data-act="kalender-code"]').click();
   await bis(async () => /Code kopiert/.test(await text(page, '#kalenderMeldung')));
   const mc = await text(page, '#kalenderMeldung');
-  check(/demselben Kennwort/.test(mc) && /im selben Projekt den ganzen Code/.test(mc) && /Neue Version/.test(mc) && !/einrichten/.test(mc)
-    && !/Schritt 2 und 3/.test(mc),
-  `verbunden „Code kopieren": dasselbe Kennwort, im selben Projekt ersetzen, Neue Version – ohne „einrichten" (Kalender und Auslöser bestehen) und nicht „Schritt 2 und 3" („${mc.slice(0, 70)}…")`);
+  check(/demselben Kennwort/.test(mc) && /im selben Projekt den ganzen Code/.test(mc) && /Neue Version/.test(mc)
+    && /speichern, oben einrichten wählen und Ausführen tippen/.test(mc) && mc.indexOf('einrichten') < mc.indexOf('Neue Version')
+    && /ein paar Minuten/.test(mc) && !/Schritt 2 und 3/.test(mc),
+  `verbunden „Code kopieren": dasselbe Kennwort, im selben Projekt ersetzen, speichern, einrichten, dann Neue Version – nicht „Schritt 2 und 3" („${mc.slice(0, 70)}…")`);
   await zu(g);
 });
 
@@ -1307,7 +1328,10 @@ await abschnitt(9, async () => {
   await zeigen(page);
   await bis(async () => !!(await meta(page)).nach, 3000);
   await zuMehr(page);
-  check(/Im Hintergrund nachgeschickt/.test(await text(page, '#kalenderStand')), 'die Karte sagt es beim nächsten Hinsehen');
+  // Mit dem Grund aus dem Ausgang: Hier lag die Sendung, weil kein Netz da war.
+  const standNach = await text(page, '#kalenderStand');
+  check(/Ohne Netz trainiert: Im Hintergrund nachgeschickt/.test(standNach) && !/\.\./.test(standNach),
+    `die Karte sagt es beim nächsten Hinsehen – „Ohne Netz trainiert", der Grund kam über den Service Worker mit („${standNach.replace(/^.*?(Ohne Netz)/, '$1').slice(0, 60)}")`);
   check((await diagZeilen(page)).some((z) => / kalender was=nachgesendet /.test(z)), 'und das Diagnoseprotokoll');
   // Eine Sendung an eine fremde Adresse schickt der Service Worker nie.
   await page.evaluate(async () => {
@@ -1417,6 +1441,17 @@ await abschnitt(12, async () => {
   const reSw = (/const KALENDER_ZIEL = (\/.+\/);/.exec(sw) || [])[1];
   check(!!reStore && reStore === reSw, 'die erlaubte Adresse: in js/store.js und sw.js dieselbe');
   check(/'\.\/js\/kalender-sync\.js'/.test(sw), 'sw.js hält js/kalender-sync.js vor');
+  // Zwei Hinweise des Skripts erkennt die Karte am Text (kalenderLage().hinweisAlt):
+  // derselbe Wortlaut in js/kalender-sync.js, in der Vorlage und in Fassung 1.
+  const F1 = readFileSync(path.join(ROOT, 'tests', 'kalender-fassung1.gs'), 'utf8');
+  const gs = (q, name) => (new RegExp(`^const ${name} = '([^']+)';$`, 'm').exec(q) || [])[1];
+  const js = (name) => {
+    const m = new RegExp(`export const ${name} = ('[^']+'(?:\\s*\\+\\s*'[^']+')*);`).exec(sync);
+    return m ? m[1].split(/'\s*\+\s*'/).join('').replace(/^'|'$/g, '') : null;
+  };
+  check(!!js('KALENDER_SPAETER') && js('KALENDER_SPAETER') === gs(VORLAGE, 'SPAETER') && gs(VORLAGE, 'SPAETER') === gs(F1, 'SPAETER')
+    && !!js('KALENDER_KONTINGENT') && js('KALENDER_KONTINGENT') === gs(VORLAGE, 'TAGESKONTINGENT') && gs(F1, 'TAGESKONTINGENT') === gs(VORLAGE, 'TAGESKONTINGENT'),
+  '„Google bremst gerade …" und das Tageskontingent: in js/kalender-sync.js wörtlich wie in der Vorlage und in Fassung 1');
   const g = await geraet('12 Standards');
   const std = await g.page.evaluate(async () => {
     const k = await import('./js/kalender.js');
@@ -1453,8 +1488,8 @@ await abschnitt(13, async () => {
   const zeile = page.locator('#kalenderJahrZeile');
   const zText = (await text(page, '#kalenderJahrZeile')).trim();
   check(await zeile.count() === 1 && !/\bwarn\b/.test(await zeile.getAttribute('class')) && await page.locator('#kalenderZeile').count() === 0
-    && /Ein Jahr im Voraus geht jetzt – dafür einmal den Code im Skript erneuern/.test(zText),
-  `Startseite: einmal dezent, ohne Warnfarbe – kaputt ist nichts („${zText}")`);
+    && /Ein Jahr im Voraus geht jetzt – dafür einmal den Code im Skript erneuern und einrichten ausführen\./.test(zText),
+  `Startseite: einmal dezent, ohne Warnfarbe – kaputt ist nichts; seit v247 mit „einrichten" („${zText}")`);
   // „Hier beim Dashboard soll man nicht scrollen können" – auch mit ihr eine
   // Seite, bei 414×896 und 360×740. Bis zur Prüfung des Entwurfs stand sie als
   // gewöhnliche Zeile da (97 px), und bei 360×740 lag der Fuß 26 px unter der
@@ -1486,13 +1521,16 @@ await abschnitt(13, async () => {
   const schritte = (await page.locator('#kalenderJahrSchritte li').allTextContents()).map((x) => x.replace(/\s+/g, ' ').trim());
   check(await page.locator('#kalenderJahr').isVisible() && karte.includes(jahr.titel) && karte.includes(jahr.satz) && karte.includes(jahr.danach)
     && JSON.stringify(schritte) === JSON.stringify(jahr.schritte),
-  '„Ansehen" führt zur Bitte auf der Karte: der Satz, vier Schritte, was danach passiert');
+  '„Ansehen" führt zur Bitte auf der Karte: der Satz, fünf Schritte, was danach passiert');
   console.log(`     Die Bitte: ${jahr.satz} ${schritte.map((x, i) => `${i + 1}. ${x}`).join(' ')} ${jahr.danach}`);
-  check(schritte.length === 4 && /„Code kopieren"/.test(schritte[0]) && /script\.google\.com/.test(schritte[1]) && /Desktopwebsite/.test(schritte[1])
+  // Seit v247 mit „einrichten" als Schritt 4 (Abschnitt 17): Ein Auslöser,
+  // den doPost angelegt hat, lief bei Tobi nach „Neue Version" mit dem alten Code.
+  check(schritte.length === 5 && /„Code kopieren"/.test(schritte[0]) && /script\.google\.com/.test(schritte[1]) && /Desktopwebsite/.test(schritte[1])
     && /dasselbe wie beim Einrichten/.test(schritte[1]) && /den ganzen Code dort durch den kopierten ersetzen und speichern/i.test(schritte[2])
-    && /Bereitstellen → Bereitstellungen verwalten → Bearbeiten \(Stift\) → Version: Neue Version → Bereitstellen/.test(schritte[3])
-    && !/„?einrichten/.test(`${jahr.satz} ${schritte.join(' ')} ${jahr.danach}`.replace('beim Einrichten', '')),
-  'die Schritte: Code kopieren, dasselbe Projekt öffnen, ganzen Code ersetzen und speichern, Neue Version bereitstellen – kein „einrichten"');
+    && /^Oben die Funktion einrichten wählen und Ausführen tippen\./.test(schritte[3]) && /Zugriff/.test(schritte[3])
+    && /ein paar Minuten/.test(schritte[3]) && /Ausführung abgeschlossen/.test(schritte[3])
+    && /Bereitstellen → Bereitstellungen verwalten → Bearbeiten \(Stift\) → Version: Neue Version → Bereitstellen/.test(schritte[4]),
+  'die Schritte: Code kopieren, dasselbe Projekt öffnen, ganzen Code ersetzen und speichern, einrichten ausführen, Neue Version bereitstellen');
   check(/von selbst/.test(jahr.danach) && /das ganze Jahr/.test(jahr.danach) && /dasselbe/.test(jahr.satz),
     'dazu: dasselbe Kennwort, und die App merkt es von selbst – keine Wahl, kein Knopf');
   check(await page.locator('#kalenderJahr .btn-primary[data-act="kalender-code"]').count() === 1
@@ -1765,6 +1803,12 @@ await abschnitt(14, async () => {
   const m = await meta(page);
   check(m.nach && m.nach.code === 'angekommen' && m.hash === ausgang.hash && m.fassung.version === 2,
     'zurück in der App: Sie liest den Vermerk – angekommen, dieselbe Vorschau –, und merkt sich Fingerabdruck und Fassung');
+  // Mit Netz nachgeschickt, nur zu groß für keepalive: kein „Ohne Netz trainiert"
+  // (bis v247 stand es bei jeder nachgeschickten Sendung).
+  await zuMehr(page);
+  const standGross = await text(page, '#kalenderStand');
+  check(ausgang.grund === 'gross' && m.nach.grund === 'gross' && /Im Hintergrund nachgeschickt/.test(standGross) && !/Ohne Netz/.test(standGross),
+    `der Grund reist durch den Service Worker („${m.nach.grund}"): Die Karte sagt „Im Hintergrund nachgeschickt" – ohne „Ohne Netz trainiert"`);
   await vor(page, 3 * 60 * 1000, 2000);
   check(skript.vorschauen().length === n0 + 1, 'dieselbe Vorschau geht danach nicht noch einmal hinaus');
   await zu(g);
@@ -1894,7 +1938,7 @@ await abschnitt(15, async () => {
       await bis(async () => await h.page.locator('#kalenderJahrFehlt').count() === 1, 4000);
       const jahr = await h.page.evaluate(async () => (await import('./js/kalender-sync.js')).KALENDER_JAHR);
       const satz = (await text(h.page, '#kalenderJahrFehlt')).trim();
-      check(frueh === 0 && satz === jahr.fehlt && /Neue Version/.test(satz) && /Speichern/.test(satz) && !/einrichten/.test(satz),
+      check(frueh === 0 && satz === jahr.fehlt && /Neue Version/.test(satz) && /Speichern/.test(satz) && /einrichten \(Schritt 4\)/.test(satz),
         `„Neue Version" vergessen: zweieinhalb Minuten nach dem Kopieren noch nichts, fünf Minuten danach meldet das Skript weiter Fassung 1 – „${satz}"`);
       // Daneben nicht mehr das grüne „Code kopiert …" – bis zur Prüfung stand
       // es die ganze Sitzung neben dem orangen Satz.
@@ -2157,9 +2201,11 @@ await abschnitt(16, async () => {
   await zumDashboard(e.page);
   await zuMehr(e.page);
   const se = await text(e.page, '#kalenderStand');
+  // Was gilt, steht seit v247 als eigener Hinweis darunter (Abschnitt 17 f).
+  const seFremd = await text(e.page, '#kalenderFremd');
   check(((await meta(e.page)).letzte || {}).vertrag === 2 && !/Neuer Code erkannt/.test(se) && /\(Skript Fassung 2\)\./.test(se)
-    && /Ein anderes Gerät hat zuletzt trainiert/.test(se),
-  `die erste v 2 kommt als „aelter" zurück: kein „Neuer Code erkannt" mehr, sondern was gilt („${se.slice(0, 180)}")`);
+    && /Ein anderes Gerät mit neuerem Training ist mit diesem Kalender verbunden/.test(seFremd),
+  `die erste v 2 kommt als „aelter" zurück: kein „Neuer Code erkannt" mehr, sondern was gilt („${se.slice(0, 120)}" – „${seFremd.slice(0, 70)}…")`);
   await zu(e);
 
   // f) Aus der Prüfung der Nachbesserung: Die Antwort auf die letzte eigene
@@ -2262,6 +2308,281 @@ await abschnitt(16, async () => {
     && ks.skript.proben().length === ksProben && /Im Kalender: Termine bis 08\.10\.2027\./.test(ksSpaeter) && !/Tageskontingent|morgen/.test(ksSpaeter),
   `nachgeschickt, nichts mehr offen: kein Hinweis von gestern daneben, auch drei Minuten später nicht, ohne Nachfrage („${ksStand(ks0.stand)}")`);
   await zu(ks);
+});
+
+/* ================================================================== *
+ * 17. Was Tobis 28.10. zeigte (v247)
+ *
+ * Nach „Neue Version" meldete die Web-App Fassung 2 und 204 Änderungen offen,
+ * der stündliche Auslöser lief aber weiter mit Fassung 1 – ihn hatte doPost
+ * aus der bereitgestellten Version angelegt, weil Tobi nie „einrichten"
+ * ausgeführt hatte. Die App hatte gesagt, „einrichten" brauche es nicht, und
+ * die Karte versprach „in den nächsten Minuten". Dazu die Nachlese aus den
+ * Prüfungen von v246 und zwei Geräte.
+ * ================================================================== */
+await abschnitt(17, async () => {
+  const SPAETER_GS = (/^const SPAETER = '([^']+)';$/m.exec(VORLAGE) || [])[1];
+  // a) Die Anleitung zum Code-Tausch: überall mit „einrichten", vor „Neue Version".
+  const g = await geraet('17 Anleitung', { kalender: { token: TOKEN, url: URL_A } });
+  await vor(g.page, 4000, 1500);
+  await bis(() => g.skript.vorschauen().length >= 1, 8000);
+  const t = await g.page.evaluate(async () => {
+    const k = await import('./js/kalender-sync.js');
+    return {
+      jahr: k.KALENDER_JAHR, zuAlt: k.kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }),
+      token: k.kalenderSatz({ ergebnis: 'token' }), stockt: k.KALENDER_STOCKT,
+    };
+  });
+  await zu(g);
+  const vorNeu = (s) => /einrichten/.test(s) && /Neue Version/.test(s) && s.indexOf('einrichten') < s.indexOf('Neue Version');
+  const sch = t.jahr.schritte || [];
+  check(sch.length === 5 && /ersetzen und speichern/.test(sch[2]) && /einrichten/.test(sch[3]) && /Ausführen/.test(sch[3])
+    && /Zugriff/.test(sch[3]) && /ein paar Minuten/.test(sch[3]) && /Neue Version/.test(sch[4]) && !/einrichten/.test(sch[4]),
+  `die Bitte um neuen Code: ersetzen und speichern (3), einrichten ausführen – Zugriff, ein paar Minuten (4), Neue Version (5) (${sch.length} Schritte)`);
+  check(vorNeu(t.zuAlt) && vorNeu(t.token) && /einrichten \(Schritt 4\)/.test(t.jahr.fehlt || ''),
+    '„Kalender-Code erneuern" und das falsche Kennwort: einrichten vor Neue Version; „Neue Version fehlt" erinnert an Schritt 4');
+  const alle = [...sch, t.jahr.satz, t.jahr.danach, t.jahr.fehlt, t.zuAlt, t.token].join(' ');
+  check(!/nicht nötig|braucht es (dafür )?nicht|[Kk]ein „einrichten"|ohne „einrichten"/.test(alle)
+    && !/braucht es dafür nicht|nur nötig, wenn das Skript oder die App darum bittet/.test(VORLAGE),
+  'nirgends mehr „einrichten ist nicht nötig" – weder in der App noch in der Vorlage');
+  check(/Nach jedem neuen Code hier wieder erst „einrichten", dann „Neue Version"\./.test(VORLAGE) && /^const FASSUNG = 2;$/m.test(VORLAGE),
+    'die Vorlage sagt es am Ende von einrichten() dazu – und bleibt Fassung 2');
+
+  // b) Das Skript trägt nichts nach. Die Sendung mit dem Jahr kam an (204
+  // offen, „weiter" in ein paar Minuten); danach sagt keine Probe mehr etwas
+  // über `offen` – so antwortet Fassung 2, wenn den letzten Abgleich ein Lauf
+  // des alten Codes schrieb (tests/test-kalender-gas.mjs, Abschnitt 12). Die
+  // Karte bleibt aufgeschlagen, die Uhr geht in Schritten von zehn Minuten.
+  const s = await geraet('17 Stillstand', { kalender: { token: TOKEN, url: URL_A } });
+  Object.assign(s.skript, { offen: 204, stehen: '2026-11-05', folge: true });
+  await vor(s.page, 4000, 1500);
+  await bis(() => s.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(s.page);
+  s.skript.probeStand = { offen: null, bis: null, stehen: null, folge: null, morgen: null, tag: null };
+  const schritte = async (page, skript, minuten) => {
+    for (let i = 0; i < minuten / 10; i++) {
+      const p0 = skript.proben().length;
+      await vor(page, 10 * 60 * 1000, 300);
+      await bis(() => skript.proben().length > p0, 1500);
+      await echteWarte(300);
+    }
+  };
+  const stocktDa = async () => (await s.page.locator('#kalenderStockt').count()) === 1;
+  await schritte(s.page, s.skript, 40);
+  const proben40 = s.skript.proben().length;
+  const nach40 = await stocktDa();
+  const stand40 = await text(s.page, '#kalenderStand');
+  await schritte(s.page, s.skript, 40);
+  await bis(stocktDa, 3000);
+  const st = await text(s.page, '#kalenderStand');
+  const satz = (await text(s.page, '#kalenderStockt')).trim();
+  const farbe = (await s.page.locator('#kalenderStockt').getAttribute('style').catch(() => '')) || '';
+  const proben80 = s.skript.proben().length;
+  check(proben40 >= 3 && !nach40 && /in den nächsten Minuten nach – noch 204 Änderungen\./.test(stand40),
+    `40 Minuten nach der Sendung, ${proben40} Proben – von selbst gefragt, solange die Karte offen ist –, aber noch kein Satz: 75 Minuten muss es mindestens sein`);
+  check(satz === t.stockt && /Das Skript trägt nichts nach – wahrscheinlich läuft der stündliche Auslöser noch mit dem alten Code\. In Apps Script einmal „einrichten" ausführen\./.test(satz)
+    && /var\(--accent\)/.test(farbe) && proben80 >= proben40 + 3,
+  `nach 80 Minuten und ${proben80} Proben ohne Fortschritt: „${satz}" – in der Akzentfarbe`);
+  check(/Im Kalender: Termine bis 05\.11\.2026\. Bis 08\.10\.2027 fehlen noch 204 Änderungen, seit \d+ Min\. nicht weniger\./.test(st)
+    && !/in den nächsten Minuten/.test(st),
+  `der Stand verspricht nichts mehr („${st.replace(/^.*?(Im Kalender)/, '$1').slice(0, 120)}")`);
+  const dzStockt = (await diagZeilen(s.page)).filter((z) => / kalender was=stockt /.test(z));
+  check(dzStockt.length === 1 && /offen=204/.test(dzStockt[0]), `einmal im Diagnoseprotokoll (${(dzStockt[0] || '').replace(/^.* kalender /, '')})`);
+  await zumDashboard(s.page);
+  check(await s.page.locator('#kalenderZeile').count() === 0 && !/trägt nichts nach/.test(await text(s.page)),
+    'auf dem Dashboard steht dazu nichts – die nächsten vier Wochen stimmen ja');
+  const pDash = s.skript.proben().length;
+  for (let i = 0; i < 3; i++) await vor(s.page, 10 * 60 * 1000, 600);
+  check(s.skript.proben().length === pDash, `auf den anderen Seiten fragt die App nicht von selbst (${s.skript.proben().length - pDash} Proben in 30 Minuten)`);
+  // Tobi führt einrichten aus: Der neue Auslöser gleicht ab, offen sinkt.
+  s.skript.probeStand = { offen: 150, bis: '2027-10-08', stehen: '2026-12-01', folge: true, morgen: false };
+  await zuMehr(s.page);
+  await bis(async () => !(await stocktDa()), 4000);
+  const st2 = await text(s.page, '#kalenderStand');
+  check(!(await stocktDa()) && /Termine bis 01\.12\.2026\. Den Rest bis 08\.10\.2027 trägt das Skript in den nächsten Minuten nach – noch 150 Änderungen \(Stand gerade eben\)\./.test(st2),
+    `sobald offen sinkt, ist der Satz weg („${st2.replace(/^.*?(Im Kalender)/, '$1').slice(0, 130)}")`);
+  await zu(s);
+
+  // b2) Das Tageskontingent ist aufgebraucht: Bis morgen sinkt nichts, mit
+  // keinem Code – das ist kein Stillstand. Gefragt wird beim Zurückkommen.
+  const kt = await geraet('17 Kontingent', { kalender: { token: TOKEN, url: URL_A } });
+  Object.assign(kt.skript, { offen: 150, stehen: '2026-11-12', folge: false, morgen: true });
+  await vor(kt.page, 4000, 1500);
+  await bis(() => kt.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(kt.page);
+  kt.skript.probeStand = { offen: 150, bis: '2027-10-08', stehen: '2026-11-12', folge: false, morgen: true };
+  for (let i = 0; i < 4; i++) {
+    await vor(kt.page, 30 * 60 * 1000, 300);
+    await verstecken(kt.page);
+    await zeigen(kt.page);
+    await echteWarte(800);
+  }
+  check(kt.skript.proben().length >= 3 && await kt.page.locator('#kalenderStockt').count() === 0
+    && /trägt das Skript morgen nach – noch 150 Änderungen/.test(await text(kt.page, '#kalenderStand')),
+  `Tageskontingent aus: zwei Stunden und ${kt.skript.proben().length} Proben ohne Fortschritt – kein „trägt nichts nach", die Karte sagt „morgen"`);
+  await zu(kt);
+
+  // c) Was der Service Worker nachgeschickt hat, mit dem Grund, aus dem es im
+  // Ausgang lag. Der Vermerk wird hier gelegt, wie sw.js ihn schreibt.
+  const nv = await geraet('17 nachgeschickt', { kalender: { token: TOKEN, url: URL_A } });
+  await vor(nv.page, 4000, 1500);
+  await bis(() => nv.skript.vorschauen().length >= 1, 8000);
+  await vor(nv.page, 10 * 60 * 1000, 300);
+  await zuMehr(nv.page);
+  const vermerk = async (grund, vorMin) => {
+    await nv.page.evaluate(async ({ gr, ziel, vor: v }) => {
+      const c = await caches.open('kalender-ausgang');
+      await c.put(new URL('kalender-ausgang-nach', location.href).href, new Response(JSON.stringify({
+        seq: 900 + v, zeit: Date.now() - v * 60000, code: 'angekommen', version: 2, hash: `nachgeschickt${v}`, ziel, vertrag: 2,
+        gekuerzt: null, antwort: { tag: '2026-10-08', geaendert: 1, offen: 0, bis: '2027-10-08', stehen: '2027-10-08' }, grund: gr,
+      })));
+    }, { gr: grund, ziel: zielVon(URL_A, TOKEN), vor: vorMin });
+    await verstecken(nv.page);
+    await zeigen(nv.page);
+    await bis(async () => ((await meta(nv.page)).nach || {}).seq === 900 + vorMin, 4000);
+    await echteWarte(300);
+    await zumDashboard(nv.page);
+    await zuMehr(nv.page);
+    return text(nv.page, '#kalenderStand');
+  };
+  const gross = await vermerk('gross', 3);
+  check(/Im Hintergrund nachgeschickt vor 3 Min\.(?!\.)/.test(gross) && !/Ohne Netz/.test(gross) && !/Min\.\./.test(gross),
+    `über 64 KiB beim Wegschalten, mit Netz nachgeschickt: „Im Hintergrund nachgeschickt vor 3 Min." – ohne „Ohne Netz trainiert", ohne zwei Punkte („${gross.replace(/^.*?(Im Hintergrund)/, '$1').slice(0, 60)}")`);
+  const netz = await vermerk('netz', 2);
+  check(/Ohne Netz trainiert: Im Hintergrund nachgeschickt vor 2 Min\.(?!\.)/.test(netz),
+    `ohne Netz trainiert und nachgeschickt: „${netz.replace(/^.*?(Ohne Netz)/, '$1').slice(0, 70)}"`);
+  await nv.page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+  await bis(async () => !(await meta(nv.page)).nach, 4000);
+  await zumDashboard(nv.page);
+  await zuMehr(nv.page);
+  const danachNv = await text(nv.page, '#kalenderStand');
+  check(!/nachgeschickt|Ohne Netz/.test(danachNv) && /Zuletzt angekommen: gerade eben/.test(danachNv),
+    'kommt danach eine eigene Sendung an, verfällt der Vermerk – die Zeile ist weg');
+  await zu(nv);
+
+  // d) „Google bremst gerade" galt der letzten Sendung: Neben dem Stand einer
+  // Probe danach steht es nicht mehr. Was Tobi tun soll („einrichten"), bleibt.
+  const sp = await geraet('17 Google bremst', { kalender: { token: TOKEN, url: URL_A } });
+  Object.assign(sp.skript, { offen: 20, stehen: '2027-09-01', folge: false, hinweis: SPAETER_GS });
+  await vor(sp.page, 4000, 1500);
+  await bis(() => sp.skript.vorschauen().length >= 1, 8000);
+  sp.skript.hinweis = undefined;
+  await zuMehr(sp.page);
+  const spVorher = await text(sp.page, '#kalenderStand');
+  sp.skript.probeStand = { offen: 12, bis: '2027-10-08', stehen: '2027-09-10', folge: false, morgen: false };
+  await vor(sp.page, 3 * 60 * 1000 + 1000, 300);
+  await bis(async () => /noch 12 Änderungen/.test(await text(sp.page, '#kalenderStand')), 4000);
+  const spNachher = await text(sp.page, '#kalenderStand');
+  check(spVorher.includes(`Das Skript sagt: ${SPAETER_GS}`) && !/Das Skript sagt/.test(spNachher)
+    && /noch 12 Änderungen \(Stand gerade eben\)/.test(spNachher),
+  '„Google bremst gerade …" steht neben dem Stand seiner Sendung – neben dem einer Probe danach nicht mehr');
+  const AUSL = 'Den stündlichen Auslöser konnte das Skript nicht prüfen – in Apps Script „einrichten" ausführen.';
+  sp.skript.hinweis = AUSL;
+  const nrVor = ((await meta(sp.page)).letzte || {}).nr;
+  await sp.page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+  await bis(async () => ((await meta(sp.page)).letzte || {}).nr !== nrVor, 4000);
+  sp.skript.hinweis = undefined;
+  sp.skript.probeStand = { offen: 8, bis: '2027-10-08', stehen: '2027-09-20', folge: false, morgen: false };
+  await vor(sp.page, 3 * 60 * 1000 + 1000, 300);
+  await bis(async () => /noch 8 Änderungen/.test(await text(sp.page, '#kalenderStand')), 4000);
+  const spHandeln = await text(sp.page, '#kalenderStand');
+  await zumDashboard(sp.page);
+  check(spHandeln.includes(`Das Skript sagt: ${AUSL}`) && /noch 8 Änderungen/.test(spHandeln) && await sp.page.locator('#kalenderZeile').count() === 1,
+    '„… einrichten ausführen" bleibt auch neben einer Probe danach stehen, auf der Karte und auf dem Dashboard');
+  await zu(sp);
+
+  // e) Reiter und offene Einheit stehen im Zustand, damit die App nach dem
+  // Neuladen dort wieder aufgeht – die Vorschau liest beides nicht. Bis v247
+  // rechnete fast jeder Wechsel das Jahr im Worker neu (am Handy an Tobis
+  // Stand geschätzt eine knappe Sekunde), und geschickt wurde nie etwas.
+  const tb = await geraet('17 Reiter', { kalender: { token: TOKEN, url: URL_A } });
+  await vor(tb.page, 4000, 1500);
+  await bis(() => tb.skript.vorschauen().length >= 1, 8000);
+  await vor(tb.page, 3000, 1500);
+  const auftraege = () => tb.page.evaluate(() => (window.__anWorker || []).filter((x) => x.zustand).length);
+  const r0 = await auftraege();
+  for (const tab of ['settings', 'dashboard', 'settings', 'dashboard']) {
+    await tb.page.locator(`.tab[data-tab="${tab}"]`).click();
+    await vor(tb.page, 2500, 1200);
+  }
+  await zuMehr(tb.page);
+  await tb.page.locator('[data-act="go-tab"][data-tab="calendar"]').click();
+  await vor(tb.page, 2500, 1200);
+  const r1 = await auftraege();
+  const reiter = await tb.page.evaluate(async () => (await import('./js/store.js')).getState().tab);
+  await zumDashboard(tb.page);
+  await tb.page.locator('[data-act="start-session"]').first().click();
+  await vor(tb.page, 2500, 1500);
+  const r2 = await auftraege();
+  for (let i = 0; i < 3; i++) {
+    await tb.page.locator('[data-act="focus-step"][data-d="1"]').first().click();
+    await vor(tb.page, 2500, 1200);
+  }
+  const r3 = await auftraege();
+  const fokus = await tb.page.evaluate(async () => (await import('./js/store.js')).getState().fokusOffen);
+  check(r1 === r0 && reiter === 'calendar' && r3 === r2 && !!fokus && !!fokus.id && tb.skript.vorschauen().length === 1,
+    `sechs Wechsel des Reiters und drei Übungen weiter in der Einheit: ${r1 - r0} und ${r3 - r2} Rechnungen im Worker (bis v247 fast je Wechsel eine) – `
+      + `gemerkt wird beides (Reiter ${reiter}, offen ${fokus ? fokus.id : '–'})`);
+  await zu(tb);
+
+  // f) Zwei Geräte. Tobi hat die App auch im Browser am Rechner, mit eigenem
+  // Speicher – dort fehlte Workout 13 vom Montag, trainiert hatte er am Handy.
+  // Die Karte sagt, welchen Stand dieses Gerät schickt.
+  const zg = await geraet('17 Zwei Geräte', { kalender: { token: TOKEN, url: URL_A } });
+  await vor(zg.page, 4000, 1500);
+  await bis(() => zg.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(zg.page);
+  const gVorher = await text(zg.page, '#kalenderGeraet');
+  const nZg = await haken(zg.page);
+  await bis(() => zg.skript.vorschauen().length >= 2, 4000);
+  await zumDashboard(zg.page);
+  await zuMehr(zg.page);
+  const gNachher = await text(zg.page, '#kalenderGeraet');
+  console.log(`     Dieses Gerät: vorher „${gVorher.trim().slice(0, 70)}", nach einem Satz in Workout ${nZg}: „${gNachher.trim().slice(0, 70)}"`);
+  check(/Dieses Gerät schickt: zuletzt trainiert Workout \d+ am (Mo|Di|Mi|Do|Fr|Sa|So) \d\d\.\d\d\./.test(gVorher)
+    && new RegExp(`Dieses Gerät schickt: zuletzt trainiert Workout ${nZg} am Do 08\\.10\\.`).test(gNachher)
+    && /Verbunden sein soll nur das Gerät, auf dem du trainierst/.test(gNachher),
+  `die Karte sagt, welchen Stand dieses Gerät schickt – aus dem echten Zustand: nach einem Satz „Workout ${nZg} am Do 08.10."`);
+  const leer = await geraet('17 nie trainiert', { zustand: { greeted: true, name: 'T', level: 'geuebt', focus: 'cut' }, kalender: { token: TOKEN, url: URL_A } });
+  await vor(leer.page, 4000, 1500);
+  await bis(() => leer.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(leer.page);
+  check(/Dieses Gerät schickt: noch nie trainiert\./.test(await text(leer.page, '#kalenderGeraet')),
+    'ein Gerät ohne Training sagt es ehrlich: „noch nie trainiert"');
+  await zu(leer);
+  // Das andere Gerät hat zuletzt trainiert: Das Skript nimmt diese Sendung
+  // nicht („aelter") und sagt, welcher Stand gilt.
+  const fremdZuletzt = Date.parse('2026-10-08T10:01:00+02:00');
+  Object.assign(zg.skript, {
+    code: 'aelter', hinweis: 'Ein anderes Gerät hat zuletzt trainiert – der Kalender bleibt bei dessen Plan.',
+    fremdStand: { einheiten: 13, saetze: 400, zuletzt: fremdZuletzt },
+  });
+  const nrZg = ((await meta(zg.page)).letzte || {}).nr;
+  await zg.page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+  await bis(async () => ((await meta(zg.page)).letzte || {}).nr !== nrZg, 4000);
+  await zumDashboard(zg.page);
+  const zgDash = await zg.page.locator('#kalenderZeile').count();
+  await zuMehr(zg.page);
+  const fremd = await text(zg.page, '#kalenderFremd');
+  const fremdKlasse = (await zg.page.locator('#kalenderFremd').getAttribute('class').catch(() => '')) || '';
+  check(/Ein anderes Gerät mit neuerem Training ist mit diesem Kalender verbunden – dieses hier nicht mehr verbinden \(„Trennen" unten/.test(fremd)
+    && /Dort zuletzt trainiert am Do 08\.10\./.test(fremd) && /\bwarn\b/.test(fremdKlasse) && zgDash === 0
+    && !/Letzter Versuch/.test(await text(zg.page, '#kalenderStand')),
+  `„aelter": deutlich auf der Karte („${fremd.trim().slice(0, 110)}…"), nicht auf dem Dashboard`);
+  check(/„Trennen": Dieses Gerät schickt dann nichts mehr; die Termine des anderen Geräts bleiben stehen/.test(await text(zg.page, '#kalenderTrennenText')),
+    'darunter: Trennen lässt die Termine des anderen Geräts stehen');
+  // Trennen – ohne „aus": Das Skript nähme es von jedem Gerät an und räumte die
+  // Termine des Geräts weg, mit dem trainiert wird.
+  const ausVorher = zg.skript.aus().length;
+  zg.skript.code = null;
+  zg.skript.hinweis = undefined;
+  await zg.page.locator('[data-act="kalender-trennen"]').click();
+  await bis(async () => /Getrennt/.test(await text(zg.page, '#kalenderMeldung')), 4000);
+  await vor(zg.page, 60 * 1000, 800);
+  check(zg.skript.aus().length === ausVorher && (await kalJetzt(zg.page)).url === null && ((await meta(zg.page)).aus || []).length === 0
+    && /Getrennt – dieses Gerät schickt nichts mehr\. Den Kalender pflegt weiter das andere Gerät\./.test(await text(zg.page, '#kalenderMeldung')),
+  `getrennt, ohne „aus" an das Skript (${zg.skript.aus().length - ausVorher}) – der Kalender des anderen Geräts bleibt`);
+  await zu(zg);
 });
 
 check(seitenFehler.length === 0, `keine Fehler auf den Seiten${seitenFehler.length ? `: ${seitenFehler.slice(0, 4).join(' | ')}` : ''}`);

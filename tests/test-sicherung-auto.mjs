@@ -240,6 +240,18 @@ await warte(a, 2 * 60000 + 5000);
 check(geschrieben().length === vorNetz + 2 && (await meta(a)).fehler === null,
   `sobald das Netz zurück ist, wird nachgeholt (${geschrieben().length - vorNetz - 1})`);
 
+// --- „+Wdh." meldet sich wie jede Änderung -------------------------------
+// Bis v247 schwieg store.addBwPlus() beim Store: Die Sicherung erfuhr vom
+// Aufschlag erst mit der nächsten Meldung, und wer danach nichts mehr
+// antippte, hatte ihn nur auf diesem Gerät.
+const vorPlus = geschrieben().length;
+await a.evaluate(async (id) => (await import('./js/store.js')).addBwPlus(id, 2), uebung);
+await warte(a, 1100);
+await warte(a, 2 * 60000 + 5000);
+const mitPlus = JSON.parse(await entschluesseln(mA.key, zeilen.get(mA.id).daten, zeilen.get(mA.id).iv));
+check(geschrieben().length === vorPlus + 1 && (mitPlus.bwPlus || {})[uebung] === 2,
+  `„+Wdh." (store.addBwPlus) geht von selbst in die Sicherung – ohne eine weitere Änderung (${geschrieben().length - vorPlus}, bwPlus ${(mitPlus.bwPlus || {})[uebung]})`);
+
 /* ================================================================== *
  * B – ein frisches Gerät, Schlüssel aus dem Passwortmanager
  * ================================================================== */

@@ -45,11 +45,13 @@
  *        „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
  *         machen"
  *
- *      Tobis Weg wörtlich: Fassung 1 (tests/kalender-fassung1.gs, so wie sie
- *      seit dem 27.10. in seinem Konto läuft) legt die Termine an, dann
- *      ersetzt er im selben Projekt den Code – ohne „einrichten" –, und die
- *      erste Sendung der Fassung 2 übernimmt jeden Termin, statt ihn neu
- *      anzulegen. v 1 und v 2 werden angenommen; das Nächste zuerst, das
+ *      Tobis Weg: Fassung 1 (tests/kalender-fassung1.gs, so wie sie seit dem
+ *      27.10. in seinem Konto läuft) legt die Termine an, dann ersetzt er im
+ *      selben Projekt den Code – ohne „einrichten" –, und die erste Sendung
+ *      der Fassung 2 übernimmt jeden Termin, statt ihn neu anzulegen. (Ganz
+ *      wörtlich war das nicht: Hier legt „einrichten" den Auslöser für
+ *      Fassung 1 im Editor an, bei Tobi legte ihn doPost an – Abschnitt 12.)
+ *      v 1 und v 2 werden angenommen; das Nächste zuerst, das
  *      Zeitbudget über mehrere Läufe mit dem Folge-Auslöser „weiter", Google
  *      mit drei Sekunden je angelegtem Termin wie bei Tobi gemessen; ein
  *      verpasster Tag verschiebt das ganze Jahr, ohne einen Termin neu
@@ -66,6 +68,13 @@
  *      „weiter" (die Probe sagt „morgen"); ein Lesefehler an der Meta-Zeile
  *      (doPost löscht nichts, eine ältere Sendung gilt nicht als neu); ein
  *      gelöschter Kalender, am selben Tag neu eingerichtet (wieder das Jahr).
+ *  12. Was am 28.10. bei Tobi lief (v247): Fassung 2 bereitgestellt, der
+ *      stündliche Auslöser – von doPost angelegt – noch mit Fassung 1. Er
+ *      liest das Jahr nicht und wirft, die Probe der Web-App sagt danach
+ *      nichts über `offen` (daran erkennt es die App), und „einrichten"
+ *      richtet es. Seit v247 gehört „einrichten" zu jedem Code-Tausch; 9b
+ *      zeigt weiter, dass der Code auch ohne zurechtkommt, wo der Auslöser
+ *      im Editor entstand.
  */
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -1441,7 +1450,10 @@ const listeVon = (n, tag) => [...n.tage[tag], ...V.fernListe(n, tag)];
 
 {
   // 9b. Tobis Weg: Fassung 1 hat angelegt; er ersetzt im selben Projekt den
-  // Code – ohne „einrichten" –, und die Fassung 2 übernimmt jeden Termin.
+  // Code – ohne „einrichten" –, und die Fassung 2 übernimmt jeden Termin. Hier
+  // hat „einrichten" den Auslöser im Editor angelegt, und der nimmt den
+  // gespeicherten Code. Legte ihn doPost an, hängt er an der bereitgestellten
+  // Version (Abschnitt 12) – darum gehört „einrichten" seit v247 zum Tausch.
   const w = new Welt('2026-10-26T10:00:00+01:00');
   const p = mitWelt(w, CODE1);
   p.fassung1 = true;
@@ -1932,6 +1944,74 @@ const jahrBeginnt = () => {
     && new RegExp(`Termine bis ${bis.split('-').reverse().join('.')}\\.`).test(k.beschreibung),
   `„Workout" gelöscht und am selben Tag neu eingerichtet: wieder das ganze Jahr (${eigene(k).length} von ${soll} Terminen), `
     + `und erst dann „Termine bis ${bis.split('-').reverse().join('.')}"${ab ? ` – ${ab}` : ''}`);
+}
+
+/* ------------------------------------------------------------------ *
+ * 12. Was am 28.10. bei Tobi lief (v247)
+ * ------------------------------------------------------------------ */
+
+{
+  // Tobi verband die App mit Fassung 1, ohne je „einrichten" auszuführen –
+  // den stündlichen Auslöser legte doPost an (ausloeserSichern_()). Nach „Neue
+  // Version" meldete die Web-App Fassung 2, der stündliche Lauf schrieb aber
+  // weiter „(Fassung 1)" in die Beschreibung: Ein Auslöser, den Code aus einer
+  // bereitgestellten Version anlegt, hängt – so passt es zu dem, was Google bei
+  // ihm tat – an dieser Version. Die Attrappe kennt keine Versionen; der Lauf
+  // des Auslösers bekommt hier den Code von Fassung 1 (p.ersetzen()), die
+  // Web-App den von Fassung 2. Geprüft wird, was die App daran sehen kann
+  // (kalStockenMerken() in js/kalender-sync.js), und dass „einrichten" es
+  // richtet. Das Skript ist dafür nicht angefasst – nur die Anleitung der App.
+  const w = new Welt('2026-10-26T10:00:00+01:00');
+  const p = mitWelt(w, CODE1);
+  p.fassung1 = true;
+  w.proSchreiben = 500;
+  w.jetzt = um('2026-10-26T19:00:05+01:00');
+  const a1 = post(p, N.T).a;
+  check(a1.ok && a1.version === 1 && /Auslöser fehlte/.test(a1.hinweis || '') && p.ausloeser.length === 1 && p.ausloeser[0].fn === 'stuendlich',
+    'Fassung 1, nie eingerichtet: die erste Sendung legt den stündlichen Auslöser selbst an – aus doPost, also aus der bereitgestellten Version');
+  // „Neue Version": Die Web-App läuft mit Fassung 2, die App schickt das Jahr.
+  p.ersetzen(CODE);
+  p.fassung1 = false;
+  w.jetzt = um('2026-10-27T17:00:05+01:00');
+  const a2 = post(p, N2.T27).a;
+  check(a2.ok && a2.code === 'angekommen' && a2.version === 2 && a2.offen > 100,
+    `Fassung 2 nimmt das Jahr an: noch ${a2.offen} offen – das sah die App („Skript Fassung 2, … offen")`);
+  // Die nächste Stunde: der Auslöser mit dem Code, an den er gebunden ist.
+  const stunde = (zeit) => {
+    p.ersetzen(CODE1);
+    p.fassung1 = true;
+    let f = null;
+    try { feuern(p, zeit); } catch (e) { f = e; }
+    p.ersetzen(CODE);
+    p.fassung1 = false;
+    return f;
+  };
+  const fehler = stunde('2026-10-27T18:14:00+01:00');
+  const abgleich = JSON.parse(p.props.get('workout.abgleich') || '{}');
+  check(!!fehler && /passt nicht zum Vertrag \(v\)/.test(fehler.message) && !('offen' in abgleich) && abgleich.tag === null && abgleich.fehler === true,
+    `Fassung 1 liest die Sendung mit dem Jahr nicht und wirft (Google schickt die Mail „Summary of failures"): „${fehler && fehler.message}" – in workout.abgleich steht kein offen`);
+  w.jetzt = um('2026-10-27T18:20:00+01:00');
+  const pr = probe(p);
+  check(pr.ok && pr.code === 'probe' && pr.version === 2 && pr.offen === null && pr.bis === null,
+    'die Probe der Web-App danach: Fassung 2, aber nichts über offen – die App zählt sie als Probe ohne Fortschritt');
+  stunde('2026-10-27T19:14:00+01:00');
+  w.jetzt = um('2026-10-27T19:20:00+01:00');
+  const pr2 = probe(p);
+  check(pr2.offen === null && JSON.parse(p.props.get('workout.meta')).v === 2,
+    'die Stunde danach genauso – die Sendung mit dem Jahr liegt da, der Auslöser kommt nicht an sie heran');
+  // Tobi führt im Editor „einrichten" aus: alle Auslöser weg, einer neu – aus
+  // dem Editor, also mit dem gespeicherten Code –, sofort abgeglichen.
+  w.jetzt = um('2026-10-27T19:30:00+01:00');
+  const alt = p.ausloeser.map((x) => x.getUniqueId());
+  const t = p.g.einrichten();
+  const neu = p.ausloeser.filter((x) => x.art === 'stunden');
+  const pr3 = probe(p);
+  check(neu.length === 1 && !alt.includes(neu[0].getUniqueId()) && /Genau ein Auslöser/.test(t)
+    && Number.isInteger(pr3.offen) && pr3.offen < a2.offen && /einrichten", dann „Neue Version"/.test(t),
+  `„einrichten": ein neuer stündlicher Auslöser, sofort abgeglichen – die Probe sagt wieder, wie viel offen ist (${pr3.offen} statt ${a2.offen}), und das Protokoll erinnert an die Reihenfolge`);
+  const r = feuern(p, '2026-10-27T20:14:00+01:00');
+  check(r && !r.fehler && Number.isInteger(r.offen) && r.offen <= pr3.offen && /Fassung 2/.test(workout(w).beschreibung),
+    `die nächste Stunde läuft mit Fassung 2 weiter (noch ${r && r.offen} offen)`);
 }
 
 /* ------------------------------------------------------------------ *

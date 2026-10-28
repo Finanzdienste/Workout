@@ -408,9 +408,10 @@ async function kalenderNachsenden() {
   // js/kalender-sync.js) – und die Fassung des Skripts erfährt sie auch.
   // Dazu Vertrag, Kürzung und was die Antwort über den Abgleich sagt: Die App
   // vermerkt die Sendung dann als die, die zuletzt ankam. Und der Grund, aus
-  // dem sie hier lag (netz, fehler, zeit, gross – kalAusgangLegen()): Nur bei
-  // „netz" war wirklich ohne Netz trainiert; die Karte sagte es bis v247 bei
-  // jeder nachgeschickten Sendung, auch der, die nur über 64 KiB groß war.
+  // dem sie hier lag (netz, wegschalten, fehler, zeit, gross –
+  // kalAusgangLegen()): Nur bei „netz" war wirklich ohne Netz trainiert; die
+  // Karte sagte es bis v247 bei jeder nachgeschickten Sendung, auch bei der,
+  // die nur über 64 KiB groß war.
   await c.put(new URL('kalender-ausgang-nach', self.registration.scope).href,
     new Response(JSON.stringify({
       seq: s.seq, zeit: Date.now(), code, version, hash: typeof s.hash === 'string' ? s.hash : null, ziel: typeof s.ziel === 'string' ? s.ziel : null,
