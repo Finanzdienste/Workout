@@ -3827,6 +3827,159 @@ kommt der Satz erst mit den Proben beim Öffnen und Zurückkommen. Und die Zeile
 „Dieses Gerät schickt" sagt, was dieses Gerät weiß – welches Gerät Tobi für das
 richtige hält, weiß nur er.
 
+#### Microsoft To Do (v248)
+
+> „Kann man machen dass immer wenn ich an dem Tag n workout machen muss, das
+> als todo in meine app kommt und halt automatisch verschiebt usw?"
+>
+> „Naja ich mach ja garnicht strikt alle zwei Tage Workout sondern immer
+> unterschiedlich. Und manchmal verpass ich ja n workout. Dann ändert sich ja
+> der Plan und so. Das soll alles berücksichtigt werden"
+
+Eine Wiederholung in To Do („alle 2 Tage") kann das nicht: Tobis Tage sind
+nicht gleichmäßig, und ein verpasstes Training schiebt den ganzen Rest. Was
+dafür zu rechnen ist, rechnet aber schon die Vorschau – welche Einheit an
+welchem Tag ansteht, wenn bis dahin nicht trainiert wird. To Do hängt deshalb
+am selben Skript wie der Kalender und an derselben Liste für heute
+(`vorschauFuer_()`): Je Einheit, die heute ansteht, steht in To Do eine
+Aufgabe in der Liste „Workout", fällig heute, mit Titel und Übungen wie im
+Termin („Workout 9 · 6 Übungen · 17 Sätze", darunter „• 3 × 8–12 Goblet
+Squat" …). Keine zweite Rechnung, also kein zweites Ergebnis.
+
+| Fall | in To Do |
+| --- | --- |
+| Trainingstag | eine Aufgabe, fällig heute – ab dem ersten stündlichen Lauf nach Mitternacht |
+| Ruhetag | nichts |
+| verpasst | dieselbe Aufgabe rückt auf den Tag, auf den die App die Einheit schiebt – keine zweite |
+| in der App trainiert | hakt sich ab, sobald die App das Training schickt – auch das von gestern Abend, das erst heute ankommt |
+| in To Do gelöscht | bleibt heute weg; steht die Einheit morgen noch an, kommt sie wieder |
+| in To Do abgehakt, in der App nicht trainiert | heute bleibt sie abgehakt, morgen ist sie wieder offen und weitergerückt – wie der Termin: Die App hat kein Training gesehen |
+| Liste „Workout" in To Do gelöscht | wird neu angelegt, die Aufgabe darin neu |
+| anderer Plan (Fokuswechsel, neue Runde) | die offene Aufgabe der alten Einheit kommt weg |
+| in der App abgeschaltet, oder `todoTrennen` | offene Aufgaben weg, erledigte bleiben |
+
+Das Skript merkt sich, welche Aufgaben es angelegt hat (`workout.todo.aufgaben`),
+fasst nur die an und ruft Microsoft nur, wenn sich etwas ändert – eine Stunde
+wie die davor gar nicht, auch nicht für einen neuen Zugang. Eine eigene
+Erinnerung bekommt die Aufgabe nicht: Der Kalender erinnert schon 30 Minuten
+vor 17:30, zwei Meldungen für dasselbe Training wären eine zu viel.
+
+**Anmeldung mit Code, ohne Weiterleitung.** Tobis To Do liegt in einem privaten
+Microsoft-Konto. Daran kommt ein Skript nur über eine bei Microsoft
+registrierte App, und registrieren geht nur in einem Entra-Verzeichnis – für
+ein privates Konto heißt das: ein kostenloses Azure-Konto (Microsoft prüft
+dabei Handy und Karte, abgebucht wird nichts). Die App „Workout" ist
+registriert für nur persönliche Microsoft-Konten, mit öffentlichen
+Clientflows und dem delegierten Recht `Tasks.ReadWrite`; ihre App-ID steht als
+`TODO_APP` in der Vorlage – sie ist kein Geheimnis, sie sagt Microsoft nur,
+wer fragt. Angemeldet wird mit Gerätecode (`todoVerbinden`): Das Skript holt
+bei Microsoft einen Code und schreibt ihn mit der Adresse ins
+Ausführungsprotokoll, Tobi gibt ihn dort ein und meldet sich an, und der
+Minuten-Auslöser `todoWarten` fragt nach, bis es durch ist – höchstens so
+lange, wie der Code gilt (15 Minuten) –, und räumt sich dann weg. So steht
+kein Geheimnis im Code, und an der Bereitstellung ändert sich nichts, anders
+als bei einer Anmeldung, die auf die Web-App zurückleitet. Den
+Erneuerungs-Token hebt das Skript in seinen Eigenschaften auf, wie die
+Vorschau; Microsoft gibt bei jedem Gebrauch einen neuen aus, und der ersetzt
+den alten.
+
+**Fällig um Mitternacht UTC.** To Do kennt nur den Tag. Graph legt Mitternacht
+UTC des Tages ab und zeigt dieses Datum ohne Umrechnung; mit Berliner
+Mitternacht (22 oder 23 Uhr UTC am Vortag) stünde die Aufgabe einen Tag zu früh
+da (`todoTag_()`).
+
+**Fehler bei To Do treffen den Kalender nicht.** To Do läuft nach dem Kalender
+und wirft nie in ihn hinein (`todoAbgleichenSicher_()`). Bremst Microsoft,
+hakt es oder ist es nicht erreichbar, versucht es der nächste Lauf wieder,
+ohne Meldung. Ein Fehler, der bleibt – vor allem eine Anmeldung, die nicht
+mehr gilt (Zugriff entzogen, Passwort geändert, Token abgelaufen) –, lässt
+den stündlichen Lauf **einmal** werfen, dann schickt Google die Mail „Summary
+of failures", wie beim Kalender; die Stunden danach bleibt es still. Bei einer
+Anmeldung, die nicht mehr gilt, vergisst das Skript den Zugang und ruft
+Microsoft gar nicht mehr auf, bis wieder `todoVerbinden` läuft. Den Zugang
+wegwerfen tut es nur bei einer eindeutigen Absage (`invalid_grant` und
+Verwandte, `TODO_ABGEWIESEN`); eine andere Störung bei der Anmeldung zählt als
+„später".
+
+**Beim Senden.** Schickt die App ein Training, soll sich die Aufgabe gleich
+abhaken, nicht erst eine Stunde später. Ein neuer Plan nimmt dem Kalender in
+`doPost` aber die ganzen 25 Sekunden – ein Jahr Termine umziehen. Ist To Do
+verbunden, hält der Kalender deshalb 6 Sekunden frei (`TODO_POST_MS`); was er
+dabei liegen lässt, macht „weiter" ohnehin. In der Prüfung fiel genau das auf:
+Beim Planwechsel kam To Do in `doPost` sonst gar nicht dran.
+
+**Keine neue Fassung.** `FASSUNG` bleibt 2. Was die App schickt, ändert sich
+nicht, und wer To Do nicht will, braucht den neuen Code nicht – mit Fassung 3
+bäte die App jeden darum. Wer To Do will, tauscht den Code einmal wie gewohnt.
+Seit v248 steht in „Verbinden" und jeder Antwort auf eine Sendung das Feld
+`todo` (`verbunden`, `wartet`, `zuletzt`, `hinweis`; null ohne App-ID); die App
+liest es noch nicht.
+
+**Einrichten, einmal:**
+
+1. In der App *Mehr → Kalender → Code kopieren*, in Apps Script den ganzen
+   Code ersetzen und speichern, oben `einrichten` *Ausführen* (Google fragt
+   neu nach Zugriff – dazu gehört jetzt „Mit einem externen Dienst
+   verbinden"), dann *Bereitstellen → Bereitstellungen verwalten → Bearbeiten
+   → Neue Version → Bereitstellen*.
+2. Oben `todoVerbinden` wählen und *Ausführen*. Unten im Protokoll stehen eine
+   Adresse und ein Code: die Adresse öffnen, den Code eingeben, mit dem
+   Microsoft-Konto anmelden, in dem To Do liegt, und den Zugriff für
+   „Workout" erlauben.
+3. Spätestens eine Minute danach steht in To Do die Liste „Workout" – an
+   Ruhetagen leer, an Trainingstagen mit der Aufgabe für heute.
+
+Trennen: oben `todoTrennen`. Den Zugriff bei Microsoft ganz entziehen:
+account.live.com/consent/Manage → „Workout" → Entfernen.
+
+**Was an Microsoft geht:** Titel und Übungen der Einheiten, die heute anstehen,
+ihr Tag, und ob sie erledigt sind. Kein Kennwort, kein Trainingsstand, keine
+anderen Tage. Die Vorlage nennt außer Microsofts Anmeldung und Graph keine
+Adresse, und der Zugang geht nur an Graph – beides prüft der Test.
+
+**Geprüft** in `tests/test-kalender-gas.mjs`, Abschnitt 13, gegen eine
+Attrappe von Microsoft, die Zugänge nach einer Stunde ablaufen lässt und jeden
+Erneuerungs-Token nur einmal nimmt, mit Tobis Stand: Workout 9 steht am Mo
+26.10. an, das Training vom Montagabend kommt am Di nach (der Stand von T27). Ohne
+Verbindung kein einziger Aufruf im Netz, ohne App-ID im Code ebenso. Verbinden
+mit Code, Warten, `einrichten` mittendrin (der Auslöser kommt wieder),
+angenommen, abgelehnt, abgelaufen, ein übrig gebliebener Auslöser. Die Aufgabe
+mit Titel, Übungen, Fälligkeit und ohne Erinnerung; eine ruhige Stunde ohne
+Aufruf; verpasst rückt dieselbe Aufgabe mit einem Schreibzugriff; das
+nachgeschickte Training hakt sie ab, statt sie zu löschen; die nächste Einheit
+an ihrem Tag. In To Do gelöscht, abgehakt ohne Training, die Liste gelöscht;
+Microsoft bremst (429); die Anmeldung hakt, ohne „gilt nicht mehr" zu sagen;
+ein Zugang, den Microsoft vor seiner Zeit ablehnt (401); ein Planwechsel; die
+Anmeldung gilt nicht mehr (einmal werfen, danach still und ohne Aufruf, der
+Kalender läuft weiter, „Verbinden" erfährt es) und wieder verbinden, auch am
+selben Tag mit einem anderen Konto (die Aufgabe für heute steht gleich dort);
+abgeschaltet, wieder an, getrennt. Kein Zugang in Protokoll, Antworten oder
+Kalender; jeder Wert in den Eigenschaften unter 9 KB. Der Kalender ist in
+jedem dieser Schritte wie vorher (`abweichung()`), und die 195 Prüfungen von
+vorher sind grün – zwei davon angepasst: die Adressen in der Vorlage (nur
+Microsoft) und die Funktionen, die oben zur Auswahl stehen. Die ganze Suite
+lief mit (97 Dateien, 4533 Prüfungen). Rot war nur, was ohne diese Änderung
+genauso rot ist: in `test-kalender-sync` die zwölf Prüfungen, in denen der
+Service Worker im Hintergrund nachschickt – die Hintergrund-Synchronisation
+feuert in der Testumgebung dieser Sitzung nicht; gegen v247 gelaufen,
+dieselben zwölf –, und einmal ein Fenster von 31 ms in
+`test-ton-freischalten`, beim zweiten Lauf grün.
+
+**Grenzen, ehrlich.** Dass To Do ein über Graph gesetztes Datum ohne
+Umrechnung zeigt, steht nicht in Microsofts Dokumentation, sondern in einer
+Frage auf Microsoft Q&A (1237380); die Attrappe nimmt es so an. Am ersten
+Trainingstag nachsehen: Steht die Aufgabe einen Tag zu früh da, ist
+`todoTag_()` die Stelle. Auch sonst ist die Attrappe nach Microsofts
+Beschreibung gebaut (Gerätecode, Fehlernamen, Graph) – gesehen ist es erst bei
+Tobi. In „Mein Tag" kann das Skript nichts legen; dafür hat Graph keine
+Eigenschaft. Die Aufgabe steht in „Workout" und unter „Geplant". Wer in To Do
+abhakt, ohne in der App zu trainieren, hat sie am nächsten Tag wieder: Die App
+ist die Quelle, wie für den Kalender. Die App zeigt den Stand von To Do (noch)
+nicht; bleibt etwas schief, kommt die Mail von Google, einmal. Und dass die
+App-Registrierung nach den 30 Tagen der Azure-Testphase weiter gilt, folgt
+daraus, dass sie zum Verzeichnis gehört und nicht zum Abo – gesehen ist es
+erst danach.
+
 ## Übungsvorrat
 
 ### Die Langhantel war ein Jahr lang unsichtbar

@@ -65,8 +65,29 @@
  *   Skript-Eigenschaften dieses Projekts – in deinem Konto, sonst nirgends.
  *   Das Kennwort wird nicht mitgespeichert.
  *
+ * MICROSOFT TO DO (freiwillig, seit v248):
+ *
+ *     „Kann man machen dass immer wenn ich an dem Tag n workout machen muss,
+ *      das als todo in meine app kommt und halt automatisch verschiebt usw?"
+ *
+ *   Oben „todoVerbinden" wählen und „Ausführen" tippen. Unten im Protokoll
+ *   stehen eine Adresse von Microsoft und ein Code: die Adresse öffnen, den
+ *   Code eingeben, mit dem Microsoft-Konto anmelden, in dem dein To Do liegt,
+ *   und den Zugriff erlauben. Spätestens eine Minute danach steht in To Do die
+ *   Liste „Workout" (an Ruhetagen leer). Ab dann steht dort an jedem
+ *   Trainingstag eine Aufgabe mit den Übungen, fällig heute – aus derselben
+ *   Liste für heute wie der Termin im Kalender: Verpasst du es, rückt sie mit,
+ *   trainierst du in der App, hakt sie sich ab. Das Skript fasst in To Do nur
+ *   Aufgaben an, die es selbst angelegt hat. Trennen: oben „todoTrennen".
+ *
  * GEHEIM ist nur die Zeile mit TOKEN. Wer sie und die URL kennt, kann Termine
  * in „Workout" schreiben, sonst nichts. Den Code deshalb nicht weitergeben.
+ * Ist To Do verbunden, liegt der Zugang zu deinem To Do in den
+ * Skript-Eigenschaften dieses Projekts – in deinem Konto, wie die Vorschau;
+ * nur wer das Projekt bearbeiten darf, sieht ihn.
+ *
+ * Außerhalb von Google ruft das Skript nur Microsoft auf (Anmeldung und
+ * To Do), und nur, wenn To Do verbunden ist oder gerade verbunden wird.
  *
  * Herkunft: kalender/workout-kalender.gs der Workout-App, Prüfung in
  * tests/test-kalender-gas.mjs. Den Vertrag mit der App beschreibt
@@ -139,6 +160,44 @@ const T_TEXT = 'workoutText';         // Fingerabdruck der Beschreibung, die es 
 const T_HINWEIS = 'workoutHinweis';   // der Hinweis „Vorschau aufgebraucht"
 const HINWEIS_ART = '!hinweis';
 
+// Microsoft To Do (unten, Abschnitt „Microsoft To Do"). Die App-ID ist die
+// „Anwendungs-ID (Client)" der Microsoft-App „Workout": nur persönliche
+// Microsoft-Konten, öffentliche Clientflows an, Tasks.ReadWrite. Sie ist kein
+// Geheimnis – sie sagt Microsoft nur, welche App um Zugriff bittet; den
+// Zugriff gibt erst die Anmeldung in todoVerbinden(). Leer: To Do bleibt aus.
+const TODO_APP = '';
+const TODO_LISTE = 'Workout';
+// Die einzigen Adressen außerhalb von Google. „consumers": nur persönliche
+// Microsoft-Konten – dort liegt ein privates To Do.
+const TODO_ANMELDUNG = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/';
+const TODO_GRAPH_BASIS = 'https://graph.microsoft.com/v1.0/';
+const TODO_GRAPH = TODO_GRAPH_BASIS + 'me/todo/';
+const TODO_RECHTE = 'Tasks.ReadWrite offline_access';
+const TODO_APP_MUSTER = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Nie umbenennen: Der Minuten-Auslöser ruft die Funktion bei diesem Namen.
+const TODO_WARTEN = 'todoWarten';
+// Der Speicher: Stand { liste, seit, zuletzt, fehler, gemeldet }, der
+// Erneuerungs-Token, der Zugang { token, bis }, eine ausstehende Anmeldung
+// { geraet, code, uri, bis } und je Kennung die Aufgabe, die das Skript
+// angelegt hat: { id, tag, erledigt, weg, abdruck }.
+const P_TODO = 'workout.todo';
+const P_TODO_ERNEUERN = 'workout.todo.erneuern';
+const P_TODO_ZUGANG = 'workout.todo.zugang';
+const P_TODO_CODE = 'workout.todo.code';
+const P_TODO_AUFGABEN = 'workout.todo.aufgaben';
+// So lange vor seinem Ablauf holt das Skript einen neuen Zugang.
+const TODO_VORLAUF_MS = 5 * 60 * 1000;
+// Damit sagt Microsoft: Dieser Erneuerungs-Token gilt nicht mehr (abgelaufen,
+// Zugriff entzogen, Passwort geändert, App-Registrierung geändert).
+const TODO_ABGEWIESEN = ['invalid_grant', 'interaction_required', 'consent_required', 'invalid_client', 'unauthorized_client'];
+// Erledigte und in To Do gelöschte Aufgaben vergisst es nach so vielen Tagen.
+const TODO_VERGESSEN = 14;
+// So viel von den 25 Sekunden in doPost hält der Kalender für To Do frei, wenn
+// es verbunden ist. Sonst nähme ein neuer Plan – ein Jahr Termine umziehen –
+// die ganze Zeit, und die Aufgabe hakte sich erst eine Stunde nach dem
+// Training ab. Was der Kalender liegen lässt, macht „weiter" ohnehin.
+const TODO_POST_MS = 6 * 1000;
+
 // Zeit und Kontingent schonen. Ein Lauf darf bei Google sechs Minuten; nach
 // viereinhalb hört dieser auf, und der Rest kommt im nächsten. Die Antwort an
 // die App wartet nicht so lange: Die App wartet höchstens 45 Sekunden, also
@@ -200,9 +259,11 @@ function einrichten() {
       ? '✓ Das Kennwort steht im Code.'
       : '✗ Im Code fehlt das Kennwort. In der App unter Mehr → Kalender „Code kopieren" und hier alles ersetzen.');
     const meta = metaLesenSanft_(P);
+    const start = Date.now();
     if (meta && !meta.aus) melde(zusammenfassung_(abgleichenSicher_(P, ZEIT_BUDGET_MS)));
     else if (meta) melde('– In der App abgeschaltet: Das Skript gleicht nichts an, bis wieder eine Vorschau kommt.');
     else melde('– Noch keine Vorschau von der App. Bis sie kommt, bleibt der Kalender leer.');
+    todoEinrichten_(P, start + ZEIT_BUDGET_MS + 60 * 1000).forEach(melde);
     melde('Nächster Schritt: Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → '
       + 'Version: Neue Version → Bereitstellen. Danach in der App „Verbinden" – ist sie schon verbunden, '
       + 'merkt sie den neuen Code von selbst. Nach jedem neuen Code hier wieder erst „einrichten", dann „Neue Version".');
@@ -218,8 +279,10 @@ function einrichten() {
 
 /**
  * Läuft jede Stunde von selbst (Auslöser). Gleicht den Kalender mit der Liste
- * für heute an. Bemerkt das Skript einen Fehler, wirft es – dann schickt
- * Google eine Mail („Summary of failures"), statt dass es still stehen bleibt.
+ * für heute an, danach – wenn verbunden – Microsoft To Do. Bemerkt das Skript
+ * einen Fehler, wirft es – dann schickt Google eine Mail („Summary of
+ * failures"), statt dass es still stehen bleibt. Ein Fehler bei To Do nur
+ * einmal, nicht jede Stunde wieder (todoAbgleichenSicher_()).
  */
 function stuendlich() {
   const lock = LockService.getScriptLock();
@@ -228,13 +291,21 @@ function stuendlich() {
     return null;
   }
   let r;
+  let t = null;
   try {
-    r = abgleichenSicher_(PropertiesService.getScriptProperties(), ZEIT_BUDGET_MS);
+    const P = PropertiesService.getScriptProperties();
+    const start = Date.now();
+    r = abgleichenSicher_(P, ZEIT_BUDGET_MS);
+    // Den Kalender pflegt ein anderes Projekt: dieses hier legt sich schlafen –
+    // auch für To Do.
+    if (!r.fremd) t = todoAbgleichenSicher_(P, start + ZEIT_BUDGET_MS + 60 * 1000, true);
   } finally {
     lock.releaseLock();
   }
   console.log(zusammenfassung_(r));
-  if (r.fehler) throw new Error(r.fehler);
+  if (t && t.gelaufen) console.log(todoSatz_(t));
+  const fehler = [r.fehler, t && t.melden ? t.fehler : null].filter(Boolean);
+  if (fehler.length) throw new Error(fehler.join(' · '));
   return r;
 }
 
@@ -389,11 +460,16 @@ function annehmen_(e) {
     }
     // Bleibt nach dem Warten nichts übrig, gleicht doPost so gut wie nichts an
     // – offen und folge sagen es, und „weiter" macht es in ein paar Minuten.
-    const r = abgleichenSicher_(P, budget());
+    const todo = todoVerbunden_(P);
+    const r = abgleichenSicher_(P, Math.max(0, budget() - (todo ? TODO_POST_MS : 0)));
+    // Dann To Do, mit der Zeit, die der Kalender freigehalten hat: So hakt
+    // sich die Aufgabe ab, sobald die App das Training schickt.
+    if (todo && !r.fremd) todoAbgleichenSicher_(P, Date.now() + Math.max(0, budget() - 1000), false);
     // Was offen bleibt, steht in offen, stehen, folge und morgen – daraus
     // macht die App ihren eigenen Satz, auch später, wenn eine Probe den neuen
     // Stand holt. Im Hinweis stünde es sonst doppelt und bald veraltet.
     return antwort_(true, urteil === 'neu' ? 'angekommen' : 'gleich', {
+      todo: todoStandFuerApp_(P),
       tag: r.tag,
       geaendert: r.geaendert,
       offen: r.offen,
@@ -447,6 +523,7 @@ function probeAntwort_(P) {
     stand: meta && !meta.aus ? meta.stand : null,
     seq: meta ? meta.seq : null,
     hinweis: hinweis,
+    todo: todoStandFuerApp_(P),
   });
 }
 
@@ -464,9 +541,13 @@ function abschalten_(P, n, alt, budget) {
   };
   P.setProperty(P_META, JSON.stringify(meta));
   teileAufraeumen_(P, null);
-  const r = abgleichenSicher_(P, budget());
+  const todo = todoVerbunden_(P);
+  const r = abgleichenSicher_(P, Math.max(0, budget() - (todo ? TODO_POST_MS : 0)));
+  // Abgeschaltet: auch die offenen Aufgaben in To Do weg (todoSoll_()).
+  if (todo && !r.fremd) todoAbgleichenSicher_(P, Date.now() + Math.max(0, budget() - 1000), false);
   return antwort_(true, 'aus', {
     geaendert: r.geaendert, offen: r.offen, seq: n.seq, hinweis: r.fehler || (r.gebremst ? SPAETER : offenSatz_(r)) || undefined,
+    todo: todoStandFuerApp_(P),
   });
 }
 
@@ -1555,6 +1636,620 @@ function nachTag_(a, b) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Microsoft To Do
+ * ------------------------------------------------------------------ */
+
+/**
+ * Von Hand ausführen, einmal: verbindet das Skript mit deinem Microsoft To Do.
+ * Angemeldet wird mit einem Code (Gerätecode-Anmeldung) – ohne Weiterleitung
+ * an diese Web-App und ohne Geheimnis im Code. Das Skript holt den Code bei
+ * Microsoft und schreibt ihn mit der Adresse unten ins Protokoll; dort gibst
+ * du ihn ein und meldest dich mit dem Konto an, in dem dein To Do liegt. Bis
+ * dahin fragt der Auslöser „todoWarten" jede Minute nach, so lange der Code
+ * gilt (bei Microsoft 15 Minuten). Noch einmal ausführen verbindet neu – etwa
+ * mit einem anderen Konto; bis das durch ist, bleibt die alte Verbindung.
+ */
+function todoVerbinden() {
+  ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
+  if (!todoAppGesetzt_()) {
+    throw new Error('In diesem Code fehlt die App-ID von Microsoft (TODO_APP) – in der Workout-App „Code kopieren" und hier alles ersetzen.');
+  }
+  const P = PropertiesService.getScriptProperties();
+  const melde = melder_();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error('Gerade läuft ein Abgleich. In einer Minute noch einmal „todoVerbinden" ausführen.');
+  }
+  try {
+    const a = todoAnmeldung_('devicecode', { client_id: TODO_APP, scope: TODO_RECHTE });
+    const j = a.json || {};
+    if (a.code !== 200 || typeof j.device_code !== 'string' || typeof j.user_code !== 'string' || typeof j.verification_uri !== 'string') {
+      throw new Error('Microsoft hat keinen Code gegeben (' + todoGrund_(a) + '). Bei der App-Registrierung prüfen: Kontotyp '
+        + '„Nur persönliche Microsoft-Konten", „Öffentliche Clientflows zulassen" auf Ja.');
+    }
+    const gilt = Number(j.expires_in) > 0 ? Number(j.expires_in) : 900;
+    const c = { geraet: j.device_code, code: j.user_code, uri: j.verification_uri, bis: Date.now() + gilt * 1000 };
+    P.setProperty(P_TODO_CODE, JSON.stringify(c));
+    todoWartenSichern_();
+    melde('Microsoft To Do verbinden:');
+    melde('1. ' + c.uri + ' öffnen (neuer Tab).');
+    melde('2. Den Code ' + c.code + ' eingeben, mit dem Microsoft-Konto anmelden, in dem dein To Do liegt, und den Zugriff erlauben.');
+    melde('3. Fertig. Das Skript fragt jede Minute nach – spätestens eine Minute nach der Anmeldung steht in To Do die Liste „'
+      + TODO_LISTE + '" (an Ruhetagen leer). Der Code gilt bis ' + zeitDe_(c.bis).slice(-5) + ' Uhr; danach hier noch einmal „todoVerbinden".');
+  } finally {
+    lock.releaseLock();
+  }
+  return melde.zeilen.join('\n');
+}
+
+/**
+ * Läuft von selbst jede Minute, solange eine Anmeldung bei Microsoft aussteht
+ * (todoVerbinden()), und fragt einmal nach. Ist die Anmeldung durch, merkt es
+ * sich den Zugang, räumt seinen Auslöser weg und trägt gleich ein, was heute
+ * ansteht. Ohne ausstehende Anmeldung räumt es nur seinen Auslöser weg – ein
+ * vergessener Minuten-Auslöser zehrte sonst an den 90 Minuten Laufzeit, die
+ * Google den Auslösern am Tag gibt.
+ */
+function todoWarten() {
+  const P = PropertiesService.getScriptProperties();
+  const c = jsonSanft_(P.getProperty(P_TODO_CODE));
+  if (!c || typeof c.geraet !== 'string') {
+    todoWartenAus_();
+    return null;
+  }
+  if (!(Date.now() < c.bis)) {
+    P.deleteProperty(P_TODO_CODE);
+    todoWartenAus_();
+    const satz = 'Der Code für To Do ist abgelaufen, bevor die Anmeldung fertig war – in Apps Script oben „todoVerbinden" noch einmal ausführen.';
+    todoStandSetzen_(P, { fehler: satz });
+    console.log(satz);
+    return null;
+  }
+  const lock = LockService.getScriptLock();
+  // Läuft gerade ein Abgleich: dann in einer Minute.
+  if (!lock.tryLock(30000)) return null;
+  let t;
+  try {
+    const a = todoAnmeldung_('token', { grant_type: 'urn:ietf:params:oauth:grant-type:device_code', client_id: TODO_APP, device_code: c.geraet });
+    const j = a.json || {};
+    const fehler = typeof j.error === 'string' ? j.error : '';
+    // Noch nicht angemeldet – oder Microsoft gerade nicht erreichbar: in einer Minute wieder.
+    if (fehler === 'authorization_pending' || fehler === 'slow_down' || (a.code !== 200 && !(a.code >= 400 && a.code < 500))) return null;
+    P.deleteProperty(P_TODO_CODE);
+    todoWartenAus_();
+    if (a.code !== 200 || typeof j.access_token !== 'string' || typeof j.refresh_token !== 'string') {
+      let satz = 'Microsoft hat die Anmeldung nicht angenommen (' + todoGrund_(a) + ')';
+      if (fehler === 'authorization_declined') satz = 'Die Anmeldung bei Microsoft wurde abgelehnt';
+      if (fehler === 'expired_token') satz = 'Der Code für To Do ist abgelaufen';
+      satz += ' – in Apps Script oben „todoVerbinden" noch einmal ausführen.';
+      todoStandSetzen_(P, { fehler: satz });
+      throw new Error(satz);
+    }
+    todoZugangMerken_(P, j);
+    // Neu verbunden: Die Liste sucht das Skript neu – ein anderes Konto hat
+    // eine andere. Offene gemerkte Aufgaben gleicht es gleich noch einmal an
+    // (ohne Tag sind sie „veraltet"): im selben Konto ein Schreibzugriff, aus
+    // einem anderen sind sie dort nicht da, und es legt sie neu an.
+    todoStandSetzen_(P, { seit: Date.now(), liste: null, fehler: null, gemeldet: null });
+    const auf = jsonSanft_(P.getProperty(P_TODO_AUFGABEN));
+    if (auf && typeof auf === 'object') {
+      Object.keys(auf).forEach((k) => {
+        if (auf[k] && !auf[k].erledigt && !auf[k].weg) auf[k].tag = '';
+      });
+      P.setProperty(P_TODO_AUFGABEN, JSON.stringify(auf));
+    }
+    t = todoAbgleichenSicher_(P, Date.now() + 60 * 1000, true);
+    console.log('✓ Mit Microsoft To Do verbunden. ' + todoSatz_(t));
+  } finally {
+    lock.releaseLock();
+  }
+  if (t.melden) throw new Error(t.fehler);
+  return t;
+}
+
+/**
+ * Von Hand: Microsoft To Do trennen. Offene Aufgaben, die das Skript angelegt
+ * hat, kommen weg – erledigte bleiben, die Liste „Workout" auch (die löschst
+ * du in To Do selbst, wenn du willst). Danach vergisst es den Zugang und fasst
+ * To Do nicht mehr an. Bei Microsoft ganz entziehen:
+ * account.live.com/consent/Manage → „Workout" → Entfernen.
+ */
+function todoTrennen() {
+  const P = PropertiesService.getScriptProperties();
+  const melde = melder_();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error('Gerade läuft ein Abgleich. In einer Minute noch einmal „todoTrennen" ausführen.');
+  }
+  try {
+    P.deleteProperty(P_TODO_CODE);
+    todoWartenAus_();
+    if (P.getProperty(P_TODO_ERNEUERN)) {
+      const t = todoAbgleichenSicher_(P, Date.now() + 60 * 1000, false, true);
+      if (t.fehler || t.spaeter) {
+        melde('– Nicht jede offene Aufgabe ließ sich aus To Do entfernen' + (t.fehler ? ' (' + t.fehler + ')' : '')
+          + ' – die übrigen kannst du dort selbst löschen.');
+      } else {
+        melde('✓ ' + t.geaendert + (t.geaendert === 1 ? ' offene Aufgabe' : ' offene Aufgaben') + ' aus To Do entfernt.');
+      }
+    } else {
+      melde('– Microsoft To Do war nicht verbunden.');
+    }
+    [P_TODO_ERNEUERN, P_TODO_ZUGANG, P_TODO_AUFGABEN, P_TODO].forEach((k) => P.deleteProperty(k));
+    melde('✓ Getrennt: Das Skript fasst To Do nicht mehr an. Wieder verbinden: oben „todoVerbinden".');
+    melde('Den Zugriff bei Microsoft ganz entziehen: account.live.com/consent/Manage → „Workout" → Entfernen.');
+  } finally {
+    lock.releaseLock();
+  }
+  return melde.zeilen.join('\n');
+}
+
+/** Für einrichten(): wie es um To Do steht, und abgleichen, wenn verbunden. */
+function todoEinrichten_(P, bis) {
+  if (!todoAppGesetzt_()) return [];
+  const c = jsonSanft_(P.getProperty(P_TODO_CODE));
+  if (c && Date.now() < c.bis) {
+    // ausloeserNeu_() hat eben alle Auslöser weggeräumt, auch „todoWarten".
+    todoWartenSichern_();
+    return ['– Microsoft To Do: Die Anmeldung steht noch aus (Code ' + c.code + ', gilt bis ' + zeitDe_(c.bis).slice(-5)
+      + ' Uhr) – das Skript fragt weiter jede Minute nach.'];
+  }
+  if (c) P.deleteProperty(P_TODO_CODE);
+  if (!P.getProperty(P_TODO_ERNEUERN)) {
+    const st = todoStand_(P);
+    return [st.fehler ? '✗ Microsoft To Do: ' + st.fehler
+      : '– Microsoft To Do ist nicht verbunden. Die Workouts auch als Aufgabe in To Do: oben „todoVerbinden" wählen und ausführen.'];
+  }
+  const t = todoAbgleichenSicher_(P, bis, false);
+  return [t.fehler ? '✗ Microsoft To Do: ' + t.fehler : '✓ Microsoft To Do verbunden (Liste „' + TODO_LISTE + '"). ' + todoSatz_(t)];
+}
+
+/** Ein Ergebnis des Abgleichs mit To Do. */
+function todoErgebnis_(mehr) {
+  const t = { gelaufen: false, geaendert: 0, spaeter: false, fehler: null, hinweis: null, melden: false };
+  Object.keys(mehr || {}).forEach((k) => {
+    t[k] = mehr[k];
+  });
+  return t;
+}
+
+/**
+ * Wie todoAbgleichen_(), wirft aber nie – auch nicht in den Kalender. `bis`:
+ * Zeitpunkt (ms), bis zu dem es fertig sein soll. `melden`: true in den
+ * Läufen der Auslöser – dann sagt `melden`, ob dieser Fehler neu ist. Nur
+ * dann wirft der Lauf, und Google schickt einmal eine Mail, nicht jede Stunde
+ * eine. doPost meldet nichts; die App zeigt To Do nicht an.
+ */
+function todoAbgleichenSicher_(P, bis, melden, alleWeg) {
+  let t;
+  try {
+    t = todoAbgleichen_(P, bis, !!alleWeg);
+  } catch (err) {
+    t = todoErgebnis_({ gelaufen: true, fehler: todoFehlerSatz_(err) });
+  }
+  if (!t.gelaufen) return t;
+  try {
+    const st = todoStand_(P);
+    const neu = { fehler: t.fehler || null };
+    if (!t.fehler && !t.spaeter) neu.zuletzt = Date.now();
+    if (melden) {
+      t.melden = !!t.fehler && t.fehler !== st.gemeldet;
+      neu.gemeldet = t.fehler || null;
+    }
+    todoStandSetzen_(P, neu);
+  } catch (err) {
+    // Nur eine Auskunft – angeglichen ist, was angeglichen ist.
+  }
+  return t;
+}
+
+/**
+ * To Do an die Liste für heute angleichen – dieselbe, nach der der Kalender
+ * geht (vorschauFuer_()), nur der heutige Tag: Je Einheit, die heute ansteht,
+ * eine Aufgabe in der Liste „Workout", fällig heute, mit den Übungen. Meldet
+ * die Vorschau sie als fertig, hakt das Skript sie ab. Verpasst: Die App
+ * schiebt die Einheit auf den nächsten Tag, in dessen Liste steht sie wieder
+ * – und dieselbe Aufgabe rückt mit, statt dass eine zweite entsteht. Was nicht
+ * mehr ansteht (anderer Plan, abgeschaltet), kommt weg, wenn es offen ist;
+ * erledigte bleiben stehen.
+ *
+ * Das Skript merkt sich, was es in To Do angelegt hat (P_TODO_AUFGABEN): Es
+ * fasst nur eigene Aufgaben an und ruft Microsoft nur, wenn sich etwas ändert
+ * – eine Stunde wie die davor gar nicht, auch nicht für einen Zugang.
+ * `alleWeg`: alle offenen eigenen weg (todoTrennen()).
+ */
+function todoAbgleichen_(P, bis, alleWeg) {
+  const t = todoErgebnis_();
+  if (!P.getProperty(P_TODO_ERNEUERN)) return t;
+  t.gelaufen = true;
+  const soll = alleWeg ? todoNichts_() : todoSoll_(P);
+  if (!soll) {
+    t.hinweis = 'keine Liste für heute – To Do bleibt, wie es ist';
+    return t;
+  }
+  const auf = jsonSanft_(P.getProperty(P_TODO_AUFGABEN)) || {};
+  const vergessen = todoVergessen_(auf, soll.heute);
+  const arbeit = todoArbeit_(soll, auf);
+  if (vergessen && !arbeit.length) P.setProperty(P_TODO_AUFGABEN, JSON.stringify(auf));
+  for (let i = 0; i < arbeit.length; i++) {
+    if (Date.now() > bis) {
+      t.spaeter = true;
+      break;
+    }
+    try {
+      t.geaendert += todoSchritt_(P, soll, auf, arbeit[i]);
+    } catch (err) {
+      if (err && err.todo === 'spaeter') t.spaeter = true;
+      else t.fehler = todoFehlerSatz_(err);
+      break;
+    } finally {
+      // Nach jedem Schritt: Bricht der Lauf ab, weiß der nächste, was steht.
+      P.setProperty(P_TODO_AUFGABEN, JSON.stringify(auf));
+    }
+  }
+  return t;
+}
+
+/**
+ * Was heute in To Do stehen soll: { heute, aufgaben, fertig }. `aufgaben` je
+ * Kennung, die heute ansteht: { fertig, titel, text, abdruck } – Titel und
+ * Übungen wie im Termin. `fertig`: jede Kennung, die die Liste irgendwo als
+ * fertig führt – eine Aufgabe von gestern, deren Einheit gestern Abend noch
+ * fertig wurde, wird abgehakt statt gelöscht. null: nichts anfassen – keine
+ * Vorschau, oder sie ist aufgebraucht. Dann rät das Skript nicht; die offene
+ * Aufgabe steht in To Do als überfällig da, der Kalender zeigt seinen Hinweis.
+ * Ebenso bei einem kaputten Speicher – den meldet schon der Abgleich des
+ * Kalenders, und die nächste Sendung heilt ihn. Abgeschaltet: nichts soll
+ * offen sein.
+ */
+function todoSoll_(P) {
+  const meta = metaLesenSanft_(P);
+  if (!meta) return null;
+  const soll = todoNichts_();
+  if (meta.aus) return soll;
+  let n;
+  try {
+    n = vorschauLesen_(P, meta);
+  } catch (err) {
+    return null;
+  }
+  const wahl = vorschauFuer_(n.tage, soll.heute);
+  if (!wahl || wahl.aufgebraucht) return null;
+  wahl.liste.forEach((e) => {
+    if (e[4] === 1) soll.fertig[e[0]] = true;
+    if (e[1] !== soll.heute || eigen_(soll.aufgaben, e[0])) return;
+    const text = n.texte[e[3]];
+    soll.aufgaben[e[0]] = { fertig: e[4] === 1, titel: text[0], text: text[1], abdruck: abdruck_(text[0] + '\n' + text[1]) };
+  });
+  return soll;
+}
+
+function todoNichts_() {
+  return { heute: tagIn_(new Date()), aufgaben: {}, fertig: {} };
+}
+
+/**
+ * Was zu tun ist: [{ art, k }], art anlegen | aendern | abhaken | loeschen.
+ * Eine Aufgabe, die Tobi heute in To Do gelöscht hat, bleibt heute weg; an
+ * einem neuen Tag kommt sie wieder, wenn die Einheit dann noch ansteht. Eine,
+ * die er abgehakt hat, ohne dass die App ein Training sah, wird an einem neuen
+ * Tag wieder offen – wie der Termin im Kalender, der dann auch weiterrückt.
+ */
+function todoArbeit_(soll, auf) {
+  const arbeit = [];
+  Object.keys(soll.aufgaben).sort().forEach((k) => {
+    const s = soll.aufgaben[k];
+    const a = eigen_(auf, k) ? auf[k] : null;
+    if (s.fertig) {
+      if (a && !a.erledigt && !a.weg) arbeit.push({ art: 'abhaken', k: k });
+      return;
+    }
+    if (!a || (a.weg && a.tag !== soll.heute)) arbeit.push({ art: 'anlegen', k: k });
+    else if (a.weg) return;
+    else if (a.tag !== soll.heute || a.erledigt || a.abdruck !== s.abdruck) arbeit.push({ art: 'aendern', k: k });
+  });
+  Object.keys(auf).sort().forEach((k) => {
+    if (eigen_(soll.aufgaben, k) || auf[k].erledigt || auf[k].weg) return;
+    arbeit.push({ art: eigen_(soll.fertig, k) ? 'abhaken' : 'loeschen', k: k });
+  });
+  return arbeit;
+}
+
+/** Einen Schritt bei To Do ausführen; gibt 1 bei einer Änderung, sonst 0. */
+function todoSchritt_(P, soll, auf, s) {
+  const heute = soll.heute;
+  const x = soll.aufgaben[s.k];
+  const a = auf[s.k];
+  if (s.art === 'anlegen') {
+    auf[s.k] = { id: todoAnlegen_(P, x, heute), tag: heute, erledigt: false, weg: false, abdruck: x.abdruck };
+    return 1;
+  }
+  if (s.art === 'aendern') {
+    const aenderung = { title: x.titel, body: { content: x.text, contentType: 'text' }, dueDateTime: todoTag_(heute) };
+    if (a.tag !== heute || a.erledigt) aenderung.status = 'notStarted';
+    if (todoAufgabe_(P, 'patch', a.id, aenderung)) {
+      auf[s.k] = { id: a.id, tag: heute, erledigt: false, weg: false, abdruck: x.abdruck };
+      return 1;
+    }
+    // In To Do gelöscht: heute nicht wieder anlegen.
+    if (a.tag === heute && !a.erledigt) {
+      a.weg = true;
+      return 0;
+    }
+    auf[s.k] = { id: todoAnlegen_(P, x, heute), tag: heute, erledigt: false, weg: false, abdruck: x.abdruck };
+    return 1;
+  }
+  if (s.art === 'abhaken') {
+    if (todoAufgabe_(P, 'patch', a.id, { status: 'completed' })) {
+      a.erledigt = true;
+      return 1;
+    }
+    a.weg = true;
+    return 0;
+  }
+  // loeschen – schon weg ist auch weg.
+  todoAufgabe_(P, 'delete', a.id, null);
+  delete auf[s.k];
+  return 1;
+}
+
+/** Erledigte und gelöschte nach TODO_VERGESSEN Tagen vergessen – und alles, was nicht mehr ins Format passt. */
+function todoVergessen_(auf, heute) {
+  const grenze = plusTage_(heute, -TODO_VERGESSEN);
+  let weg = false;
+  Object.keys(auf).forEach((k) => {
+    const a = auf[k];
+    if (!a || typeof a !== 'object' || typeof a.id !== 'string' || !KENNUNG_MUSTER.test(k)
+      || ((a.erledigt || a.weg) && !(a.tag >= grenze))) {
+      delete auf[k];
+      weg = true;
+    }
+  });
+  return weg;
+}
+
+/**
+ * Eine Aufgabe anlegen, in der Liste „Workout". Ist die Liste weg – in To Do
+ * gelöscht –, sucht oder legt das Skript sie einmal neu an.
+ */
+function todoAnlegen_(P, x, heute) {
+  const neu = { title: x.titel, body: { content: x.text, contentType: 'text' }, dueDateTime: todoTag_(heute) };
+  const pfad = (liste) => 'lists/' + encodeURIComponent(liste) + '/tasks';
+  let r = todoGraph_(P, 'post', pfad(todoListe_(P)), neu);
+  if (r.code === 404) {
+    todoStandSetzen_(P, { liste: null });
+    r = todoGraph_(P, 'post', pfad(todoListe_(P)), neu);
+  }
+  if (!((r.code === 201 || r.code === 200) && r.json && typeof r.json.id === 'string')) throw todoFehler_('Aufgabe anlegen', r);
+  return r.json.id;
+}
+
+/** Eine eigene Aufgabe ändern oder löschen: true, wenn es geklappt hat; false, wenn sie (oder ihre Liste) nicht mehr da ist. */
+function todoAufgabe_(P, methode, id, aenderung) {
+  const r = todoGraph_(P, methode, 'lists/' + encodeURIComponent(todoListe_(P)) + '/tasks/' + encodeURIComponent(id), aenderung);
+  if (r.code === 404) return false;
+  if (r.code >= 200 && r.code < 300) return true;
+  throw todoFehler_(methode === 'delete' ? 'Aufgabe löschen' : 'Aufgabe ändern', r);
+}
+
+/**
+ * Die Liste „Workout": die gemerkte; sonst eine eigene Liste dieses Namens
+ * (auch eine, die Tobi selbst angelegt hat – das Skript fasst dort trotzdem
+ * nur seine eigenen Aufgaben an); sonst eine neue.
+ */
+function todoListe_(P) {
+  const st = todoStand_(P);
+  if (typeof st.liste === 'string' && st.liste) return st.liste;
+  let id = null;
+  let pfad = 'lists';
+  for (let seite = 0; pfad && !id && seite < 10; seite++) {
+    const r = todoGraph_(P, 'get', pfad, null);
+    if (r.code !== 200 || !r.json || !Array.isArray(r.json.value)) throw todoFehler_('Listen lesen', r);
+    const da = r.json.value.filter((l) => l && l.displayName === TODO_LISTE && typeof l.id === 'string'
+      && (l.wellknownListName || 'none') === 'none');
+    if (da.length) id = da[0].id;
+    pfad = typeof r.json['@odata.nextLink'] === 'string' ? r.json['@odata.nextLink'] : null;
+  }
+  if (!id) {
+    const r = todoGraph_(P, 'post', 'lists', { displayName: TODO_LISTE });
+    if (!((r.code === 201 || r.code === 200) && r.json && typeof r.json.id === 'string')) throw todoFehler_('Liste anlegen', r);
+    id = r.json.id;
+  }
+  todoStandSetzen_(P, { liste: id });
+  return id;
+}
+
+/**
+ * Fällig am Tag `tag`. To Do kennt nur den Tag: Graph legt Mitternacht UTC
+ * dieses Tages ab und zeigt dieses Datum, egal in welcher Zone das Handy ist.
+ * Mit Berliner Mitternacht (22 oder 23 Uhr UTC am Vortag) stünde die Aufgabe
+ * einen Tag zu früh da – so beschrieben in Microsofts Q&A (Frage 1237380).
+ */
+function todoTag_(tag) {
+  return { dateTime: tag + 'T00:00:00', timeZone: 'UTC' };
+}
+
+/**
+ * Ein Aufruf bei To Do, mit Zugang. Läuft der Zugang mittendrin ab (401),
+ * einmal mit frischem. Bremst Microsoft (429), hakt es (5xx) oder ist es
+ * nicht erreichbar, wirft es „später" – den Rest macht der nächste Lauf. Der
+ * Zugang geht nur an To Do, nie an eine Adresse, die in einer Antwort stand.
+ */
+function todoGraph_(P, methode, pfad, aenderung) {
+  const absolut = /^[a-z]+:/i.test(pfad);
+  if (absolut && pfad.indexOf(TODO_GRAPH_BASIS) !== 0) throw new Error('To Do nannte eine fremde Adresse – nicht aufgerufen.');
+  const url = absolut ? pfad : TODO_GRAPH + pfad;
+  let r = todoHolen_(methode, url, aenderung, todoZugang_(P, false));
+  if (r.code === 401) r = todoHolen_(methode, url, aenderung, todoZugang_(P, true));
+  if (r.code === 0 || r.code === 429 || r.code >= 500) throw todoSpaeter_(r);
+  return r;
+}
+
+function todoHolen_(methode, url, aenderung, zugang) {
+  const o = { method: methode, muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + zugang } };
+  if (aenderung) {
+    o.contentType = 'application/json';
+    o.payload = JSON.stringify(aenderung);
+  }
+  return todoAntwort_(() => UrlFetchApp.fetch(url, o));
+}
+
+/** Bei der Anmeldung von Microsoft: `endpunkt` devicecode oder token, `form` als Formular. */
+function todoAnmeldung_(endpunkt, form) {
+  return todoAntwort_(() => UrlFetchApp.fetch(TODO_ANMELDUNG + endpunkt, { method: 'post', payload: form, muteHttpExceptions: true }));
+}
+
+/** Eine Antwort von Microsoft als { code, json } – ohne Netz code 0 und der Grund. */
+function todoAntwort_(holen) {
+  let res;
+  try {
+    res = holen();
+  } catch (err) {
+    return { code: 0, json: null, grund: bereinigt_(err) };
+  }
+  return { code: res.getResponseCode(), json: jsonSanft_(res.getContentText()) };
+}
+
+/**
+ * Ein gültiger Zugang zu To Do: der gemerkte, solange er noch fünf Minuten
+ * hält; sonst ein neuer über den Erneuerungs-Token, den Microsoft dabei auch
+ * erneuert – der neue ersetzt den alten. Nimmt Microsoft ihn nicht mehr an
+ * (abgelaufen, Zugriff entzogen, Passwort geändert), vergisst das Skript ihn:
+ * To Do ist dann getrennt, bis todoVerbinden() wieder verbindet, und kein
+ * Lauf fragt Microsoft mehr umsonst.
+ */
+function todoZugang_(P, neu) {
+  const z = jsonSanft_(P.getProperty(P_TODO_ZUGANG));
+  if (!neu && z && typeof z.token === 'string' && Date.now() < z.bis - TODO_VORLAUF_MS) return z.token;
+  const erneuern = P.getProperty(P_TODO_ERNEUERN);
+  if (!erneuern) throw todoAnmeldungWeg_();
+  const a = todoAnmeldung_('token', { grant_type: 'refresh_token', client_id: TODO_APP, refresh_token: erneuern, scope: TODO_RECHTE });
+  if (a.code === 200 && a.json && typeof a.json.access_token === 'string') {
+    todoZugangMerken_(P, a.json);
+    return a.json.access_token;
+  }
+  // Nur was eindeutig heißt „dieser Zugang gilt nicht mehr" – alles andere
+  // (Microsoft hakt, kein Netz) versucht der nächste Lauf mit demselben Token.
+  const grund = a.json && typeof a.json.error === 'string' ? a.json.error : '';
+  if ((a.code === 400 || a.code === 401) && TODO_ABGEWIESEN.indexOf(grund) >= 0) {
+    P.deleteProperty(P_TODO_ERNEUERN);
+    P.deleteProperty(P_TODO_ZUGANG);
+    throw todoAnmeldungWeg_();
+  }
+  throw todoSpaeter_(a);
+}
+
+function todoZugangMerken_(P, j) {
+  const gilt = Number(j.expires_in) > 0 ? Number(j.expires_in) : 3600;
+  P.setProperty(P_TODO_ZUGANG, JSON.stringify({ token: j.access_token, bis: Date.now() + gilt * 1000 }));
+  if (typeof j.refresh_token === 'string' && j.refresh_token) P.setProperty(P_TODO_ERNEUERN, j.refresh_token);
+}
+
+/** Genau ein Minuten-Auslöser „todoWarten" – für die Zeit der Anmeldung. */
+function todoWartenSichern_() {
+  todoWartenAus_();
+  ScriptApp.newTrigger(TODO_WARTEN).timeBased().everyMinutes(1).create();
+}
+
+function todoWartenAus_() {
+  ScriptApp.getProjectTriggers().forEach((t) => {
+    if (t.getHandlerFunction() !== TODO_WARTEN) return;
+    try {
+      ScriptApp.deleteTrigger(t);
+    } catch (err) {
+      console.log('Den Auslöser „todoWarten" konnte das Skript nicht wegräumen: ' + bereinigt_(err));
+    }
+  });
+}
+
+function todoStand_(P) {
+  const st = jsonSanft_(P.getProperty(P_TODO));
+  return st && typeof st === 'object' ? st : {};
+}
+
+function todoStandSetzen_(P, neu) {
+  const st = todoStand_(P);
+  Object.keys(neu).forEach((k) => {
+    st[k] = neu[k];
+  });
+  P.setProperty(P_TODO, JSON.stringify(st));
+}
+
+/**
+ * Was die App über To Do erfährt („Verbinden" und jede angenommene Sendung):
+ * verbunden, ob eine Anmeldung aussteht, wann zuletzt angeglichen, und ein
+ * Hinweis, wenn etwas nicht stimmt. Kein Zugang, keine Adresse.
+ */
+function todoStandFuerApp_(P) {
+  if (!todoAppGesetzt_()) return null;
+  try {
+    const st = todoStand_(P);
+    return {
+      verbunden: !!P.getProperty(P_TODO_ERNEUERN),
+      wartet: !!P.getProperty(P_TODO_CODE),
+      zuletzt: Number.isFinite(st.zuletzt) ? st.zuletzt : null,
+      hinweis: typeof st.fehler === 'string' && st.fehler ? bereinigt_(st.fehler) : null,
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
+function todoSatz_(t) {
+  if (!t || !t.gelaufen) return 'To Do: nicht verbunden.';
+  const teile = [t.geaendert ? t.geaendert + (t.geaendert === 1 ? ' Änderung' : ' Änderungen') : 'nichts zu tun'];
+  if (t.spaeter) teile.push('der Rest folgt mit dem nächsten Lauf');
+  if (t.fehler) teile.push('✗ ' + t.fehler);
+  else if (t.hinweis) teile.push(t.hinweis);
+  return 'To Do: ' + teile.join(' · ');
+}
+
+function todoAppGesetzt_() {
+  return TODO_APP_MUSTER.test(TODO_APP);
+}
+
+function todoVerbunden_(P) {
+  try {
+    return !!P.getProperty(P_TODO_ERNEUERN);
+  } catch (err) {
+    return false;
+  }
+}
+
+/** Der Grund aus einer Antwort, kurz und ohne wechselnde Kennungen: „HTTP 404, ErrorItemNotFound". */
+function todoGrund_(r) {
+  if (!r || !r.code) return 'kein Netz' + (r && r.grund ? ': ' + r.grund : '');
+  const j = r.json || {};
+  let art = '';
+  if (typeof j.error === 'string') art = j.error;
+  else if (j.error && typeof j.error.code === 'string') art = j.error.code;
+  return 'HTTP ' + r.code + (art ? ', ' + art.slice(0, 60) : '');
+}
+
+function todoFehler_(was, r) {
+  const e = new Error('To Do: ' + was + ' ging nicht (' + todoGrund_(r) + ').');
+  e.todo = 'fehler';
+  return e;
+}
+
+function todoSpaeter_(r) {
+  const e = new Error('To Do antwortet gerade nicht (' + todoGrund_(r) + ') – der nächste Lauf versucht es wieder.');
+  e.todo = 'spaeter';
+  return e;
+}
+
+function todoAnmeldungWeg_() {
+  const e = new Error('Die Anmeldung bei Microsoft To Do gilt nicht mehr – in Apps Script oben „todoVerbinden" ausführen.');
+  e.todo = 'anmeldung';
+  return e;
+}
+
+function todoFehlerSatz_(err) {
+  const s = String((err && err.message) || err);
+  return bereinigt_(/To Do/.test(s) ? s : 'To Do: ' + s);
+}
+
+/* ------------------------------------------------------------------ *
  * Kleinkram
  * ------------------------------------------------------------------ */
 
@@ -1650,9 +2345,11 @@ function bereinigt_(x) {
 }
 
 function antwort_(ok, code, mehr) {
+  // todo: der Stand von Microsoft To Do (todoStandFuerApp_()) – bei „Verbinden"
+  // und jeder angenommenen Sendung, sonst null.
   const a = {
     ok: ok, code: code, version: FASSUNG, kalender: KALENDER_NAME, tag: null, geaendert: null, offen: null, bis: null, stehen: null, folge: null,
-    morgen: null, stand: null, seq: null,
+    morgen: null, stand: null, seq: null, todo: null,
   };
   Object.keys(mehr || {}).forEach((k) => {
     if (mehr[k] !== undefined) a[k] = mehr[k];

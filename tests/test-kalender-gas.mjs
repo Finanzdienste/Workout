@@ -78,6 +78,26 @@
  *      unterscheiden kann: Scheitert ein Lauf von Fassung 2 selbst (das
  *      Tageskontingent trifft auch die Beschreibung), sagt die Probe genauso
  *      wenig über `offen` – und nichts über „morgen".
+ *  13. Microsoft To Do (v248):
+ *
+ *        „Kann man machen dass immer wenn ich an dem Tag n workout machen
+ *         muss, das als todo in meine app kommt und halt automatisch
+ *         verschiebt usw?"
+ *
+ *      Gegen eine Attrappe von Microsoft (Anmeldung mit Gerätecode und To Do
+ *      über Graph), die Zugänge nach einer Stunde ablaufen lässt und jeden
+ *      Erneuerungs-Token nur einmal nimmt. Ohne Verbindung kein einziger
+ *      Aufruf. Verbinden: Code, Warten, einrichten mittendrin, angenommen,
+ *      abgelehnt, abgelaufen, ohne App-ID. Die Aufgabe des Tages: angelegt mit
+ *      Titel, Übungen und Fälligkeit, eine ruhige Stunde ruft Microsoft gar
+ *      nicht, verpasst rückt dieselbe Aufgabe mit, das Training hakt sie ab
+ *      (auch eins von gestern Abend), die nächste Einheit an ihrem Tag. Was
+ *      Tobi in To Do tut: gelöscht bleibt heute weg, abgehakt ohne Training
+ *      ist morgen wieder offen, die Liste gelöscht. Microsoft bremst, ein
+ *      Zugang wird abgelehnt, die Anmeldung gilt nicht mehr (einmal melden,
+ *      dann still, der Kalender läuft weiter); Plan gewechselt, abgeschaltet,
+ *      getrennt. Kein Zugang in Protokoll, Antwort oder Kalender, und der
+ *      Zugang geht nur an To Do.
  */
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -238,6 +258,12 @@ if (!GAS) {
     nutz2('Rund2', await rechne2(z, '2026-10-29T18:55:00+01:00'), 'handy-tobi', 22, '2026-10-29T18:55:00+01:00');
   }
 
+  // Microsoft To Do (Abschnitt 13): Workout 9 steht am Mo 26.10. an – vor dem
+  // Training (TodoVor), und am Tag danach schickt die App das Training vom
+  // Montagabend nach (TodoSpaet, derselbe Stand wie T27).
+  nutz2('TodoVor', await rechne2(kopie(), '2026-10-26T12:00:00+01:00'), 'handy-tobi', 31, '2026-10-26T12:00:00+01:00');
+  nutz2('TodoSpaet', await rechne2(zT, '2026-10-27T17:00:00+01:00'), 'handy-tobi', 33, '2026-10-27T17:00:00+01:00');
+
   const groessen = Object.entries(N).map(([k, n]) => `${k} ${(V.nutzlastBytes(n) / 1024).toFixed(1)}`);
   zeige(`Nutzlasten (KiB): ${groessen.join(', ')}`);
   zeige(`Fassung 2 (KiB): ${Object.entries(N2).map(([k, n]) => `${k} ${(V.nutzlastBytes(n) / 1024).toFixed(1)}`).join(', ')}`);
@@ -312,7 +338,17 @@ class Welt {
     Object.assign(this, {
       jetzt: um(jetzt), kalender: [], nr: 0, lesen: 0, schreiben: 0, terminSchreiben: 0,
       drossel: null, drosselText: DROSSEL, proSchreiben: 0, proLesen: 0, neueErinnerung: [10], voreinstellungVerdeckt: false,
+      netzAufrufe: 0, ms: null,
     });
+    // Das Netz außerhalb von Google: nur Microsoft (Abschnitt 13), und nur,
+    // wenn eine Prüfung es aufstellt. Sonst wirft jeder Aufruf.
+    this.UrlFetchApp = {
+      fetch: (url, o) => {
+        this.netzAufrufe += 1;
+        if (!this.ms) throw new Error(`Diese Prüfung kennt kein Netz: ${url}`);
+        return this.ms.fetch(url, o);
+      },
+    };
     this.haupt = new Kal(this, 'Tobi', { zone: BERLIN });
     this.CalendarApp = {
       createCalendar: (name, o = {}) => {
@@ -541,6 +577,11 @@ function projekt(welt, code = CODE) {
           return b;
         };
         b.after = (ms) => { Object.assign(b, { art: 'nach', wert: ms }); return b; };
+        b.everyMinutes = (n) => {
+          if (![1, 5, 10, 15, 30].includes(n)) throw new Error('everyMinutes: 1, 5, 10, 15 oder 30');
+          Object.assign(b, { art: 'minuten', wert: n });
+          return b;
+        };
         b.create = () => {
           if (!b.art) throw new Error('Auslöser ohne Zeitplan');
           if (p.ausloeser.length >= 20) throw new Error('zu viele Auslöser');
@@ -589,6 +630,7 @@ function projekt(welt, code = CODE) {
   const laden = (quelle) => {
     const ctx = vm.createContext({
       CalendarApp: welt.CalendarApp, Utilities, PropertiesService: { getScriptProperties: () => store }, LockService, ContentService, ScriptApp,
+      UrlFetchApp: welt.UrlFetchApp,
       Session: { getScriptTimeZone: () => 'America/Los_Angeles' }, console: konsole, __uhr: () => welt.jetzt,
     });
     // Wie Apps Script: kein Intl, und `new Date()` ist die Uhr der Welt.
@@ -717,21 +759,31 @@ const mitWelt = (welt, code) => { const p = projekt(welt, code); p.welt = welt; 
 check(VORLAGE.split(PLATZHALTER).length === 2 && /^const TOKEN = '<<KENNWORT-AUS-DER-APP>>';$/m.test(VORLAGE),
   `Vorlage: der Platzhalter ${PLATZHALTER} genau einmal, in der Zeile const TOKEN = '…';`);
 check(!/^[A-Za-z0-9_-]{16,128}$/.test(PLATZHALTER), 'der Platzhalter selbst ist kein gültiges Kennwort – unersetzt nimmt das Skript nichts an');
-check(!/[\w.+-]+@[\w-]+\.[\w.-]+/.test(VORLAGE) && !/https?:\/\//.test(VORLAGE) && !/sb_publishable|eyJ[A-Za-z0-9]/.test(VORLAGE),
-  'Vorlage: keine E-Mail-Adresse, keine Adresse, kein Schlüssel');
+{
+  // Seit v248 ruft das Skript Microsoft auf (To Do) – genau diese zwei
+  // Adressen, sonst keine; die Vorlage verrät weiter niemandes Konto.
+  const adressen = [...new Set([...VORLAGE.matchAll(/https?:\/\/[^\s'"]+/g)].map((m) => m[0]))].sort();
+  check(!/[\w.+-]+@[\w-]+\.[\w.-]+/.test(VORLAGE) && !/sb_publishable|eyJ[A-Za-z0-9]/.test(VORLAGE)
+    && gleich(adressen, ['https://graph.microsoft.com/v1.0/', 'https://login.microsoftonline.com/consumers/oauth2/v2.0/']),
+  `Vorlage: keine E-Mail-Adresse, kein Schlüssel, als Adressen nur Microsofts Anmeldung und Graph (${adressen.join(', ')})`);
+  const app = /^const TODO_APP = '([^']*)';$/m.exec(VORLAGE);
+  check(!!app && (app[1] === '' || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(app[1])),
+    `Vorlage: die App-ID von Microsoft in einer Zeile für sich – leer oder eine GUID (${app ? app[1] || 'leer' : 'fehlt'})`);
+}
 {
   const fassung = /^const FASSUNG = (\d+);$/m.exec(VORLAGE);
   check(fassung && Number(fassung[1]) >= 1, `Vorlage: die Fassung steht lesbar für die App da (const FASSUNG = ${fassung && fassung[1]};)`);
   const funktionen = [...VORLAGE.matchAll(/^function (\w+)\(/gm)].map((m) => m[1]);
   const oeffentlich = funktionen.filter((f) => !f.endsWith('_'));
   check(funktionen[0] === 'einrichten', 'Vorlage: „einrichten" ist die erste Funktion – im Editor ist sie damit schon ausgewählt');
-  check(gleich(oeffentlich.sort(), ['abgleichen', 'doGet', 'doPost', 'einrichten', 'stuendlich', 'weiter']),
+  check(gleich(oeffentlich.sort(), ['abgleichen', 'doGet', 'doPost', 'einrichten', 'stuendlich', 'todoTrennen', 'todoVerbinden', 'todoWarten', 'weiter']),
     `Vorlage: oben auswählbar nur ${oeffentlich.join(', ')} – alles andere endet auf _`);
 }
 {
   const welt = new Welt('2026-10-08T10:00:00+02:00');
   const p = mitWelt(welt);
-  check(p.beimLaden === 0 && p.props.size === 0 && p.ausloeser.length === 0, 'beim Laden ruft das Skript keinen Dienst auf (Apps Script lädt es bei jedem Lauf neu)');
+  check(p.beimLaden === 0 && p.props.size === 0 && p.ausloeser.length === 0 && welt.netzAufrufe === 0,
+    'beim Laden ruft das Skript keinen Dienst auf (Apps Script lädt es bei jedem Lauf neu) – auch kein Netz');
   const fehlt = ['Intl', 'TextEncoder', 'fetch', 'setTimeout', 'Buffer', 'process', 'require'].filter((g) => p.lauf(`typeof ${g}`) !== 'undefined');
   check(!fehlt.length, `der Kontext hat kein ${['Intl', 'TextEncoder', 'fetch', 'setTimeout', 'Buffer', 'process'].join(', ')}${fehlt.length ? ` – doch: ${fehlt}` : ''}`);
   check(p.lauf('KENNUNG_MUSTER.source') === V.KENNUNG_MUSTER.source && p.lauf('VORSCHAU_MAX_BYTES') === V.VORSCHAU_MAX_BYTES
@@ -2039,6 +2091,456 @@ const jahrBeginnt = () => {
     && pr.ok && pr.version === 2 && pr.offen === null && pr.morgen === null && pr.tag === null,
   'Fassung 2, ein Lauf am Tageskontingent gescheitert (auch die Beschreibung): workout.abgleich weiß „morgen", die Probe sagt weder offen noch '
     + 'morgen – für die App sieht es aus wie der Auslöser mit Fassung 1');
+}
+
+/* ------------------------------------------------------------------ *
+ * 13. Microsoft To Do
+ * ------------------------------------------------------------------ */
+
+const TEST_APP = '00001111-aaaa-2222-bbbb-3333cccc4444';
+/** Der Code mit dieser App-ID – so, wie er mit Tobis ID in der Vorlage steht. */
+const mitApp = (code, app) => {
+  if (!/^const TODO_APP = '[^']*';$/m.test(code)) throw new Error('TODO_APP fehlt in der Vorlage');
+  return code.replace(/^const TODO_APP = '[^']*';$/m, `const TODO_APP = '${app}';`);
+};
+const ANM = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/';
+const GRAPH = 'https://graph.microsoft.com/v1.0/me/todo/';
+/** Was an einem Tag offen ansteht: die Einträge der Liste dieses Tages, die an ihm liegen und nicht fertig sind. */
+const faellig = (n, tag) => (n.tage[tag] || []).filter((e) => e[1] === tag && e[4] === 0);
+
+/**
+ * Microsoft, so weit das Skript es braucht: die Anmeldung mit Gerätecode, ein
+ * Erneuerungs-Token gilt nur einmal (wer den neuen nicht aufhebt, ist beim
+ * übernächsten Mal draußen), Zugänge laufen nach `gilt` Sekunden ab, und To Do
+ * mit Listen und Aufgaben über Graph. `drossel`: so viele Aufrufe bei To Do
+ * antworten 429. Jeder Aufruf steht in `aufrufe`, mit der Antwort.
+ */
+class Microsoft {
+  constructor(welt, app) {
+    Object.assign(this, {
+      welt, app, aufrufe: [], codes: new Map(), erneuern: new Set(), zugaenge: new Map(), listen: [], nr: 0, drossel: 0, gilt: 3600,
+      letzter: null, ausgegeben: [], erledigtGeloescht: 0, tokenStoerung: null,
+    });
+  }
+
+  static antwort(code, json) {
+    const text = json === undefined ? '' : JSON.stringify(json);
+    return { getResponseCode: () => code, getContentText: () => text, getHeaders: () => ({}) };
+  }
+
+  fetch(url, o = {}) {
+    const methode = String(o.method || 'get').toLowerCase();
+    const aufruf = { url, methode, o, zeit: this.welt.jetzt, code: null };
+    this.aufrufe.push(aufruf);
+    if (o.muteHttpExceptions !== true) throw new Error('ohne muteHttpExceptions wirft UrlFetchApp bei jedem Fehler');
+    let r;
+    if (url === `${ANM}devicecode` && methode === 'post') r = this.devicecode(this.formular(o));
+    else if (url === `${ANM}token` && methode === 'post') r = this.token(this.formular(o));
+    else if (url.startsWith(GRAPH)) r = this.graph(methode, url.slice(GRAPH.length), o);
+    else throw new Error(`unbekannte Adresse ${url}`);
+    aufruf.code = r.getResponseCode();
+    return r;
+  }
+
+  formular(o) {
+    if (!o.payload || typeof o.payload !== 'object') throw new Error('die Anmeldung erwartet ein Formular');
+    return Object.fromEntries(Object.entries(o.payload).map(([k, v]) => [k, String(v)]));
+  }
+
+  devicecode(f) {
+    if (f.client_id !== this.app) return Microsoft.antwort(400, { error: 'unauthorized_client' });
+    const rechte = String(f.scope || '').split(' ');
+    if (!rechte.includes('Tasks.ReadWrite') || !rechte.includes('offline_access')) return Microsoft.antwort(400, { error: 'invalid_scope' });
+    const c = { geraet: `GC${++this.nr}${'x'.repeat(60)}`, code: `B${this.nr}XK7QR2`, bis: this.welt.jetzt + 900 * 1000, stand: 'wartet' };
+    this.codes.set(c.geraet, c);
+    this.letzter = c;
+    return Microsoft.antwort(200, {
+      device_code: c.geraet, user_code: c.code, verification_uri: 'https://www.microsoft.com/link', expires_in: 900, interval: 5,
+      message: `To sign in, use a web browser to open the page https://www.microsoft.com/link and enter the code ${c.code} to authenticate.`,
+    });
+  }
+
+  token(f) {
+    // Einmal eine Störung statt einer Antwort (Abschnitt 13: die Anmeldung hakt).
+    if (this.tokenStoerung) {
+      const st = this.tokenStoerung;
+      this.tokenStoerung = null;
+      return Microsoft.antwort(st.code, st.json);
+    }
+    if (f.client_id !== this.app) return Microsoft.antwort(400, { error: 'unauthorized_client' });
+    if (f.grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
+      const c = this.codes.get(f.device_code);
+      if (!c) return Microsoft.antwort(400, { error: 'bad_verification_code' });
+      if (this.welt.jetzt > c.bis) return Microsoft.antwort(400, { error: 'expired_token' });
+      if (c.stand === 'wartet') return Microsoft.antwort(400, { error: 'authorization_pending' });
+      if (c.stand === 'abgelehnt') return Microsoft.antwort(400, { error: 'authorization_declined' });
+      if (c.stand !== 'erlaubt') return Microsoft.antwort(400, { error: 'invalid_grant' });
+      c.stand = 'eingeloest';
+      return this.ausgeben();
+    }
+    if (f.grant_type === 'refresh_token') {
+      if (!this.erneuern.has(f.refresh_token)) {
+        return Microsoft.antwort(400, { error: 'invalid_grant', error_description: `AADSTS70000: The provided grant has expired. Trace ID: ${randomUUID()}` });
+      }
+      if (!String(f.scope || '').split(' ').includes('Tasks.ReadWrite')) return Microsoft.antwort(400, { error: 'invalid_scope' });
+      this.erneuern.delete(f.refresh_token);
+      return this.ausgeben();
+    }
+    return Microsoft.antwort(400, { error: 'unsupported_grant_type' });
+  }
+
+  ausgeben() {
+    const zugang = `EwBQA${++this.nr}${'z'.repeat(1800)}`;
+    const erneuern = `M.C5${++this.nr}_BAY.0.U.${'r'.repeat(900)}`;
+    this.zugaenge.set(zugang, this.welt.jetzt + this.gilt * 1000);
+    this.erneuern.add(erneuern);
+    this.ausgegeben.push(zugang, erneuern);
+    return Microsoft.antwort(200, {
+      token_type: 'Bearer', scope: 'Tasks.ReadWrite', expires_in: this.gilt, ext_expires_in: this.gilt, access_token: zugang, refresh_token: erneuern,
+    });
+  }
+
+  /** Was Tobi auf der Seite von Microsoft tut. */
+  erlauben() { this.letzter.stand = 'erlaubt'; }
+
+  ablehnen() { this.letzter.stand = 'abgelehnt'; }
+
+  neueListe(name, art = 'none') {
+    const l = { id: `AQMkADAwATM${++this.nr}AAAA==`, name, art, aufgaben: [], weg: false };
+    this.listen.push(l);
+    return l;
+  }
+
+  graph(methode, pfad, o) {
+    const m = /^Bearer (.+)$/.exec((o.headers || {}).Authorization || '');
+    const bis = m ? this.zugaenge.get(m[1]) : undefined;
+    if (!bis || this.welt.jetzt >= bis) {
+      return Microsoft.antwort(401, { error: { code: 'InvalidAuthenticationToken', message: 'Access token has expired or is not yet valid.' } });
+    }
+    if (this.drossel > 0) {
+      this.drossel -= 1;
+      return Microsoft.antwort(429, { error: { code: 'TooManyRequests', message: 'Too many requests.' } });
+    }
+    if (o.payload !== undefined && o.contentType !== 'application/json') throw new Error('Graph nimmt hier nur JSON');
+    const body = o.payload !== undefined ? JSON.parse(o.payload) : null;
+    const nicht = () => Microsoft.antwort(404, { error: { code: 'ErrorItemNotFound', message: 'The specified object was not found in the store.' } });
+    if (pfad === 'lists' && methode === 'get') {
+      return Microsoft.antwort(200, { value: this.listen.filter((l) => !l.weg).map((l) => ({ id: l.id, displayName: l.name, wellknownListName: l.art })) });
+    }
+    if (pfad === 'lists' && methode === 'post') {
+      const l = this.neueListe(body.displayName);
+      return Microsoft.antwort(201, { id: l.id, displayName: l.name, wellknownListName: l.art });
+    }
+    const t = /^lists\/([^/?]+)\/tasks(?:\/([^/?]+))?$/.exec(pfad);
+    if (!t) return Microsoft.antwort(400, { error: { code: 'BadRequest' } });
+    const liste = this.listen.find((l) => !l.weg && l.id === decodeURIComponent(t[1]));
+    if (!liste) return nicht();
+    if (!t[2]) {
+      if (methode !== 'post') return Microsoft.antwort(405, { error: { code: 'MethodNotAllowed' } });
+      const a = {
+        id: `AAMkADAw${++this.nr}${'q'.repeat(120)}=`, title: body.title, body: body.body, dueDateTime: body.dueDateTime, status: body.status || 'notStarted',
+        erinnerung: !!body.isReminderOn, weg: false, liste, aenderungen: 0,
+      };
+      liste.aufgaben.push(a);
+      return Microsoft.antwort(201, { id: a.id, title: a.title, status: a.status });
+    }
+    const a = liste.aufgaben.find((x) => !x.weg && x.id === decodeURIComponent(t[2]));
+    if (!a) return nicht();
+    if (methode === 'patch') {
+      ['title', 'body', 'dueDateTime', 'status'].forEach((k) => { if (body && k in body) a[k] = body[k]; });
+      a.aenderungen += 1;
+      return Microsoft.antwort(200, { id: a.id, title: a.title, status: a.status });
+    }
+    if (methode === 'delete') {
+      if (a.status === 'completed') this.erledigtGeloescht += 1;
+      a.weg = true;
+      return Microsoft.antwort(204);
+    }
+    return Microsoft.antwort(405, { error: { code: 'MethodNotAllowed' } });
+  }
+
+  /** Was Tobi in To Do sieht: Aufgaben in Listen, die es noch gibt. */
+  aufgaben() { return this.listen.filter((l) => !l.weg).flatMap((l) => l.aufgaben.filter((a) => !a.weg)); }
+
+  offen() { return this.aufgaben().filter((a) => a.status !== 'completed'); }
+
+  aufgabe(id) { return this.listen.flatMap((l) => l.aufgaben).find((a) => a.id === id) || null; }
+}
+
+{
+  // Ohne App-ID im Code (so stand die Vorlage, bis Tobi seine Microsoft-App
+  // angelegt hatte): To Do gibt es nicht, und nichts geht ins Netz.
+  const w = new Welt('2026-10-26T10:00:00+01:00');
+  const p = mitWelt(w, mitApp(CODE, ''));
+  const ein = p.g.einrichten();
+  let e = null;
+  try { p.g.todoVerbinden(); } catch (x) { e = x; }
+  w.jetzt = um('2026-10-26T12:00:05+01:00');
+  post(p, N2.TodoVor);
+  feuern(p, '2026-10-26T13:05:00+01:00');
+  check(e && /App-ID/.test(e.message) && !/To Do/.test(ein) && w.netzAufrufe === 0 && probe(p).todo === null,
+    'To Do ohne App-ID im Code: todoVerbinden sagt, was fehlt; einrichten erwähnt To Do nicht; kein Aufruf im Netz');
+}
+
+{
+  const w = new Welt('2026-10-26T10:00:00+01:00');
+  const p = mitWelt(w, mitApp(CODE, TEST_APP));
+  const warten = () => p.ausloeser.filter((x) => x.fn === 'todoWarten');
+  const ein = p.g.einrichten();
+  check(/Microsoft To Do ist nicht verbunden/.test(ein) && /todoVerbinden/.test(ein), 'To Do: einrichten sagt, dass To Do nicht verbunden ist und wie es geht');
+  w.jetzt = um('2026-10-26T12:00:05+01:00');
+  const a0 = post(p, N2.TodoVor).a;
+  feuern(p, '2026-10-26T13:05:00+01:00');
+  check(a0.ok && a0.todo && a0.todo.verbunden === false && w.netzAufrufe === 0,
+    'nicht verbunden: weder die Sendung noch der stündliche Lauf ruft etwas im Netz auf');
+
+  // Verbinden.
+  const ms = new Microsoft(w, TEST_APP);
+  w.ms = ms;
+  w.jetzt = um('2026-10-26T13:10:00+01:00');
+  const v = p.g.todoVerbinden();
+  const dc = ms.aufrufe.filter((x) => x.url === `${ANM}devicecode`);
+  check(dc.length === 1 && dc[0].o.payload.client_id === TEST_APP && dc[0].o.payload.scope === 'Tasks.ReadWrite offline_access',
+    'todoVerbinden: holt bei Microsoft (nur persönliche Konten) einen Gerätecode – mit der App-ID, Tasks.ReadWrite und offline_access');
+  check(v.includes('https://www.microsoft.com/link') && v.includes(ms.letzter.code) && /gilt bis 13:25 Uhr/.test(v)
+    && warten().length === 1 && warten()[0].art === 'minuten' && warten()[0].wert === 1,
+  'todoVerbinden: das Protokoll nennt Adresse, Code und bis wann er gilt (Berliner Zeit); genau ein Auslöser „todoWarten" jede Minute');
+  zeige(v.split('\n').join('\n     '));
+  w.jetzt = um('2026-10-26T13:11:00+01:00');
+  check(p.g.todoWarten() === null && warten().length === 1 && !p.props.has('workout.todo.erneuern'),
+    'todoWarten vor der Anmeldung: fragt einmal, merkt sich nichts, wartet weiter');
+  w.jetzt = um('2026-10-26T13:12:00+01:00');
+  const ein2 = p.g.einrichten();
+  check(warten().length === 1 && p.ausloeser.filter((x) => x.fn === 'stuendlich').length === 1 && /Anmeldung steht noch aus/.test(ein2),
+    'einrichten mitten in der Anmeldung: „todoWarten" ist wieder da (einrichten räumt alle Auslöser weg), dazu genau einer für stündlich');
+  ms.erlauben();
+  w.jetzt = um('2026-10-26T13:13:00+01:00');
+  const t1 = p.g.todoWarten();
+  const [w9] = faellig(N2.TodoVor, '2026-10-26');
+  const listen = ms.listen.filter((l) => !l.weg && l.name === 'Workout');
+  const auf1 = ms.offen();
+  check(faellig(N2.TodoVor, '2026-10-26').length === 1 && t1 && t1.gelaufen && !t1.fehler && warten().length === 0 && !p.props.has('workout.todo.code')
+    && listen.length === 1 && auf1.length === 1 && auf1[0].liste === listen[0],
+  `angemeldet: Zugang gemerkt, „todoWarten" weg, Liste „Workout" angelegt, darin genau eine Aufgabe für heute (${w9 && w9[0]})`);
+  const text9 = N2.TodoVor.texte[w9[3]];
+  check(auf1[0].title === text9[0] && auf1[0].body.content === text9[1] && auf1[0].body.contentType === 'text'
+    && gleich(auf1[0].dueDateTime, { dateTime: '2026-10-26T00:00:00', timeZone: 'UTC' }) && auf1[0].status === 'notStarted' && !auf1[0].erinnerung,
+  `die Aufgabe: Titel und Übungen wie im Termin, fällig Mo 26.10. (Mitternacht UTC), offen, ohne eigene Erinnerung – „${auf1[0].title}"`);
+  const id9 = auf1[0].id;
+
+  // Eine ruhige Stunde.
+  const vorRuhe = ms.aufrufe.length;
+  feuern(p, '2026-10-26T14:05:00+01:00');
+  feuern(p, '2026-10-26T15:05:00+01:00');
+  check(ms.aufrufe.length === vorRuhe, 'eine Stunde wie die davor: kein Aufruf bei Microsoft – auch kein neuer Zugang');
+
+  // Verpasst.
+  const vorM = ms.aufrufe.length;
+  feuern(p, '2026-10-27T00:05:00+01:00');
+  const neuM = ms.aufrufe.slice(vorM);
+  const a9 = ms.aufgabe(id9);
+  check(ms.offen().length === 1 && a9.status === 'notStarted' && a9.dueDateTime.dateTime === '2026-10-27T00:00:00'
+    && neuM.filter((x) => x.methode === 'patch').length === 1 && !neuM.some((x) => x.methode === 'post' && x.url.startsWith(GRAPH)),
+  'verpasst: dieselbe Aufgabe rückt auf Di 27.10. – ein Schreibzugriff, keine zweite Aufgabe');
+  check(neuM.filter((x) => x.url === `${ANM}token`).length === 1 && neuM.filter((x) => x.url.startsWith(GRAPH)).every((x) => x.code === 200),
+    'der Zugang war nach einer Stunde abgelaufen: genau ein neuer über den Erneuerungs-Token, vor dem ersten Aufruf');
+  check(!abweichung(workout(w), N2.TodoVor, '2026-10-27', { nah: true }), 'der Kalender steht dabei wie immer – die Liste für Di 27.10.');
+
+  // Das Training vom Montagabend kommt am Dienstag nach.
+  w.jetzt = um('2026-10-27T17:00:05+01:00');
+  const aS = post(p, N2.TodoSpaet).a;
+  const heuteS = faellig(N2.TodoSpaet, '2026-10-27');
+  check(aS.ok && aS.code === 'angekommen' && ms.aufgabe(id9).status === 'completed' && !ms.aufgabe(id9).weg && ms.offen().length === heuteS.length
+    && aS.todo && aS.todo.verbunden === true && aS.todo.hinweis === null,
+  'die App schickt das Training vom Mo nach: die Aufgabe hakt sich ab, gleich beim Senden (nicht gelöscht) – die Antwort sagt „verbunden"');
+
+  // Die nächste Einheit an ihrem Tag.
+  const naechster = Object.keys(N2.TodoSpaet.tage).sort().find((d) => d > '2026-10-27' && faellig(N2.TodoSpaet, d).length);
+  const [w10] = faellig(N2.TodoSpaet, naechster);
+  feuern(p, `${naechster}T00:05:00+01:00`);
+  const auf10 = ms.offen();
+  check(auf10.length === 1 && auf10[0].title === N2.TodoSpaet.texte[w10[3]][0] && auf10[0].dueDateTime.dateTime === `${naechster}T00:00:00`,
+    `die nächste Einheit an ihrem Tag (${naechster}): eine neue Aufgabe – „${auf10[0] && auf10[0].title}"`);
+  const id10 = auf10[0].id;
+
+  // Tobi löscht sie in To Do.
+  ms.aufgabe(id10).weg = true;
+  const vorL = ms.aufrufe.length;
+  feuern(p, `${naechster}T09:05:00+01:00`);
+  check(ms.aufrufe.length === vorL && ms.offen().length === 0, 'in To Do gelöscht: heute legt das Skript sie nicht wieder an (und fragt nicht einmal)');
+  const tag2 = addDays(naechster, 1);
+  feuern(p, `${tag2}T00:05:00+01:00`);
+  const auf10b = ms.offen();
+  check(auf10b.length === 1 && auf10b[0].id !== id10 && auf10b[0].dueDateTime.dateTime === `${tag2}T00:00:00`,
+    'am Tag danach – die Einheit steht verpasst noch an: wieder da, als neue Aufgabe');
+  const id10b = auf10b[0].id;
+
+  // Tobi hakt sie ab, ohne dass die App ein Training sieht.
+  ms.aufgabe(id10b).status = 'completed';
+  const vorH = ms.aufrufe.length;
+  feuern(p, `${tag2}T10:05:00+01:00`);
+  check(ms.aufrufe.length === vorH && ms.aufgabe(id10b).status === 'completed', 'in To Do abgehakt, ohne Training in der App: heute bleibt sie abgehakt');
+  const tag3 = addDays(naechster, 2);
+  feuern(p, `${tag3}T00:05:00+01:00`);
+  check(ms.aufgabe(id10b).status === 'notStarted' && ms.aufgabe(id10b).dueDateTime.dateTime === `${tag3}T00:00:00` && ms.offen().length === 1,
+    'am Tag danach wieder offen und weitergerückt – wie der Termin im Kalender: die App hat kein Training gesehen');
+
+  // Tobi löscht die ganze Liste.
+  ms.listen.find((l) => !l.weg && l.name === 'Workout').weg = true;
+  const tag4 = addDays(naechster, 3);
+  feuern(p, `${tag4}T00:05:00+01:00`);
+  const wl = ms.listen.filter((l) => !l.weg && l.name === 'Workout');
+  check(wl.length === 1 && ms.offen().length === 1 && ms.offen()[0].liste === wl[0] && ms.offen()[0].dueDateTime.dateTime === `${tag4}T00:00:00`,
+    'die Liste „Workout" in To Do gelöscht: neu angelegt, die Aufgabe darin neu');
+
+  // Microsoft bremst.
+  const tag5 = addDays(naechster, 4);
+  ms.drossel = 3;
+  let wurf5 = null;
+  try { feuern(p, `${tag5}T00:05:00+01:00`); } catch (e) { wurf5 = e; }
+  check(!wurf5 && ms.offen()[0].dueDateTime.dateTime === `${tag4}T00:00:00` && ms.aufrufe.some((x) => x.code === 429),
+    'Microsoft bremst (429): kein Fehler, keine Mail – die Aufgabe bleibt einen Moment, wie sie ist');
+  ms.drossel = 0;
+  feuern(p, `${tag5}T01:05:00+01:00`);
+  check(ms.offen()[0].dueDateTime.dateTime === `${tag5}T00:00:00`, '… die nächste Stunde holt es nach');
+
+  // Die Anmeldung hakt einmal, ohne zu sagen, dass der Token nicht mehr gilt.
+  const tag6 = addDays(naechster, 5);
+  ms.tokenStoerung = { code: 400, json: { error: 'temporarily_unavailable', error_description: 'AADSTS90033: A transient error has occurred.' } };
+  p.props.delete('workout.todo.zugang');
+  let wurf6 = null;
+  try { feuern(p, `${tag6}T00:05:00+01:00`); } catch (e) { wurf6 = e; }
+  check(!wurf6 && p.props.has('workout.todo.erneuern') && ms.offen()[0].dueDateTime.dateTime === `${tag5}T00:00:00`,
+    'die Anmeldung hakt (400, aber nicht „gilt nicht mehr"): kein Fehler, der Erneuerungs-Token bleibt, die Aufgabe wartet');
+  feuern(p, `${tag6}T01:05:00+01:00`);
+  check(ms.offen()[0].dueDateTime.dateTime === `${tag6}T00:00:00`, '… eine Stunde später klappt es mit demselben Token');
+
+  // Plan gewechselt – mit einem Zugang, den Microsoft vorzeitig ablehnt.
+  const idAlt = ms.offen()[0].id;
+  const fokus = /^([a-z0-9]+)-/.exec(w10[0])[1];
+  const umbenannt = JSON.parse(JSON.stringify(N2.TodoSpaet).split(`"${fokus}-`).join('"aufbau-'));
+  umbenannt.seq = 34;
+  umbenannt.gesendet = um(`${tag6}T10:00:00+01:00`);
+  p.props.set('workout.todo.zugang', JSON.stringify({ token: 'EwB-vorzeitig-abgelehnt', bis: um(`${tag6}T11:00:00+01:00`) }));
+  w.jetzt = um(`${tag6}T10:00:05+01:00`);
+  const vorP = ms.aufrufe.length;
+  const aP = post(p, umbenannt).a;
+  const neuP = ms.aufrufe.slice(vorP);
+  const gemerkt = JSON.parse(p.props.get('workout.todo.aufgaben'));
+  check(aP.ok && ms.offen().length === 1 && ms.offen()[0].id !== idAlt && ms.aufgabe(idAlt).weg
+    && Object.keys(gemerkt).some((k) => k.startsWith('aufbau-')) && !Object.keys(gemerkt).some((k) => gemerkt[k].id === idAlt),
+  `Plan gewechselt (${fokus} → aufbau): die offene Aufgabe der alten Einheit weg, die der neuen da`);
+  check(neuP.filter((x) => x.url.startsWith(GRAPH))[0].code === 401 && neuP.filter((x) => x.url === `${ANM}token`).length === 1
+    && neuP.filter((x) => x.url.startsWith(GRAPH)).slice(1).every((x) => x.code < 300),
+  'ein Zugang, den Microsoft vor seiner Zeit ablehnt (401): einmal neu geholt, derselbe Aufruf noch einmal – kein Fehler');
+  check(!abweichung(workout(w), umbenannt, tag6, { nah: true }), '… und der Kalender folgt dem neuen Plan wie immer');
+
+  // Die Anmeldung gilt nicht mehr (Zugriff bei Microsoft entzogen).
+  ms.erneuern.clear();
+  ms.zugaenge.clear();
+  p.props.delete('workout.todo.zugang');
+  const tag7 = addDays(naechster, 6);
+  let wurf7 = null;
+  try { feuern(p, `${tag7}T00:05:00+01:00`); } catch (e) { wurf7 = e; }
+  check(wurf7 && /Anmeldung bei Microsoft To Do gilt nicht mehr/.test(wurf7.message) && /todoVerbinden/.test(wurf7.message) && !/Trace|AADSTS/.test(wurf7.message)
+    && !p.props.has('workout.todo.erneuern'),
+  'die Anmeldung gilt nicht mehr: der stündliche Lauf wirft einmal – Google schickt eine Mail – und vergisst den Zugang');
+  check(!abweichung(workout(w), umbenannt, tag7, { nah: true }), '… der Kalender ist trotzdem angeglichen');
+  const vor8 = w.netzAufrufe;
+  let wurf8 = null;
+  try { feuern(p, `${tag7}T01:05:00+01:00`); } catch (e) { wurf8 = e; }
+  const pr = probe(p);
+  check(!wurf8 && w.netzAufrufe === vor8 && pr.todo && pr.todo.verbunden === false && /todoVerbinden/.test(pr.todo.hinweis || ''),
+    'die Stunde danach still und ohne Aufruf bei Microsoft; „Verbinden" der App erfährt es: nicht verbunden, mit dem Hinweis');
+
+  // Wieder verbinden.
+  w.jetzt = um(`${tag7}T08:00:00+01:00`);
+  p.g.todoVerbinden();
+  ms.erlauben();
+  w.jetzt = um(`${tag7}T08:01:00+01:00`);
+  p.g.todoWarten();
+  check(p.props.has('workout.todo.erneuern') && warten().length === 0 && ms.offen().length === 1
+    && ms.offen()[0].dueDateTime.dateTime === `${tag7}T00:00:00` && ms.listen.filter((l) => !l.weg && l.name === 'Workout').length === 1,
+  'wieder verbunden: dieselbe Liste wiedergefunden, die Aufgabe rückt auf heute – keine zweite');
+
+  // In der App abgeschaltet, wieder eingeschaltet, dann getrennt.
+  w.jetzt = um(`${tag7}T09:00:05+01:00`);
+  const aAus = post(p, { v: 1, token: TOKEN, geraet: 'handy-tobi', seq: 35, gesendet: um(`${tag7}T09:00:00+01:00`), aus: true }).a;
+  check(aAus.ok && aAus.code === 'aus' && ms.offen().length === 0 && ms.erledigtGeloescht === 0,
+    'in der App abgeschaltet: die offene Aufgabe kommt weg – eine erledigte hat das Skript nie gelöscht');
+  w.jetzt = um(`${tag7}T10:00:05+01:00`);
+  post(p, { ...umbenannt, seq: 36, gesendet: um(`${tag7}T10:00:00+01:00`) });
+  check(ms.offen().length === 1, 'wieder eingeschaltet: die Aufgabe für heute ist wieder da');
+  const tr = p.g.todoTrennen();
+  check(ms.offen().length === 0 && !p.props.has('workout.todo.erneuern') && !p.props.has('workout.todo.aufgaben') && /entfernt/.test(tr)
+    && /account\.live\.com\/consent\/Manage/.test(tr),
+  'todoTrennen: die offene Aufgabe weg, der Zugang vergessen – und wie man ihn bei Microsoft ganz entzieht');
+  const vorT = w.netzAufrufe;
+  feuern(p, `${addDays(tag7, 1)}T00:05:00+01:00`);
+  check(w.netzAufrufe === vorT, 'getrennt: kein Lauf ruft Microsoft mehr auf');
+
+  // Was wohin ging.
+  check(ms.aufrufe.filter((x) => x.o.headers && x.o.headers.Authorization).every((x) => x.url.startsWith(GRAPH)),
+    'der Zugang (Bearer) ging nur an To Do');
+  check(ms.aufrufe.filter((x) => x.o.payload && typeof x.o.payload === 'object' && x.o.payload.refresh_token).every((x) => x.url === `${ANM}token`),
+    'der Erneuerungs-Token ging nur an die Anmeldung von Microsoft');
+  const geheim = ms.ausgegeben;
+  const ueberall = [...p.protokoll, ...alleAntworten, ...w.kalender.map((k) => k.beschreibung), ...w.alle().map((t) => `${t.titel} ${t.beschreibung}`)];
+  check(geheim.length >= 8 && !ueberall.some((z) => geheim.some((g) => z.includes(g.slice(0, 40)))),
+    `kein Zugang und kein Erneuerungs-Token in Protokoll, Antworten oder Kalender (${geheim.length} ausgegebene geprüft)`);
+  check(p.maxWert < 9000, `Skript-Eigenschaften mit Zugang: jeder Wert unter 9 KB (höchstens ${p.maxWert} Byte)`);
+}
+
+{
+  // Am selben Tag mit einem anderen Microsoft-Konto neu verbunden: Die Aufgabe
+  // für heute steht gleich dort, nicht erst morgen.
+  const w = new Welt('2026-10-26T10:00:00+01:00');
+  const p = mitWelt(w, mitApp(CODE, TEST_APP));
+  p.g.einrichten();
+  w.jetzt = um('2026-10-26T12:00:05+01:00');
+  post(p, N2.TodoVor);
+  const verbinden = (ms, jetzt) => {
+    w.ms = ms;
+    w.jetzt = um(jetzt);
+    p.g.todoVerbinden();
+    ms.erlauben();
+    w.jetzt += 60000;
+    return p.g.todoWarten();
+  };
+  const alt = new Microsoft(w, TEST_APP);
+  verbinden(alt, '2026-10-26T13:00:00+01:00');
+  const neuK = new Microsoft(w, TEST_APP);
+  neuK.neueListe('Einkauf');
+  const t = verbinden(neuK, '2026-10-26T15:00:00+01:00');
+  check(alt.offen().length === 1 && t && !t.fehler && neuK.offen().length === 1 && neuK.offen()[0].liste.name === 'Workout'
+    && neuK.offen()[0].dueDateTime.dateTime === '2026-10-26T00:00:00' && neuK.listen.find((l) => l.name === 'Einkauf').aufgaben.length === 0,
+  'mit einem anderen Konto neu verbunden: dort gleich die Liste „Workout" mit der Aufgabe für heute – andere Listen bleiben unberührt');
+}
+
+{
+  // Abgelehnt, abgelaufen, ein übrig gebliebener Auslöser.
+  const w = new Welt('2026-10-26T10:00:00+01:00');
+  const p = mitWelt(w, mitApp(CODE, TEST_APP));
+  const warten = () => p.ausloeser.filter((x) => x.fn === 'todoWarten');
+  p.g.einrichten();
+  w.ms = new Microsoft(w, TEST_APP);
+  p.g.todoVerbinden();
+  w.ms.ablehnen();
+  w.jetzt += 60000;
+  let e1 = null;
+  try { p.g.todoWarten(); } catch (e) { e1 = e; }
+  check(e1 && /abgelehnt/.test(e1.message) && /todoVerbinden/.test(e1.message) && !warten().length && !p.props.has('workout.todo.erneuern'),
+    'Anmeldung abgelehnt: der Lauf wirft (Google schickt eine Mail), „todoWarten" ist weg, nichts gemerkt');
+  p.g.todoVerbinden();
+  w.jetzt += 16 * 60000;
+  const r2 = p.g.todoWarten();
+  const ein = p.g.einrichten();
+  check(r2 === null && !warten().length && !p.props.has('workout.todo.code') && /abgelaufen/.test(ein) && /todoVerbinden/.test(ein),
+    'Code abgelaufen: „todoWarten" räumt sich weg, und einrichten sagt, was zu tun ist');
+  p.ausloeser.push(ausloeser('todoWarten', 'minuten', 1));
+  const vor = w.netzAufrufe;
+  p.g.todoWarten();
+  check(!warten().length && w.netzAufrufe === vor, 'ein übrig gebliebener „todoWarten" ohne Anmeldung räumt sich selbst weg, ohne Netz');
 }
 
 /* ------------------------------------------------------------------ *

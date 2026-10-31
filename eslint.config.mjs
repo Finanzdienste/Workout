@@ -149,9 +149,10 @@ export default [
     // Tippfehler in einem selten genommenen Zweig fiele erst auf, wenn der
     // Kalender stehen bleibt. Kein Modul, sondern ein Skript: Apps Script kennt
     // kein import/export, alle Funktionen stehen auf der obersten Ebene. Die
-    // sechs, die Apps Script von außen aufruft (Auswahl oben, der stündliche
-    // und der einmalige Auslöser „weiter", Web-App), sind „benutzt"; jede
-    // andere ungenutzte ist ein Fund.
+    // neun, die Apps Script von außen aufruft (Auswahl oben, der stündliche
+    // und der einmalige Auslöser „weiter", Web-App, seit v248 die drei für
+    // Microsoft To Do samt dem Minuten-Auslöser „todoWarten"), sind „benutzt";
+    // jede andere ungenutzte ist ein Fund.
     // ecmaVersion 2019: kein `?.` und kein `??` – was Apps Script sicher kann.
     files: ['kalender/**/*.gs'],
     languageOptions: {
@@ -165,13 +166,14 @@ export default [
         ScriptApp: 'readonly',
         Session: 'readonly',
         Utilities: 'readonly',
+        UrlFetchApp: 'readonly',
         Logger: 'readonly',
         console: 'readonly',
       },
     },
     rules: {
       'no-unused-vars': ['error', {
-        args: 'none', caughtErrors: 'none', varsIgnorePattern: '^(einrichten|stuendlich|abgleichen|weiter|doGet|doPost)$',
+        args: 'none', caughtErrors: 'none', varsIgnorePattern: '^(einrichten|stuendlich|abgleichen|weiter|doGet|doPost|todoVerbinden|todoWarten|todoTrennen)$',
       }],
       'no-fallthrough': 'error',
       'consistent-return': 'error',
