@@ -8586,7 +8586,7 @@ Band, Stuhl und Klimmzugstange liegen nur da, und Scheiben sind keine im Spiel.
 Über alle 336 Einheiten der vier Pläne (4 × 84), gezählt wie die App die
 Einheit zusammenstellt (`workoutByNo()` und `resolve()`, Startgewichte, kein
 Vorrat eingetragen), findet `paare()` mit Hanteln im Schnitt **2,2 Paare je
-Einheit** (740 Paare, 363 Übungen bleiben allein) und ohne Hanteln **2,5**
+Einheit** (749 Paare, 345 Übungen bleiben allein) und ohne Hanteln **2,5**
 (828 Paare, 187 allein). Der Unterschied ist echt: Ohne Hanteln trennt fast
 nur noch der gemeinsame Muskel. `tests/test-supersatz.mjs` rechnet diese
 Zahlen nach und vergleicht sie mit diesem Absatz. Dass etwas übrig bleibt, ist
@@ -8654,6 +8654,72 @@ im Hauptthread, bei jedem Neuzeichnen. Jetzt sind es wenige Millisekunden, mit
 derselben Antwort – `tests/test-supersatz.mjs` prüft das an 3000 zufälligen
 Sätzen gegen die alte Aufzählung. Wird es trotzdem zu viel, heißt die Antwort
 „weiß ich nicht" statt einer eingefrorenen App.
+
+**Zwei Übungen mit je einer Kurzhantel nehmen jede ihre eigene (seit v249).**
+
+> *„Wieso sind heute die letzten beiden Übungen nicht im Wechsel?"*
+> *„Ich hab ja zwei kurzhanteln"*
+
+Cut, Einheit 14: Langhantelrudern ↔ Bodenpresse, dann Reverse Fly,
+Fersenerhöhter Goblet Squat und Sitzendes Wadenheben einzeln. Der Reverse Fly
+braucht beide Hanteln, das ist richtig getrennt. Goblet Squat und Wadenheben
+zählen aber beide zur *einzelnen* Kurzhantel (`RUEST_FAM`), und weil eine
+Hantel und ein Hantel-Paar über dieselben Griffe laufen, galten alle drei als
+dieselbe Stange. Für ein Kurzhantel-Paar neben einer einzelnen stimmt das,
+für zwei einzelne nicht: Jede braucht eine Hantel, und es liegen zwei da. Die
+eine bleibt für den Goblet Squat geladen, die andere fürs Wadenheben.
+
+Dafür zählt `eigeneGriffe()` in `js/supersatz.js`, wie viele Griffe eine Übung
+belegt – eine Hantel (Goblet, einarmig) einen, das Paar zwei. Zwei Übungen mit
+je einem dürfen in den Wechsel, wenn kein Muskel geteilt wird und die Scheiben
+für **beide Hanteln zugleich** reichen – dieselbe Rechnung wie bei zwei
+Stangen (`zusammen()`), denn zwei Griffe sind beim Scheibenzählen zwei Stangen.
+Goblet Squat 20 kg und Wadenheben 10 kg brauchen mit 5ern sechs Stück: vier an
+der einen Hantel, zwei an der anderen. Sind es nur vier 5er und zwei 2,5er,
+hängen alle 5er am Goblet Squat, und es bleibt beim Einzeln. Ohne
+eingetragenen Vorrat sagt die App ja, wie bei zwei Stangen. Die Scheibe auf
+der Brust (Gewichtete Crunches) ist kein Griff: Sie kommt im Zweifel von einer
+Hantel, und für sie gilt weiter, dass der Vorrat es beweisen muss.
+
+Die zweite Hantel kommt aber **nur dazu, wo sie ein Paar mehr bringt.**
+Gierig gepaart nahm sich sonst manchmal die vordere Übung das Wadenheben und
+ließ dahinter mehr übrig: Bauch, Beine, Po, Einheit 62 hat drei Paare – Goblet
+Squat ↔ Pike-Liegestütze, Wadenheben ↔ RDL, Crunches ↔ Rudern. Mit der
+zweiten Hantel griff der Goblet Squat zuerst nach dem Wadenheben, und am Ende
+standen RDL und Rudern allein, beide an der Langhantel. Deshalb paart
+`paare()` zuerst wie vorher und nimmt die Paarung mit der zweiten Hantel nur,
+wenn sie mehr Paare hat; bei gleich vielen bleibt die, die es schon gab.
+
+Über die 336 Einheiten (mit Hanteln, Startgewichte, kein Vorrat) ergibt das
+in **9 Einheiten ein Paar mehr** – sieben im Cut, zwei im Oberkörper-Plan
+– und in keiner eins weniger oder eine bloß umgestellte Paarung. Gepaart wird
+dabei immer ein Goblet Squat (auch der fersenerhöhte) oder das Einbeinige
+Kreuzheben mit einem Wadenheben.
+
+Die Rüstzeile weiß davon. Sie kennt nur den Aufbau davor, und im Wechsel ist
+das der des Partners: Beim Wadenheben hätte „Umbauen: Kurzhantel von 20 auf
+10 kg" gestanden – genau der Umbau, den das Paar erspart. Jetzt steht dort
+*„Aufbauen: zweite Kurzhantel auf 10 kg (je Seite 1× 5 kg) – die erste
+bleibt geladen"*. Reichen die Scheiben nach einer Erhöhung nicht mehr für
+beide (das Paar bleibt, siehe unten), wird doch umgesteckt; dann steht wieder
+„Umbauen: Kurzhantel von 20 auf 10 kg", passend zum Hinweis darüber.
+
+Geprüft in `tests/test-supersatz.mjs`: die Regel selbst (mit Vorrat, knapp,
+mit kleineren Scheiben, ohne Vorrat; Reverse Fly + Wadenheben bleiben
+getrennt, die Brustscheibe zählt nicht als Griff), jede Einheit aller vier
+Pläne mit und ohne die zweite Hantel, Cut 14 und Bauch, Beine, Po 62 einzeln,
+beide Rüstzeilen im Training – mit genug Scheiben und mit knappen bei
+festgehaltenem Paar. Die Zählung der Umbauten rechnet seither mit zwei
+Hanteln: Mit nur einem Griff im Modell zählte jeder Wechsel zwischen Goblet
+Squat und Wadenheben als Umbau – im Cut 267 statt 239, und die Prüfung hätte
+angeschlagen. Mit zwei gezählt kosten Supersätze in allen vier Plänen weiter
+keinen einzigen Umbau mehr als ohne.
+
+*Grenzen, ehrlich:* Die Rüstzeile kennt weiter nur den einen Aufbau davor.
+Hat eine Übung nach dem Paar das Gewicht der Hantel, die *nicht* zuletzt dran
+war, sagt sie „umbauen", obwohl die richtige Hantel noch geladen daliegt. Und
+eine Einheit, deren erster Satz schon abgehakt ist, behält ihre Paarung
+(unten) – das neue Paar gibt es ab der nächsten.
 
 **Die Paarung steht, sobald trainiert wird.** Weil die Scheiben mitreden,
 hängt ein Paar am Gewicht – und ein Tipp auf + mitten im Supersatz löste es

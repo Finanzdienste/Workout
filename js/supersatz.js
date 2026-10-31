@@ -23,7 +23,9 @@
  *   ist der Fall, in dem sich zwei *verschiedene* Geräte treffen, der beste:
  *   Beide Aufbauten bleiben stehen, es wird gar nichts gewechselt – sofern
  *   die Scheiben für beide zugleich reichen. Zwei Stangen, die dieselben
- *   Scheiben brauchen, sind beim Umstecken dasselbe Gerät.
+ *   Scheiben brauchen, sind beim Umstecken dasselbe Gerät. Zwei Übungen mit je
+ *   einer Kurzhantel sind dagegen zwei Geräte: Es liegen zwei Griffe da
+ *   (GRIFFE unten).
  *
  * **Warum Paare und nicht sechs im Kreis.** Der Vorschlag war ein Rundlauf über
  * alle Übungen. Der Gedanke stimmt, die Zahl nicht: Ab drei Übungen im Wechsel
@@ -89,6 +91,36 @@ const geraet = (id, mode) => {
  * Aufbauten stehen bleiben.
  */
 const STANGE = { lh: 'lh', sz: 'sz', kh1: 'kh', kh2: 'kh', ruck: 'ruck' };
+
+/**
+ * Wie viele der beiden Kurzhantelgriffe eine Übung belegt.
+ *
+ *     „Wieso sind heute die letzten beiden Übungen nicht im Wechsel?"
+ *     „Ich hab ja zwei kurzhanteln"
+ *
+ * Fersenerhöhter Goblet Squat und Wadenheben (gebeugtes Knie) liefen am Ende
+ * der Einheit einzeln: Beide zählen zur einzelnen Kurzhantel, und die
+ * Geräteregel oben sah dieselbe Stange. Jede der beiden braucht aber nur *eine*
+ * Hantel, und es liegen zwei da. Die eine bleibt für den Goblet Squat geladen,
+ * die andere fürs Wadenheben – im Wechsel wird nichts umgesteckt, solange die
+ * Scheiben für beide zugleich reichen (scheibenReichen(), genau wie bei zwei
+ * verschiedenen Stangen). Ein Kurzhantel-Paar (Seitheben, Bodenpresse) belegt
+ * dagegen beide Griffe; daneben bleibt keiner frei, und dabei bleibt es.
+ *
+ * Die Scheibe auf der Brust zählt hier nicht mit: Sie hängt an keinem Griff,
+ * kommt im Zweifel aber von einer Hantel – für sie gilt freieScheibeReicht().
+ */
+const GRIFFE = { dumbbells: 2, goblet: 1, onehand: 1 };
+
+/**
+ * Brauchen beide je eine Kurzhantel – also jede ihre eigene? Nur mit Hanteln:
+ * Ohne sind Griffe gar nicht im Spiel (geraet()).
+ */
+export function eigeneGriffe(a, b, mode) {
+  if (mode === 'bw') return false;
+  const griffe = (x) => GRIFFE[(EX_BY_ID.get(x.id) || {}).equip] || 0;
+  return griffe(a) === 1 && griffe(b) === 1;
+}
 
 /**
  * [Gerät, kg], mit dem diese Übung heute aufgebaut wird – Scheiben gibt es nur
@@ -178,8 +210,10 @@ export function passtZusammen(a, b, mode) {
   const ga = geraet(a.id, mode);
   const gb = geraet(b.id, mode);
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
-  // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
-  if (ga && gb && ga === gb && !freieScheibeReicht(a, b, mode)) return false;
+  // dürfen sich dagegen treffen – da gibt es nichts zu wechseln. Und zwei mit
+  // je einer Kurzhantel auch: Jede nimmt ihre eigene. Ob die Scheiben für
+  // beide reichen, fragt die nächste Zeile.
+  if (ga && gb && ga === gb && !eigeneGriffe(a, b, mode) && !freieScheibeReicht(a, b, mode)) return false;
   if (!scheibenReichen(a, b, mode)) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
@@ -199,18 +233,44 @@ export function passtZusammen(a, b, mode) {
  * Paar aus Übung 1 und Übung 6 hieße, zwischen beiden durch den halben Raum zu
  * laufen. Weiter hinten nur, wenn das nicht weniger Paare ergibt (paareGierig()).
  *
+ * **Die zweite Kurzhantel nur, wo sie ein Paar mehr bringt** (eigeneGriffe()).
+ * Gierig hieß sonst: Wer vorn steht, greift sich die erste passende Übung –
+ * und seit zwei Übungen mit je einer Hantel zusammen dürfen, ist das manchmal
+ * die falsche. Bauch, Beine, Po, Einheit 62: Goblet Squat ↔ Pike-Liegestütze,
+ * Wadenheben ↔ RDL, Crunches ↔ Rudern, drei Paare. Mit der zweiten Hantel nahm
+ * sich der Goblet Squat das Wadenheben, und am Ende standen RDL und Rudern
+ * allein da, beide an der Langhantel. Deshalb wird zuerst gepaart wie vorher
+ * und mit der zweiten Hantel nur dann, wenn das mehr Paare ergibt. Bei gleich
+ * vielen bleibt es bei der Paarung, die es schon gab. Mit `griffe = false`
+ * kommt genau die heraus – tests/test-supersatz.mjs vergleicht damit.
+ *
  * Gibt eine Liste von Gruppen zurück – jede mit einer oder zwei Übungen.
  */
 export const FENSTER = 3;
 
-export function paare(items, mode) {
-  const nah = paareGierig(items, mode, false);
-  const weit = paareGierig(items, mode, true);
-  // Über die Lücke nur, wenn es nicht weniger Paare ergibt. Bei gleich vielen
-  // gewinnt das Paar für die frühere Übung: Vorn stehen die Grundübungen mit
-  // den langen Pausen, dort spart ein Partner am meisten Zeit.
+export function paare(items, mode, griffe = true) {
   const zahl = (g) => g.filter((x) => x.length === 2).length;
-  return zahl(weit) >= zahl(nah) ? weit : nah;
+  // Bis zu vier Durchgänge fragen dieselben Paare – gerechnet wird jedes einmal
+  // (passtZusammen() fragt den Vorrat, und das ist der teure Teil).
+  const gemerkt = new Map();
+  const passt = (i, j) => {
+    const k = i * 1000 + j;
+    if (!gemerkt.has(k)) gemerkt.set(k, passtZusammen(items[i], items[j], mode));
+    return gemerkt.get(k);
+  };
+  const waehle = (zweite) => {
+    const p = zweite ? passt : (i, j) => !eigeneGriffe(items[i], items[j], mode) && passt(i, j);
+    const nah = paareGierig(items, false, p);
+    const weit = paareGierig(items, true, p);
+    // Über die Lücke nur, wenn es nicht weniger Paare ergibt. Bei gleich vielen
+    // gewinnt das Paar für die frühere Übung: Vorn stehen die Grundübungen mit
+    // den langen Pausen, dort spart ein Partner am meisten Zeit.
+    return zahl(weit) >= zahl(nah) ? weit : nah;
+  };
+  const ohne = waehle(false);
+  if (!griffe || !items.some((a, i) => items.some((b, j) => j > i && eigeneGriffe(a, b, mode)))) return ohne;
+  const mit = waehle(true);
+  return zahl(mit) > zahl(ohne) ? mit : ohne;
 }
 
 /**
@@ -224,8 +284,10 @@ export function paare(items, mode) {
  * Seitheben, Wadenheben, Gewichtete Crunches. Der einzige Partner der
  * Bodenpresse stand an fünfter Stelle, eine Übung hinter dem Fenster – und
  * die schwerste Übung des Tages lief allein mit 2:30 Pause.
+ *
+ * `passt(i, j)` sagt, ob die Übungen an diesen Plätzen ein Paar sein dürfen.
  */
-function paareGierig(items, mode, weit) {
+function paareGierig(items, weit, passt) {
   const frei = items.map(() => true);
   const gruppen = [];
   items.forEach((a, i) => {
@@ -234,7 +296,7 @@ function paareGierig(items, mode, weit) {
     let partner = -1;
     const bis = weit ? items.length - 1 : i + FENSTER;
     for (let j = i + 1; j < items.length && j <= bis; j++) {
-      if (frei[j] && passtZusammen(a, items[j], mode)) { partner = j; break; }
+      if (frei[j] && passt(i, j)) { partner = j; break; }
     }
     if (partner < 0) { gruppen.push([a]); return; }
     frei[partner] = false;

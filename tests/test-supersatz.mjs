@@ -291,6 +291,51 @@ await page.evaluate(async () => {
   delete store.getState().weights['floor-press'];
 });
 
+// --- 1f. Zwei Übungen mit je einer Kurzhantel ----------------------------------
+// „Wieso sind heute die letzten beiden Übungen nicht im Wechsel?" – „Ich hab
+// ja zwei kurzhanteln". Cut, Einheit 14: Langhantelrudern ↔ Bodenpresse, dann
+// Reverse Fly, Fersenerhöhter Goblet Squat und Wadenheben einzeln. Die letzten
+// beiden zählen zur einzelnen Kurzhantel und galten als dieselbe Stange. Jede
+// braucht aber nur eine Hantel, und es liegen zwei da: ein Paar, wenn die
+// Scheiben für beide Hanteln zugleich reichen. Ein Kurzhantel-Paar belegt
+// beide Griffe – daneben bleibt es beim Nein. Die ganzen Einheiten prüft der
+// Abschnitt mit den Zahlen fürs README, je Plan.
+const zweiHanteln = await page.evaluate(async () => {
+  const S = await import('./js/supersatz.js');
+  const store = await import('./js/store.js');
+  const x = (id) => ({ id });
+  const GS = 'fersenerhoehter-goblet-squat';
+  const WH = 'wadenheben-gebeugtes-knie';
+  store.setWeight(GS, 20);
+  store.setWeight(WH, 10);
+  const mit = (scheiben) => {
+    store.getState().scheiben = scheiben ? { stange: {}, scheiben } : undefined;
+    return S.passtZusammen(x(GS), x(WH), 'db');
+  };
+  const out = {
+    ohneVorrat: mit(null),           // weiß nicht: wie bei zwei Stangen – ja
+    reicht: mit([[5, 6]]),           // je Seite 2× 5 an der einen, 1× 5 an der anderen
+    knapp: mit([[5, 4], [2.5, 2]]),  // die Goblet-Hantel braucht alle vier 5er
+    ausweichen: mit([[5, 4], [2.5, 4]]),   // Wadenheben mit vier 2,5ern
+    flyWaden: S.passtZusammen(x('reverse-fly'), x(WH), 'db'),
+    gobletCrunches: S.eigeneGriffe(x(GS), x('gewichtete-crunches'), 'db'),
+    bw: S.eigeneGriffe(x(GS), x(WH), 'bw'),
+  };
+  store.getState().scheiben = undefined;
+  delete store.getState().weights[GS];
+  delete store.getState().weights[WH];
+  return out;
+});
+console.log('     zwei Hanteln:', JSON.stringify(zweiHanteln));
+check(zweiHanteln.ohneVorrat === true && zweiHanteln.reicht === true && zweiHanteln.ausweichen === true,
+  'Goblet Squat + Wadenheben: je eine Hantel, ein Paar – ohne Vorrat und wenn die Scheiben für beide reichen');
+check(zweiHanteln.knapp === false,
+  'reichen die Scheiben nicht für beide Hanteln zugleich, bleibt es getrennt – sonst wanderten sie jeden Satz');
+check(zweiHanteln.flyWaden === false,
+  'Reverse Fly (beide Hanteln) + Wadenheben bleiben getrennt – daneben ist kein Griff frei');
+check(zweiHanteln.gobletCrunches === false && zweiHanteln.bw === false,
+  'die Scheibe auf der Brust ist kein Griff, und ohne Hanteln gibt es keine');
+
 // --- 1c. zusammen() rechnet schnell – und dasselbe wie vorher ------------
 // Gefunden bei der Durchsicht: Die erste Fassung zählte alle Belegungen des
 // ersten Aufbaus auf, ohne sich etwas zu merken. Scheitert das Paar bei einem
@@ -591,8 +636,13 @@ check(vorher.an && nachLaden.an && nachLaden.text.includes(zweit),
 // Aufbau-Plans waren es mit Supersätzen 404 Umbauten statt 296.
 //
 // Gezählt wird Satz für Satz: Jedes Mal, wenn eine Stange ein anderes Gewicht
-// braucht als zuletzt, ist das ein Umbau.
-const STANGE = { kh2: 'kh', kh1: 'kh', lh: 'lh', sz: 'sz', ruck: 'ruck' };
+// braucht als zuletzt, ist das ein Umbau. Kurzhanteln gibt es zwei: Beide
+// Hanteln (kh2) brauchen beide auf ihrem Gewicht, eine einzelne (kh1) nimmt
+// die, die schon passt – sonst wird die zuletzt gebrauchte umgebaut, wie die
+// Rüstzeile es sagt, oder im Paar mit einer anderen einzelnen die zweite
+// (eigeneGriffe() in js/supersatz.js). Mit nur einem Griff im Modell zählte
+// jeder Wechsel zwischen Goblet Squat und Wadenheben als Umbau.
+const STANGE = { lh: 'lh', sz: 'sz', ruck: 'ruck' };
 for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
   // Über den Speicher der App, nicht an ihm vorbei: Beim Neuladen schreibt sie
   // ihren Stand zurück und überschriebe ein direkt gesetztes `focus`.
@@ -611,28 +661,58 @@ for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
     const S = await import('./js/supersatz.js');
     const G = await import('./js/gewichte.js');
     const { PLAN } = await import('./js/data.js');
-    const zaehle = (folge) => {
+    // `partner`: Übung → die andere einzelne Kurzhantel-Übung ihres Paars.
+    const zaehle = (folge, partner = new Map()) => {
       const stand = {};
+      let griff = [null, null];        // Aufbau je Kurzhantel
+      let alt = [0, 0];                // wann zuletzt gebraucht
       let z = 0;
-      folge.forEach((id) => {
+      folge.forEach((id, t) => {
         const a = G.setupOf(id, G.workingWeight(id));
         if (!a) return;
         const k = a.fam + '|' + a.kg;
+        if (a.fam === 'kh2') {
+          if (griff[0] !== k || griff[1] !== k) { z++; griff = [k, k]; }
+          alt = [t, t];
+          return;
+        }
+        if (a.fam === 'kh1') {
+          let i = griff.indexOf(k);
+          if (i < 0) {
+            const p = partner.get(id);
+            const pk = p ? (() => { const s = G.setupOf(p, G.workingWeight(p)); return s && `${s.fam}|${s.kg}`; })() : null;
+            // Die Hantel des Partners bleibt; sonst die, die länger nicht dran war.
+            i = pk && griff[0] === pk ? 1 : pk && griff[1] === pk ? 0 : (alt[0] <= alt[1] ? 0 : 1);
+            griff[i] = k;
+            z++;
+          }
+          alt[i] = t;
+          return;
+        }
         if (stand[stange[a.fam]] !== k) { z++; stand[stange[a.fam]] = k; }
       });
       return z;
     };
     let aus = 0;
     let an = 0;
+    let zweiHanteln = 0;
     PLAN.forEach((w) => {
       const items = P.workoutByNo(w.n, 'db').ex.map((x) => P.resolve(x, 'db'));
+      const gruppen = S.paare(items, 'db');
+      const partner = new Map();
+      gruppen.filter((g) => g.length === 2 && S.eigeneGriffe(g[0], g[1], 'db')).forEach(([x, y]) => {
+        partner.set(x.id, y.id);
+        partner.set(y.id, x.id);
+        zweiHanteln++;
+      });
       aus += zaehle(items.flatMap((it) => Array(it.sets).fill(it.id)));
-      an += zaehle(S.paare(items, 'db').flatMap((g) => S.schritte(g).map((x) => x.id)));
+      an += zaehle(gruppen.flatMap((g) => S.schritte(g).map((x) => x.id)), partner);
     });
-    return { aus, an };
+    return { aus, an, zweiHanteln };
   }, STANGE);
   check(r.an <= r.aus + 2,
-    `${fokus}: Supersätze kosten keine zusätzlichen Umbauten (ohne ${r.aus}, mit ${r.an})`);
+    `${fokus}: Supersätze kosten keine zusätzlichen Umbauten (ohne ${r.aus}, mit ${r.an}; `
+    + `${r.zweiHanteln} Paare mit zwei einzelnen Kurzhanteln)`);
 }
 
 // --- Ab hier je Abschnitt eine frische Seite ------------------------------
@@ -902,6 +982,9 @@ const name = async (p) => (await p.locator('.focus-name').textContent()).trim();
 {
   const p = await neueSeite();
   const summe = { db: { e: 0, p: 0, a: 0 }, bw: { e: 0, p: 0, a: 0 } };
+  // Die zweite Kurzhantel (1f): je Einheit mit und ohne sie gepaart.
+  const zwei = { mehr: [], weniger: [], umgestellt: [], paare: new Set() };
+  const einheit = {};
   for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
     await mitStand(p, { greeted: true, focus: fokus });
     const z = await p.evaluate(async () => {
@@ -913,10 +996,40 @@ const name = async (p) => (await p.locator('.focus-name').textContent()).trim();
         const g = PLAN.flatMap((w) => S.paare(P.workoutByNo(w.n, m).ex.map((x) => P.resolve(x, m)), m));
         out[m] = { e: PLAN.length, p: g.filter((x) => x.length === 2).length, a: g.filter((x) => x.length === 1).length };
       });
+      const zahl = (g) => g.filter((x) => x.length === 2).length;
+      const text = (g) => g.map((x) => x.map((y) => y.id).sort().join('+'));
+      out.zwei = { mehr: [], weniger: [], umgestellt: [], paare: [], einheit: {} };
+      PLAN.forEach((w) => {
+        const items = P.workoutByNo(w.n, 'db').ex.map((x) => P.resolve(x, 'db'));
+        const neu = S.paare(items, 'db');
+        const alt = S.paare(items, 'db', false);
+        if (zahl(neu) > zahl(alt)) out.zwei.mehr.push(w.n);
+        else if (zahl(neu) < zahl(alt)) out.zwei.weniger.push(w.n);
+        else if (JSON.stringify(text(neu)) !== JSON.stringify(text(alt))) out.zwei.umgestellt.push(w.n);
+        neu.filter((x) => x.length === 2 && S.eigeneGriffe(x[0], x[1], 'db'))
+          .forEach((x) => out.zwei.paare.push(x.map((y) => y.id).join('+')));
+        if (w.n === 14 || w.n === 62) out.zwei.einheit[w.n] = text(neu);
+      });
       return out;
     });
     ['db', 'bw'].forEach((m) => ['e', 'p', 'a'].forEach((k) => { summe[m][k] += z[m][k]; }));
+    ['mehr', 'weniger', 'umgestellt'].forEach((k) => zwei[k].push(...z.zwei[k].map((n) => `${fokus} ${n}`)));
+    z.zwei.paare.forEach((x) => zwei.paare.add(x));
+    einheit[fokus] = z.zwei.einheit;
   }
+  console.log(`     zweite Kurzhantel: ein Paar mehr in ${zwei.mehr.join(', ')}; Paare: ${[...zwei.paare].join(', ')}`);
+  check(zwei.mehr.length > 0 && !zwei.weniger.length && !zwei.umgestellt.length,
+    `die zweite Kurzhantel bringt in ${zwei.mehr.length} Einheiten ein Paar dazu, nimmt nirgends eins weg `
+    + `und stellt keine bloß um${zwei.weniger.length + zwei.umgestellt.length
+      ? ` (weniger: ${zwei.weniger.join(', ')}; umgestellt: ${zwei.umgestellt.join(', ')})` : ''}`);
+  check(einheit.cut[14].includes('fersenerhoehter-goblet-squat+wadenheben-gebeugtes-knie'),
+    `Cut Einheit 14: Goblet Squat und Wadenheben im Wechsel (${einheit.cut[14].join(' | ')})`);
+  // Gierig hätte sich der Goblet Squat das Wadenheben genommen, und RDL und
+  // Rudern – beide an der Langhantel – wären allein geblieben.
+  check(einheit.bbp[62].filter((g) => g.includes('+')).length === 3
+    && einheit.bbp[62].includes('goblet-squat+pike-liegestuetze'),
+  `Bauch, Beine, Po Einheit 62: drei Paare wie vorher, keins auf Kosten von RDL und Rudern (${
+    einheit.bbp[62].join(' | ')})`);
   const { db, bw } = summe;
   const je = (x) => (x.p / x.e).toFixed(1).replace('.', ',');
   console.log(`     README: mit Hanteln ${db.p} Paare / ${db.a} allein (${je(db)}), ohne ${bw.p} / ${bw.a} (${je(bw)}) in ${db.e} Einheiten`);
@@ -1029,6 +1142,76 @@ const ruestZeile = async (p) => (await p.locator('.ruest').count()
       `im Training ohne Hanteln: kein „Scheiben reichen nicht" (${hin})`);
   }
   await p.context().close();
+}
+
+// --- 13. Zwei einzelne Kurzhanteln im Wechsel: die zweite wird aufgebaut ------
+// Cut, Einheit 14: Fersenerhöhter Goblet Squat 20 kg ↔ Wadenheben 10 kg. Die
+// Rüstzeile kennt nur den Aufbau davor, und das ist im Wechsel der des
+// Partners – beim Wadenheben hätte „Umbauen: Kurzhantel von 20 auf 10 kg"
+// gestanden, genau der Umbau, den das Paar erspart. Reichen die Scheiben nicht
+// für beide (festgehaltenes Paar, danach knapper Vorrat), wird doch umgesteckt –
+// dann gilt die alte Zeile, passend zum Hinweis darüber.
+{
+  const GS = 'fersenerhoehter-goblet-squat';
+  const WH = 'wadenheben-gebeugtes-knie';
+  const stand = (scheiben) => ({
+    greeted: true, name: 'T', level: 'geuebt', focus: 'cut', shift: 0, log: {}, supersatz: true, mode: 'db',
+    weights: { [GS]: 20, [WH]: 10 },
+    scheiben: { stange: { kh: null, sz: null, lh: null }, scheiben },
+  });
+  const blick = async (p, nm) => {
+    await zeige(p, nm);
+    return { hin: (await leisteAuf(p)).hin, ruest: await ruestZeile(p) };
+  };
+  const p = await neueSeite();
+  await mitStand(p, stand([[2.5, 4], [5, 6], [10, 2]]));
+  const nm = await p.evaluate(async (ids) => {
+    const { EX_BY_ID } = await import('./js/uebung.js');
+    return ids.map((id) => EX_BY_ID.get(id).db.name);
+  }, [GS, WH]);
+  await starte(p, 14);
+  const gs = await blick(p, nm[0]);
+  const wh = await blick(p, nm[1]);
+  console.log('     Goblet Squat:', JSON.stringify(gs));
+  console.log('     Wadenheben:  ', JSON.stringify(wh));
+  check(gs.hin.includes(`Im Wechsel mit ${nm[1]}`) && wh.hin.includes(`Im Wechsel mit ${nm[0]}`)
+    && !/Scheiben reichen nicht/.test(gs.hin + wh.hin),
+  'Cut Einheit 14: Goblet Squat und Wadenheben im Wechsel, ohne Umsteck-Hinweis');
+  check(/Kurzhantel auf 20 kg eine Hantel \(je Seite 1× 10 kg\)/.test(gs.ruest) && !/zweite/.test(gs.ruest),
+    `beim Goblet Squat die erste Hantel (${gs.ruest})`);
+  check(/^Aufbauen: zweite Kurzhantel auf 10 kg \(je Seite 1× 5 kg\) – die erste bleibt geladen$/.test(wh.ruest),
+    `beim Wadenheben die zweite – kein Umbau von 20 auf 10 (${wh.ruest})`);
+  await p.context().close();
+
+  // Festgehalten, dann der Vorrat knapp: An der Goblet-Hantel hängen alle vier
+  // 5er, für die zweite bleibt nichts.
+  const q = await neueSeite();
+  await mitStand(q, stand([[2.5, 2], [5, 4]]));
+  const frisch = await q.evaluate(async (ids) => {
+    const P = await import('./js/plan.js');
+    const S = await import('./js/supersatz.js');
+    const store = await import('./js/store.js');
+    const items = P.workoutByNo(14, 'db').ex.map((x) => P.resolve(x, 'db'));
+    const gepaart = S.paare(items, 'db').some((g) => g.length === 2 && g.every((x) => ids.includes(x.id)));
+    const alle = items.map((x) => x.id);
+    store.setPaarung(14, 'db', {
+      key: alle.slice().sort().join(','),
+      gruppen: [ids, ...alle.filter((id) => !ids.includes(id)).map((id) => [id])],
+    });
+    store.flush();
+    return gepaart;
+  }, [GS, WH]);
+  check(frisch === false, 'mit diesem Vorrat frisch gepaart: getrennt – die vier 5er hängen an der Goblet-Hantel');
+  await q.reload({ waitUntil: 'networkidle' });
+  await q.waitForTimeout(300);
+  await starte(q, 14);
+  const knapp = await blick(q, nm[1]);
+  console.log('     Wadenheben, knapp:', JSON.stringify(knapp));
+  check(knapp.hin.includes(`Im Wechsel mit ${nm[0]}`) && /Scheiben reichen nicht für beide/.test(knapp.hin),
+    'festgehaltenes Paar, knapper Vorrat: der Hinweis aufs Umstecken steht da');
+  check(/^Umbauen: Kurzhantel von 20 auf 10 kg/.test(knapp.ruest) && !/zweite/.test(knapp.ruest),
+    `und die Rüstzeile sagt umbauen statt „zweite Kurzhantel" (${knapp.ruest})`);
+  await q.context().close();
 }
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);

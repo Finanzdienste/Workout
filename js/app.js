@@ -74,7 +74,7 @@ import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
 import {
-  gruppeVon, naechsterOffen, naechsterSchritt, paarBelegung, paare, scheibenReichen, schritte,
+  eigeneGriffe, gruppeVon, naechsterOffen, naechsterSchritt, paarBelegung, paare, scheibenReichen, schritte,
 } from './supersatz.js';
 import {
   PLAN_WEEKS, WEEK_SESSIONS, ZUSATZ_NAME,
@@ -2328,13 +2328,22 @@ function superPartner(n, mode, id) {
  * js/gewichte.js): in welcher Reihenfolge die Übungen wirklich drankommen, und
  * mit welcher Belegung diese Übung neben ihrem Partner steht. Ohne Supersatz
  * nichts davon – dann gilt die Liste.
+ *
+ * Dazu, ob sie die zweite Kurzhantel nimmt: Im Paar aus zwei Übungen mit je
+ * einer Hantel (eigeneGriffe() in js/supersatz.js) bleibt die erste für den
+ * Partner geladen, der vorher dran war. Ohne das stünde beim Wadenheben
+ * „Umbauen: Kurzhantel von 20 auf 10 kg" – genau der Umbau, den das Paar
+ * erspart. Reichen die Scheiben nicht für beide, wird doch umgesteckt; dann
+ * gilt die Zeile wie ohne Paar, passend zum Hinweis darüber.
  */
 function ruestMit(n, mode, it) {
   if (!superAn()) return {};
   const ablauf = superGruppen(n, mode).flatMap((g) => schritte(g).map((s) => s.id));
   const partner = superPartner(n, mode, it.id);
   const beide = partner ? paarBelegung(it, partner, mode) : null;
-  return { ablauf, belegung: (beide && beide.get(it.id)) || null };
+  const zweiteHantel = !!partner && eigeneGriffe(it, partner, mode)
+    && ablauf.indexOf(partner.id) < ablauf.indexOf(it.id) && scheibenReichen(it, partner, mode);
+  return { ablauf, belegung: (beide && beide.get(it.id)) || null, zweiteHantel };
 }
 
 /**
@@ -7109,7 +7118,8 @@ function renderSettings() {
           <div class="lbl">Supersätze</div>
           <div class="hint">Zwei verträgliche Übungen im Wechsel, statt die Pause abzusitzen:
             A, B, A, B. Gepaart wird nur, was keinen Hauptmuskel teilt und nicht dasselbe Gerät
-            braucht – dann bleiben beide Aufbauten stehen und es wird nichts umgebaut.
+            braucht (zwei Übungen mit je einer Kurzhantel nehmen jede ihre eigene) – dann
+            bleiben beide Aufbauten stehen und es wird nichts umgebaut.
             Die Pause wird dabei nicht kürzer, sondern gefüllt: Wenn eine Übung wieder dran
             ist, wartest du nur noch die Zeit, die seit ihrem letzten Satz fehlt. Unterm
             Strich rund 40 % kürzer bei gleicher Erholung.</div>

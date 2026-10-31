@@ -439,6 +439,10 @@ function vorherAufgebaut(list, i, ablauf) {
  * `mit.belegung`: die Belegung, mit der diese Übung und ihr Partner zugleich
  * stehen (paarBelegung() in js/supersatz.js) – dann steht bei beiden genau
  * die, nicht jede für sich.
+ * `mit.zweiteHantel`: Diese Übung nimmt die zweite Kurzhantel, die erste
+ * bleibt für den Partner geladen (ruestMit() in js/app.js). Was darauf zuletzt
+ * lag, weiß die Zeile nicht – sie kennt nur den Aufbau davor, und der ist der
+ * des Partners. Also: aufbauen, und die erste in Ruhe lassen.
  */
 export function ruestHint(n, mode, list, i, mit = {}) {
   if (mode !== 'db') return '';
@@ -460,6 +464,12 @@ export function ruestHint(n, mode, list, i, mit = {}) {
   if (!lade && geht !== null && Math.abs(geht - cur.kg) > 1e-9) {
     wie = ` <span class="ruest-lade knapp">(${esc(fmtNum(cur.kg))} kg lässt sich so nicht stecken – nächstes: ${
       esc(fmtNum(geht))} kg)</span>`;
+  }
+  if (mit.zweiteHantel) {
+    // Ohne den Zusatz „eine Hantel": „zweite Kurzhantel auf 10 kg eine Hantel"
+    // sagte dasselbe zweimal.
+    return `<div class="ruest">Aufbauen: zweite ${esc(cur.label)} auf ${esc(fmtNum(cur.kg))} kg${
+      wie} – die erste bleibt geladen</div>`;
   }
   if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
     // Im Paar kann die gemeinsame Belegung eine andere sein als die, mit der
