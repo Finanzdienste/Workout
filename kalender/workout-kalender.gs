@@ -165,7 +165,8 @@ const HINWEIS_ART = '!hinweis';
 // Microsoft-Konten, öffentliche Clientflows an, Tasks.ReadWrite. Sie ist kein
 // Geheimnis – sie sagt Microsoft nur, welche App um Zugriff bittet; den
 // Zugriff gibt erst die Anmeldung in todoVerbinden(). Leer: To Do bleibt aus.
-const TODO_APP = '';
+// Seit v251 Tobis App (registriert am 1.11.2026).
+const TODO_APP = 'aec9b2f8-2993-4680-9ac0-c4123a905323';
 const TODO_LISTE = 'Workout';
 // Die einzigen Adressen außerhalb von Google. „consumers": nur persönliche
 // Microsoft-Konten – dort liegt ein privates To Do.

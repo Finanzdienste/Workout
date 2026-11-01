@@ -3911,8 +3911,15 @@ ein privates Konto heißt das: ein kostenloses Azure-Konto (Microsoft prüft
 dabei Handy und Karte, abgebucht wird nichts). Die App „Workout" ist
 registriert für nur persönliche Microsoft-Konten, mit öffentlichen
 Clientflows und dem delegierten Recht `Tasks.ReadWrite`; ihre App-ID steht als
-`TODO_APP` in der Vorlage – sie ist kein Geheimnis, sie sagt Microsoft nur,
-wer fragt. Angemeldet wird mit Gerätecode (`todoVerbinden`): Das Skript holt
+`TODO_APP` in der Vorlage (seit v251: `aec9b2f8-2993-4680-9ac0-c4123a905323`) –
+sie ist kein Geheimnis, sie sagt Microsoft nur, wer fragt. Ob die
+Registrierung passt, sagt ein einziger Aufruf des Gerätecode-Endpunkts mit
+dieser ID, ohne dass sich jemand anmeldet: *AADSTS700016* – die App gibt es
+für persönliche Konten nicht (ID vertippt, anderer Kontotyp); *AADSTS70002*
+(„must be marked as 'mobile'") – die App gibt es, aber „Öffentliche
+Clientflows zulassen" steht auf Nein; ein Code – passt. Beim ersten Versuch
+am 1.11.2026 kam AADSTS70002. `todoVerbinden` nennt in diesem Fall beide
+Einstellungen. Angemeldet wird mit Gerätecode (`todoVerbinden`): Das Skript holt
 bei Microsoft einen Code und schreibt ihn mit der Adresse ins
 Ausführungsprotokoll, Tobi gibt ihn dort ein und meldet sich an, und der
 Minuten-Auslöser `todoWarten` fragt nach, bis es durch ist – höchstens so
