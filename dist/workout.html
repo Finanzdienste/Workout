@@ -12129,6 +12129,12 @@ function stimme(t0, s, cent) {
   gain.gain.exponentialRampToValueAtTime(laut, t0 + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + s.d);
 
+  // Der Oszillator muss in seine Hüllkurve. Diese Zeile fehlte: Jede Stimme
+  // lief ins Leere, und zu hören war nur der Rauschanschlag aus knacks() –
+  // *„nur n raschliges klopfen"*. Gezählt wurde der Ton trotzdem als
+  // gespielt, denn `ended` kommt auch von einem Oszillator, der nirgends
+  // angeschlossen ist. Seitdem rendert tests/test-sound.mjs die Töne wirklich.
+  osc.connect(gain);
   let ende = gain;
   if (s.tief) {
     const filter = ctx.createBiquadFilter();

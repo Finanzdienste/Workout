@@ -73,7 +73,7 @@ import { notieren } from './diagnose.js';
  * einem Ton einen Anschlag. Das ist der Unterschied zwischen einer Eieruhr und
  * etwas, das man dreimal die Woche gern hört.
  */
-const SOUNDS = {
+export const SOUNDS = {
   // Training beginnt – aufsteigender Dreiklang, warm und breit.
   start: [
     { f: 261.63, t: 0, d: 0.5, v: 0.1, form: 'triangle', ct: 6, tief: 2200 },
@@ -129,7 +129,7 @@ const SOUNDS = {
 
 /** Die Reihe, die „Töne anhören" spielt – so steht sie auch im Toast daneben. */
 export const PROBE = ['start', 'set', 'exercise', 'ready', 'rest', 'done'];
-const PROBE_TAKT = 0.9;   // Sekunden von Ton zu Ton
+export const PROBE_TAKT = 0.9;   // Sekunden von Ton zu Ton
 
 /*
  * Ein Signal gilt als „läuft schon", wenn seine Startzeit höchstens so weit in
@@ -609,6 +609,12 @@ function stimme(t0, s, cent) {
   gain.gain.exponentialRampToValueAtTime(laut, t0 + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + s.d);
 
+  // Der Oszillator muss in seine Hüllkurve. Diese Zeile fehlte: Jede Stimme
+  // lief ins Leere, und zu hören war nur der Rauschanschlag aus knacks() –
+  // *„nur n raschliges klopfen"*. Gezählt wurde der Ton trotzdem als
+  // gespielt, denn `ended` kommt auch von einem Oszillator, der nirgends
+  // angeschlossen ist. Seitdem rendert tests/test-sound.mjs die Töne wirklich.
+  osc.connect(gain);
   let ende = gain;
   if (s.tief) {
     const filter = ctx.createBiquadFilter();

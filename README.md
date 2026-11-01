@@ -1086,6 +1086,46 @@ die Körperkarte gibt für sie Höhe ab, damit die eine Bildschirmseite bleibt,
 und sie steht nicht neben der Zeile zum Tagesabschluss (unten, *Liegen
 geblieben*).
 
+**Wiedergegeben ist nicht gehört (v250).**
+
+> *„Ich hab bei tönen was gehört aber nur n raschliges klopfen so. Hat sich
+> iwie komisch angehört."*
+
+In `stimme()` fehlte die eine Zeile, die den Oszillator an seine Hüllkurve
+hängt (`osc.connect(gain)`). Jede Stimme lief ins Leere; zu hören war nur, was
+`knacks()` davorsetzt – zwölf bis zwanzig Millisekunden gefiltertes Rauschen,
+gedacht als Anschlag. Training gestartet, Übung fertig, Fertig machen und
+Training beendet haben keinen Anschlag und waren ganz stumm; Satz abgehakt,
+Pause vorbei und Workout komplett waren ein raschelnder Klick. „Töne anhören",
+offline gerendert mit dem echten `js/audio.js`: vorher lauteste Stelle
+−23 dBFS, und die war Rauschen; jetzt −3 dBFS (Pause vorbei), und jeder Ton
+hat seine Stimmen.
+
+Aufgefallen ist es nirgends, und das ist der eigentliche Befund. Gezählt wird,
+wenn der Grundton `ended` meldet – das tut ein Oszillator auch, wenn er
+nirgends angeschlossen ist. Unter *Mehr* stand deshalb *✓ Die App schickt Töne
+los*, und darunter der Rat zur Medien-Lautstärke. `tests/test-sound.mjs`
+zählte Oszillatoren, und die eine Prüfung, die „wirklich Klang" prüfen sollte
+(`tests/test-pause-worker.mjs`), baute eine Hüllkurve derselben Bauart von Hand
+nach – mit eigenem `connect()`. Sie klang, die App nicht. Die Prüfung an der
+Kopie ist raus.
+
+Seit v250 rendert `tests/test-sound.mjs` „Töne anhören" offline, mit dem
+echten Modul: Der AudioContext der Seite ist dort ein OfflineAudioContext.
+Jeder der sechs Töne muss Pegel haben, nichts darf übersteuern, und jede
+Stimme, die nicht gleitet, muss sich im Spektrum abheben – Goertzel an ihrer
+Frequenz gegen den Median über 60 Frequenzen von 150 Hz bis 6 kHz, mindestens
+das Zehnfache. Dazu die Gegenprobe mit abgeklemmten Oszillatoren, also dem
+alten Fehler: Sie muss durchfallen, sonst prüfte die Prüfung nichts. In zwölf
+Läufen lag die schwächste Stimme angeschlossen bei 17- bis 27-fach,
+abgeklemmt die stärkste bei 2- bis 5-fach – das Rauschen des Anschlags ist
+zufällig, deshalb die Spanne.
+
+*Grenzen, ehrlich:* Ob es am Handy gut klingt, prüft das nicht, nur dass die
+Stimmen herauskommen. Und `tonStand()` hört weiter nicht hin: *gespielt*
+heißt, dass der Kontext den Ton wiedergegeben hat, nicht, dass er am
+Lautsprecher ankam.
+
 **Gemessen, aus Quellen, nicht belegbar.** Gemessen in Chromium 153 mit
 Standard-Autoplay-Policy (keine Flagge) und Touch über eine rohe CDP-Sitzung
 (`tests/test-ton-freischalten.mjs`): ohne Berührung kein Kontext, auch nicht

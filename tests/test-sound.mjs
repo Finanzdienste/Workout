@@ -270,6 +270,84 @@ const rat = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/Medien-Lautstärke/.test(rat),
   'und daneben steht, woran es liegt, wenn trotzdem nichts zu hören ist');
 
+// --- Was wirklich herauskommt ----------------------------------------------
+// „Ich hab bei tönen was gehört aber nur n raschliges klopfen so." In stimme()
+// fehlte osc.connect(gain): Jede Stimme lief ins Leere, zu hören war nur der
+// Rauschanschlag aus knacks(). Gezählt wurden die Töne trotzdem als gespielt –
+// `ended` kommt auch von einem Oszillator, der nirgends angeschlossen ist –,
+// und oben werden nur Oszillatoren gezählt. Hier wird „Töne anhören" deshalb
+// offline gerendert, mit dem echten js/audio.js: Der AudioContext der Seite
+// ist ein OfflineAudioContext. Jede Stimme, die nicht gleitet, muss sich im
+// Spektrum abheben – Goertzel an ihrer Frequenz gegen den Median über 60
+// Frequenzen von 150 Hz bis 6 kHz. Die Gegenprobe ohne Anschluss (connect der
+// Oszillatoren abgeklemmt, also der alte Fehler) muss durchfallen – sonst
+// prüfte die Prüfung nichts.
+const rendern = async (abgeklemmt) => {
+  const c = await browser.newContext();
+  await c.addInitScript((ab) => {
+    window.__off = [];
+    window.AudioContext = function Offline() {
+      const off = new OfflineAudioContext(1, 48000 * 7, 48000);
+      window.__off.push(off);
+      return off;
+    };
+    window.webkitAudioContext = undefined;
+    // Gibt das Ziel zurück wie das echte connect(), damit Ketten weiterlaufen.
+    if (ab) window.OscillatorNode.prototype.connect = function abgeklemmt(ziel) { return ziel; };
+  }, abgeklemmt);
+  const p = await c.newPage();
+  p.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
+  await p.goto(URL, { waitUntil: 'networkidle' });
+  await p.mouse.click(5, 5);
+  const r = await p.evaluate(async () => {
+    const A = await import('./js/audio.js');
+    const los = A.probeSpielen();
+    const off = window.__off[window.__off.length - 1];
+    if (!los || !off) return null;
+    const x = (await off.startRendering()).getChannelData(0);
+    const sr = off.sampleRate;
+    const betrag = (a, b, f) => {   // Goertzel: |DFT| bei genau dieser Frequenz
+      const k = 2 * Math.cos(2 * Math.PI * f / sr);
+      let s1 = 0;
+      let s2 = 0;
+      for (let i = a; i < b; i++) { const s0 = x[i] + k * s1 - s2; s2 = s1; s1 = s0; }
+      return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - k * s1 * s2)) / (b - a);
+    };
+    const raster = Array.from({ length: 60 }, (_, i) => 150 * (6000 / 150) ** (i / 59));
+    let spitze = 0;
+    for (let i = 0; i < x.length; i++) spitze = Math.max(spitze, Math.abs(x[i]));
+    const toene = A.PROBE.map((name, i) => {
+      const a = Math.round((0.05 + i * A.PROBE_TAKT) * sr);
+      const b = i < A.PROBE.length - 1 ? Math.round((0.05 + (i + 1) * A.PROBE_TAKT) * sr) : x.length;
+      let pegel = 0;
+      for (let j = a; j < b; j++) pegel = Math.max(pegel, Math.abs(x[j]));
+      const werte = raster.map((f) => betrag(a, b, f)).sort((u, v) => u - v);
+      const boden = werte[werte.length >> 1] || 1e-12;
+      const stimmen = A.SOUNDS[name].filter((s) => !s.bis)
+        .map((s) => [s.f, betrag(a, b, s.f) / Math.max(boden, 1e-12)]);
+      return { name, pegel, stimmen };
+    });
+    return { spitze, toene };
+  });
+  await c.close();
+  return r;
+};
+const echt = await rendern(false);
+const kaputt = await rendern(true);
+const kurz = (r) => r && r.toene.map((t) => `${t.name} ${t.pegel.toFixed(2)} [${
+  t.stimmen.map(([f, v]) => `${Math.round(f)}:${Math.round(v)}`).join(' ')}]`).join(' | ');
+console.log('     gerendert:     ', kurz(echt), `· Spitze ${echt && echt.spitze.toFixed(2)}`);
+console.log('     ohne Anschluss:', kurz(kaputt), `· Spitze ${kaputt && kaputt.spitze.toFixed(2)}`);
+const schwach = (r) => r.toene.flatMap((t) => t.stimmen.filter(([, v]) => v < 10).map(([f]) => `${t.name} ${Math.round(f)} Hz`));
+check(!!echt && echt.toene.every((t) => t.pegel >= 0.05),
+  `„Töne anhören" offline gerendert: jeder der sechs Töne hat Pegel (${echt && echt.toene.map((t) => t.pegel.toFixed(2)).join(', ')})`);
+check(!!echt && schwach(echt).length === 0,
+  `jede Stimme hebt sich im Spektrum ab – mindestens das Zehnfache des Bodens${
+    echt && schwach(echt).length ? ` (zu schwach: ${schwach(echt).join(', ')})` : ''}`);
+check(!!echt && echt.spitze < 1, `nichts übersteuert (Spitze ${echt && echt.spitze.toFixed(2)})`);
+check(!!kaputt && kaputt.toene.every((t) => t.stimmen.every(([, v]) => v < 10)),
+  'Gegenprobe: mit abgeklemmten Oszillatoren – dem alten Fehler – fällt jede Stimme durch');
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();
