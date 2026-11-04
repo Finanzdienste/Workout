@@ -8591,12 +8591,12 @@ Drei Entscheidungen, die dabei bewusst so ausgefallen sind:
 | | Entscheidung | Warum |
 | --- | --- | --- |
 | Leer | kein Standardsatz | Ein erfundener Scheibensatz sähe aus wie Wissen und wäre geraten. Ohne Eintrag rechnet die App wie vorher. |
-| Rucksack | wird nicht gerastet | Da passt auch eine Wasserflasche rein; ein Raster täuschte Genauigkeit vor. |
+| Rucksack | rastet mit Hanteln auf die Scheiben, einzeln (seit v253) | Bis v252 hieß es hier: wird nicht gerastet, da passt auch eine Wasserflasche rein. Dann stand bei den Chin-ups „Rucksack auf 1 kg“ – *„Wieso soll ich n Kilo reinpacken? Du weißt doch ich hab keine 1 Kilo Scheibe. Hab ich doch in der app angegeben“*. Zu Hause kommen Scheiben hinein (so sagt es auch der Hinweis der Übungen), und welche es gibt, steht im Vorrat. Eingetippt wird weiter frei, die Flasche geht also; ohne Hanteln – unterwegs, ohne Scheiben – bleiben freie Schritte. |
 | Eingabe | roh gespeichert, geprüft gerechnet | Sortieren und Aufräumen mitten im Tippen verschiebt die Zeile unter dem Finger, und der nächste Tastendruck landet in der falschen. |
 
-Direkt unter den Feldern steht, was damit erreichbar ist — für alle drei
-Ladearten getrennt, weil derselbe Vorrat je nach Gerät unterschiedlich weit
-reicht. Das ist der Beleg, dass die Eingabe stimmt: Wer seine gewohnten Gewichte
+Direkt unter den Feldern steht, was damit erreichbar ist — für jede Ladeart
+getrennt (seit v253 auch der Rucksack), weil derselbe Vorrat je nach Gerät
+unterschiedlich weit reicht. Das ist der Beleg, dass die Eingabe stimmt: Wer seine gewohnten Gewichte
 wiederfindet, hat richtig eingetragen; wer eine Liste krummer Zahlen sieht, hat
 sich vertippt.
 

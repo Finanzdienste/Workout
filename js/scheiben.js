@@ -59,8 +59,18 @@
  *     hinzuschreiben und den Leser rätseln zu lassen.
  *   - Eine Kurzhantel (Goblet, einarmiges Rudern): zwei Scheiben je Stufe.
  *   - Scheibe auf der Brust: die Scheibe selbst, einzeln.
- *   - Rucksack: hier wird bewusst nicht gerastet. In einen Rucksack passt auch
- *     eine Wasserflasche; ein Raster würde Genauigkeit vortäuschen.
+ *   - Rucksack: die Scheiben einzeln, wie auf der Brust – mit Hanteln. Hier
+ *     stand, er werde bewusst nicht gerastet, weil auch eine Wasserflasche
+ *     hineinpasst. Dann stand bei den Chin-ups „Rucksack auf 1 kg":
+ *
+ *         „Wieso soll ich n Kilo reinpacken? Du weißt doch ich hab keine
+ *          1 Kilo Scheibe. Hab ich doch in der app angegeben"
+ *
+ *     Zu Hause kommen Scheiben hinein, und welche es gibt, steht im Vorrat.
+ *     Die Flasche geht weiter: Eingetippt wird frei, gerastet wird nur, was
+ *     die App vorschlägt. Ohne Hanteln – unterwegs, ohne Scheiben, mit
+ *     Büchern – bleibt es bei freien Schritten (naechstesGewicht() in
+ *     js/gewichte.js).
  */
 
 import { fmtNum } from './text.js';
@@ -86,6 +96,7 @@ export const RASTER = {
   goblet: { stange: 'kh', pro: 2, faktor: 2 },
   onehand: { stange: 'kh', pro: 2, faktor: 2 },
   plate: { stange: null, pro: 1, faktor: 1 },
+  backpack: { stange: null, pro: 1, faktor: 1 },
 };
 
 export const STANGE_LABEL = {

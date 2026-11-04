@@ -2618,13 +2618,13 @@ function renderFocus() {
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
       ${ruestHint(n, mode, w.ex, i, ruestMit(n, mode, it))}
       <div class="ex-weight focus-weight">
-        ${kgKnopf(it, -1)}
+        ${kgKnopf(it, -1, mode)}
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(gewichtNotiz(it.id))}` : ''}</span>
         </div>
-        ${kgKnopf(it, 1)}
+        ${kgKnopf(it, 1, mode)}
       </div>
       ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
       ${aufwaermZeile(it, mode, n)}`}
@@ -4572,13 +4572,13 @@ function renderDashboard() {
     const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
     const weightRow = kg === null ? bandRow(it) : `
       <div class="ex-weight">
-        ${kgKnopf(it, -1)}
+        ${kgKnopf(it, -1, mode)}
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(gewichtNotiz(it.id))}` : ''}</span>
         </div>
-        ${kgKnopf(it, 1)}
+        ${kgKnopf(it, 1, mode)}
       </div>
       ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}
       ${aufwaermZeile(it, mode, n)}`;
@@ -5162,9 +5162,9 @@ function aufwaermZeile(it, mode, n) {
  * Zeichen: Wer +5,5 liest, weiß vorher, dass dazwischen nichts liegt, und
  * warum – sein Scheibensatz gibt es nicht her.
  */
-function kgKnopf(it, richtung) {
+function kgKnopf(it, richtung, mode) {
   const jetzt = workingWeight(it.id);
-  const ziel = naechstesGewicht(it.id, richtung);
+  const ziel = naechstesGewicht(it.id, richtung, mode);
   const d = Math.abs(ziel - (jetzt || 0));
   const wort = richtung > 0 ? 'mehr' : 'weniger';
   const label = d < 0.01 ? `Kein weiterer Schritt nach ${richtung > 0 ? 'oben' : 'unten'}`
@@ -8359,7 +8359,7 @@ view.addEventListener('click', (e) => {
     }
     case 'weight-step': {
       const id = t.dataset.ex;
-      const kg = store.setWeight(id, naechstesGewicht(id, Number(t.dataset.dir)));
+      const kg = store.setWeight(id, naechstesGewicht(id, Number(t.dataset.dir), mode));
       render();
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
       const started = (store.peekSets(n, mode, id) || []).some((s) => s.done);

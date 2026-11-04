@@ -16512,8 +16512,18 @@ function naechsteStufe(von) {
  *     hinzuschreiben und den Leser rätseln zu lassen.
  *   - Eine Kurzhantel (Goblet, einarmiges Rudern): zwei Scheiben je Stufe.
  *   - Scheibe auf der Brust: die Scheibe selbst, einzeln.
- *   - Rucksack: hier wird bewusst nicht gerastet. In einen Rucksack passt auch
- *     eine Wasserflasche; ein Raster würde Genauigkeit vortäuschen.
+ *   - Rucksack: die Scheiben einzeln, wie auf der Brust – mit Hanteln. Hier
+ *     stand, er werde bewusst nicht gerastet, weil auch eine Wasserflasche
+ *     hineinpasst. Dann stand bei den Chin-ups „Rucksack auf 1 kg":
+ *
+ *         „Wieso soll ich n Kilo reinpacken? Du weißt doch ich hab keine
+ *          1 Kilo Scheibe. Hab ich doch in der app angegeben"
+ *
+ *     Zu Hause kommen Scheiben hinein, und welche es gibt, steht im Vorrat.
+ *     Die Flasche geht weiter: Eingetippt wird frei, gerastet wird nur, was
+ *     die App vorschlägt. Ohne Hanteln – unterwegs, ohne Scheiben, mit
+ *     Büchern – bleibt es bei freien Schritten (naechstesGewicht() in
+ *     js/gewichte.js).
  */
 
 /**
@@ -16537,6 +16547,7 @@ const RASTER = {
   goblet: { stange: 'kh', pro: 2, faktor: 2 },
   onehand: { stange: 'kh', pro: 2, faktor: 2 },
   plate: { stange: null, pro: 1, faktor: 1 },
+  backpack: { stange: null, pro: 1, faktor: 1 },
 };
 
 const STANGE_LABEL = {
@@ -17508,11 +17519,16 @@ const stepOf = (exId) => {
 const mindestSchritt = (jetzt, schritt) =>
   Math.min(schritt, Math.max(0.5, jetzt * 0.05));
 
-function naechstesGewicht(exId, richtung) {
+function naechstesGewicht(exId, richtung, mode = 'db') {
   const ex = EX_BY_ID.get(exId);
   const jetzt = workingWeight(exId) || 0;
   const schritt = stepOf(exId);
-  const liste = ex ? erreichbar(ex.equip, meinSatz()) : null;
+  // Der Rucksack rastet nur mit Hanteln auf den Scheibenvorrat. Ohne Hanteln
+  // ist man unterwegs, die Scheiben liegen zu Hause, und hinein kommen Bücher
+  // oder Flaschen – dann freie Schritte wie ohne Eintrag (RASTER in
+  // js/scheiben.js).
+  const frei = mode === 'bw' && ex && ex.equip === 'backpack';
+  const liste = ex && !frei ? erreichbar(ex.equip, meinSatz()) : null;
   // Kein Raster (nichts eingetragen, oder bei beiden Kurzhanteln von keiner
   // Größe vier Stück): freie Schritte. Vorher gab nachbar() im zweiten Fall
   // null zurück, und der Knopf blieb einfach stehen.
@@ -25661,6 +25677,9 @@ function scheibenEinstellbar() {
               eine hat. */
           geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
         ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
+        ${/* Die Scheiben einzeln, so wie sie in den Rucksack kommen – für
+              Chin-ups, Pull-ups und die gewichteten Liegestütze. */
+          scheibenVorschau('backpack', 'Rucksack', geprueft)}
       </div>`;
 }
 
@@ -29287,13 +29306,13 @@ function renderFocus() {
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
       ${ruestHint(n, mode, w.ex, i, ruestMit(n, mode, it))}
       <div class="ex-weight focus-weight">
-        ${kgKnopf(it, -1)}
+        ${kgKnopf(it, -1, mode)}
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(gewichtNotiz(it.id))}` : ''}</span>
         </div>
-        ${kgKnopf(it, 1)}
+        ${kgKnopf(it, 1, mode)}
       </div>
       ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
       ${aufwaermZeile(it, mode, n)}`}
@@ -31241,13 +31260,13 @@ function renderDashboard() {
     const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
     const weightRow = kg === null ? bandRow(it) : `
       <div class="ex-weight">
-        ${kgKnopf(it, -1)}
+        ${kgKnopf(it, -1, mode)}
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(gewichtNotiz(it.id))}` : ''}</span>
         </div>
-        ${kgKnopf(it, 1)}
+        ${kgKnopf(it, 1, mode)}
       </div>
       ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}
       ${aufwaermZeile(it, mode, n)}`;
@@ -31831,9 +31850,9 @@ function aufwaermZeile(it, mode, n) {
  * Zeichen: Wer +5,5 liest, weiß vorher, dass dazwischen nichts liegt, und
  * warum – sein Scheibensatz gibt es nicht her.
  */
-function kgKnopf(it, richtung) {
+function kgKnopf(it, richtung, mode) {
   const jetzt = workingWeight(it.id);
-  const ziel = naechstesGewicht(it.id, richtung);
+  const ziel = naechstesGewicht(it.id, richtung, mode);
   const d = Math.abs(ziel - (jetzt || 0));
   const wort = richtung > 0 ? 'mehr' : 'weniger';
   const label = d < 0.01 ? `Kein weiterer Schritt nach ${richtung > 0 ? 'oben' : 'unten'}`
@@ -35028,7 +35047,7 @@ view.addEventListener('click', (e) => {
     }
     case 'weight-step': {
       const id = t.dataset.ex;
-      const kg = store.setWeight(id, naechstesGewicht(id, Number(t.dataset.dir)));
+      const kg = store.setWeight(id, naechstesGewicht(id, Number(t.dataset.dir), mode));
       render();
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
       const started = (store.peekSets(n, mode, id) || []).some((s) => s.done);

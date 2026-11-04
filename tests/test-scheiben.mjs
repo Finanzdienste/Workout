@@ -67,8 +67,16 @@ check(zahlen.lh[0] === 10, `die Langhantel beginnt bei ihrer leeren Stange (${za
 check(zahlen.lh.includes(60), 'und kommt mit allem aus demselben Vorrat auf 60 kg');
 check(zahlen.lhBasis === 10 && zahlen.kh2[0] === 1.5,
   'ein Vorrat, zwei Stangen – unterschieden werden sie nur durchs Leergewicht');
-check(zahlen.ruck === null,
-  'der Rucksack wird nicht gerastet – da passt auch eine Wasserflasche rein');
+// Der Rucksack nimmt die Scheiben einzeln, wie die Scheibe auf der Brust.
+// Bis v252 wurde er nicht gerastet („da passt auch eine Wasserflasche rein") –
+// und bei den Chin-ups stand „Rucksack auf 1 kg":
+//
+//     „Wieso soll ich n Kilo reinpacken? Du weißt doch ich hab keine 1 Kilo
+//      Scheibe. Hab ich doch in der app angegeben"
+check(Array.isArray(zahlen.ruck) && zahlen.ruck[0] === 0 && zahlen.ruck.includes(1.25) && zahlen.ruck.includes(3.75),
+  `der Rucksack rastet auf die Scheiben, einzeln (${JSON.stringify((zahlen.ruck || []).slice(0, 6))} …)`);
+check(Array.isArray(zahlen.ruck) && !zahlen.ruck.includes(1),
+  'und 1 kg ist nicht dabei – ohne 1-kg-Scheibe gibt es kein Kilo');
 check(zahlen.leer === null,
   'und ohne Eintrag gibt es kein Raster, sondern ein ehrliches "weiß ich nicht"');
 
@@ -279,13 +287,43 @@ check(mit.w === 6.5, `mit Eintrag rastet es auf 6,5 kg ein (${mit.w})`);
 check(mit.hoch === 9, `und der nächste Schritt ist 9, nicht 8,5 (${mit.hoch})`);
 check(/2,5/.test(mit.text), `mit der Ansage, was draufkommt (${mit.text})`);
 
-// Der Rucksack bleibt unangetastet, obwohl ein Satz eingetragen ist.
+// Der Rucksack mit Hanteln: auf die Scheiben. Ohne Hanteln ist man unterwegs,
+// die Scheiben liegen zu Hause, hinein kommen Bücher oder Flaschen – dort
+// bleiben die freien Schritte. Eingetippt wird in beiden Fällen frei.
 const ruck = await page.evaluate(async () => {
-  const { naechstesGewicht, workingWeight } = await import('./js/gewichte.js');
-  return { jetzt: workingWeight('gewichtete-liegestuetze'), hoch: naechstesGewicht('gewichtete-liegestuetze', 1) };
+  const store = await import('./js/store.js');
+  const { naechstesGewicht, workingWeight, ladeText } = await import('./js/gewichte.js');
+  const { erreichbar } = await import('./js/scheiben.js');
+  const liste = erreichbar('backpack', store.getState().scheiben);
+  const out = {
+    jetzt: workingWeight('gewichtete-liegestuetze'),
+    hoch: naechstesGewicht('gewichtete-liegestuetze', 1),
+    hochBw: naechstesGewicht('gewichtete-liegestuetze', 1, 'bw'),
+    chin: naechstesGewicht('chin-ups', 1),
+    chinBw: naechstesGewicht('chin-ups', 1, 'bw'),
+    chinText: ladeText('chin-ups', 1.25),
+    nullText: ladeText('chin-ups', 0),
+  };
+  // Eine Wasserflasche, eingetippt: bleibt stehen, und + rastet erst ein.
+  store.setWeight('chin-ups', 1.5);
+  out.flasche = workingWeight('chin-ups');
+  out.flascheHoch = naechstesGewicht('chin-ups', 1);
+  delete store.getState().weights['chin-ups'];
+  // Gleich schreiben: Sonst speichert der Store später und überschreibt den
+  // Stand, den der nächste Abschnitt hinlegt.
+  store.flush();
+  out.aufRaster = liste.includes(out.jetzt) && liste.includes(out.hoch);
+  return out;
 });
-check(ruck.hoch - ruck.jetzt === 1,
-  `der Rucksack geht weiter in seinen eigenen Schritten: ${ruck.jetzt} → ${ruck.hoch}`);
+console.log('     Rucksack:', JSON.stringify(ruck));
+check(ruck.aufRaster && ruck.hoch > ruck.jetzt,
+  `gewichtete Liegestütze: Start und nächster Schritt liegen auf den Scheiben (${ruck.jetzt} → ${ruck.hoch})`);
+check(ruck.chin === 1.25 && /1× 1,25 kg/.test(ruck.chinText) && ruck.nullText === '',
+  `Chin-ups von 0: + geht auf die kleinste Scheibe, nicht auf 1 kg (${ruck.chin}, „${ruck.chinText}")`);
+check(ruck.hochBw - ruck.jetzt === 1 && ruck.chinBw === 1,
+  `ohne Hanteln weiter freie Schritte – unterwegs liegen keine Scheiben (${ruck.jetzt} → ${ruck.hochBw}, Chin-ups → ${ruck.chinBw})`);
+check(ruck.flasche === 1.5 && ruck.flascheHoch === 2.5,
+  `eingetippt bleibt frei – eine Flasche mit 1,5 kg steht, + rastet dann ein (${ruck.flasche} → ${ruck.flascheHoch})`);
 
 // Ein Gewicht neben dem Raster – gesetzt, bevor die Scheiben eingetragen
 // waren. 12 kg je Hand bei 4× 1,25 / 4× 2,5 / 4× 5: Der Mindestschritt (5 % von

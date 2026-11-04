@@ -171,6 +171,9 @@ export function scheibenEinstellbar() {
               eine hat. */
           geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
         ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
+        ${/* Die Scheiben einzeln, so wie sie in den Rucksack kommen – für
+              Chin-ups, Pull-ups und die gewichteten Liegestütze. */
+          scheibenVorschau('backpack', 'Rucksack', geprueft)}
       </div>`;
 }
 

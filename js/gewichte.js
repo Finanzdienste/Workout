@@ -533,11 +533,16 @@ export const stepOf = (exId) => {
 const mindestSchritt = (jetzt, schritt) =>
   Math.min(schritt, Math.max(0.5, jetzt * 0.05));
 
-export function naechstesGewicht(exId, richtung) {
+export function naechstesGewicht(exId, richtung, mode = 'db') {
   const ex = EX_BY_ID.get(exId);
   const jetzt = workingWeight(exId) || 0;
   const schritt = stepOf(exId);
-  const liste = ex ? erreichbar(ex.equip, meinSatz()) : null;
+  // Der Rucksack rastet nur mit Hanteln auf den Scheibenvorrat. Ohne Hanteln
+  // ist man unterwegs, die Scheiben liegen zu Hause, und hinein kommen Bücher
+  // oder Flaschen – dann freie Schritte wie ohne Eintrag (RASTER in
+  // js/scheiben.js).
+  const frei = mode === 'bw' && ex && ex.equip === 'backpack';
+  const liste = ex && !frei ? erreichbar(ex.equip, meinSatz()) : null;
   // Kein Raster (nichts eingetragen, oder bei beiden Kurzhanteln von keiner
   // Größe vier Stück): freie Schritte. Vorher gab nachbar() im zweiten Fall
   // null zurück, und der Knopf blieb einfach stehen.
