@@ -20,6 +20,7 @@
  */
 import { chromium } from 'playwright';
 import { URL } from './umgebung.mjs';
+import { naechsterSatz, satzTippen } from './saetze.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 414, height: 896 } });
@@ -312,10 +313,7 @@ const nachSaetze = plan2.reduce((a, x) => a + x.nach, 0);
 const gesamt = plan2.reduce((a, x) => a + x.sets, 0);
 console.log('     Einheit 2:', plan2.map((x) => `${x.id} ${x.sets}${x.nach ? `(+${x.nach})` : ''}`).join(', '));
 check(nachSaetze > 0, `Einheit 2 trägt Nacharbeit (${nachSaetze} Sätze, ${gesamt} insgesamt)`);
-const tippe = async (id, i) => {
-  await page.locator(`[data-act="toggle-set"][data-ex="${id}"][data-i="${i}"]`).first().click();
-  await page.waitForTimeout(60);
-};
+const tippe = (id, i) => satzTippen(page, id, i, 60);
 for (const x of plan2) for (let i = 0; i < x.sets - x.nach; i++) await tippe(x.id, i);
 const nachGrund = await page.evaluate(async () => {
   const store = await import('./js/store.js');
@@ -644,10 +642,7 @@ check(rh.fehlt.abs > 2 && rh.herkunft.includes('6:liegendes-knieheben 0/3'),
 // dann „Abschließen". Montag: Workout 7.
 const hake = async (id, k) => {
   for (let i = 0; i < k; i++) {
-    const l = p2.locator(`[data-act="toggle-set"][data-ex="${id}"][aria-pressed="false"]`);
-    if (!(await l.count())) break;
-    await l.first().click();
-    await p2.waitForTimeout(90);
+    if (!(await naechsterSatz(p2, id, 90))) break;
     if (await p2.locator('[data-act="focus-list"]').count()) {
       await p2.locator('[data-act="focus-list"]').first().click();
       await p2.waitForTimeout(100);

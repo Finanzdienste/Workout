@@ -203,8 +203,9 @@ async function fall(name, zustand, wann = DI, runden = null) {
     abhaken: async () => {
       await page.locator('[data-act="show-list"]').first().click();
       await page.waitForTimeout(250);
-      for (let k = 0; k < 60; k++) {
-        const b = page.locator('[data-act="toggle-set"]:not(.on)').first();
+      // Einseitige Sätze („je Bein") haben seit v255 zwei Haken, links und rechts.
+      for (let k = 0; k < 90; k++) {
+        const b = page.locator('[data-act="toggle-set"]:not(.on), [data-act="toggle-side"]:not(.on)').first();
         if (!(await b.count())) break;
         await b.click();
         await page.waitForTimeout(30);

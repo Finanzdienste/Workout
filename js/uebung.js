@@ -94,3 +94,34 @@ export function stufenWerte(v) {
   const s = (v.stufen || {})[store.getState().level || 'geuebt'];
   return { reps: (s && s.reps) || v.reps, rest: (s && s.rest) || v.rest };
 }
+
+/**
+ * Wird die Übung je Seite gemacht – „8–12 je Bein"?
+ *
+ *     „jede Seite brauch ihre eigenen Pausen"
+ *
+ * Dann hat jeder Satz zwei Haken, links und rechts, und nach der ersten Seite
+ * läuft eine eigene Pause (seitenPause()). Woran es zu erkennen ist, steht
+ * schon im Katalog: Jede einseitige Übung trägt „je Bein" (oder „je Arm") bei
+ * den Wiederholungen – tests/test-katalog.mjs hält das fest. Eine zweite Liste
+ * der einseitigen Übungen wäre die nächste Stelle zum Auseinanderlaufen.
+ * Gefragt wird die Fassung, die trainiert wird: Das Rumänische Kreuzheben ist
+ * mit Hanteln beidbeinig und ohne einbeinig.
+ */
+export const einseitig = (v) => /\bje (Bein|Arm|Seite)\b/.test(String((v && v.reps) || ''));
+
+/**
+ * Die Pause zwischen den beiden Seiten eines Satzes: die halbe Satzpause, auf
+ * 15 Sekunden gerundet, mindestens 30.
+ *
+ * Nicht die ganze. Das Bein, das gerade dran war, ruht weiter, während das
+ * andere arbeitet – und danach noch die volle Pause. Bis zu seinem nächsten
+ * Satz hat jedes Bein so anderthalb Satzpausen und die Arbeit der anderen
+ * Seite, mehr als die Pause, für die der Plan gerechnet ist. Die Seitenpause
+ * ist für den Atem, nicht für den Muskel. Wem sie nicht reicht: „+30 s".
+ */
+export function seitenPause(rest) {
+  const r = Number(rest) || 0;
+  if (r <= 0) return 0;
+  return Math.max(30, Math.round(r / 2 / 15) * 15);
+}

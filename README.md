@@ -873,6 +873,75 @@ es inzwischen 47. Das ist der Tausch, und er ist bewusst so herum gemacht.
 Über *Mehr* lässt sich stattdessen eine feste Länge wählen oder die Pause ganz
 abschalten.
 
+### Je Bein: zwei Haken, zwei Pausen (v255)
+
+> *„Vllt sollten bei Übungen bei denen man mit beiden Körperteilen unabhängig
+> voneinander macht jedesmal abhaken oder? Also hier zb 6?"* – und auf die
+> Rückfrage, ob die Pause dann erst nach beiden Seiten kommen soll: *„jede
+> Seite brauch ihre eigenen Pausen"*
+
+Bis v254 hatte jeder Satz einen Knopf, auch bei „8–12 je Bein". Der Haken kam
+nach beiden Seiten und mit ihm die Pause; zwischen den Seiten lief keine Uhr.
+Jetzt hat ein einseitiger Satz zwei Haken, **L** und **R**, als ein geteilter
+Knopf:
+
+| Tipp auf | was passiert |
+| --- | --- |
+| die erste Seite | Haken auf dieser Hälfte, die **Seitenpause** läuft; gezählt wird noch nichts |
+| die zweite Seite | der Satz steht – volle Pause, im Supersatz der Partner, nach dem letzten Satz die nächste Übung |
+| eine Seite eines fertigen Satzes | der Satz ist wieder offen, die andere Seite bleibt |
+| die einzige Seite | der Satz ist wieder leer |
+
+Welche Seite zuerst kommt, ist egal. Einseitig ist eine Übung, wenn bei den
+Wiederholungen „je Bein" steht (`einseitig()` in `js/uebung.js`) – das steht
+bei jeder einseitigen Fassung, und `tests/test-katalog.mjs` hält es fest. Eine
+zweite Liste wäre die nächste Stelle zum Auseinanderlaufen. Gefragt wird die
+Fassung, die trainiert wird: Das Rumänische Kreuzheben ist mit Hanteln
+beidbeinig und ohne einbeinig.
+
+**Die Seitenpause ist die halbe Satzpause**, auf 15 s gerundet, mindestens 30
+(`seitenPause()`): 45 s beim Wadenheben, 60 beim einbeinigen Leg Curl, 75 beim
+Split Squat. Nicht die ganze, weil das Bein, das gerade dran war, weiter ruht,
+während das andere arbeitet – und danach kommt noch die volle Pause. Bis zu
+seinem nächsten Satz hat jedes Bein so anderthalb Satzpausen und die Arbeit der
+anderen Seite, mehr als die Pause, für die der Plan gerechnet ist. Die
+Seitenpause ist für den Atem, nicht für den Muskel. Wem sie nicht reicht:
+„+30 s". Die Leiste sagt die Seite zuerst („Satz 1 von 3, rechts · …"), weil
+sie hinten abkürzt.
+
+**Ein Satz bleibt ein Satz.** Gezählt wird er erst mit der zweiten Seite – im
+Kopf („0/18 Sätze"), in der Statistik, in der Nacharbeit, im Kalender. Im
+Protokoll steht die erste Seite als `seite: 'l'` oder `'r'` am Satz; mit der
+zweiten wird er `done`, und `seite` geht weg (`updateSet()` in `js/store.js`).
+Angefangen ist die Einheit aber schon mit der ersten Seite: Sie steht damit auf
+heute, und Plan, Zusatztag und Nacharbeit stehen fest wie mit dem ersten Haken.
+An allen sieben Stellen, die nachsehen, ob an einem Satz schon etwas steht,
+zählt `seite` deshalb mit. Oben in der Leiste ist ein halber Satz ein halbes
+Feld.
+
+**Im Supersatz** bleibt die Seitenpause beim Satz: erste Seite, Seitenpause,
+zweite Seite – dann erst der Partner. Dessen Wartezeit rechnet wie immer ab dem
+fertigen Satz. Einseitige Übungen stehen oft in einem Paar: im Normalplan in
+93 von 168 Einheiten, mit und ohne Hanteln zusammengezählt.
+
+**Die Dauer rechnet beides mit.** Die Formeln für den Kalendertermin
+(`duration()` in `js/ics.js`) und für die Schätzung an den Fokus-Karten samt
+ihrer Eichung (`dauerLautFormel()`, `fokusZeile()`) zählten einen einseitigen
+Satz wie einen beidseitigen – die zweite Seite kam darin gar nicht vor. Jetzt
+kommen je Satz die zweite Seite und die Seitenpause dazu. Sechs Übungen à drei
+Sätze und 90 s: 40 min beidseitig, 65 min einseitig. Termine mit einseitigen
+Übungen werden dadurch meist fünf Minuten länger, und der Kalender gleicht sie
+einmal an. Wer schon gemessen hat (Eichung ab fünf Einheiten), bei dem sinkt
+der Faktor zunächst etwas – die gemessenen Einheiten liefen ohne Seitenpausen –
+und kommt mit den nächsten Einheiten wieder auf Stand. `js/ics.js` steht dafür
+im Bündel jetzt hinter `js/uebung.js`.
+
+Geprüft in `tests/test-seiten.mjs`: welche Fassungen einseitig sind und wie
+lang die Seitenpause ist; zwei Haken je Satz nur dort; die erste Seite mit
+Seitenpause, ohne gezählten Satz, aber angefangen, auch nach dem Neuladen; die
+zweite mit voller Pause; Zurücknehmen je Seite, rechts zuerst; der letzte Satz;
+„Alle Sätze abhaken" ohne halben Rest; die Dauer; der Supersatz.
+
 ### Töne
 
 `js/audio.js` erzeugt alle Töne per Web Audio, keiner wird geladen – das hält
@@ -8413,8 +8482,26 @@ erfüllen; die Zahl war damit von einer Ansage zu einem Vorwurf geworden.
 
 | | Geübt / Fortgeschritten | Anfänger |
 | --- | --- | --- |
-| Chin-ups | 5–10 Wdh., 180 s | **1–3 Wdh., 120 s** |
+| Chin-ups | 5–10 Wdh., 180 s | **3–10 Wdh., 180 s** (bis v254: 1–3, 120 s) |
 | Pull-ups | 4–10 Wdh., 180 s | **1–3 Wdh., 120 s** |
+
+**3–10 statt 1–3 (v255).** *„Aber wieso soll ich eigentlich nur drei
+wiederholungen machen? Wäre nicht 8 bis 12 oder so besser?"* – und auf die
+Frage, wie viele saubere er schafft: *„ich schaff aktuell 3, also wäre 3 bis x
+wohl am sinnvollsten"*. Mit drei stand er am oberen Ende von 1–3, und der
+Bereich ließ nach oben keinen Platz – Steigerungsvorschläge macht die App
+nicht, die Zahl auf der Karte ist die ganze Ansage. Dabei waren ein bis drei
+Wiederholungen nie Aufbau, sondern Maximalkraft (siehe *Was das nicht ersetzt*
+unten). Jetzt steht unten die Zahl, ab der ein Satz ein Trainingssatz ist, und
+oben die, ab der der Rucksack kommt: 10, wie im Hinweis. Dazwischen wird es von
+Woche zu Woche eine Wiederholung mehr. Wer die drei noch nicht schafft, hilft
+mit den Füßen auf dem Stuhl nach, nur so viel wie nötig – der Hinweis sagt das
+jetzt für jede Stufe gleich („Reicht es nicht bis zur unteren Zahl des
+Bereichs …"), statt allen 5–10 zu nennen, während der Anfänger 1–3 sah. Und
+der Rucksack steigt seit v253 in den Schritten der eigenen Scheiben; „in
+Kilo-Schritten" stand dort noch. Die Pause ist die des Katalogs, 180 s – die
+120 s waren für Sätze aus ein bis drei Wiederholungen gedacht. Die Pull-ups
+bleiben, wie sie sind: Zu ihnen gab es keine Zahl.
 
 Die Ausnahme steht als `dbStufen`/`bwStufen` an der Übung selbst, nicht als
 Sonderfall im Code – so lässt sich jede weitere Übung nachziehen, ohne dass
@@ -8425,7 +8512,8 @@ davon lassen sich trotzdem leichter machen: über die Bandstärke, die Neigung
 der Liegestütze oder die Ausführung des Leg Curls. Bei Klimmzügen bleibt nur,
 die Übung selbst zu ersetzen.
 
-**Die 120 Sekunden sind ein Kompromiss, kein Messwert.** Nach ein bis drei
+**Die 120 Sekunden sind ein Kompromiss, kein Messwert** – seit v255 nur noch
+bei den Pull-ups. Nach ein bis drei
 Wiederholungen ist die Erschöpfung gering, die Erholung dauert trotzdem gut
 zwei Minuten – volle drei wären nicht falsch, kosten aber neun Minuten für
 sechs Wiederholungen. Die Datenlage zu Pausenlängen bei so kurzen Sätzen ist

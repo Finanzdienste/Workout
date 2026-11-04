@@ -158,7 +158,17 @@ const klein = await page.evaluate(() => import('./js/data.js').then(({ PLAN, EXE
   return { name: e.db.name, rest: e.db.rest };
 }));
 const kleinIdx = names.findIndex((t) => t.includes(klein.name));
-await ex(kleinIdx).locator('.set-btn').first().click();
+const ersterKnopf = ex(kleinIdx).locator('.set-btn').first();
+const einseitigKlein = (await ersterKnopf.getAttribute('data-act')) === 'toggle-side';
+await ersterKnopf.click();
+if (einseitigKlein) {
+  // Einseitig („je Bein", seit v255): Die erste Seite startet die Seitenpause,
+  // die halbe – erst mit der zweiten steht der Satz und läuft die volle.
+  const tS = await page.locator('#restTime').textContent();
+  const sekS = Number(tS.split(':')[0]) * 60 + Number(tS.split(':')[1]);
+  check(sekS < klein.rest, `${klein.name}: nach der ersten Seite die Seitenpause (${tS})`);
+  await ex(kleinIdx).locator('[data-act="toggle-side"][data-i="0"][data-seite="r"]').click();
+}
 const t1 = await page.locator('#restTime').textContent();
 const sek1 = Number(t1.split(':')[0]) * 60 + Number(t1.split(':')[1]);
 console.log(`     ${klein.name} (kürzeste Pause): ${t1}`);

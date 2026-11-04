@@ -322,7 +322,7 @@ export const EXERCISES = [
       "name": "Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange + Rucksack",
-      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, dass du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Hantelscheiben, in ein Handtuch gewickelt) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
+      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Erst die sauberen, so viele gehen. Reicht es nicht bis zur unteren Zahl des Bereichs, die Füße auf einem Stuhl abstützen und mit den Beinen nur so viel nachhelfen, wie nötig – eine einzelne Wiederholung ist ein Maximalversuch, kein Trainingssatz. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Hantelscheiben, in ein Handtuch gewickelt) und in den Schritten deiner Scheiben hoch. Bis dahin bleibt das Feld auf 0.",
       "rest": 180,
       "pattern": "pullup",
       "heben": "Rucksack im Stehen aufsetzen, Gurte fest, dann vom Stuhl aus an die Stange – nicht hochspringen, der Rucksack schwingt sonst. Am Ende zurück auf den Stuhl, dort erst loslassen, Rucksack abnehmen. Solange das Feld auf 0 steht, gibt es nichts zu tragen.",
@@ -340,8 +340,7 @@ export const EXERCISES = [
       ],
       "stufen": {
         "anfaenger": {
-          "reps": "1–3",
-          "rest": 120
+          "reps": "3–10"
         }
       },
       "braucht": [
@@ -369,8 +368,7 @@ export const EXERCISES = [
       ],
       "stufen": {
         "anfaenger": {
-          "reps": "1–3",
-          "rest": 120
+          "reps": "3–10"
         }
       },
       "braucht": [

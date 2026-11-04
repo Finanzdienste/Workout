@@ -33,16 +33,19 @@ MODULES = ['js/dates.js',
            # sicherung.js nach telemetry.js: Es nimmt denselben Weg zum Server
            # (rpcAufruf, grund, fehltFunktion).
            'js/sicherung.js',
-           # Fehlte hier jahrelang: js/app.js importiert buildICS, im Buendel
-           # war die Funktion nie definiert. Der Kalenderexport der Ein-Datei-
-           # Fassung endete deshalb in einem ReferenceError, waehrend er unter
-           # index.html lief. Gefunden von tools/pruefung/schichten.py.
-           'js/ics.js',
            'js/store.js',
            # Die Rechenschicht, in Abhaengigkeitsreihenfolge: jedes Modul
            # benutzt nur die vor ihm. Wer das aendert, merkt es hier zuerst –
            # im Buendel gibt es keine Importe, die eine Reihenfolge erzwingen.
-           'js/text.js', 'js/uebung.js', 'js/stufen.js', 'js/scheiben.js', 'js/gewichte.js',
+           'js/text.js', 'js/uebung.js',
+           # Fehlte hier jahrelang: js/app.js importiert buildICS, im Buendel
+           # war die Funktion nie definiert. Der Kalenderexport der Ein-Datei-
+           # Fassung endete deshalb in einem ReferenceError, waehrend er unter
+           # index.html lief. Gefunden von tools/pruefung/schichten.py. Seit
+           # v255 hinter uebung.js: Die Dauer eines Termins fragt dort, ob
+           # eine Uebung einseitig ist.
+           'js/ics.js',
+           'js/stufen.js', 'js/scheiben.js', 'js/gewichte.js',
            'js/supersatz.js',
            # vorrat.js vor plan.js: exBasis() filtert damit, was gerade an
            # Geraet fehlt.

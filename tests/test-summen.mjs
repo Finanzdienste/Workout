@@ -194,7 +194,9 @@ const summe = (ex) => ex.reduce((a, x) => a + x.sets, 0);
     has: f.page.locator('.ex-name', { hasText: new RegExp(`^${nach.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }),
   }).first().evaluate((el) => ({
     meta: el.querySelector('.ex-meta').textContent.replace(/\s+/g, ' ').trim(),
-    knoepfe: el.querySelectorAll('.set-btn').length,
+    // Ein einseitiger Satz („je Bein") ist seit v255 ein geteilter Knopf –
+    // gezählt wird der Satz, nicht seine zwei Hälften.
+    knoepfe: el.querySelectorAll('.set-paar').length || el.querySelectorAll('.set-btn').length,
     zeile: ((el.querySelector('.nach-warum') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
   }));
   console.log(`     Liste: ${nach.name} | ${karte.meta} | ${karte.zeile}`);
@@ -213,7 +215,7 @@ const summe = (ex) => ex.reduce((a, x) => a + x.sets, 0);
     await f.page.waitForTimeout(150);
   }
   const meta = await f.txt('.focus-meta');
-  const knoepfe = await f.page.locator('.focus-set').count();
+  const knoepfe = (await f.page.locator('.focus-sets .set-paar').count()) || (await f.page.locator('.focus-set').count());
   const zeile = await f.txt('.nach-warum');
   console.log(`     Fokus: ${await f.txt('.focus-name')} | ${meta} | ${zeile}`);
   check(meta.startsWith(`${nach.sets} Sätze × `) && knoepfe === nach.sets,
@@ -229,7 +231,7 @@ const summe = (ex) => ex.reduce((a, x) => a + x.sets, 0);
   const mitPlus = sichtbar.filter((k) => PLUS.test(k.name?.value || ''));
   check(mitPlus.length === 0, `S2 Vorlesen: kein Knoten mit „… + …" (${mitPlus.map((k) => k.name.value).join(' | ') || 'keiner'})`);
   const letzter = await f.page.locator('.focus-set').last().getAttribute('aria-label');
-  check(letzter === `Satz ${nach.sets} von ${nach.sets}, nachgeholt, erledigt`,
+  check(new RegExp(`^Satz ${nach.sets} von ${nach.sets}(, (links|rechts))?, nachgeholt, erledigt$`).test(letzter || ''),
     `S2 Vorlesen: der Nachholsatz sagt weiter, dass er einer ist („${letzter}")`);
   texte.push(await f.txt('#view'));
   await f.page.evaluate(() => window.scrollTo(0, 0));

@@ -80,6 +80,7 @@ import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { URL, ROOT, SHOT } from './umgebung.mjs';
+import { naechsterSatz } from './saetze.mjs';
 
 const VORLAGE = JSON.parse(readFileSync(path.join(ROOT, 'tests', 'zusatz-tobi-do.json'), 'utf8'));
 const kopie = (o) => JSON.parse(JSON.stringify(o));
@@ -229,10 +230,8 @@ async function spiele(f, n, muster = {}) {
   for (const id of liste) {
     const soll = muster[id] ?? 99;
     for (let i = 0; i < soll; i++) {
-      const l = f.page.locator(`[data-act="toggle-set"][data-ex="${id}"][aria-pressed="false"]`);
-      if (!(await l.count())) break;
-      await l.first().click();
-      await f.page.waitForTimeout(90);
+      // Einseitig („je Bein", seit v255): ein Satz sind zwei Haken – naechsterSatz() tippt beide.
+      if (!(await naechsterSatz(f.page, id, 90))) break;
       if (await f.page.locator('[data-act="focus-list"]').count()) await f.klick('[data-act="focus-list"]', 100);
     }
   }

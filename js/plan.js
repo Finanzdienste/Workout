@@ -874,7 +874,7 @@ export function vorherFassung(n, liste, mode) {
   const zus = zusatzIds(e);
   const da = Object.entries(e[mode] || {})
     .filter(([id, arr]) => EX_BY_ID.has(id) && !zus.has(id) && Array.isArray(arr)
-      && arr.some((x) => x && (x.done || !!x.w || !!x.wie)))
+      && arr.some((x) => x && (x.done || !!x.w || !!x.wie || !!x.seite)))
     .map(([id]) => id);
   const frei = da.filter((id) => !items.some((it) => it.id === id));
   return items.map((it, k) => {
@@ -984,7 +984,7 @@ function protokolliert(n) {
   const zus = zusatzIds(e);
   ['db', 'bw'].forEach((m) => Object.entries(e[m] || {}).forEach(([id, arr]) => {
     if (zus.has(id)) return;
-    if (Array.isArray(arr) && arr.some((x) => x.done || !!x.w || !!x.wie)) ids.add(id);
+    if (Array.isArray(arr) && arr.some((x) => x.done || !!x.w || !!x.wie || !!x.seite)) ids.add(id);
   }));
   return ids;
 }
@@ -1887,7 +1887,7 @@ export function zusatzVergeben(nr) {
 function angefasst(e, id) {
   return ['db', 'bw'].some((m) => {
     const arr = ((e && e[m]) || {})[id];
-    return Array.isArray(arr) && arr.some((x) => x && (x.done || !!x.w || !!x.wie));
+    return Array.isArray(arr) && arr.some((x) => x && (x.done || !!x.w || !!x.wie || !!x.seite));
   });
 }
 
@@ -2135,7 +2135,7 @@ export function completedMode(n) {
 export function hasAnyEntry(n, mode) {
   const w = workoutByNo(n, mode);
   return w.ex.some((item) => (store.peekSets(n, mode, item.id) || [])
-    .some((s) => s.done || s.w !== ''));
+    .some((s) => s.done || s.w !== '' || !!s.seite));
 }
 
 /**

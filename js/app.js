@@ -60,7 +60,7 @@ import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, umfangText, wdhTeile } from '
 import {
   AKT_ICON, aktivitaetTage, calMonthNow, calendarCell, calendarDetail, dayState, eigeneTage, fruehereTage,
 } from './ansicht-kalender.js';
-import { EX_BY_ID } from './uebung.js';
+import { EX_BY_ID, einseitig, seitenPause } from './uebung.js';
 import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, satzFaktor, satzZahlIm } from './stufen.js';
 import {
   aufwaermsaetze, doneWeightNote, gewichtNotiz, naechstesGewicht,
@@ -1615,17 +1615,26 @@ async function holdScreen(on) {
   }
 }
 
-function startRest(exName, setIndex, sets, secs, exId = null) {
+/**
+ * Eine Pause starten. Mit `seite` ist es die Pause zwischen den Seiten eines
+ * Satzes (seiteAntippen()): Danach kommt derselbe Satz, nur die andere Seite.
+ */
+function startRest(exName, setIndex, sets, secs, exId = null, { seite = null } = {}) {
   if (!secs) return;
-  notieren('pause', { was: 'start', dauer: secs, ex: exId, satz: setIndex + 1, von: sets });
+  notieren('pause', { was: 'start', dauer: secs, ex: exId, satz: setIndex + 1, von: sets, seite: seite || undefined });
+  const wort = seite === 'r' ? 'rechts' : 'links';
   store.setRest({
     endsAt: Date.now() + secs * 1000,
     total: secs,
-    next: `Satz ${setIndex + 2} von ${sets} · ${exName}`,
+    // Die Seite vorn: Die Leiste kürzt hinten ab, und „rechts" ist hier das
+    // Wichtigste – der Name steht ohnehin darüber.
+    next: seite ? `Satz ${setIndex + 1} von ${sets}, ${wort} · ${exName}`
+      : `Satz ${setIndex + 2} von ${sets} · ${exName}`,
     ex: exId,   // wessen Pause – siehe leistenPause()
   });
   announce(`Pause ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} Minuten, `
-    + `danach Satz ${setIndex + 2} von ${sets}, ${exName}`);
+    + (seite ? `danach Satz ${setIndex + 1} von ${sets}, ${wort}, ${exName}`
+      : `danach Satz ${setIndex + 2} von ${sets}, ${exName}`));
   holdScreen(true);
   armRest();
   tickRest();
@@ -2154,8 +2163,37 @@ function zusatzZeile(w, it) {
 const istNachSatz = (it, idx) => !!it.zusatz || (!!it.nach && idx >= it.sets - it.nach);
 
 /** Beschriftung eines Satzknopfs – der Nachholsatz sagt, dass er einer ist. */
-function satzLabel(it, idx) {
+function satzLabel(it, idx, seite = '') {
+  if (seite) return `Satz ${idx + 1} von ${it.sets}, ${seite}${istNachSatz(it, idx) ? ', nachgeholt' : ''}, erledigt`;
   return `Satz ${idx + 1} von ${it.sets}${istNachSatz(it, idx) ? ', nachgeholt,' : ''} erledigt`;
+}
+
+/**
+ * Die Satzknöpfe einer Übung – bei einer einseitigen zwei je Satz.
+ *
+ *     „Vllt sollten bei Übungen bei denen man mit beiden Körperteilen
+ *      unabhängig voneinander macht jedesmal abhaken oder? Also hier zb 6?"
+ *
+ * Ein Satz bleibt ein Satz: Er steht, wenn beide Seiten stehen, und erst dann
+ * zählt er – im Kopf, in der Statistik, in der Nacharbeit. Die beiden Hälften
+ * stehen deshalb dicht beieinander als ein Knopf, der geteilt ist, und nicht
+ * als sechs gleichrangige. Jede hat ihren eigenen Haken (toggle-side).
+ */
+function satzKnoepfe(it, sets, klasse) {
+  if (!einseitig(it)) {
+    return sets.map((s, idx) => `
+      <button type="button" class="${klasse} ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
+              aria-label="${satzLabel(it, idx)}"${nachVerweis(it, idx)}
+              data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('');
+  }
+  return sets.map((s, idx) => `
+      <div class="set-paar ${s.done ? 'on' : ''}" role="group" aria-label="Satz ${idx + 1} von ${it.sets}">${
+        [['l', 'links', 'L'], ['r', 'rechts', 'R']].map(([k, wort, kurz]) => {
+          const an = !!s.done || s.seite === k;
+          return `<button type="button" class="${klasse} set-seite ${an ? 'on' : ''}" aria-pressed="${an}"
+              aria-label="${satzLabel(it, idx, wort)}"${nachVerweis(it, idx)}
+              data-act="toggle-side" data-ex="${it.id}" data-i="${idx}" data-seite="${k}">${an ? '✓' : idx + 1}<small>${kurz}</small></button>`;
+        }).join('')}</div>`).join('');
 }
 
 /**
@@ -2479,13 +2517,17 @@ function progressStrip(n, mode, w, cur) {
         // fertige Übung 1 mit 0 von 2 Feldern da, während der Kopf „2/16
         // Sätze" meldete.
         const done = saetzeErledigt(n, v.id, v.sets);
+        // Ein halber Satz (eine Seite steht) ist ein halbes Feld – gezählt
+        // wird er nicht, aber man soll ihn sehen.
+        const halb = Math.min(v.sets - done, (store.peekSets(n, mode, v.id) || [])
+          .slice(0, v.sets).filter((s) => s && !s.done && s.seite).length);
         return `
         <button type="button" class="prog-ex ${k === cur ? 'cur' : ''} ${done === v.sets ? 'done' : ''}"
                 style="flex-grow:${v.sets}" data-act="focus-goto" data-i="${k}"
                 aria-label="Übung ${k + 1}, ${esc(v.name)}, ${done} von ${v.sets} Sätzen${v.zusatz ? ', nachgeholt' : ''}"
                 aria-current="${k === cur}">
           <span class="prog-sets">
-            ${Array.from({ length: v.sets }, (_, x) => `<i class="${x < done ? 'on' : ''}"></i>`).join('')}
+            ${Array.from({ length: v.sets }, (_, x) => `<i class="${x < done ? 'on' : (x < done + halb ? 'halb' : '')}"></i>`).join('')}
           </span>
         </button>`;
       }).join('')}
@@ -2632,10 +2674,7 @@ function renderFocus() {
     ${anfaengerZeile(it)}
 
     <div class="focus-sets">
-      ${sets.map((s, idx) => `
-        <button type="button" class="set-btn focus-set ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
-                aria-label="${satzLabel(it, idx)}"${nachVerweis(it, idx)}
-                data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
+      ${satzKnoepfe(it, sets, 'set-btn focus-set')}
     </div>
     ${anderswo > 0 ? `<div class="small muted ex-anderswo">${anderswo === 1 ? 'Ein Satz' : `${anderswo} Sätze`}
       schon ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} gemacht – ${anderswo === 1 ? 'zählt' : 'zählen'} mit.</div>` : ''}
@@ -4559,11 +4598,7 @@ function renderDashboard() {
 
     // Satz-Knöpfe liegen bewusst außerhalb des aufklappbaren Bereichs: Abhaken
     // ist der eine Handgriff, der zwischen zwei Sätzen schnell gehen muss.
-    const setBtns = sets.map((s, idx) => `
-      <button type="button" class="set-btn ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
-              aria-label="${satzLabel(it, idx)}"${nachVerweis(it, idx)}
-              data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>
-    `).join('');
+    const setBtns = satzKnoepfe(it, sets, 'set-btn');
 
     // Gewichtszeile: ein Arbeitsgewicht je Übung, nicht je Satz. Die Erhöhung
     // gilt ab dem nächsten Mal, sobald heute schon ein Satz steht. Wie groß
@@ -6625,9 +6660,21 @@ function dauerLautFormel(items, mode) {
     const ex = EX_BY_ID.get(id);
     return (ex && ex[mode] && ex[mode].rest) || 120;
   };
-  const summe = items.reduce((a, it) => a + it.sets * (ARBEIT_JE_SATZ + pause(it.id)), 0);
+  const summe = items.reduce((a, it) => a + it.sets * (ARBEIT_JE_SATZ + pause(it.id)
+    + seitenZuschlag(it.id, mode, pause(it.id))), 0);
   // Die letzte Pause der Einheit fällt weg – danach ist man fertig.
   return summe - pause(items[items.length - 1].id);
+}
+
+/**
+ * Was ein Satz einer einseitigen Übung („je Bein") mehr kostet: die zweite
+ * Seite und die Pause zwischen beiden (seitenPause()). Bis v254 rechnete die
+ * Formel ihn wie einen beidseitigen – die zweite Seite war darin gar nicht
+ * vorgekommen.
+ */
+function seitenZuschlag(id, mode, pause) {
+  const ex = EX_BY_ID.get(id);
+  return ex && einseitig(ex[mode]) ? ARBEIT_JE_SATZ + seitenPause(pause) : 0;
 }
 
 /**
@@ -6700,7 +6747,8 @@ function fokusZeile(v) {
     const ex = EX_BY_ID.get(x.id);
     const pause = (ex && ex[modus] && ex[modus].rest) || 120;
     // Arbeit plus Pause nach jedem Satz; die letzte Pause der Einheit fällt weg.
-    return b + satzZahlIm(v.plan, w.n, x.id, roh(x), modus) * (ARBEIT_JE_SATZ + pause);
+    return b + satzZahlIm(v.plan, w.n, x.id, roh(x), modus)
+      * (ARBEIT_JE_SATZ + pause + seitenZuschlag(x.id, modus, pause));
   }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id)[modus].rest) || 0), 0);
   // Wer schon gemessen hat, bekommt seine eigene Zahl statt der Formel.
   const eich = zeitEichung();
@@ -8096,6 +8144,221 @@ function einheitStarten(n, wahl) {
   }
 }
 
+/**
+ * Einen Satz abhaken oder zurücknehmen – der Haken auf einem Satzknopf.
+ *
+ * Stand bis v254 direkt im Klick-Handler (toggle-set). Seit einseitige
+ * Übungen zwei Haken je Satz haben, kommt die zweite Seite hier an: Sie macht
+ * aus dem halben Satz einen ganzen, mit allem, was dazugehört – Pause,
+ * Supersatz, Weiterrücken, Abschluss. `extra` geht mit in den Eintrag (etwa
+ * `seite: null`, oder die Seite, die beim Zurücknehmen stehen bleibt).
+ */
+function satzUmschalten(n, mode, id, i, extra = null) {
+  // Vor dem Haken: Ab hier steht fest, was nachgeholt wird – erst der
+  // eingefügte Zusatztag, dann die Nacharbeit. Danach ist die Einheit
+  // angefangen, und der Zusatz hinge an nichts mehr (zusatzFesthalten()).
+  // Und vorher noch der Plan, falls früher trainiert wird (planVorziehen()).
+  // Was dabei vorher galt, bleibt gemerkt: Ein Fehltipp – Satz an und
+  // gleich wieder ab – soll den Plan nicht für immer um einen Tag
+  // vorziehen. Die Einheit ist danach ja auch nicht mehr angefangen.
+  const shiftVorher = store.getState().shift;
+  if (planVorziehen(n)) ui.vorgezogen = { n, shift: shiftVorher };
+  zusatzFesthalten(n);
+  nachFesthalten(n);
+  const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
+  if (!item) { render(); return; }
+  const cur = store.getSets(n, mode, id, item.sets, item.nach || 0)[i].done;
+  const variant = resolve(item, mode);
+  // Eine Übung, die über beide Modi fertig ist, bekommt keinen Satz mehr
+  // dazu. Nach dem Umschalten stehen ihre Knöpfe in diesem Modus leer da,
+  // und ein Tipp darauf buchte bis hierher einen Satz, der nie gemacht
+  // wurde: 3 Hantelsätze + 1 in der Statistik, und die App sprang mit
+  // „Weiter: …" davon. Zurücknehmen geht weiter – das ist ein Haken in
+  // diesem Modus, der wirklich dasteht.
+  if (!cur && saetzeErledigt(n, id, item.sets) >= item.sets) {
+    notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, abgelehnt: 'fertig' });
+    toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
+    return;
+  }
+  initAudio('satz'); // Berührung nutzen, solange der Browser Ton noch erlaubt
+  // Ein Haken überholt das „Pause vorbei", das seit dem Neuladen auf die
+  // erste Berührung wartet – auch einer, der stumm bleibt („Ton bei jedem
+  // Satz" aus, im Supersatz ohne Wartezeit weiter; tonUeberholt() in
+  // js/audio.js). Nur ein gesetzter: Wer als Erstes einen Haken
+  // zurücknimmt, ist mit dem nächsten Satz noch nicht weiter – der Gong
+  // kommt nach, wie bis v241.
+  if (!cur) tonUeberholt();
+
+  // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
+  // später der Vergleich "Zuletzt" und die Volumenrechnung.
+  const patch = { done: !cur, ...(extra || {}) };
+  if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
+  // Bleibt beim Zurücknehmen eine Seite stehen, bleibt ihr Gewicht mit.
+  else if (cur && !patch.seite) patch.w = '';
+  // Der Eintrag selbst kann die Uhr deckeln (store.eingetragen(): ein Satz
+  // nach drei Stunden Stille) – das soll das Protokoll so sehen wie jedes
+  // andere Anhalten.
+  const uhrVorSatz = store.getState().clock;
+  store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
+  uhrGedeckelt(uhrVorSatz, 'satz');
+  if (cur && ui.vorgezogen && ui.vorgezogen.n === n && !store.isStarted(n)) {
+    store.setShift(ui.vorgezogen.shift);
+    ui.vorgezogen = null;
+    pruefeZusatztag();
+  }
+
+  const done = !cur;
+  const workoutComplete = done && progressOf(n, mode).complete;
+  // Festhalten, dass dieser Tag trainiert wurde – nicht nur, dass alle
+  // Häkchen stehen. Der Unterschied fällt erst später auf: „Alle Häkchen"
+  // wird gegen die *heutige* Satzzahl gerechnet, und die hängt an der
+  // Erfahrungsstufe. Wer von Anfänger auf Geübt wechselt, hätte sonst
+  // rückwirkend aus 10/10 ein 10/15 gemacht und eine fertige Einheit in
+  // eine halbe verwandelt – samt Serie, Statistik und Rundenzählung.
+  if (workoutComplete) store.markDone(n, mode);
+
+  // Der letzte Satz beendet das Training. „Wenn man den letzten Satz
+  // abgehakt hat soll das training automatisch zuende sein ohne dass man
+  // das nochmal extra drücken muss." Stimmt: Der Knopf „Abschließen"
+  // trägt, wenn ohnehin alles steht, keine Entscheidung mehr – er ist eine
+  // Quittung für etwas, das man gerade selbst getan hat.
+  //
+  // Was er sonst noch auslöst, passiert deshalb hier mit: Uhr anhalten,
+  // Stand melden, Aufstieg und Zusatztag prüfen, sofort sichern – alles in
+  // einheitBeenden(), derselben Stelle wie beim Knopf. Sonst wäre
+  // „automatisch beendet" nur halb beendet.
+  if (workoutComplete && store.getState().session) {
+    notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, fertig: true });
+    const gestiegen = einheitBeenden();
+    sound('done');
+    render();
+    toast(gestiegen ? 'Neue Stufe – siehe oben ⬆️'
+      : `Training abgeschlossen – alle ${progressOf(n, mode).total} Sätze 🎉`);
+    return;
+  }
+  // Fertig ist eine Übung, wenn ihre Sätze stehen – gezählt über beide
+  // Modi, so wie die Karte und satzSteht() es tun. Bis v219 zählte hier
+  // nur der Eimer des aktuellen Modus, und nur der Haken auf dem letzten
+  // Satz: Wer mitten in der Einheit von Hanteln auf Körpergewicht
+  // umschaltete, stand mit Supersätzen nach dem letzten fehlenden Satz
+  // weiter bei der fertigen Übung, und es lief eine Pause „1/3“, statt
+  // dass es zum nächsten Paar ging.
+  const exDone = done && saetzeErledigt(n, id, item.sets) >= item.sets;
+
+  // Wann diese Übung zuletzt dran war – daraus rechnet der Supersatz die
+  // Wartezeit. Nur beim Setzen, nicht beim Wegnehmen: Ein zurückgenommener
+  // Haken macht die verstrichene Zeit nicht ungeschehen.
+  if (done) { satzUhr.set(id, Date.now()); satzPlus.delete(id); uhrMerken(); }
+
+  // Ab dem ersten Satz steht die Paarung für diese Einheit (superGruppen()).
+  if (done) paarungFesthalten(n, mode);
+
+  // Im Supersatz entscheidet der Wechsel, wohin es geht und wie lange
+  // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
+  const imWechsel = done && !workoutComplete && superWeiter(n, mode, id);
+  // Ein Haken fürs Diagnoseprotokoll: was danach kommt – nie das Gewicht.
+  // Der Satz ab 1 und „von", wie in der Pausen-Zeile daneben; die Einheit
+  // heißt `einheit`, nicht `n` – gefunden beim Gegenlesen: „satz n=1 … i=0"
+  // und gleich darauf „pause … satz=1" las sich wie zwei Sätze.
+  notieren('satz', {
+    einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, exFertig: exDone, fertig: workoutComplete,
+    super: !!imWechsel,
+    pause: !imWechsel && done && !workoutComplete && !exDone && i < item.sets - 1 ? restFor(variant) : 0,
+  });
+
+  if (!imWechsel) {
+    // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
+    // hierher wartete der Sprung auf die Antwort zu "Wie war das?" – die
+    // Frage gibt es nicht mehr, also gibt es auch nichts mehr abzuwarten.
+    if (ui.focus && exDone && !workoutComplete) weiterZurNaechsten(n, mode);
+  }
+  render();
+  // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
+  // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
+  if (imWechsel) {
+    // schon erledigt
+  } else if (done && !workoutComplete && !exDone && i < item.sets - 1) {
+    startRest(variant.name, i, item.sets, restFor(variant), id);
+  } else if (store.getState().rest) {
+    endRest(false);
+  }
+  // Der größte Anlass gewinnt: Workout fertig schlägt Übung fertig schlägt
+  // einzelnen Satz. Ein Haken, der wieder weggeht, bleibt still.
+  if (done) sound(workoutComplete ? 'done' : (exDone ? 'exercise' : 'set'));
+  if (workoutComplete) toast('Workout abgeschlossen 🎉');
+}
+
+/**
+ * Eine Seite eines einseitigen Satzes antippen („8–12 je Bein").
+ *
+ *     „Vllt sollten bei Übungen bei denen man mit beiden Körperteilen
+ *      unabhängig voneinander macht jedesmal abhaken oder? Also hier zb 6?"
+ *     „jede Seite brauch ihre eigenen Pausen"
+ *
+ * Vier Fälle, je nachdem, was am Satz schon steht:
+ *
+ *   nichts         diese Seite steht, und die Seitenpause läuft (seitenPause())
+ *   die andere     der Satz steht – weiter wie bei jedem Satz (satzUmschalten()):
+ *                  volle Pause, im Supersatz der Partner, nach dem letzten die
+ *                  nächste Übung
+ *   beide          diese Seite geht weg, der Satz ist wieder offen, die andere
+ *                  bleibt
+ *   nur diese      sie geht weg, der Satz ist wieder leer
+ *
+ * Welche Seite zuerst kommt, entscheidet, wer trainiert. Ein halber Satz zählt
+ * nirgends als Satz – nicht im Kopf, nicht in der Statistik, nicht in der
+ * Nacharbeit. Angefangen ist die Einheit mit ihm trotzdem, wie mit dem ersten
+ * Haken: Plan, Zusatztag und Nacharbeit stehen ab da fest.
+ */
+function seiteAntippen(n, mode, id, i, seite) {
+  const andere = seite === 'l' ? 'r' : 'l';
+  const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
+  if (!item) { render(); return; }
+  const s = store.getSets(n, mode, id, item.sets, item.nach || 0)[i];
+  if (!s) { render(); return; }
+  if (s.done) { satzUmschalten(n, mode, id, i, { seite: andere }); return; }
+  if (s.seite === andere) { satzUmschalten(n, mode, id, i, { seite: null }); return; }
+  const setzen = s.seite !== seite;
+  const variant = resolve(item, mode);
+  if (setzen) {
+    // Wie vor jedem Haken (satzUmschalten()): erst der Plan, dann der
+    // Zusatztag, dann die Nacharbeit.
+    const shiftVorher = store.getState().shift;
+    if (planVorziehen(n)) ui.vorgezogen = { n, shift: shiftVorher };
+    zusatzFesthalten(n);
+    nachFesthalten(n);
+    if (saetzeErledigt(n, id, item.sets) >= item.sets) {
+      notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, seite, abgelehnt: 'fertig' });
+      toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
+      return;
+    }
+    initAudio('satz');
+    tonUeberholt();
+  }
+  const patch = { seite: setzen ? seite : null };
+  if (setzen && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
+  else if (!setzen) patch.w = '';
+  const uhrVorSatz = store.getState().clock;
+  store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
+  uhrGedeckelt(uhrVorSatz, 'satz');
+  if (!setzen && ui.vorgezogen && ui.vorgezogen.n === n && !store.isStarted(n)) {
+    store.setShift(ui.vorgezogen.shift);
+    ui.vorgezogen = null;
+    pruefeZusatztag();
+  }
+  // Ab dem ersten Eintrag steht die Paarung – auch wenn er eine halbe ist.
+  if (setzen) paarungFesthalten(n, mode);
+  const pause = setzen ? seitenPause(restFor(variant)) : 0;
+  notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, seite, done: setzen, halb: true, pause });
+  render();
+  if (setzen) {
+    startRest(variant.name, i, item.sets, pause, id, { seite: andere });
+    sound('set');
+  } else if (store.getState().rest && store.getState().rest.ex === id) {
+    endRest(false);
+  }
+}
+
 view.addEventListener('click', (e) => {
   const t = e.target.closest('[data-act]');
   if (!t) return;
@@ -8203,139 +8466,11 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'toggle-set': {
-      const id = t.dataset.ex;
-      const i = Number(t.dataset.i);
-      // Vor dem Haken: Ab hier steht fest, was nachgeholt wird – erst der
-      // eingefügte Zusatztag, dann die Nacharbeit. Danach ist die Einheit
-      // angefangen, und der Zusatz hinge an nichts mehr (zusatzFesthalten()).
-      // Und vorher noch der Plan, falls früher trainiert wird (planVorziehen()).
-      // Was dabei vorher galt, bleibt gemerkt: Ein Fehltipp – Satz an und
-      // gleich wieder ab – soll den Plan nicht für immer um einen Tag
-      // vorziehen. Die Einheit ist danach ja auch nicht mehr angefangen.
-      const shiftVorher = store.getState().shift;
-      if (planVorziehen(n)) ui.vorgezogen = { n, shift: shiftVorher };
-      zusatzFesthalten(n);
-      nachFesthalten(n);
-      const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
-      if (!item) { render(); break; }
-      const cur = store.getSets(n, mode, id, item.sets, item.nach || 0)[i].done;
-      const variant = resolve(item, mode);
-      // Eine Übung, die über beide Modi fertig ist, bekommt keinen Satz mehr
-      // dazu. Nach dem Umschalten stehen ihre Knöpfe in diesem Modus leer da,
-      // und ein Tipp darauf buchte bis hierher einen Satz, der nie gemacht
-      // wurde: 3 Hantelsätze + 1 in der Statistik, und die App sprang mit
-      // „Weiter: …" davon. Zurücknehmen geht weiter – das ist ein Haken in
-      // diesem Modus, der wirklich dasteht.
-      if (!cur && saetzeErledigt(n, id, item.sets) >= item.sets) {
-        notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, abgelehnt: 'fertig' });
-        toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
-        break;
-      }
-      initAudio('satz'); // Berührung nutzen, solange der Browser Ton noch erlaubt
-      // Ein Haken überholt das „Pause vorbei", das seit dem Neuladen auf die
-      // erste Berührung wartet – auch einer, der stumm bleibt („Ton bei jedem
-      // Satz" aus, im Supersatz ohne Wartezeit weiter; tonUeberholt() in
-      // js/audio.js). Nur ein gesetzter: Wer als Erstes einen Haken
-      // zurücknimmt, ist mit dem nächsten Satz noch nicht weiter – der Gong
-      // kommt nach, wie bis v241.
-      if (!cur) tonUeberholt();
-
-      // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
-      // später der Vergleich "Zuletzt" und die Volumenrechnung.
-      const patch = { done: !cur };
-      if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
-      else if (cur) patch.w = '';
-      // Der Eintrag selbst kann die Uhr deckeln (store.eingetragen(): ein Satz
-      // nach drei Stunden Stille) – das soll das Protokoll so sehen wie jedes
-      // andere Anhalten.
-      const uhrVorSatz = store.getState().clock;
-      store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
-      uhrGedeckelt(uhrVorSatz, 'satz');
-      if (cur && ui.vorgezogen && ui.vorgezogen.n === n && !store.isStarted(n)) {
-        store.setShift(ui.vorgezogen.shift);
-        ui.vorgezogen = null;
-        pruefeZusatztag();
-      }
-
-      const done = !cur;
-      const workoutComplete = done && progressOf(n, mode).complete;
-      // Festhalten, dass dieser Tag trainiert wurde – nicht nur, dass alle
-      // Häkchen stehen. Der Unterschied fällt erst später auf: „Alle Häkchen"
-      // wird gegen die *heutige* Satzzahl gerechnet, und die hängt an der
-      // Erfahrungsstufe. Wer von Anfänger auf Geübt wechselt, hätte sonst
-      // rückwirkend aus 10/10 ein 10/15 gemacht und eine fertige Einheit in
-      // eine halbe verwandelt – samt Serie, Statistik und Rundenzählung.
-      if (workoutComplete) store.markDone(n, mode);
-
-      // Der letzte Satz beendet das Training. „Wenn man den letzten Satz
-      // abgehakt hat soll das training automatisch zuende sein ohne dass man
-      // das nochmal extra drücken muss." Stimmt: Der Knopf „Abschließen"
-      // trägt, wenn ohnehin alles steht, keine Entscheidung mehr – er ist eine
-      // Quittung für etwas, das man gerade selbst getan hat.
-      //
-      // Was er sonst noch auslöst, passiert deshalb hier mit: Uhr anhalten,
-      // Stand melden, Aufstieg und Zusatztag prüfen, sofort sichern – alles in
-      // einheitBeenden(), derselben Stelle wie beim Knopf. Sonst wäre
-      // „automatisch beendet" nur halb beendet.
-      if (workoutComplete && store.getState().session) {
-        notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, fertig: true });
-        const gestiegen = einheitBeenden();
-        sound('done');
-        render();
-        toast(gestiegen ? 'Neue Stufe – siehe oben ⬆️'
-          : `Training abgeschlossen – alle ${progressOf(n, mode).total} Sätze 🎉`);
-        break;
-      }
-      // Fertig ist eine Übung, wenn ihre Sätze stehen – gezählt über beide
-      // Modi, so wie die Karte und satzSteht() es tun. Bis v219 zählte hier
-      // nur der Eimer des aktuellen Modus, und nur der Haken auf dem letzten
-      // Satz: Wer mitten in der Einheit von Hanteln auf Körpergewicht
-      // umschaltete, stand mit Supersätzen nach dem letzten fehlenden Satz
-      // weiter bei der fertigen Übung, und es lief eine Pause „1/3“, statt
-      // dass es zum nächsten Paar ging.
-      const exDone = done && saetzeErledigt(n, id, item.sets) >= item.sets;
-
-      // Wann diese Übung zuletzt dran war – daraus rechnet der Supersatz die
-      // Wartezeit. Nur beim Setzen, nicht beim Wegnehmen: Ein zurückgenommener
-      // Haken macht die verstrichene Zeit nicht ungeschehen.
-      if (done) { satzUhr.set(id, Date.now()); satzPlus.delete(id); uhrMerken(); }
-
-      // Ab dem ersten Satz steht die Paarung für diese Einheit (superGruppen()).
-      if (done) paarungFesthalten(n, mode);
-
-      // Im Supersatz entscheidet der Wechsel, wohin es geht und wie lange
-      // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
-      const imWechsel = done && !workoutComplete && superWeiter(n, mode, id);
-      // Ein Haken fürs Diagnoseprotokoll: was danach kommt – nie das Gewicht.
-      // Der Satz ab 1 und „von", wie in der Pausen-Zeile daneben; die Einheit
-      // heißt `einheit`, nicht `n` – gefunden beim Gegenlesen: „satz n=1 … i=0"
-      // und gleich darauf „pause … satz=1" las sich wie zwei Sätze.
-      notieren('satz', {
-        einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, exFertig: exDone, fertig: workoutComplete,
-        super: !!imWechsel,
-        pause: !imWechsel && done && !workoutComplete && !exDone && i < item.sets - 1 ? restFor(variant) : 0,
-      });
-
-      if (!imWechsel) {
-        // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
-        // hierher wartete der Sprung auf die Antwort zu "Wie war das?" – die
-        // Frage gibt es nicht mehr, also gibt es auch nichts mehr abzuwarten.
-        if (ui.focus && exDone && !workoutComplete) weiterZurNaechsten(n, mode);
-      }
-      render();
-      // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
-      // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
-      if (imWechsel) {
-        // schon erledigt
-      } else if (done && !workoutComplete && !exDone && i < item.sets - 1) {
-        startRest(variant.name, i, item.sets, restFor(variant), id);
-      } else if (store.getState().rest) {
-        endRest(false);
-      }
-      // Der größte Anlass gewinnt: Workout fertig schlägt Übung fertig schlägt
-      // einzelnen Satz. Ein Haken, der wieder weggeht, bleibt still.
-      if (done) sound(workoutComplete ? 'done' : (exDone ? 'exercise' : 'set'));
-      if (workoutComplete) toast('Workout abgeschlossen 🎉');
+      satzUmschalten(n, mode, t.dataset.ex, Number(t.dataset.i));
+      break;
+    }
+    case 'toggle-side': {
+      seiteAntippen(n, mode, t.dataset.ex, Number(t.dataset.i), t.dataset.seite === 'r' ? 'r' : 'l');
       break;
     }
     case 'reps-step': {

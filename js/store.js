@@ -188,6 +188,10 @@ const DEFAULT_STATE = {
   //   wie  'unter' | 'drin' | 'oben' – wo im Wiederholungsbereich der Satz
   //        lag, falls beantwortet. Fehlt, wenn die Frage übergangen wurde;
   //        das ist der Normalfall und kostet nichts.
+  //   seite 'l' | 'r' – bei einer einseitigen Übung („je Bein") die Seite,
+  //        die schon steht, solange die andere fehlt. Mit der zweiten wird
+  //        der Satz `done`, und `seite` geht weg (updateSet()). Ein halber
+  //        Satz zählt nirgends als Satz, aber als angefangen.
   // Je Einheit, neben mode und startedOn:
   //   soll    Satzzahl je Übung an diesem Tag, beim ersten Anzeigen festgehalten
   //   nach    wie viele Sätze davon Nacharbeit waren, je Übung (merkeNach())
@@ -779,7 +783,7 @@ export function getSets(n, mode, exId, setCount, nach) {
   // eine Einstellung darf keine Trainingsgeschichte wegräumen.
   // `r` steht in alten Ständen noch drin und darf einen Satz nicht am Leben
   // halten: geprüft wird auf leer im Sinne von "nichts eingetragen".
-  const leer = (x) => !x.done && !x.w && !x.wie;
+  const leer = (x) => !x.done && !x.w && !x.wie && !x.seite;
   while (arr.length > setCount && leer(arr[arr.length - 1])) arr.pop();
   return arr;
 }
@@ -789,7 +793,7 @@ export function isStarted(n) {
   const e = state.log[n];
   if (!e) return false;
   return ['db', 'bw'].some((m) => Object.values(e[m] || {}).some(
-    (arr) => Array.isArray(arr) && arr.some((s) => s.done || !!s.w || !!s.wie),
+    (arr) => Array.isArray(arr) && arr.some((s) => s.done || !!s.w || !!s.wie || !!s.seite),
   ));
 }
 
@@ -1216,7 +1220,14 @@ export function peekSets(n, mode, exId) {
 export function updateSet(n, mode, exId, setCount, index, patch, nach) {
   const war = isStarted(n);
   const arr = getSets(n, mode, exId, setCount, nach);
+  const halbVorher = !!arr[index].done || !!arr[index].seite;
   Object.assign(arr[index], patch);
+  // Eine Seite steht nur, solange der Satz nicht ganz steht – `seite: null`
+  // nimmt sie weg, `done` macht sie überflüssig.
+  if (arr[index].done || !arr[index].seite) delete arr[index].seite;
+  // Neu abgehakt ist auch die erste Seite eines Satzes – nicht aber die, die
+  // stehen bleibt, wenn man bei einem fertigen Satz die andere zurücknimmt.
+  const gehakt = !!(patch && patch.done) || (!!arr[index].seite && !halbVorher);
   const e = ensure(n);
   // Beim Antippen zählt, was gerade auf dem Bildschirm steht: Wer die Stufe
   // mitten in einer Einheit wechselt, trainiert ab da die neue Satzzahl.
@@ -1228,7 +1239,7 @@ export function updateSet(n, mode, exId, setCount, index, patch, nach) {
   if (nach === undefined) { if (e.nach) delete e.nach[exId]; } else merkeNach(e, exId, nach);
   e.mode = mode;
   syncStartedOn(n);
-  eingetragen(n, war, !!(patch && patch.done));
+  eingetragen(n, war, gehakt);
   persist();
   emit();
 }
@@ -1358,7 +1369,7 @@ export function completeWorkout(n, mode, exList) {
     const arr = getSets(n, mode, item.id, item.sets, item.nach || 0);
     // `w` mitschreiben, sonst fehlt der Eintrag später überall dort, wo das
     // Gewicht zählt: in der Verlaufskurve und in der Steigerungsserie.
-    arr.forEach((s) => { s.done = true; if (item.w && s.w === '') s.w = item.w; });
+    arr.forEach((s) => { s.done = true; delete s.seite; if (item.w && s.w === '') s.w = item.w; });
   });
   syncStartedOn(n);
   eingetragen(n, war, true);

@@ -27,6 +27,7 @@
  * Zeitumstellung falsch wäre.
  */
 import { pad } from './dates.js';
+import { einseitig, seitenPause } from './uebung.js';
 
 const NL = '\r\n';
 
@@ -86,7 +87,9 @@ function nowUTC() {
  * Sekunden versprechen.
  */
 export function duration(items) {
-  const secs = items.reduce((a, it) => a + it.sets * 45 + (it.sets - 1) * (it.rest || 90) + 45, 0);
+  const secs = items.reduce((a, it) => a + it.sets * 45 + (it.sets - 1) * (it.rest || 90) + 45
+    // Einseitig („je Bein"): je Satz die zweite Seite und die Pause dazwischen.
+    + (einseitig(it) ? it.sets * (45 + seitenPause(it.rest || 90)) : 0), 0);
   return Math.max(30, Math.ceil(secs / 60 / 5) * 5);
 }
 

@@ -325,7 +325,7 @@ function vorherPlan(fokus, stand) {
  * reparieren gibt – repariert werden nur die unvermerkten Listen von v215.
  */
 function festeListen(log, grundModus, vorher = null, protokollStand = '') {
-  const aktiv = (x) => x && (x.done || x.w || x.wie);
+  const aktiv = (x) => x && (x.done || x.w || x.wie || x.seite);
   const out = {};
   const ausPlan = {};
   Object.entries(log).forEach(([n, e]) => {

@@ -33,6 +33,7 @@ const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { 
  */
 const protokoll = (n, faktor) => page.evaluate(async ([anzahl, f]) => {
   const { PLAN, EXERCISES } = await import('./js/data.js');
+  const { einseitig, seitenPause } = await import('./js/uebung.js');
   const byId = new Map(EXERCISES.map((e) => [e.id, e]));
   const log = {};
   PLAN.slice(0, anzahl).forEach((w) => {
@@ -41,7 +42,8 @@ const protokoll = (n, faktor) => page.evaluate(async ([anzahl, f]) => {
     w.ex.forEach((it, i) => {
       e.db[it.id] = Array.from({ length: it.sets }, () => ({ w: '20', r: '', done: true }));
       const pause = byId.get(it.id).db.rest || 120;
-      formel += it.sets * (40 + pause);
+      // Einseitig („je Bein", seit v255): je Satz die zweite Seite und die Seitenpause.
+      formel += it.sets * (40 + pause + (einseitig(byId.get(it.id).db) ? 40 + seitenPause(pause) : 0));
       if (i === w.ex.length - 1) formel -= pause;
     });
     e.secs = Math.round(formel * f);
