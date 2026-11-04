@@ -185,6 +185,29 @@ const abweichend = pausen.filter((p) => p.rest !== (AUSNAHMEN[p.k] ?? regel(p)))
 check(abweichend.length === 0,
   `jede Pause folgt der Regel oder einer benannten Ausnahme${abweichend.length ? ': ' + abweichend.join(', ') : ''}`);
 
+// --- Beide zugleich oder je Bein -------------------------------------------
+//
+// „Vllt sollten bei Übungen bei denen man mit beiden Körperteilen unabhängig
+// voneinander macht jedesmal abhaken oder? Also hier zb 6?" – gefragt beim
+// Sliding Leg Curl. Dort arbeiten beide Beine zugleich, aber „Fersen auf je
+// einem Handtuch" las sich wie ein Bein nach dem anderen, und drei Haken sahen
+// dann nach drei Sätzen für ein Bein aus. Ein Haken ist ein Satz: Wo „je Bein"
+// steht, kommt er nach beiden Seiten; sonst arbeiten beide Seiten zugleich, und
+// wo jede Seite ihr eigenes Handtuch hat, sagt der Hinweis das ausdrücklich.
+const seiten = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  return EXERCISES.flatMap((e) => ['db', 'bw'].map((m) => ({
+    k: `${e.id}.${m}`, name: e[m].name, reps: e[m].reps || '', cue: e[m].cue || '' })));
+});
+const jeSeite = (s) => /je (Bein|Arm|Seite)/.test(s.reps);
+const ohneJe = seiten.filter((s) => /^einbeinig|^einarmig/i.test(s.name) && !jeSeite(s)).map((s) => s.k);
+check(ohneJe.length === 0,
+  `einseitig im Namen heißt „je Bein" bei den Wiederholungen${ohneJe.length ? ': ' + ohneJe.join(', ') : ''}`);
+const handtuch = seiten.filter((s) => !jeSeite(s) && /auf je einem Handtuch/.test(s.cue));
+const unklar = handtuch.filter((s) => !/beide \S+ zugleich/.test(s.cue)).map((s) => s.k);
+check(handtuch.some((s) => s.k === 'sliding-leg-curl.db') && unklar.length === 0,
+  `ein Handtuch je Ferse, aber beide zugleich – so steht es im Hinweis${unklar.length ? ': fehlt bei ' + unklar.join(', ') : ''}`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs[0] : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

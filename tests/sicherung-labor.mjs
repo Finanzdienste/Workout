@@ -216,10 +216,20 @@ export function labor(browser) {
    * Bewegungsbilder mit (requestAnimationFrame, 60 je Sekunde), und zwei Minuten
    * Drossel kosteten so eine halbe Minute echte Zeit. fastForward springt und
    * löst jeden fälligen Zeitgeber einmal aus – genau das, was hier zählt.
+   *
+   * Die Laboruhr geht *vor* dem Sprung vor. Was die fälligen Zeitgeber
+   * hinausschicken, sieht damit dieselbe Zeit wie das Gerät, das nach dem
+   * Sprung auf der Endzeit steht – egal, ob die Anfrage den Server vor oder
+   * nach dem Ende von fastForward erreicht. Umgekehrt hing das an der
+   * Reihenfolge im Ereignis-Takt: Lokal kam die Anfrage danach, in CI oft
+   * davor, und dann sah der Server nach einer gedrosselten Sicherung und acht
+   * Sekunden Sprung nur drei vergangene Sekunden statt elf – „zu oft", seit
+   * Wochen in jedem CI-Lauf. Nachgestellt mit einer Pause zwischen Sprung und
+   * Laboruhr: alt rot wie in CI, so grün.
    */
   lab.warte = async (page, ms) => {
-    if (ms) await page.clock.fastForward(ms);
     lab.uhr += ms;
+    if (ms) await page.clock.fastForward(ms);
     await page.waitForTimeout(350);
     await page.clock.fastForward(1);
     await page.waitForTimeout(150);

@@ -141,7 +141,7 @@ export const EXERCISES = [
       "name": "Sliding Leg Curl",
       "reps": "8–15",
       "equip": "Handtuch, glatter Boden",
-      "cue": "Rücken am Boden, Fersen auf je einem Handtuch, glatter Boden. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
+      "cue": "Rücken am Boden, Fersen auf je einem Handtuch, glatter Boden. Hüfte oben halten und beide Fersen zugleich langsam wegschieben, dann kontrolliert heranziehen – einmal hin und zurück mit beiden Beinen ist eine Wiederholung. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
       "rest": 120,
       "pattern": "legcurl",
       "shares": {
@@ -163,7 +163,7 @@ export const EXERCISES = [
       "name": "Sliding Leg Curl",
       "reps": "8–15",
       "equip": "Handtuch, glatter Boden",
-      "cue": "Rücken am Boden, Fersen auf je einem Handtuch. Hüfte oben halten und die Fersen langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken, etwa drei Sekunden. Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+      "cue": "Rücken am Boden, Fersen auf je einem Handtuch. Hüfte oben halten und beide Fersen zugleich langsam wegschieben, dann kontrolliert heranziehen – einmal hin und zurück mit beiden Beinen ist eine Wiederholung. Die Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken, etwa drei Sekunden. Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
       "rest": 120,
       "pattern": "legcurl",
       "shares": {

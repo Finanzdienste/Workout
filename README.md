@@ -4167,7 +4167,12 @@ beiden es war.
 `tools/pruefung/plan-frisch.py` eine geänderte Eingabe. Neu gerechnet wurde
 nicht: `tools/build-plan.py` nimmt nur Übungen ohne `nurErsatz` in die Pläne,
 diese kann also keinen ändern. So steht es unter `hingenommen` in
-`tools/pruefung/plan-eingaben.json`, je Plan, mit Grund.
+`tools/pruefung/plan-eingaben.json`, je Plan, mit Grund. Und für
+`tools/pruefung/plan-pruefen.py` ist eine Übung ohne Sätze, die der
+Vergleichsstand nicht kennt, eine, die „neuerdings ganz aus dem Plan fällt" –
+`tools/pruefung/befunde.json` führt sie deshalb unter `ohne_saetze`, in allen
+acht Plan-Modus-Paaren. Das fehlte bis v253 und fiel erst in CI auf (siehe
+*Vor dem Commit und vor dem Push*).
 
 Geprüft in `tests/test-beckenheben-langhantel.mjs`: Katalog und Texte; in keinem
 Plan; der Ersatz in allen acht Cut-Einheiten mit Hip Thrust, Satz für Satz;
@@ -4909,6 +4914,16 @@ letzte Haken mit sofortigem Weglegen; *Abschließen* drei Sekunden nach einer
 gedrosselten Sicherung; der nachgezogene SQL-Block ohne Neustart; und der Satz
 unter *Mehr*, der die IP-Adresse nennt.
 
+**Seit dem 25.10. war der Fall *Abschließen* in CI rot, lokal grün** – „zu oft"
+vom nachgebildeten Server. Es lag am Labor, nicht an der App: `lab.warte()`
+sprang mit der Uhr des Geräts vor und stellte erst danach die Laboruhr nach.
+Was die fälligen Zeitgeber beim Sprung hinausschickten, kam lokal nach dem
+Nachstellen an, auf dem neuen CI-Abbild oft davor – dann sah der Server nach
+der gedrosselten Sicherung und acht Sekunden Sprung drei Sekunden statt elf.
+Seit v254 geht die Laboruhr zuerst vor (`tests/sicherung-labor.mjs`).
+Nachgestellt mit einer Pause zwischen Sprung und Laboruhr: so rot wie in CI,
+mit der neuen Reihenfolge grün.
+
 ### Die Ablage liegt nicht mehr im Weg jedes abgehakten Satzes
 
 Gespeichert wird bei **jeder** Änderung der ganze Zustand — also auch bei jedem
@@ -5410,7 +5425,8 @@ Zwei Stufen, damit „lokal grün" dasselbe heißt wie „in CI grün":
 
 - **Bei jedem Commit** läuft `.githooks/pre-commit` (unter zehn Sekunden): Bau
   von `js/data.js` und `dist/workout.html` samt Prüfung, ob sie aus den jetzigen
-  Quellen stammen, dazu Linter und Schichten. Aktiviert wird der Hook über
+  Quellen stammen, dazu Linter und alle Tore aus CI (`tools/pruefung/tore.sh`,
+  zusammen unter einer Sekunde). Aktiviert wird der Hook über
   `prepare` in `package.json`, also bei jedem `npm ci` von selbst.
 - **Vor dem Push** `npm run pruefen`: genau die Schritte aus
   `.github/workflows/pruefung.yml`, in derselben Reihenfolge, inklusive aller
@@ -5423,6 +5439,15 @@ und ließ die alte Datei liegen. Der letzte Fall ist der tückische: Ein Verglei
 „vorher gleich nachher" meldete *stabil*, weil beide Läufe am selben Fehler
 scheiterten. `tools/pruefung/erzeugt.sh` prüft deshalb zuerst den Rückgabewert
 des Baus und erst dann den Vergleich.
+
+**Bis v253 lief im Haken nur ein Teil der Tore** (Schichten, Version, Plan
+davor). Das Beckenheben mit Langhantel aus v252 steht in keinem Plan, wie
+gewollt – `plan-pruefen.py` meldete es trotzdem achtmal als „fällt neuerdings
+ganz aus dem Plan", weil der Vergleichsstand in `tools/pruefung/befunde.json`
+die Übung noch nicht kannte. Bemerkt hat das erst CI, zwei Fassungen später.
+Seit v254 steht die Liste der Tore an einer Stelle, `tools/pruefung/tore.sh`,
+und Haken wie `npm run pruefen` rufen sie auf; die acht Zeilen in
+`befunde.json` sind nachgetragen.
 
 ### Der Linter
 
@@ -8207,6 +8232,20 @@ oder einen Schrägstrich enthält.
 `GERAET_AUS_TEXT` kennt nur noch „Ohne Gerät" (und die Bücherstapel, die etwas
 sagen); eine andere Schreibweise bricht den Bau ab, und `tests/test-katalog.mjs`
 prüft es an `js/data.js`.
+
+**Beide zugleich oder je Bein (v254).** *„Vllt sollten bei Übungen bei denen
+man mit beiden Körperteilen unabhängig voneinander macht jedesmal abhaken
+oder? Also hier zb 6?"* – gefragt beim Sliding Leg Curl. Dort arbeiten beide
+Beine zugleich, aber „Fersen auf je einem Handtuch" las sich wie ein Bein nach
+dem anderen, und drei Haken sahen dann nach drei Sätzen für ein Bein aus. Der
+Hinweis sagt es jetzt in beiden Fassungen: „beide Fersen zugleich … – einmal
+hin und zurück mit beiden Beinen ist eine Wiederholung". Wo eine Übung
+wirklich einseitig ist, steht „je Bein" bei den Wiederholungen, und ein Haken
+ist weiter ein Satz, gesetzt nach beiden Seiten – mit ihm beginnt die Pause,
+die erst danach fällig ist. `tests/test-katalog.mjs` prüft beides: Wer im
+Namen einbeinig oder einarmig ist, hat „je Bein" (oder „je Arm") bei den
+Wiederholungen, und ein Handtuch je Ferse ohne „je Bein" heißt im Hinweis
+„beide … zugleich" – das Zweite gegen v253 rot.
 
 ### Hochnehmen und ablegen
 
