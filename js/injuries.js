@@ -257,7 +257,8 @@ export const INJURIES = [
     // sie in beiden Modi stehen, und die App schlug mit frischem Bruch eine
     // 40-kg-Langhantel vor.
     avoidDb: ['rumaenisches-kreuzheben', 'einbeiniges-kreuzheben', 'hip-thrust',
-      'beckenheben', 'wadenheben-gebeugtes-knie', 'einbeiniges-stehendes-wadenheben'],
+      'langhantel-beckenheben', 'beckenheben', 'wadenheben-gebeugtes-knie',
+      'einbeiniges-stehendes-wadenheben'],
   },
   {
     id: 'daumen-sehnenscheide',
@@ -395,15 +396,18 @@ export const INJURIES = [
     area: 'Becken', spot: 'pelvis', kind: 'blockade',
     text: 'Das Kreuz-Darmbein-Gelenk sitzt fest, der Schmerz sitzt tief seitlich über '
       + 'dem Gesäß. Einbeinige Belastung und kräftige Hüftstreckung reizen es.',
-    avoid: ['hip-thrust', 'einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
-      'rumaenisches-kreuzheben',
+    avoid: ['hip-thrust', 'langhantel-beckenheben', 'einbeiniger-sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben', 'rumaenisches-kreuzheben',
       'einbeiniges-kreuzheben'
     ],
     // Das Beckenheben bleibt drin – es steht drei Zeilen tiefer als Übung zum
     // Kräftigen. Eine Regel, die dieselbe Bewegung zugleich verbietet und
     // empfiehlt, wäre keine Vorsicht, sondern ein Widerspruch: Der Unterschied
     // zum Hip Thrust ist die Last und der halbe Weg, und genau der ist gemeint.
-    swap: { 'hip-thrust': 'beckenheben', 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+    // Das Beckenheben mit Langhantel hat den halben Weg, aber die volle Last –
+    // es fällt deshalb mit dem Hip Thrust und wird zu dem mit der Scheibe.
+    swap: { 'hip-thrust': 'beckenheben', 'langhantel-beckenheben': 'beckenheben',
+      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['vogelhund', 'piriformis', 'glutebridge', 'huefte9090'],
   },
@@ -452,7 +456,7 @@ export const INJURIES = [
       + 'Bauchpresse vergrößert sie – schwere Übungen im Stand und alles mit '
       + 'angehaltenem Atem fallen weg, bis das operiert ist.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'gewichtete-crunches',
-      'hip-thrust', 'beckenheben', 'einarmiges-kh-rudern',
+      'hip-thrust', 'langhantel-beckenheben', 'beckenheben', 'einarmiges-kh-rudern',
       'split-squat', 'rumaenisches-kreuzheben',
       'inverted-row', 'einbeiniges-kreuzheben', 'reverse-snow-angel',
       'rucksack-rudern'],
@@ -568,12 +572,13 @@ export const INJURIES = [
       + 'in der Länge – genau das, was der Sliding Leg Curl macht – ist am '
       + 'empfindlichsten.',
     avoid: ['sliding-leg-curl', 'einbeiniger-sliding-leg-curl', 'hip-thrust',
-      'rumaenisches-kreuzheben',
+      'langhantel-beckenheben', 'rumaenisches-kreuzheben',
       'einbeiniges-kreuzheben'
     ],
     // Auch hier steht das Beckenheben unten bei den Übungen zum Kräftigen –
-    // siehe ISG-Blockade. Es ersetzt den Hip Thrust, statt zu verschwinden.
-    swap: { 'hip-thrust': 'beckenheben' },
+    // siehe ISG-Blockade. Es ersetzt den Hip Thrust, statt zu verschwinden,
+    // und ebenso das Beckenheben mit Langhantel: dieselbe Last, derselbe Zug.
+    swap: { 'hip-thrust': 'beckenheben', 'langhantel-beckenheben': 'beckenheben' },
     care: ['beinbeugerIso', 'beinbeugerDehnen', 'glutebridge'],
   },
   {

@@ -1348,7 +1348,12 @@ export const EXERCISES = [
     "detail": [
       [
         "Aufbau",
-        "Das Sofa muss an der Wand stehen, sonst wandert es beim ersten Satz weg. Ein Stuhl kippt nach hinten, sobald die Hüfte hochdrückt; das Sofa steht, seine Kante ist gepolstert, und die Sitzhöhe von 40 bis 45 cm ist genau die, bei der die Oberschenkel oben waagerecht stehen. Die Kante liegt unter den Schulterblättern, nicht im Nacken. Füße so weit vorn, dass die Schienbeine oben senkrecht stehen – zu nah, und es wird eine Quadrizepsübung; zu weit, und der Beinbeuger krampft."
+        "Das Sofa muss an der Wand stehen, sonst wandert es beim ersten Satz weg. Ein frei stehender Stuhl kippt nach hinten, sobald die Hüfte hochdrückt; das Sofa steht, seine Kante ist gepolstert, und die Sitzhöhe von 40 bis 45 cm ist genau die, bei der die Oberschenkel oben waagerecht stehen. Die Kante liegt unter den Schulterblättern, nicht im Nacken. Füße so weit vorn, dass die Schienbeine oben senkrecht stehen – zu nah, und es wird eine Quadrizepsübung; zu weit, und der Beinbeuger krampft."
+      ],
+      [
+        "Kein Platz für die Stange",
+        "Die Stange ist länger als jedes Sofa breit. Steht es in einer Nische, schlägt sie links oder rechts an die Wand. Dann geht ein stabiler Stuhl ohne Rollen, die Lehne fest an einer freien Wand, links und rechts je gut ein Meter Platz: Beim Hochdrücken wird er gegen die Wand geschoben und kann nicht kippen. Ein gefaltetes Handtuch auf die Sitzkante. Geht auch das nicht, unter Mehr → Übungen den Hip Thrust ausschalten – dann tritt das Beckenheben mit Langhantel an seine Stelle, vom Boden aus, mit derselben Stange und demselben Gewicht.",
+        "db"
       ],
       [
         "Polster",
@@ -3073,6 +3078,94 @@ export const EXERCISES = [
       },
       "muscles": [
         "triceps"
+      ],
+      "stufen": {},
+      "braucht": []
+    }
+  },
+  {
+    "id": "langhantel-beckenheben",
+    "group": "Gesäß",
+    "weight": 40,
+    "step": 5,
+    "weightNote": "Stange gesamt",
+    "equip": "hipbar",
+    "tier": 1,
+    "detail": [
+      [
+        "Wozu, wenn es den Hip Thrust gibt",
+        "Für eine Wohnung, in der die Stange am Sofa nicht passt. Der Hip Thrust braucht eine Kante an der Wand und links und rechts so viel Platz, wie die Stange lang ist – steht das Sofa in einer Nische, schlägt sie an die Wand. Am Boden liegt sie dort, wo du auch sonst mit ihr trainierst. Der Weg ist kürzer als beim Hip Thrust, die Last bleibt: dieselbe Stange, dasselbe Gewicht. Im Plan steht die Übung nicht; sie springt ein, wenn der Hip Thrust unter Mehr → Übungen ausgeschaltet ist.",
+        "db"
+      ],
+      [
+        "Polster",
+        "Ein dick gefaltetes Handtuch, mehrmals gelegt. Ohne ist bei 40 kg der Hüftknochen die Grenze, nicht das Gesäß – du hörst dann früher auf, als du müsstest.",
+        "db"
+      ],
+      [
+        "Die Fersen nah",
+        "Je weiter die Füße vorn stehen, desto mehr zieht die Oberschenkelrückseite und desto weniger arbeitet das Gesäß. Fersen dicht ans Gesäß, Schienbeine oben etwa senkrecht – dann kommt der Zug von hinten oben."
+      ],
+      [
+        "Oben ist die Arbeit",
+        "Ein bis zwei Sekunden halten, Gesäß fest, Rippen unten. Der Körper bildet oben eine Linie von Knie bis Schulter; weiter ins Hohlkreuz zu drücken sieht nach mehr aus, kommt aber aus dem unteren Rücken."
+      ],
+      [
+        "Typische Fehler",
+        "Mit den Fersen wegdrücken statt mit dem Gesäß anzuheben. Den Kopf mitheben. Die Stange auf dem Bauch statt auf der Hüftbeuge liegen haben.",
+        "db"
+      ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Hüftknochen drückt",
+        "text": "Die Stange oder die Hantel liegt direkt auf den Beckenknochen, und das tut ohne Polster fast allen weh. Das ist kein Schaden und kein Zeichen von etwas – es ist Druck auf Knochen.\n\nEin zusammengerolltes Handtuch, eine Yogamatte doppelt gelegt oder ein dickes Kissen zwischen Last und Hüfte lösen es vollständig. Wer nichts zur Hand hat: Die Last etwas höher legen, näher an die Bauchdecke, nimmt schon einiges.",
+        "modus": "db"
+      },
+      {
+        "ort": "Tief seitlich über dem Gesäß",
+        "text": "Ein Schmerz tief seitlich über der Gesäßhälfte, oft nur auf einer Seite: Dort sitzt das Kreuz-Darmbein-Gelenk. Kräftige Hüftstreckung reizt es, und mit der Langhantel ist das Beckenheben genau das – mit derselben Last wie der Hip Thrust.\n\nErst die einfache Ursache: Schieben beide Seiten gleich? Wer unbewusst über ein Bein drückt, belastet das Gelenk einseitig. Füße gleich weit weg, gleich weit auseinander, und oben bewusst beide Gesäßhälften anspannen.\n\nSitzt der Punkt trotzdem fest, hier anhaken – dann tritt das Beckenheben mit der Scheibe an diese Stelle, dieselbe Bewegung mit weniger Last.",
+        "verletzung": [
+          "isg"
+        ],
+        "modus": "db"
+      }
+    ],
+    "db": {
+      "name": "Beckenheben mit Langhantel",
+      "reps": "8–15",
+      "equip": "Langhantel + Polster",
+      "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen so nah, dass du sie mit den Fingerspitzen fast berührst. Die Stange liegt auf der Hüftbeuge, ein dick gefaltetes Handtuch darunter, die Hände halten sie außen fest. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
+      "rest": 150,
+      "pattern": "bridge",
+      "heben": "Die Stange mit Verschlüssen quer auf den Boden legen, dort, wo links und rechts Platz ist. Davorsetzen, die Beine gestreckt darunter, die Stange über die Schienbeine und Oberschenkel bis auf die Hüftbeuge rollen; Handtuch darunter. Erst dann hinlegen und die Füße aufstellen. Am Ende das Gesäß ablegen, die Beine strecken und die Stange denselben Weg zurück über die Beine rollen. Nie mit der Stange auf der Hüfte aufstehen wollen.",
+      "shares": {
+        "glutes": 1.0,
+        "hamstringsHip": 0.5
+      },
+      "muscles": [
+        "glutes",
+        "hamstringsHip"
+      ],
+      "stufen": {},
+      "braucht": [
+        "langhantel"
+      ]
+    },
+    "bw": {
+      "name": "Beckenheben",
+      "reps": "15–25",
+      "equip": "Ohne Gerät",
+      "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es einbeinig.",
+      "rest": 150,
+      "pattern": "bridge",
+      "shares": {
+        "glutes": 1.0,
+        "hamstringsHip": 0.5
+      },
+      "muscles": [
+        "glutes",
+        "hamstringsHip"
       ],
       "stufen": {},
       "braucht": []

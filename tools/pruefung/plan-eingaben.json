@@ -3,7 +3,13 @@
   "plaene": {
     "standard": {
       "fingerabdruck": "9ae006d393cf1c17",
-      "hingenommen": {},
+      "hingenommen": {
+        "langhantel-beckenheben": {
+          "erzeugt_mit": null,
+          "jetzt": "neu im Katalog",
+          "grund": "nurErsatz: true – tools/build-plan.py nimmt nur Übungen ohne nurErsatz in die Pläne (ids in main()), diese kann also keinen Plan ändern. Sie springt nur ein, wenn der Hip Thrust unter Mehr → Übungen ausgeschaltet ist (v252, „Wenn ich auf dem Sofa liege, stößt die langhantel links oder rechts gegen die Wand“)."
+        }
+      },
       "felder": {
         "band-pull-apart": {
           "dbShares": {
@@ -597,7 +603,13 @@
     },
     "bbp": {
       "fingerabdruck": "9ae006d393cf1c17",
-      "hingenommen": {},
+      "hingenommen": {
+        "langhantel-beckenheben": {
+          "erzeugt_mit": null,
+          "jetzt": "neu im Katalog",
+          "grund": "nurErsatz: true – tools/build-plan.py nimmt nur Übungen ohne nurErsatz in die Pläne (ids in main()), diese kann also keinen Plan ändern. Sie springt nur ein, wenn der Hip Thrust unter Mehr → Übungen ausgeschaltet ist (v252, „Wenn ich auf dem Sofa liege, stößt die langhantel links oder rechts gegen die Wand“)."
+        }
+      },
       "felder": {
         "band-pull-apart": {
           "dbShares": {
@@ -1191,7 +1203,13 @@
     },
     "cut": {
       "fingerabdruck": "9ae006d393cf1c17",
-      "hingenommen": {},
+      "hingenommen": {
+        "langhantel-beckenheben": {
+          "erzeugt_mit": null,
+          "jetzt": "neu im Katalog",
+          "grund": "nurErsatz: true – tools/build-plan.py nimmt nur Übungen ohne nurErsatz in die Pläne (ids in main()), diese kann also keinen Plan ändern. Sie springt nur ein, wenn der Hip Thrust unter Mehr → Übungen ausgeschaltet ist (v252, „Wenn ich auf dem Sofa liege, stößt die langhantel links oder rechts gegen die Wand“)."
+        }
+      },
       "felder": {
         "band-pull-apart": {
           "dbShares": {
@@ -1785,7 +1803,13 @@
     },
     "oberkoerper": {
       "fingerabdruck": "9ae006d393cf1c17",
-      "hingenommen": {},
+      "hingenommen": {
+        "langhantel-beckenheben": {
+          "erzeugt_mit": null,
+          "jetzt": "neu im Katalog",
+          "grund": "nurErsatz: true – tools/build-plan.py nimmt nur Übungen ohne nurErsatz in die Pläne (ids in main()), diese kann also keinen Plan ändern. Sie springt nur ein, wenn der Hip Thrust unter Mehr → Übungen ausgeschaltet ist (v252, „Wenn ich auf dem Sofa liege, stößt die langhantel links oder rechts gegen die Wand“)."
+        }
+      },
       "felder": {
         "band-pull-apart": {
           "dbShares": {

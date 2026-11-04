@@ -4121,6 +4121,65 @@ sich ändert, ist, was in diesen 2,86 Sätzen passiert: 35 kg beidarmig statt
 16 kg einarmig, und ein Zug, der wachsen kann statt bei 20 kg Kurzhantel zu
 enden.
 
+### Wenn die Stange am Sofa nicht passt (v252)
+
+> *„So wie in der app angegeben kann ich hip thrusts glaub ich nicht bei mir
+> zuhause machen. Wenn ich auf dem Sofa liege, stößt die langhantel links oder
+> rechts gegen die Wand"*
+
+Der Hip Thrust braucht zweierlei: eine Kante an der Wand und links und rechts so
+viel Platz, wie die Stange lang ist. Steht das Sofa in einer Nische, fehlt das
+zweite. Bisher blieb dann nur, ihn unter *Mehr → Übungen* auszuschalten, und es
+sprang das Beckenheben mit der Scheibe ein – gleiche Muskelanteile, aber eine
+Scheibe auf der Hüfte statt 40 kg und mehr auf der Stange. Für jemanden, der
+den Hip Thrust mit der Langhantel macht, ist das kein Ersatz, sondern ein
+Rückschritt.
+
+Jetzt gibt es zwei Wege, und der Hip Thrust nennt beide in seiner Erklärung
+(„Kein Platz für die Stange"):
+
+1. **Eine andere Kante.** Ein stabiler Stuhl ohne Rollen, die Lehne fest an
+   einer freien Wand. Der Aufbau-Text sagte bisher, ein Stuhl kippe nach hinten
+   – das stimmt für den frei stehenden. An der Wand wird er beim Hochdrücken nur
+   gegen sie geschoben.
+2. **Der Boden.** Das **Beckenheben mit Langhantel** (`langhantel-beckenheben`):
+   dieselbe Stange, dasselbe Startgewicht (40 kg, Stange gesamt, Schritt 5),
+   dieselben Muskelanteile wie der Hip Thrust (Gesäß 1,0, Beinbeuger Hüfte
+   0,5). Kürzerer Weg, dieselbe Last. Es steht in keinem Plan
+   (`nurErsatz`) und springt ein, wenn der Hip Thrust ausgeschaltet ist – vor
+   dem Beckenheben mit der Scheibe, weil `ersatzFuer()` bei gleichen Anteilen
+   die erste passende Übung im Katalog nimmt. Ohne Langhantel bleibt es bei der
+   Scheibe; ohne Hanteln ist es das Beckenheben ohne Gerät.
+
+Wo der Hip Thrust wegen einer Beschwerde fällt, fällt das Beckenheben mit
+Langhantel mit: Handgelenkbruch, ISG-Blockade, Leistenbruch, Zerrung der
+Oberschenkelrückseite. Vom Hip Thrust unterscheidet es der halbe Weg, nicht die
+Last – bei der ISG-Blockade und der Zerrung wird es deshalb, wie er, zum
+Beckenheben mit der Scheibe.
+
+**Nebenbei gefunden:** An der Karte einer ausgeschalteten Übung stand
+„Statt Hip Thrust – dafür fehlt gerade das Gerät. Unter Mehr → Was da ist wieder
+anhaken." Die Stange lag daneben. Abgewählte Übung und fehlendes Gerät tauschen
+über denselben Weg (`stattWarum: 'vorrat'`); die Zeile sagt jetzt, welches von
+beiden es war.
+
+**Die Pläne bleiben.** Ein neuer Katalogeintrag ist für
+`tools/pruefung/plan-frisch.py` eine geänderte Eingabe. Neu gerechnet wurde
+nicht: `tools/build-plan.py` nimmt nur Übungen ohne `nurErsatz` in die Pläne,
+diese kann also keinen ändern. So steht es unter `hingenommen` in
+`tools/pruefung/plan-eingaben.json`, je Plan, mit Grund.
+
+Geprüft in `tests/test-beckenheben-langhantel.mjs`: Katalog und Texte; in keinem
+Plan; der Ersatz in allen acht Cut-Einheiten mit Hip Thrust, Satz für Satz;
+ohne Langhantel und bei ISG-Blockade oder Zerrung die Scheibe; im Training
+Name, Gewicht und der richtige Grund an der Karte; die Figur mit der Stange quer
+über der Hüfte und den Scheiben über dem Boden. Gegen v251 rot in Katalog,
+Plänen, Ersatz und Training.
+
+*Grenzen, ehrlich:* Das Gewicht kommt nicht vom Hip Thrust mit – wer dort schon
+über 40 kg war, stellt es einmal ein. Und ob ein Stuhl trägt, weiß die App
+nicht; ein Klappstuhl tut es nicht.
+
 ### Sieben Übungen, die es vorher nicht gab
 
 **24 Übungen.** Die ursprünglichen 17 aus der Excel deckten die
@@ -5059,7 +5118,7 @@ beim Umstellen mitwechseln, steht oben unter *Was umgestellt wird*.
 
 ## Übungszuordnung
 
-Alle 38 Übungen aus `js/data.js`, Stand 05.10. Die ersten
+Alle 39 Übungen aus `js/data.js`, Stand 04.11. Die ersten
 29 stehen in mindestens einem der vier Pläne:
 
 | Hanteln | Fassung für unterwegs | Gerät |
@@ -5094,9 +5153,9 @@ Alle 38 Übungen aus `js/data.js`, Stand 05.10. Die ersten
 | Kurzhantel-Bodenpresse | Enge Liegestütze | Ohne Gerät |
 | Face Pull | Face Pull | Loop-Band + Klimmzugstange |
 
-Die übrigen 9 stehen in keinem Plan. Sie kommen als Ersatz hinein – wenn eine
-Verletzung eine Übung sperrt (`js/injuries.js`) oder ein Gerät fehlt
-(`js/vorrat.js`) – und stehen für eigene Workouts bereit:
+Die übrigen 10 stehen in keinem Plan. Sie kommen als Ersatz hinein – wenn eine
+Verletzung eine Übung sperrt (`js/injuries.js`), ein Gerät fehlt oder eine
+Übung abgewählt ist (`js/vorrat.js`) – und stehen für eigene Workouts bereit:
 
 | Hanteln | Fassung für unterwegs | Gerät |
 | --- | --- | --- |
@@ -5108,6 +5167,7 @@ Verletzung eine Übung sperrt (`js/injuries.js`) oder ein Gerät fehlt
 | Rucksack-Rudern | Rucksack-Rudern | Rucksack |
 | Sitzendes Seitheben mit Flaschen | Sitzendes Seitheben mit Flaschen | zwei volle Flaschen |
 | Trizepsstrecken an der Tischkante | Trizepsstrecken an der Tischkante | Tischkante |
+| Beckenheben mit Langhantel | Beckenheben | Ohne Gerät |
 | Beckenheben | Beckenheben | Ohne Gerät |
 
 Die Liste selbst ist nicht die Quelle: Namen kommen aus der Excel oder, für Übungen,

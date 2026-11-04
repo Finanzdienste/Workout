@@ -5053,9 +5053,15 @@ function anfaengerZeile(it) {
   const alt = EX_BY_ID.get(grund.statt);
   if (!alt) return '';
   if (grund.warum === 'vorrat') {
+    // Abgewählt oder Gerät weg – getauscht wird hier beides, gesagt wird, was
+    // es war. Vorher stand immer das Gerät da, auch beim Hip Thrust, der unter
+    // Mehr → Übungen aus war, weil die Stange am Sofa an die Wand schlug: „dafür
+    // fehlt gerade das Gerät" – und die Stange lag daneben.
+    const abgewaehlt = ausUebungen().includes(grund.statt);
     return `<div class="aufwaerm">Statt ${esc(alt.db.name)}
-        <span class="muted">– dafür fehlt gerade das Gerät. Unter Mehr → Was da ist
-        wieder anhaken.</span></div>`;
+        <span class="muted">– ${abgewaehlt
+    ? 'die Übung ist unter Mehr → Übungen ausgeschaltet. Dort wieder einschalten.'
+    : 'dafür fehlt gerade das Gerät. Unter Mehr → Was da ist wieder anhaken.'}</span></div>`;
   }
   // Bei Stufe und eigener Wahl zeigt es die Zeile mit − und + (fassungRow()).
   return '';
