@@ -11710,58 +11710,98 @@ function combosFor(active) {
  * etwas, das man dreimal die Woche gern hört.
  */
 const SOUNDS = {
-  // Training beginnt – aufsteigender Dreiklang, warm und breit.
+  // Training beginnt – aufsteigender Dreiklang, warm und breit. Die beiden
+  // oberen Töne tragen je einen Sinus eine Oktave höher: Der Dreiklang selbst
+  // liegt bei 260 bis 520 Hz, und darunter gibt ein Handylautsprecher kaum
+  // noch etwas her (siehe „Lautstärke" unten).
   start: [
-    { f: 261.63, t: 0, d: 0.5, v: 0.1, form: 'triangle', ct: 6, tief: 2200 },
-    { f: 392.00, t: 0.09, d: 0.42, v: 0.11, form: 'triangle', ct: 6, tief: 2400 },
-    { f: 523.25, t: 0.18, d: 0.55, v: 0.13, form: 'triangle', ct: 8, tief: 2600 },
+    { f: 261.63, t: 0, d: 0.5, v: 0.11, form: 'triangle', ct: 6, tief: 2200 },
+    { f: 392.00, t: 0.09, d: 0.42, v: 0.2, form: 'triangle', ct: 6, tief: 2400 },
+    { f: 783.99, t: 0.09, d: 0.36, v: 0.11, form: 'sine' },
+    { f: 523.25, t: 0.18, d: 0.55, v: 0.29, form: 'triangle', ct: 8, tief: 2600 },
+    { f: 1046.5, t: 0.18, d: 0.45, v: 0.18, form: 'sine' },
   ],
   // Satz abgehakt – ein Anschlag, kein Piepser. Kommt zwanzigmal pro Training
-  // vor und muss deshalb kurz, satt und unaufdringlich sein: ein tiefer
-  // Grundton mit einem Hauch Rauschen davor, das Ganze in 120 Millisekunden.
+  // vor und muss deshalb kurz, satt und unaufdringlich sein: ein Grundton, der
+  // nach unten gleitet, mit einem Hauch Rauschen davor, das Ganze in gut einer
+  // Zehntelsekunde. Die Oktave darüber gleitet mit – sie ist das, was ein
+  // Handy davon hörbar macht. Der tiefe Sinus gibt im Kopfhörer Körper.
   set: [
-    { f: 660, bis: 440, t: 0, d: 0.09, v: 0.13, form: 'triangle', tief: 3000, knack: 0.012 },
-    { f: 220, t: 0, d: 0.14, v: 0.06, form: 'sine' },
+    { f: 660, bis: 440, t: 0, d: 0.11, v: 0.55, form: 'triangle', tief: 4500, knack: 0.012 },
+    { f: 1320, bis: 880, t: 0, d: 0.08, v: 0.34, form: 'triangle', tief: 5000 },
+    { f: 220, t: 0, d: 0.14, v: 0.13, form: 'sine' },
   ],
   // Übung fertig, nächste kommt – zwei Stufen hoch, mit Schweben.
   exercise: [
-    { f: 523.25, t: 0, d: 0.13, v: 0.13, form: 'triangle', ct: 7, tief: 2600 },
-    { f: 783.99, t: 0.1, d: 0.36, v: 0.15, form: 'triangle', ct: 9, tief: 3000 },
-    { f: 261.63, t: 0.1, d: 0.4, v: 0.05, form: 'sine' },
+    { f: 523.25, t: 0, d: 0.13, v: 0.23, form: 'triangle', ct: 7, tief: 2600 },
+    { f: 783.99, t: 0.1, d: 0.36, v: 0.27, form: 'triangle', ct: 9, tief: 3000 },
+    { f: 261.63, t: 0.1, d: 0.4, v: 0.09, form: 'sine' },
   ],
   // Fertig machen – fünf Sekunden vor Schluss. Zwei kurze, tiefere Tupfer:
   // erkennbar anders als das Signal selbst, sonst steht man zu früh auf.
   ready: [
-    { f: 587.33, t: 0, d: 0.09, v: 0.15, form: 'square', tief: 1500 },
-    { f: 587.33, t: 0.16, d: 0.09, v: 0.15, form: 'square', tief: 1500 },
+    { f: 587.33, t: 0, d: 0.13, v: 0.65, form: 'square', tief: 3500 },
+    { f: 587.33, t: 0.18, d: 0.13, v: 0.65, form: 'square', tief: 3500 },
   ],
   // Pause vorbei – das lauteste Signal, es muss quer durch den Raum kommen.
   // Ein Glockenschlag: Grundton lang, zwei Obertöne kurz darüber, dazu ein
   // Anschlag. Danach der zweite Schlag eine Quinte höher.
   rest: [
-    { f: 880, t: 0, d: 0.6, v: 0.3, form: 'triangle', ct: 5, tief: 4000, knack: 0.02 },
-    { f: 1760, t: 0, d: 0.16, v: 0.1, form: 'sine' },
-    { f: 2640, t: 0, d: 0.09, v: 0.05, form: 'sine' },
-    { f: 1318.5, t: 0.3, d: 0.55, v: 0.26, form: 'triangle', ct: 5, tief: 5000, knack: 0.015 },
-    { f: 440, t: 0, d: 0.5, v: 0.09, form: 'sine' },
+    { f: 880, t: 0, d: 0.6, v: 0.35, form: 'triangle', ct: 5, tief: 4000, knack: 0.02 },
+    { f: 1760, t: 0, d: 0.16, v: 0.12, form: 'sine' },
+    { f: 2640, t: 0, d: 0.09, v: 0.06, form: 'sine' },
+    { f: 1318.5, t: 0.3, d: 0.55, v: 0.31, form: 'triangle', ct: 5, tief: 5000, knack: 0.015 },
+    { f: 440, t: 0, d: 0.5, v: 0.11, form: 'sine' },
   ],
   // Workout komplett – eine kleine Fanfare, die sich Zeit nimmt.
   done: [
-    { f: 523.25, t: 0, d: 0.16, v: 0.13, form: 'triangle', ct: 6, tief: 2600 },
-    { f: 659.25, t: 0.13, d: 0.16, v: 0.13, form: 'triangle', ct: 6, tief: 2800 },
-    { f: 783.99, t: 0.26, d: 0.16, v: 0.14, form: 'triangle', ct: 7, tief: 3000 },
-    { f: 1046.5, t: 0.39, d: 0.9, v: 0.16, form: 'triangle', ct: 9, tief: 3400, knack: 0.015 },
+    { f: 523.25, t: 0, d: 0.16, v: 0.22, form: 'triangle', ct: 6, tief: 2600 },
+    { f: 659.25, t: 0.13, d: 0.16, v: 0.22, form: 'triangle', ct: 6, tief: 2800 },
+    { f: 783.99, t: 0.26, d: 0.16, v: 0.24, form: 'triangle', ct: 7, tief: 3000 },
+    { f: 1046.5, t: 0.39, d: 0.9, v: 0.27, form: 'triangle', ct: 9, tief: 3400, knack: 0.015 },
     // Der Akkord darunter, der stehen bleibt – das ist die halbe Feier.
-    { f: 261.63, t: 0.39, d: 1.1, v: 0.07, form: 'sine' },
-    { f: 392.00, t: 0.39, d: 1.0, v: 0.06, form: 'sine' },
-    { f: 523.25, t: 0.44, d: 0.95, v: 0.05, form: 'sine' },
+    { f: 261.63, t: 0.39, d: 1.1, v: 0.12, form: 'sine' },
+    { f: 392.00, t: 0.39, d: 1.0, v: 0.1, form: 'sine' },
+    { f: 523.25, t: 0.44, d: 0.95, v: 0.08, form: 'sine' },
   ],
-  // Training beendet oder abgebrochen – absteigend, ohne Feierlichkeit.
+  // Training beendet oder abgebrochen – absteigend, ohne Feierlichkeit. Beide
+  // Töne mit ihrer Oktave als Sinus, aus demselben Grund wie beim Start.
   stop: [
-    { f: 587.33, t: 0, d: 0.18, v: 0.12, form: 'triangle', tief: 1800 },
-    { f: 392.00, t: 0.14, d: 0.4, v: 0.12, form: 'triangle', ct: 5, tief: 1600 },
+    { f: 587.33, t: 0, d: 0.18, v: 0.41, form: 'triangle', tief: 3000 },
+    { f: 1174.66, t: 0, d: 0.15, v: 0.24, form: 'sine' },
+    { f: 392.00, t: 0.14, d: 0.4, v: 0.27, form: 'triangle', ct: 5, tief: 3000 },
+    { f: 783.99, t: 0.14, d: 0.34, v: 0.31, form: 'sine' },
   ],
 };
+
+/*
+ * Lautstärke.
+ *
+ *     „Teilweise sind die sounds n bisschen leise"
+ *
+ * Gemessen offline (tests/test-sound.mjs, „Laut genug"): jeder Ton im
+ * lautesten 150-ms-Fenster, einmal flach und einmal durch ein Modell eines
+ * Handylautsprechers – Hochpass vierter Ordnung bei 600 Hz, Tiefpass bei
+ * 8 kHz. Darunter gibt so ein Lautsprecher kaum etwas her, und genau dort
+ * lagen die meisten Töne. Bis v255, gegen den Gong am Pausenende: der Satz-
+ * Tupfer 24 dB leiser, „Fertig machen" 20, „Training beendet" 20, der Start
+ * 14. Jetzt liegt jeder Ton höchstens 10 dB unter dem Gong, und der Gong ist
+ * weiter der lauteste.
+ *
+ * Mehr kam auf zwei Wegen: lauter, so weit die Spitze es zulässt (jeder Ton
+ * für sich unter −1,5 dBFS), und dort, wo das nicht reichte, Energie dorthin,
+ * wo das Handy sie wiedergibt – eine Oktave über den tiefen Tönen, beim
+ * Tupfer etwas länger, bei „Fertig machen" ein offeneres Rechteck. Der
+ * Charakter bleibt: im Kopfhörer klingen die Töne wie vorher, nur lauter.
+ *
+ * Zwei Töne gleichzeitig – ein Haken während des Gongs, zwei Seiten schnell
+ * hintereinander – addieren sich und gingen sonst über 1. Dafür laufen alle
+ * Stimmen über einen gemeinsamen Ausgang mit weicher Grenze (ausgang()):
+ * bis GRENZE_KNIE unverändert, darüber sanft gegen GRENZE_MAX. Ein einzelner
+ * Ton erreicht das Knie nie.
+ */
+const GRENZE_KNIE = 0.85;
+const GRENZE_MAX = 0.98;
 
 /** Die Reihe, die „Töne anhören" spielt – so steht sie auch im Toast daneben. */
 const PROBE = ['start', 'set', 'exercise', 'ready', 'rest', 'done'];
@@ -12221,9 +12261,48 @@ function knacks(at, dauer, laut) {
   const filter = ctx.createBiquadFilter();
   filter.type = 'bandpass';
   filter.frequency.value = 2400;
-  quelle.connect(filter).connect(gain).connect(ctx.destination);
+  quelle.connect(filter).connect(gain).connect(ausgang());
   quelle.start(at);
   return quelle;
+}
+
+/*
+ * Der gemeinsame Ausgang aller Stimmen, mit weicher Grenze (siehe
+ * „Lautstärke" bei SOUNDS) – je Kontext einer.
+ *
+ * Die Kennlinie eines WaveShaperNode reicht von −1 bis 1. Damit sie auch zwei
+ * übereinanderliegende Töne fasst, geht das Signal halbiert hinein und
+ * verdoppelt wieder heraus; die Kennlinie deckt so −2 bis 2 ab. Bis zum Knie
+ * ist sie eine Gerade, und zwischen ihren Stützstellen wird linear gerechnet –
+ * ein einzelner Ton läuft also unverändert hindurch. Der Trägerton (traeger())
+ * geht nicht hier durch: Er ist unhörbar und soll es bleiben.
+ */
+let bus = null;
+let busKontext = null;
+let kurve = null;
+function ausgang() {
+  if (bus && busKontext === ctx) return bus;
+  if (!kurve) {
+    const n = 4097;
+    const weit = GRENZE_MAX - GRENZE_KNIE;
+    kurve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const u = (i / (n - 1)) * 4 - 2;   // was hineinkommt, −2 bis 2
+      const a = Math.abs(u);
+      const y = a <= GRENZE_KNIE ? a : GRENZE_KNIE + weit * Math.tanh((a - GRENZE_KNIE) / weit);
+      kurve[i] = (Math.sign(u) * y) / 2;
+    }
+  }
+  const rein = ctx.createGain();
+  rein.gain.value = 0.5;
+  const grenze = ctx.createWaveShaper();
+  grenze.curve = kurve;
+  const raus = ctx.createGain();
+  raus.gain.value = 2;
+  rein.connect(grenze).connect(raus).connect(ctx.destination);
+  bus = rein;
+  busKontext = ctx;
+  return bus;
 }
 
 /** Eine Stimme: Oszillator, Hüllkurve, wahlweise Tiefpass und Gleitflug. */
@@ -12259,7 +12338,7 @@ function stimme(t0, s, cent) {
     gain.connect(filter);
     ende = filter;
   }
-  ende.connect(ctx.destination);
+  ende.connect(ausgang());
   osc.start(t0);
   osc.stop(t0 + s.d + 0.05);
   return osc;

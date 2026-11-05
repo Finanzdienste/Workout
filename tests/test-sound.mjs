@@ -100,7 +100,10 @@ const vorStart = await zahl();
 await page.locator('[data-act="start-session"]').first().click();
 await page.waitForTimeout(150);
 const startTon = await toene(vorStart);
-check(startTon.length === 3, `Trainingsstart klingt (${startTon.map((o) => Math.round(o.f)).join(' + ')} Hz)`);
+// So viele, wie der Klang Stimmen hat – nicht eine feste Zahl: Seit v256
+// tragen zwei der drei Töne ihre Oktave mit (siehe „Laut genug" unten).
+const startStimmen = await page.evaluate(async () => (await import('./js/audio.js')).SOUNDS.start.length);
+check(startTon.length === startStimmen, `Trainingsstart klingt (${startTon.map((o) => Math.round(o.f)).join(' + ')} Hz)`);
 check(startTon.every((o) => o.at - o.now < 0.5), 'und zwar sofort, nicht eingeplant');
 
 // --- Satz abhaken ---
@@ -347,6 +350,116 @@ check(!!echt && schwach(echt).length === 0,
 check(!!echt && echt.spitze < 1, `nichts übersteuert (Spitze ${echt && echt.spitze.toFixed(2)})`);
 check(!!kaputt && kaputt.toene.every((t) => t.stimmen.every(([, v]) => v < 10)),
   'Gegenprobe: mit abgeklemmten Oszillatoren – dem alten Fehler – fällt jede Stimme durch');
+
+// --- Laut genug ------------------------------------------------------------
+// „Teilweise sind die sounds n bisschen leise." Gemessen wird jeder Ton im
+// lautesten 150-ms-Fenster durch ein Modell eines Handylautsprechers:
+// Hochpass vierter Ordnung bei 600 Hz, Tiefpass bei 8 kHz – darunter gibt so
+// ein Lautsprecher kaum etwas her. Bis v255 lag dort der Satz-Tupfer 24 dB
+// unter dem Gong am Pausenende, „Fertig machen" 20. Jetzt darf keiner mehr
+// als 11 dB darunter liegen, und der Gong bleibt der lauteste. Die beiden
+// Fassungen von damals laufen als Gegenprobe mit und müssen durchfallen.
+//
+// Zum Schluss drei Töne auf einmal – der Gong und zwei Haken kurz
+// hintereinander. Sie addieren sich; die weiche Grenze am gemeinsamen
+// Ausgang (ausgang() in js/audio.js) hält sie unter 1. Ohne sie – der
+// WaveShaper durch einen schlichten Durchgang ersetzt – müssen sie darüber
+// gehen, und einzeln darf die Grenze nichts ändern.
+const BIS_V255 = {
+  set: [
+    { f: 660, bis: 440, t: 0, d: 0.09, v: 0.13, form: 'triangle', tief: 3000, knack: 0.012 },
+    { f: 220, t: 0, d: 0.14, v: 0.06, form: 'sine' },
+  ],
+  ready: [
+    { f: 587.33, t: 0, d: 0.09, v: 0.15, form: 'square', tief: 1500 },
+    { f: 587.33, t: 0.16, d: 0.09, v: 0.15, form: 'square', tief: 1500 },
+  ],
+};
+const messen = async (ohneGrenze) => {
+  const c = await browser.newContext();
+  await c.addInitScript((ohne) => {
+    window.__off = [];
+    window.AudioContext = function Offline() {
+      const off = new OfflineAudioContext(1, 48000 * 24, 48000);
+      window.__off.push(off);
+      return off;
+    };
+    window.webkitAudioContext = undefined;
+    if (ohne) window.OfflineAudioContext.prototype.createWaveShaper = function durchgang() { return this.createGain(); };
+  }, ohneGrenze);
+  const p = await c.newPage();
+  p.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
+  await p.goto(URL, { waitUntil: 'networkidle' });
+  await p.mouse.click(5, 5);
+  const r = await p.evaluate(async (alt) => {
+    const A = await import('./js/audio.js');
+    A.SOUNDS.altSet = alt.set;
+    A.SOUNDS.altReady = alt.ready;
+    const namen = Object.keys(A.SOUNDS);
+    const TAKT = 2;
+    const zusammen = 0.1 + namen.length * TAKT;
+    A.scheduleSound([...namen.map((n, i) => [n, 0.1 + i * TAKT]),
+      ['rest', zusammen], ['set', zusammen], ['set', zusammen + 0.02]]);
+    const off = window.__off[window.__off.length - 1];
+    if (!off) return null;
+    const x = (await off.startRendering()).getChannelData(0);
+    const sr = off.sampleRate;
+    const biquad = (typ, f0) => {   // RBJ, Güte 1/√2
+      const w = 2 * Math.PI * f0 / sr;
+      const cw = Math.cos(w);
+      const al = Math.sin(w) / Math.SQRT2;
+      const b = typ === 'hp' ? [(1 + cw) / 2, -(1 + cw), (1 + cw) / 2] : [(1 - cw) / 2, 1 - cw, (1 - cw) / 2];
+      const a = [1 + al, -2 * cw, 1 - al];
+      return (s) => {
+        const y = new Float32Array(s.length);
+        let x1 = 0; let x2 = 0; let y1 = 0; let y2 = 0;
+        for (let i = 0; i < s.length; i++) {
+          const y0 = (b[0] * s[i] + b[1] * x1 + b[2] * x2 - a[1] * y1 - a[2] * y2) / a[0];
+          x2 = x1; x1 = s[i]; y2 = y1; y1 = y0; y[i] = y0;
+        }
+        return y;
+      };
+    };
+    const handy = (s) => biquad('lp', 8000)(biquad('hp', 600)(biquad('hp', 600)(s)));
+    const lautestes = (s) => {   // Effektivwert im lautesten 150-ms-Fenster, in dB
+      const n = Math.round(sr * 0.15);
+      let summe = 0; let best = 0;
+      for (let i = 0; i < s.length; i++) { summe += s[i] * s[i]; if (i >= n) summe -= s[i - n] * s[i - n]; best = Math.max(best, summe); }
+      return 20 * Math.log10(Math.max(Math.sqrt(best / n), 1e-9));
+    };
+    const spitze = (a, b) => { let m = 0; for (let i = a; i < b; i++) m = Math.max(m, Math.abs(x[i])); return m; };
+    const toene = namen.map((name, i) => {
+      const a = Math.round((0.05 + i * TAKT) * sr);
+      const b = Math.round((0.04 + (i + 1) * TAKT) * sr);
+      return { name, spitze: spitze(a, b), handy: lautestes(handy(x.slice(a, b))) };
+    });
+    return { toene, zusammen: spitze(Math.round((zusammen - 0.05) * sr), x.length) };
+  }, BIS_V255);
+  await c.close();
+  return r;
+};
+const mit = await messen(false);
+const ohne = await messen(true);
+if (mit && ohne) {
+  const gong = mit.toene.find((x) => x.name === 'rest');
+  const eigene = mit.toene.filter((x) => !x.name.startsWith('alt'));
+  const alte = mit.toene.filter((x) => x.name.startsWith('alt'));
+  const abstand = (x) => `${x.name} ${(x.handy - gong.handy).toFixed(1)}`;
+  console.log('     Handy, gegen den Gong (dB):', eigene.map(abstand).join(', '), '· bis v255:', alte.map(abstand).join(', '));
+  check(eigene.every((x) => x.handy >= gong.handy - 11),
+    `auf dem Handy liegt jeder Ton höchstens 11 dB unter dem Gong (${eigene.filter((x) => x.handy < gong.handy - 11).map(abstand).join(', ') || 'alle'})`);
+  check(eigene.every((x) => x.name === 'rest' || x.handy < gong.handy), 'und der Gong am Pausenende bleibt der lauteste');
+  check(eigene.every((x) => x.spitze < 0.9),
+    `jeder Ton für sich bleibt unter der Grenze (Spitzen ${eigene.map((x) => x.spitze.toFixed(2)).join(', ')})`);
+  check(alte.length === 2 && alte.every((x) => x.handy < gong.handy - 11),
+    `Gegenprobe: Tupfer und „Fertig machen" von v255 fallen durch (${alte.map(abstand).join(', ')})`);
+  check(mit.zusammen < 1, `drei Töne auf einmal übersteuern nicht (Spitze ${mit.zusammen.toFixed(2)})`);
+  check(ohne.zusammen > 1, `Gegenprobe: ohne die weiche Grenze gingen sie über 1 (${ohne.zusammen.toFixed(2)})`);
+  const ueb = (r) => r.toene.find((x) => x.name === 'exercise').handy;
+  check(Math.abs(ueb(mit) - ueb(ohne)) < 0.05, `einzeln ändert die Grenze nichts (Übung fertig: ${ueb(mit).toFixed(2)} gegen ${ueb(ohne).toFixed(2)} dB)`);
+} else {
+  check(false, 'Laut genug: offline gerendert');
+}
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

@@ -953,6 +953,46 @@ Training beendet.
 Der Tupfer beim Abhaken hat einen eigenen Schalter, weil er zwanzigmal pro
 Training kommt; die übrigen ein- bis zweimal.
 
+**Laut genug – auch aus dem Handylautsprecher (v256).** *„Teilweise sind die
+sounds n bisschen leise"*. Gemessen offline, jeder Ton im lautesten
+150-ms-Fenster, einmal flach und einmal durch ein Modell eines
+Handylautsprechers (Hochpass vierter Ordnung bei 600 Hz, Tiefpass bei 8 kHz –
+darunter gibt so ein Lautsprecher kaum etwas her, und dort lagen die meisten
+Töne):
+
+| Ton | bis v255, gegen den Gong | seit v256 |
+| --- | ---: | ---: |
+| Satz abgehakt | −24 dB | −10 dB |
+| Training beendet | −20 dB | −8 dB |
+| Fertig machen | −20 dB | −7 dB |
+| Training gestartet | −14 dB | −6 dB |
+| Übung fertig | −9 dB | −5 dB |
+| Workout komplett | −6 dB | −3 dB |
+| Pause vorbei (der Gong) | 0 | 0, selbst 1,3 dB lauter |
+
+Mehr kam auf zwei Wegen. Erstens lauter, so weit die Spitze es zulässt – jeder
+Ton für sich bleibt unter 0,9. Zweitens, wo das nicht reichte, Energie dorthin,
+wo das Handy sie wiedergibt: Start und Ende tragen ihre tiefen Töne jetzt mit
+einem Sinus eine Oktave höher, der Tupfer gleitet mit einer Oktave darüber und
+ist zwei Hundertstel länger, „Fertig machen" ist ein offeneres Rechteck. Im
+Kopfhörer klingen die Töne wie vorher, nur lauter. Der Gong bleibt der lauteste:
+Er muss quer durch den Raum kommen, der Tupfer nur bis zur Hand, die ihn
+ausgelöst hat.
+
+Zwei Töne auf einmal – ein Haken während des Gongs, zwei Seiten eines Satzes
+schnell hintereinander – addieren sich, und bei diesen Pegeln ginge das über 1
+(gemessen: 1,30 für Gong und zwei Tupfer). Deshalb laufen alle Stimmen über
+einen gemeinsamen Ausgang mit weicher Grenze (`ausgang()` in `js/audio.js`):
+bis 0,85 eine Gerade, darüber sanft gegen 0,98. Ein einzelner Ton erreicht das
+Knie nicht und läuft unverändert hindurch.
+
+`tests/test-sound.mjs` („Laut genug") rendert alle sieben offline und misst
+genauso: keiner mehr als 11 dB unter dem Gong, der Gong der lauteste, jede
+Spitze unter 0,9; die Tupfer- und „Fertig machen"-Fassung von v255 läuft als
+Gegenprobe mit und fällt durch. Gong und zwei Tupfer zusammen bleiben unter 1,
+ohne die Grenze (der WaveShaper durch einen Durchgang ersetzt) nicht, und
+einzeln ändert die Grenze an einem Ton nichts.
+
 **Freischalten: mit der ersten Berührung – ohne eine nur, wo der Browser keine
 verlangt (v241).**
 
