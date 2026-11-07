@@ -1759,6 +1759,9 @@ check(await r4app.meldung() === 'Wieder offen', 'E14: … und zurück: „Wieder
 // ---------------------------------------------------------------- E8: zum Bundesland
 
 await ladenHeute({ ...stand({ profil: { bundesland: '' } }), einstellungen: r4Einstellungen('sehr-gross', 'hell') });
+// Begrüßung/Heute (Nov. 2026): Der Giftnotruf steht jetzt unter „Weitere
+// Nummern" zum Aufklappen – erst aufklappen, dann „Bundesland eintragen".
+await page.click('#ansicht .notfall-leiste .notfall-mehr > summary');
 await page.click('#ansicht .notfall-leiste [data-seite="profil"][data-param="bundesland"]');
 const e8 = await page.evaluate(() => {
   const f = document.querySelector('select[name="bundesland"]');
@@ -1903,7 +1906,13 @@ await e24ctx.close();
 
 // Mit Finger (hasTouch): Einrichten um 6:30, „Fertig – zur App" zweimal
 // getippt – unter dem Finger liegt danach „Tablette genommen?".
-const e3ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, locale: 'de-DE', hasTouch: true, isMobile: true, serviceWorkers: 'block' });
+// Begrüßung/Heute (Nov. 2026): Seit die Notfallleiste eine Zeile ist, steht
+// der Tabletten-Knopf auf „Heute" gut 270 px höher. Bei 360 × 740 lag unter
+// dem Finger danach die Karte „Laborwerte eintragen" – der Fall, den der Test
+// nachstellt, kam dort nicht mehr vor. Das Fenster ist deshalb niedriger
+// (360 × 500): Dann liegt „Fertig – zur App" ganz unten wieder genau dort,
+// wo danach der Tabletten-Knopf erscheint.
+const e3ctx = await browser.newContext({ viewport: { width: 360, height: 500 }, locale: 'de-DE', hasTouch: true, isMobile: true, serviceWorkers: 'block' });
 await e3ctx.addInitScript(uhrStellen);
 const e3 = await e3ctx.newPage();
 e3.on('dialog', (d) => d.accept());
@@ -2351,10 +2360,13 @@ const r5Profil = { behandelt: true, geburtsjahr: 1950, ursache: 'hashimoto', kre
 // Tablette ab. „Befinden gespeichert" sah niemand.
 // Schrift „normal", 360 × 740: Dort liegt auf der frisch geladenen Seite
 // „Heute" der Knopf „Tablette genommen?" genau unter „Speichern".
+// Begrüßung/Heute (Nov. 2026): Seit die Notfallleiste eine Zeile ist, steht
+// der Knopf höher – bei „normal" und 360 × 740 lag „Speichern" 200 px unter
+// ihm. Jetzt Schrift „groß" auf 360 × 640: Dort liegt er wieder darunter.
 for (const abstand of [250, 400]) {
   const f = await r5Finger(stand({
-    profil: { herz: 'nein' }, einstellungen: r4Einstellungen('normal', 'hell'), einnahmen: { [plus(TAG, -1)]: { uhr: '07:00' } },
-  }), { zeit: '06:30' });
+    profil: { herz: 'nein' }, einstellungen: r4Einstellungen('gross', 'hell'), einnahmen: { [plus(TAG, -1)]: { uhr: '07:00' } },
+  }), { zeit: '06:30', viewport: { width: 360, height: 640 } });
   await f.p.locator('[data-act="befinden"][data-stufe="schlecht"]').click();
   await f.p.waitForTimeout(300);
   await f.p.locator('#befinden [data-seite="befinden"]').click();
@@ -3727,6 +3739,9 @@ const r7Heute = async () => { await page.click('#reiter-heute'); return (await a
     nachfragen: dosisStimmt(plus(TAG, -4)),
   }));
   await page.click('#reiter-heute');
+  // Begrüßung/Heute (Nov. 2026): „Bundesland eintragen" steht unter „Weitere
+  // Nummern" in der Notfallleiste – erst aufklappen.
+  await page.click('#ansicht .notfall-leiste .notfall-mehr > summary');
   await page.locator('[data-act="seite"][data-seite="profil"][data-param="bundesland"]').first().click();
   await page.selectOption('select[name=bundesland]', 'BY');
   await page.click('form[data-formular="profil"] button[type=submit]');

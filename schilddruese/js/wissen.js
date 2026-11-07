@@ -23,6 +23,7 @@
 import { esc } from './text.js';
 import * as sp from './speicher.js';
 import { VOR_ABNAHME } from './dosis.js';
+import { BETREIBER } from './rueckkanal.js';
 
 /** E14: auch im Formular „Über mich & weitere Mittel". */
 export const E14_TEXT = 'Vorsicht bei Mitteln „für die Schilddrüse" aus Internet, Drogerie oder Reformhaus: Manche enthalten viel Jod, Biotin oder sogar echtes Schilddrüsenhormon (z. B. „Thyroid", „Schilddrüsenextrakt"). Das kann zu einer Überdosis führen oder die Laborwerte verfälschen. Auch Mittel für Haare, Haut und Nägel und Vitamin-B-Komplexe enthalten oft Biotin. Zeigen Sie neue Mittel vor dem ersten Einnehmen in der Apotheke oder Praxis und tragen Sie sie in der App ein.';
@@ -39,6 +40,73 @@ export const E16_TEXT = 'Die Tabletten gibt es in vielen Stärken, auch in Schri
 const BE1_TEXT = 'Ihre Beschwerden helfen der Praxis beim Einordnen. Für die Dosis richtet sich die App nur nach Ihrem TSH-Wert. Beschwerden allein sind kein Grund, mehr oder weniger zu nehmen.';
 
 export const KAPITEL = [
+  /*
+   * Begrüßung (Nov. 2026): „Warum die Tablette wichtig ist" – dasselbe wie das
+   * Begrüßungsfenster (js/ansicht-begruessung.js), etwas ausführlicher. Die
+   * Nutzerin hatte die Tabletten weggelassen, weil sie „nur den einen Wert"
+   * beeinflussten. Der Text ist medizinisch und sprachlich geprüft (Quellen
+   * beim Auftrag zu PR #4: DEGAM-Leitlinie „Erhöhter TSH-Wert in der
+   * Hausarztpraxis", ETA 2013, ATA 2014, Fachinformation L-Thyroxin, TRUST
+   * 2017, Rodondi 2010, ATA 2015) und steht hier wörtlich. Er erklärt, ohne
+   * Druck: Zweifel sind berechtigt, die Praxis wägt ab, und wer die Tablette
+   * schon weggelassen hat, sagt es ihr in den nächsten Tagen – dieselbe Frist
+   * wie „mehrfach vergessene Tabletten" im Kapitel „Wann anrufen". Die Zeichen
+   * eines sehr starken Mangels und die 112 wie dort; Herzklopfen seit Tagen
+   * „heute noch … 116 117 … 112" wie in „Anzeichen" und „Wann anrufen".
+   * Verweise innerhalb des Kapitels stehen als Text: Ein Sprung über die
+   * Adresse (#…) legte einen Eintrag in den Verlauf des Browsers, und die
+   * Zurück-Taste führte dann nicht mehr aus der Seite heraus.
+   */
+  {
+    id: 'tablette',
+    titel: 'Warum die Tablette wichtig ist',
+    kurz: 'Was das Hormon tut – und was die Tablette kann und was nicht',
+    html: `
+      <h2>Eine berechtigte Frage</h2>
+      <p>Viele Menschen fragen sich irgendwann: Brauche ich diese Tablette wirklich? Sie verändert doch nur einen Wert, und das eigentliche Problem bleibt. Diese Frage ist berechtigt, und sie verdient eine ehrliche Antwort. Hier steht, was das Hormon im Körper tut und was die Tablette kann – und was nicht. Und was Sie tun können, wenn Sie zweifeln oder die Tablette schon eine Weile weggelassen haben.</p>
+      <h2>Was das Schilddrüsenhormon tut</h2>
+      <p>Die Schilddrüse bildet vor allem das Hormon Thyroxin, kurz T4. Der Körper macht daraus in vielen Organen die aktive Form T3. Dieses Hormon wirkt in fast jeder Zelle. Es steuert mit, wie viel Energie der Körper umsetzt – sozusagen, wie schnell der Motor läuft.</p>
+      <p>Es hat Einfluss auf vieles: Kraft und Ausdauer, Körperwärme, Herzschlag, Verdauung, Denken und Gedächtnis, Stimmung, Haut und Haare. Auch wie der Körper Cholesterin abbaut, hängt davon ab. Bei einer Unterfunktion bildet die Schilddrüse zu wenig Hormon. Dann läuft vieles langsamer.</p>
+      <p>Das Hormon ist dabei ein Einfluss unter vielen. Nicht jede Müdigkeit kommt von der Schilddrüse, und nicht alles wird durch die Tablette besser.</p>
+      <h2>Die Tablette ist das Hormon selbst</h2>
+      <p>Der Wirkstoff der Tablette heißt L-Thyroxin oder Levothyroxin. Das ist genau dieses Hormon T4. Es wird künstlich hergestellt, ist aber gleich gebaut wie das körpereigene. Der Körper macht daraus selbst T3, so wie aus dem eigenen Hormon. Die Tablette ersetzt also, was fehlt. Sie wirkt nicht auf einen Wert, sondern im ganzen Körper. Der TSH-Wert ist dafür nur die Anzeige.</p>
+      <p>In der richtigen Menge ist sie für den Körper nichts Fremdes. Kommen trotzdem Beschwerden, passt manchmal die Menge nicht, und manchmal steckt etwas anderes dahinter. Das klärt die Praxis mit Ihnen. Mehr dazu unten unter „Wenn es Ihnen mit der Tablette nicht gut geht".</p>
+      <h2>TSH: eine Anzeige, nicht das Ziel</h2>
+      <p>TSH ist ein Botenstoff aus der Hirnanhangdrüse, einer kleinen Drüse im Kopf. Mit ihm treibt sie die Schilddrüse an. Hat der Körper zu wenig Hormon, schickt sie mehr TSH, und der Wert steigt. Ist genug da, sinkt er wieder.</p>
+      <p>Man kann sich TSH wie einen Ruf nach Hormon vorstellen. Ist zu wenig da, ruft die Hirnanhangdrüse lauter. Ist genug da, wird sie leiser. Das Ziel ist nicht ein bestimmter Ruf, sondern genug Hormon in den Zellen. Ob das stimmt, zeigt der TSH-Wert meist am genauesten.</p>
+      <p>Deshalb spricht die Praxis von einem TSH-Zielbereich: Liegt der Wert darin, kommt meist genug Hormon an. Und deshalb richtet sich auch die Dosis-Karte der App nach TSH. Liegt die Ursache ausnahmsweise in der Hirnanhangdrüse selbst, schaut die Ärztin statt auf TSH auf das fT4.</p>
+      <p>Ein guter Wert mit der Tablette heißt meist: Die Menge passt. Wie der Wert ohne Tablette wäre, zeigt er nicht.</p>
+      <h2>Was die Tablette kann – und was nicht</h2>
+      <p>Die Tablette macht die Schilddrüse nicht wieder gesund. Am häufigsten steckt Hashimoto hinter einer Unterfunktion: Das Abwehrsystem greift die Schilddrüse langsam an, und sie bildet nach und nach weniger Hormon. Bei anderen wurde die Schilddrüse ganz oder zum Teil entfernt oder mit Radiojod behandelt, also mit radioaktivem Jod. Dann bildet sie oft zu wenig oder gar kein eigenes Hormon mehr.</p>
+      <p>Die Tablette ersetzt aber, was fehlt. Ähnlich wie eine Brille: Sie heilt die Augen nicht, aber man sieht damit gut. Deshalb wird das Hormon meist ein Leben lang ersetzt. Ob es in Ihrem Fall anders sein kann, besprechen Sie mit der Ärztin. Mehr dazu unter „Braucht jeder die Tablette?".</p>
+      <h2>Was ohne das Hormon passiert</h2>
+      <p>Das Hormon baut sich im Körper nur langsam ab: Nach etwa einer Woche ist noch ungefähr die Hälfte da. Deshalb merkt man nicht gleich etwas, wenn die Tablette fehlt. Über Wochen bis Monate kommen aber meist Beschwerden: Müdigkeit, Frieren, Gewichtszunahme, Verstopfung, Vergesslichkeit, gedrückte Stimmung, ein langsamer Puls. Wie stark, hängt davon ab, wie viel Hormon die eigene Schilddrüse noch bildet.</p>
+      <p>Im Alter kommen diese Beschwerden oft schleichend. Man hält sie dann leicht für Alterszeichen. Dass man anfangs nichts merkt, heißt also nicht, dass man das Hormon nicht braucht.</p>
+      <p>Über Jahre kann ein deutlicher Mangel das Cholesterin erhöhen und Herz und Gefäße belasten.</p>
+      <p>Sehr selten wird ein starker Mangel gefährlich. Meist fehlen dann die Tabletten schon lange, und eine Infektion, Kälte oder Beruhigungs- oder Schlafmittel kommen dazu. Zeichen sind extreme Schläfrigkeit, Verwirrtheit, eine sehr niedrige Körpertemperatur oder ein sehr langsamer Atem. Dann gilt: 112.</p>
+      <p><a class="knopf knopf-gefahr" href="tel:112">112 anrufen</a></p>
+      <h2>Braucht jeder die Tablette?</h2>
+      <p>Nein, nicht jeder mit einem erhöhten TSH-Wert. Ist TSH nur leicht erhöht und gibt es keine Beschwerden, rät die Leitlinie für Hausarztpraxen, zunächst keine Tablette zu beginnen. Das gilt in jedem Alter. Der Wert wird dann regelmäßig kontrolliert. Im Alter kommt dazu, dass TSH oft von Natur aus etwas höher liegt.</p>
+      <p>Eine große Studie hat ältere Menschen mit nur leicht erhöhtem Wert untersucht. Bei ihnen hat die Tablette die Beschwerden nach einem Jahr im Durchschnitt nicht spürbar gebessert. Die meisten hatten aber auch nur wenige Beschwerden. Für eine deutliche Unterfunktion gilt das Ergebnis nicht.</p>
+      <p>Eine deutliche Unterfunktion heißt: TSH ist stark erhöht, oder das fT4 ist zu niedrig. Das fT4 ist das freie Hormon im Blut. Dann braucht der Körper das Hormon meist von außen. Das gilt auch, wenn die Schilddrüse nach einer Operation oder Radiojod fehlt oder kaum noch arbeitet.</p>
+      <p>Was davon in Ihrem Fall zutrifft, lässt sich an einem Wert mit Tablette nicht ablesen. Denn die Tablette verändert ihn. Auch ein Wert wenige Wochen nach dem Weglassen zeigt es noch nicht sicher, denn das Hormon wirkt lange nach. Das weiß Ihre Praxis: aus den Werten vor der Behandlung und aus Ihrer Vorgeschichte.</p>
+      <p>Und ob man eine Tablette, die man schon lange nimmt, weglassen kann, ist noch einmal eine eigene Frage. Sie lässt sich nur mit der Praxis und mit Blutkontrollen klären.</p>
+      <h2>Wenn es Ihnen mit der Tablette nicht gut geht</h2>
+      <p>Vielleicht fühlen Sie sich trotz Tablette nicht besser, oder es geht Ihnen mit ihr sogar schlechter. Sagen Sie es der Praxis. Oft passt dann die Menge nicht, oder etwas stört die Wirkung. Manchmal steckt auch etwas ganz anderes dahinter.</p>
+      <p>Zu viel Hormon kann zum Beispiel unruhig machen, schwitzen lassen oder den Schlaf stören. Zu wenig Hormon macht eher müde und verfroren. Die Wirkung verändern können Kaffee, Milch oder Kalzium kurz nach der Tablette, ein anderes Präparat oder ein neues Medikament.</p>
+      <p>Bleiben Beschwerden trotz guter Werte, sucht die Ärztin nach anderen Ursachen, zum Beispiel einem Mangel an Eisen oder Vitamin B12. Selten verträgt jemand einen Hilfsstoff der Tablette nicht. Dann kann ein anderes Präparat helfen.</p>
+      <p>Sagen Sie es also ruhig, wenn Sie sich nicht gut fühlen. In der App können Sie auf „Heute" eintragen, wie es Ihnen geht. Das steht dann auch im Bericht. Die Menge legt die Praxis mit Ihnen fest.</p>
+      <p>Bei Herzklopfen seit Tagen oder einem neu unregelmäßigen Puls rufen Sie bitte heute noch die Praxis an. Ist sie geschlossen, rufen Sie den Bereitschaftsdienst 116 117 an. Bei plötzlichem starkem Herzrasen mit Schwindel, bei Brustschmerz oder Atemnot: sofort 112. Was wann wichtig ist, steht im Kapitel „<button type="button" class="knopf-link" data-act="seite" data-seite="wissen-kapitel" data-param="notfall">Wann anrufen, wann 112</button>".</p>
+      <div class="knopf-reihe"><a class="knopf" href="tel:116117">116 117 anrufen</a><a class="knopf knopf-gefahr" href="tel:112">112 anrufen</a></div>
+      <h2>So wirkt die Tablette am besten</h2>
+      <p>Morgens nüchtern mit einem halben Glas Leitungswasser, mindestens 30 Minuten, besser 60 Minuten vor dem Frühstück und vor dem Kaffee. Jeden Tag ungefähr gleich. Mehr dazu, auch zur Einnahme am Abend, im Kapitel „<button type="button" class="knopf-link" data-act="seite" data-seite="wissen-kapitel" data-param="einnahme">Die Tablette richtig nehmen</button>".</p>
+      <h2>Wenn Sie zweifeln</h2>
+      <p>Sprechen Sie Ihre Zweifel in der Praxis an. Das ist Ihr gutes Recht, und Ärztinnen hören diese Frage nicht zum ersten Mal. Dort können Sie besprechen, was in Ihrem Fall für die Tablette spricht und was dagegen.</p>
+      <p>Fragen, die dabei helfen: Warum nehme ich die Tablette? Wie hoch waren meine Werte, bevor ich damit angefangen habe? Brauche ich sie weiter, und in welcher Menge? Ich habe die Tablette eine Zeit lang weggelassen – was heißt das für mich? Notieren Sie sich die Fragen unter „<button type="button" class="knopf-link" data-act="seite" data-seite="fragen">Mehr → Meine Fragen</button>". Dann stehen sie auch im Bericht für den Arzttermin.</p>
+      <p>Haben Sie die Tablette schon eine Weile nicht genommen? Sagen Sie es der Praxis in den nächsten Tagen, offen und ohne schlechtes Gewissen. Auch das hört man dort nicht zum ersten Mal. Am besten, bevor Sie wieder anfangen und vor der nächsten Blutabnahme. Sonst sieht ein hoher Wert so aus, als bräuchten Sie eine höhere Dosis. Nach einer langen Pause oder bei einer Herzkrankheit beginnt die Ärztin manchmal mit weniger. Fehlende Tabletten werden nicht nachgeholt.</p>
+      <p>In der App haken Sie nur die Tage ab, an denen Sie die Tablette genommen haben. Dann stimmt auch der Bericht.</p>
+      <div class="merke">Jede Änderung, auch eine Pause oder eine kleinere Menge, besprechen Sie bitte mit der Praxis. Sie legt die Dosis mit Ihnen fest, meist mit einer Blutkontrolle nach 6 bis 8 Wochen.</div>`,
+  },
   {
     id: 'einnahme',
     titel: 'Die Tablette richtig nehmen',
@@ -302,6 +370,13 @@ export const KAPITEL = [
         <li>Schwangerschaft</li>
       </ul>`,
   },
+  /*
+   * Begrüßung (Nov. 2026): „Dauerhaft nehmen" so ruhig wie das neue Kapitel
+   * „Warum die Tablette wichtig ist". Vorher „nie eigenmächtig absetzen … die
+   * Beschwerden kommen nach Wochen zurück … entscheidet die Ärztin" – strenger
+   * als dort, wo Zweifel ausdrücklich ihr gutes Recht sind und die Beschwerden
+   * meist erst nach Wochen bis Monaten kommen.
+   */
   {
     id: 'gut-zu-wissen',
     titel: 'Gut zu wissen',
@@ -310,7 +385,7 @@ export const KAPITEL = [
       <h2>Hashimoto</h2>
       <p>Die häufigste Ursache einer Unterfunktion: Das Abwehrsystem greift die Schilddrüse langsam an, sie bildet nach und nach weniger Hormon. Behandelt wird die Unterfunktion ganz normal mit L-Thyroxin. Die nötige Dosis kann sich über die Jahre ändern – deshalb die regelmäßigen Kontrollen. Die Antikörper (TPO-AK, Tg-AK) bestätigen die Ursache; ihre Höhe sagt nichts über die richtige Dosis und muss nicht laufend gemessen werden.</p>
       <h2>Dauerhaft nehmen</h2>
-      <p>Nach einer Operation an der Schilddrüse, nach Radiojod und auch bei Hashimoto wird das Hormon in der Regel dauerhaft ersetzt. Die Tabletten nie eigenmächtig absetzen, auch wenn es einem gut geht – die Beschwerden kommen nach Wochen zurück. Ob eine Behandlung ausnahmsweise enden kann, entscheidet die Ärztin.</p>
+      <p>Nach einer Operation an der Schilddrüse, nach Radiojod und auch bei Hashimoto wird das Hormon in der Regel dauerhaft ersetzt. Bitte nicht ohne Absprache absetzen, auch wenn es einem gut geht – Beschwerden kommen meist erst nach Wochen bis Monaten. Ob es in Ihrem Fall anders sein kann, besprechen Sie mit der Ärztin. Mehr dazu: <button type="button" class="knopf-link" data-act="seite" data-seite="wissen-kapitel" data-param="tablette">Warum die Tablette wichtig ist</button></p>
       <h2>Jod</h2>
       <p>Normale Ernährung mit Jodsalz und Seefisch ist auch bei Hashimoto in Ordnung. Hoch dosierte Jodpräparate, Algen oder Kelp und jodhaltige Nahrungsergänzungsmittel „für die Schilddrüse" nur nach Rücksprache. Kombinationspräparate aus L-Thyroxin und Jod sind bei Hashimoto meist nicht sinnvoll – das mit der Ärztin besprechen. Jodhaltiges Kontrastmittel (etwa beim CT) und das Herzmittel Amiodaron der Schilddrüsenpraxis melden.</p>
       <h2>Anderes Präparat</h2>
@@ -336,7 +411,8 @@ export const KAPITEL = [
       <h2>Beschwerden</h2>
       <p>${BE1_TEXT}</p>
       <h2>Ihre Daten</h2>
-      <p>Alles, was Sie eintragen, bleibt <strong>nur auf diesem Handy</strong>, im Speicher des Browsers. Es gibt kein Konto und keinen Server, und nichts wird verschickt – außer Sie teilen selbst den Bericht oder eine Sicherung.</p>
+      <p>Alles, was Sie eintragen, bleibt <strong>nur auf diesem Handy</strong>, im Speicher des Browsers. Es gibt kein Konto, und keiner Ihrer Einträge wird verschickt – außer Sie teilen selbst den Bericht oder eine Sicherung.</p>
+      <p>Nur eine kurze Meldung geht einmal am Tag an ${BETREIBER}, damit er sieht, ob die App bei Ihnen läuft und aktuell ist – ohne Werte und ohne Einträge. Was darin steht und wie Sie sie ausschalten, steht unter „Mehr → Über diese App" bei „Meldung an ${BETREIBER}".</p>
       <p>Das heißt auch: Bei einem neuen Handy, beim Löschen der Browserdaten oder wenn der Browser aufräumt, sind die Daten weg. Deshalb ab und zu unter „Mehr → Sicherung" eine Sicherungsdatei speichern.</p>
       <h2>Erinnern</h2>
       <p>Die App kann sich nicht von selbst melden, wenn sie geschlossen ist. Zuverlässig erinnert der Kalender oder Wecker des Handys – die Kalenderdatei dafür gibt es unter „Mehr → Erinnerung".</p>`,

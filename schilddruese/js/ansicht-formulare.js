@@ -19,7 +19,7 @@ import * as ez from './einschaetzung.js';
 import { befundPruefen } from './einheiten.js';
 import { E14_TEXT, E16_TEXT } from './wissen.js';
 import { dosisBefund, berichtigtAm as berichtigungsTag } from './dosis.js';
-import { wahlFrage, JNW_WAHL, BEFUND_FRAGEN, w1Karte } from './ansicht-einschaetzung.js';
+import { wahlFrage, JNW_WAHL, BEFUND_FRAGEN, w1Karte, P6_HAKEN } from './ansicht-einschaetzung.js';
 
 const feldDatum = (name, wert, titel = 'Datum', hinweis = '', max = '') => `
   <label class="feld"><span>${titel}</span>
@@ -1426,7 +1426,7 @@ function profilFormular(id, stand, heute) {
         <p class="gedaempft" style="margin-bottom:.9rem">Alles freiwillig. Je mehr hier steht, desto genauer kann die App Ihre Werte und Beschwerden einordnen – und desto genauer sagt sie, was wann Abstand zur Tablette braucht. Was offen bleibt, gilt als „weiß nicht", nie als „nein".</p>
 
         <fieldset class="profil-teil"><legend>Über Sie</legend>
-          <label class="haken haken-breit" style="margin-bottom:.4rem"><input type="checkbox" name="behandelt" ${p.behandelt ? 'checked' : ''}>Ich werde wegen einer Schilddrüsen-Unterfunktion mit Tabletten behandelt</label>
+          <label class="haken haken-breit" style="margin-bottom:.4rem"><input type="checkbox" name="behandelt" ${p.behandelt ? 'checked' : ''}>${esc(P6_HAKEN)}</label>
           <p class="hinweis" style="margin-bottom:.9rem">${esc(ez.P6_TEXT)}</p>
           <label class="feld"><span>Geburtsjahr</span>
             <input type="text" inputmode="numeric" name="geburtsjahr" value="${esc(p.geburtsjahr ? String(p.geburtsjahr) : '')}" placeholder="z. B. 1952" autocomplete="off">

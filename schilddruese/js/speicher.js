@@ -1,9 +1,11 @@
 /*
  * Der Speicher: alles, was die App weiß, in einem Schlüssel im localStorage.
  *
- * Kein Server, kein Konto. Was hier steht, liegt nur auf diesem Handy – das
- * ist der Grund, warum die Sicherung (exportJSON/importJSON) kein Beiwerk
- * ist, sondern der einzige Weg, die Daten bei einem Handywechsel zu behalten.
+ * Kein Konto, und keiner der Einträge verlässt das Handy. Was hier steht,
+ * liegt nur auf diesem Handy – das ist der Grund, warum die Sicherung
+ * (exportJSON/importJSON) kein Beiwerk ist, sondern der einzige Weg, die
+ * Daten bei einem Handywechsel zu behalten. (Der Rückkanal, Nov. 2026, meldet
+ * nur ein Lebenszeichen und liest nichts von hier – siehe js/rueckkanal.js.)
  *
  * Drei Grundsätze, übernommen aus der Workout-App und dort teuer gelernt:
  *
@@ -44,8 +46,26 @@ export const SCHLUESSEL = 'schilddruese.stand.v1';
  * `statt` oder `berichtigtAm` rechnet wie vor Runde 6. Jedes neue
  * gespeicherte Feld heißt: hier hochzählen (tests/test-sd-regeln-kern.mjs
  * prüft die Feldnamen gegen eine Liste).
+ *
+ * Fassung 4 (Begrüßung, Nov. 2026): im Profil `einfuehrung` – welche Fassung
+ * des Begrüßungsfensters angezeigt wurde (0: noch keine) – und
+ * `einfuehrungDaten` – ob dabei die Seite „Ihre Daten" mit dem Satz zum
+ * Rückkanal angezeigt wurde (oder die Karte dazu auf „Heute"; erst danach
+ * meldet der Rückkanal). Ein Stand der Fassungen 1 bis 3 hat beides nicht:
+ * Das Fenster erscheint dann einmal (js/ansicht-begruessung.js). Gerade die
+ * Nutzerin, die schon mit der alten App aus PR #3 Einträge hat, soll es nach
+ * dem Update sehen. Hochgezählt, damit eine noch offene ältere App das
+ * Merkmal nicht beim nächsten Speichern verwirft – sonst käme das Fenster
+ * immer wieder.
+ *
+ * Ebenfalls Fassung 4 (Rückkanal, Nov. 2026 – noch vor der Auslieferung
+ * dazugekommen, deshalb ohne eigene Fassung): `einstellungen.rueckkanal`, der
+ * Schalter für die tägliche Meldung an den Betreiber (js/rueckkanal.js). Ein
+ * älterer Stand hat ihn nicht: dann an, wie bei einem neuen. Kennung und Tage
+ * der Meldung stehen nicht hier, sondern unter einem eigenen Schlüssel – sie
+ * gehören zu diesem Gerät, nicht in die Sicherung.
  */
-export const VERSION = 3;
+export const VERSION = 4;
 
 function tageWeiterLokal(iso, n) {
   const d = new Date(`${iso}T12:00:00`);
@@ -273,6 +293,17 @@ function leererStand() {
       // bestätigter Antwort (mittelSetzen, Runde 7: H5).
       kaffee30: true,
       kaffeePruefen: false,
+      // Begrüßung (Nov. 2026): die Fassung des Begrüßungsfensters, die
+      // angezeigt wurde – „angezeigt", nicht „gelesen": Wer „Später lesen"
+      // tippt, hat es gesehen, und es kommt nicht von selbst wieder (unter
+      // „Mehr" bleibt es erreichbar). 0: noch nie. Siehe js/ansicht-begruessung.js.
+      einfuehrung: 0,
+      // … und ob dabei die letzte Seite „Ihre Daten" mit dem Satz zum
+      // Rückkanal zu sehen war. Wer vorher „Später lesen" tippt, kennt ihn nicht.
+      // Rückkanal (Nov. 2026): Erst danach geht die erste Meldung raus. Auch
+      // „Verstanden" auf der Karte „Meldung an Tobi" auf „Heute" setzt es, und
+      // jeder Tipp auf den Schalter daneben – dann stand der Satz ja da.
+      einfuehrungDaten: false,
     },
     // Weitere Mittel als Schlüssel aus MITTEL.
     mittel: [],
@@ -292,6 +323,10 @@ function leererStand() {
       schrift: 'gross',     // normal | gross | sehr-gross
       farbe: 'hell',        // hell | dunkel
       hinweisTablette: true, // Systemhinweis, wenn die App offen ist und die Tablette fehlt
+      // Rückkanal (Nov. 2026): einmal am Tag ein Lebenszeichen an den
+      // Betreiber – ohne Werte und Einträge (js/rueckkanal.js). Abschaltbar
+      // unter „Mehr → Über diese App" und im Begrüßungsfenster.
+      rueckkanal: true,
     },
     // Die Dosis, wie sie auf der Packung steht, ab wann. Die neueste gilt.
     // praxis: auf Anweisung der Praxis eingetragen (true/false/null).
@@ -591,6 +626,12 @@ export function normStand(roh) {
   s.profil.zielAm = istISO(p.zielAm) && (s.profil.zielVon !== null || s.profil.zielNiedrig === 'ja') ? p.zielAm : null;
   s.profil.bundesland = wahl(p.bundesland, BUNDESLAENDER.map(([k]) => k), '');
   s.profil.behandelt = bool(p.behandelt);
+  // Begrüßung (Nov. 2026, Fassung 4): Ein Stand ohne das Merkmal – etwa aus
+  // der alten App (PR #3) – hat das Fenster noch nicht gesehen.
+  s.profil.einfuehrung = Number.isInteger(p.einfuehrung) && p.einfuehrung >= 0 && p.einfuehrung <= 1000 ? p.einfuehrung : 0;
+  // Rückkanal (Nov. 2026): auch ohne das Fenster möglich – über die Karte
+  // „Meldung an Tobi" auf „Heute" (js/ansicht-begruessung.js: rueckkanalKarte).
+  s.profil.einfuehrungDaten = bool(p.einfuehrungDaten);
 
   // Mittel: der alte Schlüssel „oestrogen" wird zur Tablette – das war die
   // häufigere Form – und die App fragt einmal nach, ob es nicht ein Pflaster ist.
@@ -621,6 +662,7 @@ export function normStand(roh) {
   s.einstellungen.schrift = wahl(e.schrift, ['normal', 'gross', 'sehr-gross'], 'gross');
   s.einstellungen.farbe = wahl(e.farbe, ['hell', 'dunkel'], 'hell');
   s.einstellungen.hinweisTablette = bool(e.hinweisTablette, true);
+  s.einstellungen.rueckkanal = bool(e.rueckkanal, true);
 
   s.dosen = liste(roh.dosen, (d) => {
     /*
@@ -1306,11 +1348,13 @@ function sicherungLesen(textDaten) {
  * „geändert", und der Schutz unten griffe nie. Ohne Kennungen: Ein Eintrag
  * ohne gültige Kennung bekommt bei jedem Lesen eine neue. Einnahmen und
  * Abstände nach Tag bzw. Mittel sortiert – die Reihenfolge sagt nichts.
+ * Begrüßung (Nov. 2026): ebenso ohne das Merkmal des Begrüßungsfensters –
+ * auch das schreibt schon das Anschauen (siehe importJSON).
  */
 function inhaltVon(s) {
   const ohneKennung = (eintraege) => eintraege.map(({ id, ...rest }) => rest);
   const sortiert = (o) => Object.keys(o).sort().map((k) => [k, o[k]]);
-  const { begruesst, ...profil } = s.profil;
+  const { begruesst, einfuehrung, einfuehrungDaten, ...profil } = s.profil;
   return JSON.stringify({
     profil,
     mittel: s.mittel,
@@ -1434,8 +1478,11 @@ export function importJSON(textDaten) {
     }
   } catch { /* kein Platz für die Rücklage – dann eben ohne */ }
   const { dauerhaft } = stand;   // gehört zu diesem Gerät (E28, siehe exportJSON)
+  const vorher = stand;
   stand = neu;
   stand.dauerhaft = dauerhaft;
+  einfuehrungBehalten(vorher);
+  rueckkanalBehalten(vorher);
   neuererStand = false;
   merken();
   melden();
@@ -1461,11 +1508,44 @@ export function rueckholbar(heute = heuteISO()) {
   }
 }
 
+/*
+ * Begrüßung (Nov. 2026): Das Begrüßungsfenster, das hier schon angezeigt
+ * wurde, bleibt angezeigt – auch nach dem Einlesen einer älteren Sicherung
+ * ohne das Merkmal (etwa aus der alten App). Es erschiene sonst ein zweites
+ * Mal von selbst, obwohl es „einmal" heißt. Umgekehrt bringt eine Sicherung
+ * vom alten Handy das Merkmal mit.
+ */
+function einfuehrungBehalten(vorher) {
+  const p = stand.profil;
+  const v = vorher.profil;
+  if (v.einfuehrung > p.einfuehrung) {
+    p.einfuehrung = v.einfuehrung;
+    p.einfuehrungDaten = v.einfuehrungDaten;
+  } else if (v.einfuehrung === p.einfuehrung || v.einfuehrung === 0) {
+    // Rückkanal (Nov. 2026): Ohne Fenster kam der Satz von der Karte auf
+    // „Heute" – er gilt für jede Fassung des Fensters.
+    p.einfuehrungDaten = p.einfuehrungDaten || v.einfuehrungDaten;
+  }
+}
+
+/*
+ * Rückkanal (Nov. 2026): Eine Sicherung schaltet die Meldung nie ein. War sie
+ * hier aus, bleibt sie aus – auch wenn die Datei von einem Handy stammt, auf
+ * dem sie an war. Umgekehrt bringt eine Sicherung „aus" mit (dann löscht
+ * js/app.js die Zeile auf dem Server wie beim Ausschalten).
+ */
+function rueckkanalBehalten(vorher) {
+  if (vorher.einstellungen.rueckkanal === false) stand.einstellungen.rueckkanal = false;
+}
+
 export function importZurueck() {
   try {
     const r = rueckholbar();
     if (!r) return false;
+    const vorher = stand;
     stand = normStand(r.stand);
+    einfuehrungBehalten(vorher);
+    rueckkanalBehalten(vorher);
     localStorage.removeItem(`${SCHLUESSEL}.vorImport`);
     merken();
     melden();

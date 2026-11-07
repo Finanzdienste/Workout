@@ -11,19 +11,25 @@
  * Die Einschätzung selbst steht nicht hier, nur ein Verweis mit ihrer Stufe
  * in Worten. Auch die Dosis-Karte wird nur verlinkt: Ihre Richtung darf nie
  * ohne den Pflichttext darunter stehen.
+ *
+ * Heute (Nov. 2026): „Heute" zeigt, was man tun kann. Ohne Befund mit TSH
+ * lädt eine Karte ein, Laborwerte einzutragen; mit Befund steht die
+ * Einschätzung immer da, auch bei „Kein besonderer Anlass", samt dem Weg zur
+ * Dosis-Karte. Die Notfallleiste ist eine Zeile (js/ansicht-einschaetzung.js).
  */
 import { datumInWorten, datumKurz, tageWeiter, uhrText, relativ, tageZwischen } from './datum.js';
 import { esc } from './text.js';
 import * as ez from './einschaetzung.js';
 import { gesamtbildMitDosis } from './dosis.js';
 import {
-  dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb,
+  dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb, kannSpeichern,
 } from './speicher.js';
 import {
   notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang, anrufReihe, anrufeImText, anrufKnopf,
 } from './ansicht-einschaetzung.js';
 import { dosisVerweis } from './ansicht-dosis.js';
 import { vorratAndereStaerke } from './ansicht-formulare.js';
+import { rueckkanalKarte, rueckkanalKarteFaellig } from './ansicht-begruessung.js';
 
 const STUFEN = [['gut', 'Gut'], ['mittel', 'Mittel'], ['schlecht', 'Schlecht']];
 
@@ -139,6 +145,31 @@ function hinweise(stand, heute) {
       </div>`);
   }
 
+  /*
+   * Heute (Nov. 2026): Ohne Befund mit TSH lädt eine Karte dazu ein, die
+   * Werte einzutragen. Dass die App einen Befund einordnet, sah man auf
+   * „Heute" sonst nirgends – „Mit der App kann man ja gar nichts machen".
+   * Gezählt wird jeder Befund mit TSH-Wert, auch einer ohne Bereich oder mit
+   * unbekannter Einheit: Dann sagt die Einschätzung, was fehlt.
+   *
+   * Eingereiht wie eine Erinnerung für den nächsten Termin und vor der Frage
+   * nach gestern: Ohne Stufe stand sie bei 360 × 740 und Schrift „groß" hinter
+   * „Gestern nicht eingetragen" unter der Reiterleiste (y 758) – auf dem
+   * ersten Bildschirm war wieder nicht zu sehen, dass man Werte eintragen
+   * kann (Prüfung Nov. 2026). Die Frage nach gestern eilt nicht; was einen
+   * Anruf braucht oder vor einer doppelten Tablette schützt, steht weiter davor.
+   * Der Knopf steht gleich unter der Frage, der Satz dazu darunter: So liegt
+   * er bei 360 × 740 und Schrift „groß" über der Reiterleiste (vorher y 712).
+   */
+  if (!stand.labor.some((l) => l.tsh && typeof l.tsh.wert === 'number')) {
+    add('termin', `
+      <div class="karte labor-einladung" data-regel="labor-einladung">
+        <h2>${stand.labor.length ? 'Haben Sie einen Befund mit TSH?' : 'Haben Sie einen Laborbefund?'}</h2>
+        <div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="labor">Laborwerte eintragen</button></div>
+        <p class="klein">Tragen Sie TSH (und fT4) ein – dann sagt Ihnen die App, was die Werte bedeuten.</p>
+      </div>`);
+  }
+
   // Nur fragen, wenn gestern schon zählte – am Tag nach dem Einrichten gibt
   // es kein „gestern", das man hätte abhaken können.
   const gestern = tageWeiter(heute, -1);
@@ -192,16 +223,34 @@ function hinweise(stand, heute) {
     // Die Einschätzung: nur ihre Stufe in Worten und der Weg dorthin.
     const g = gm;
     const befundAm = g.ohneMuster ? g.ohneMuster.befund.datum : g.befund ? g.befund.befund.datum : null;
-    if (rang(g.stufe) >= rang('termin')) {
+    const d = dosisVerweis(stand, heute, g.dosis, new Set(g.dosisHinweise.map((h) => h.id)));
+    /*
+     * Heute (Nov. 2026): Mit Befund steht die Einschätzung immer da, auch bei
+     * „Kein besonderer Anlass" – vorher erst ab „Beim nächsten Termin". Wer
+     * gerade Werte eingetragen hatte, fand auf „Heute" danach nichts davon
+     * und las die Seite als eine, die nur sagt, worauf man achten soll. Ohne
+     * Befund wie bisher erst ab „termin" (dann trägt etwas anderes die Stufe,
+     * etwa das Befinden).
+     *
+     * Dazu der Weg zur Dosis-Karte mit der Frage, die sie beantwortet – nur,
+     * wenn es eine Karte gibt und kein eigener Verweis darauf unten steht
+     * (der hat seinen Knopf schon), und nicht bei 112: Neben dem Notfall
+     * fehlt der Dosis-Verweis ebenso (RW1 W1).
+     */
+    if (befundAm || rang(g.stufe) >= rang('termin')) {
+      const zurKarte = g.dosis && !d && g.stufe !== 'notruf'
+        ? '<button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis-karte">Spricht der Befund für mehr oder weniger?</button>' : '';
       add(g.stufe, `
         <div class="karte einschaetzung-verweis ${STUFE_KLASSE[g.stufe]}" data-stufe="${esc(g.stufe)}">
           <p class="klein gedaempft">Einschätzung</p>
           <p class="stufe-zeile">${stufeSchild(g.stufe, g.kopf.titel)}</p>
           ${befundAm ? `<p class="klein">Nach dem Befund vom ${esc(datumKurz(befundAm))} und Ihren übrigen Einträgen.</p>` : '<p class="klein">Nach Ihren Einträgen.</p>'}
-          <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="gesamtbild" style="margin-top:.5rem">Einschätzung ansehen</button>
+          <div class="knopf-reihe verweis-knoepfe">
+            <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="gesamtbild">Einschätzung ansehen</button>
+            ${zurKarte}
+          </div>
         </div>`);
     }
-    const d = dosisVerweis(stand, heute, g.dosis, new Set(g.dosisHinweise.map((h) => h.id)));
     if (d) {
       // Bittet der Verweis um einen Eintrag (die neue Dosis nach „Die Praxis
       // hat entschieden", Runde 4: E1), führt ein Knopf direkt ins Formular.
@@ -296,6 +345,10 @@ function hinweise(stand, heute) {
       </div>`);
   }
 
+  // Rückkanal (Nov. 2026): der Satz zur Meldung an Tobi, solange er noch
+  // nirgends zu sehen war – erst danach wird gemeldet (js/ansicht-begruessung.js).
+  if (rueckkanalKarteFaellig(stand) && kannSpeichern()) add('keine', rueckkanalKarte());
+
   // P6: ohne Bestätigung keine Einschätzung – klein, ganz unten.
   if (!aktiv) add('keine', p6Karte());
 
@@ -344,7 +397,10 @@ export function heuteAnsicht(stand, heute, jetztUhr) {
   // Bei Schrift „sehr groß" füllten Notfallleiste, Datum und Dosis den ersten
   // Bildschirm (360 × 740) – der Knopf, für den man die App jeden Morgen
   // öffnet, lag darunter. Dann steht er direkt unter der Leiste, Datum und
-  // Dosis folgen. Die Leiste selbst bleibt oben (W0).
+  // Dosis folgen. Die Leiste selbst bleibt oben (W0). Heute (Nov. 2026): Die
+  // Leiste ist nur noch eine Zeile; die Reihenfolge bleibt trotzdem, weil
+  // ein Hinweis auf die nächste Dosis („Ab …") bei „sehr groß" allein drei
+  // Zeilen braucht.
   const knopfZuerst = stand.einstellungen.schrift === 'sehr-gross';
   return `
     ${notfallLeiste(stand)}

@@ -3511,15 +3511,20 @@ fall('H14 Gegenprobe: eine wirklich genommene andere Stärke bleibt „bitte neu
 // ---- H2: Datenfassung 3 – eine ältere Instanz schreibt einen Stand mit den
 // Feldern aus Runde 6 nicht mehr gekürzt zurück.
 /*
- * Die gespeicherten Felder der Fassung 3. Kommt ein Feld dazu (oder fällt
+ * Die gespeicherten Felder der Fassung 4. Kommt ein Feld dazu (oder fällt
  * eines weg), scheitert dieser Fall: Dann VERSION in js/speicher.js
  * hochzählen und die Liste anpassen – sonst verwirft eine noch offene ältere
  * App das neue Feld beim nächsten Speichern (H2).
+ *
+ * Begrüßung/Heute (Nov. 2026): Fassung 4 – das Merkmal des
+ * Begrüßungsfensters im Profil (einfuehrung, einfuehrungDaten).
  */
-const FELDER_FASSUNG_3 = ['befinden', 'befinden[].beschwerden', 'befinden[].datum', 'befinden[].id', 'befinden[].notiz', 'befinden[].stufe', 'dauerhaft', 'dosen',
+const FELDER_FASSUNG_4 = ['befinden', 'befinden[].beschwerden', 'befinden[].datum', 'befinden[].id', 'befinden[].notiz', 'befinden[].stufe', 'dauerhaft', 'dosen',
   // Nachprüfung zu Runde 7 (H8): der Tag, an dem eine Menge eingetragen wurde.
   'dosen[].ab', 'dosen[].berichtigtAm', 'dosen[].berichtigung', 'dosen[].eingetragenAm', 'dosen[].id', 'dosen[].mikrogramm', 'dosen[].notiz', 'dosen[].praeparat', 'dosen[].praxis', 'dosen[].statt',
-  'dosen[].tabletten', 'einnahmen', 'einstellungen', 'einstellungen.erinnerung', 'einstellungen.farbe', 'einstellungen.hinweisTablette', 'einstellungen.schrift', 'fragen',
+  'dosen[].tabletten', 'einnahmen', 'einstellungen', 'einstellungen.erinnerung', 'einstellungen.farbe', 'einstellungen.hinweisTablette',
+  // Rückkanal (Nov. 2026): der Schalter für die tägliche Meldung – noch Fassung 4, sie ist nicht ausgeliefert.
+  'einstellungen.rueckkanal', 'einstellungen.schrift', 'fragen',
   'fragen[].erledigt', 'fragen[].id', 'fragen[].text', 'gewicht', 'gewicht[].datum', 'gewicht[].id', 'gewicht[].kg', 'labor', 'labor[].abnahmeUhr', 'labor[].abstandOk',
   'labor[].b12', 'labor[].bestaetigt', 'labor[].biotin', 'labor[].crp', 'labor[].datum', 'labor[].einnahmeArt', 'labor[].einnahmeGeaendert',
   // Runde 7 – weitere Werte (H4, H15, H21): der Tag, an dem die Werte eingetragen wurden.
@@ -3532,21 +3537,25 @@ const FELDER_FASSUNG_3 = ['befinden', 'befinden[].beschwerden', 'befinden[].datu
   // Nachprüfung zu Runde 7 (N1): der Tag des Eintrags je weiterem Wert.
   'labor[].werteAm', 'labor[].werteAm.natrium', 'letzteSicherung', 'mittel', 'mittelAbstand', 'mittelWechsel', 'mittelWechsel[].am', 'mittelWechsel[].art', 'mittelWechsel[].id', 'mittelWechsel[].key',
   'nachfragen', 'nachfragen[].aenderung', 'nachfragen[].am', 'nachfragen[].antwort', 'nachfragen[].art', 'nachfragen[].bezug', 'nachfragen[].id', 'nachfragen[].titel',
-  'profil', 'profil.begruesst', 'profil.behandelt', 'profil.bundesland', 'profil.diabetes', 'profil.geburtsjahr', 'profil.herz', 'profil.hypophyseOderNiedrig',
+  'profil', 'profil.begruesst', 'profil.behandelt', 'profil.bundesland', 'profil.diabetes',
+  // Begrüßung/Heute (Nov. 2026): welche Fassung des Begrüßungsfensters angezeigt wurde, mit der Seite „Ihre Daten".
+  'profil.einfuehrung', 'profil.einfuehrungDaten', 'profil.geburtsjahr', 'profil.herz', 'profil.hypophyseOderNiedrig',
   'profil.kaffee30', 'profil.kaffeePruefen', 'profil.kortison', 'profil.krebs', 'profil.mittelErfasst', 'profil.name', 'profil.oestrogenPruefen', 'profil.osteoporose',
   'profil.praeparatArt', 'profil.schwanger', 'profil.seit', 'profil.ursache', 'profil.zielAm', 'profil.zielBis', 'profil.zielNiedrig', 'profil.zielVon', 'tab', 'termine',
   'termine[].art', 'termine[].blutabnahme', 'termine[].datum', 'termine[].id', 'termine[].notiz', 'termine[].uhr', 'termine[].wo', 'uhrWechsel', 'uhrWechsel[].am',
   'uhrWechsel[].id', 'uhrWechsel[].nach', 'uhrWechsel[].von', 'version', 'vorrat', 'vorrat.stand', 'vorrat.tabletten', 'warnzeichen', 'warnzeichen[].datum',
   'warnzeichen[].id', 'warnzeichen[].ja', 'warnzeichen[].uhr'];
 /** Ein Stand, in dem jedes Feld vorkommt. */
+// Begrüßung/Heute (Nov. 2026): Fassung 4, mit dem Merkmal des Begrüßungsfensters.
 const R7_VOLL = {
-  version: 3,
-  profil: { ...BASIS_PROFIL, name: 'E', seit: '2024-01-01', schwanger: '', zielVon: 1, zielBis: 3, zielAm: '2026-01-01', hypophyseOderNiedrig: 'nein', bundesland: 'BY', mittelErfasst: true, kaffee30: true, kaffeePruefen: false },
+  version: 4,
+  profil: { ...BASIS_PROFIL, name: 'E', seit: '2024-01-01', schwanger: '', zielVon: 1, zielBis: 3, zielAm: '2026-01-01', hypophyseOderNiedrig: 'nein', bundesland: 'BY', mittelErfasst: true, kaffee30: true, kaffeePruefen: false, einfuehrung: 1, einfuehrungDaten: true },
   mittel: ['kaffee'], mittelAbstand: { kaffee: 'ja' },
   mittelWechsel: [{ id: 'w1', key: 'kaffee', art: 'beginn', am: '2026-01-01' }],
   uhrWechsel: [{ id: 'u1', am: '2026-01-01', von: '07:00', nach: '11:00' }],
   nachfragen: [{ id: 'n1', art: 'wd4', bezug: 'd1-14', antwort: 'ja', am: '2026-01-01', aenderung: 'erhoehung' }, { id: 'n2', art: 'karte_gezeigt', bezug: 'b1', antwort: 'mehr', am: '2026-01-01', titel: 'T' }],
-  einstellungen: { erinnerung: '07:00', schrift: 'gross', farbe: 'hell', hinweisTablette: true },
+  // Rückkanal (Nov. 2026): mit dem Schalter der täglichen Meldung.
+  einstellungen: { erinnerung: '07:00', schrift: 'gross', farbe: 'hell', hinweisTablette: true, rueckkanal: false },
   dosen: [r6Dosis('d1', '2024-01-01', 75, { praxis: true, eingetragenAm: '2024-01-03' }), r7Ber('d2', '2025-01-01', 88, 'd1', '2025-02-01')],
   einnahmen: { '2026-01-01': { uhr: '07:00' } },
   // Geändert in Runde 7 – weitere Werte (H4, H15, H21): Der Befund trägt jetzt
@@ -3568,15 +3577,16 @@ const r7Pfade = (o, vor = '') => Object.entries(o).flatMap(([k, v]) => {
   if (v && typeof v === 'object' && !['einnahmen', 'mittelAbstand'].includes(k)) return [p, ...r7Pfade(v, p)];
   return [p];
 });
-fall('H2 Datenfassung 3', () => {
-  check('H2 speicher.VERSION = 3', spR5.VERSION === 3, String(spR5.VERSION));
-  check('H2 normStand schreibt Fassung 3, auch aus einem Stand der Fassung 2', normStand({ version: 2 }).version === 3 && normStand(R7_VOLL).version === 3);
+// Begrüßung/Heute (Nov. 2026): Datenfassung 4 (Merkmal des Begrüßungsfensters).
+fall('H2 Datenfassung 4', () => {
+  check('H2 speicher.VERSION = 4', spR5.VERSION === 4, String(spR5.VERSION));
+  check('H2 normStand schreibt Fassung 4, auch aus einem Stand der Fassung 2', normStand({ version: 2 }).version === 4 && normStand(R7_VOLL).version === 4);
   const alt = normStand({ version: 2, profil: BASIS_PROFIL, mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' }, dosen: [D1] });
   check('H2 ein Stand der Fassung 2 wird ergänzt: das alte Kaffee-„nein" gehört zur alten Frage', alt.profil.kaffeePruefen === true && alt.profil.kaffee30 === true);
   const felder = [...new Set(r7Pfade(normStand(R7_VOLL)))].sort();
-  const neu = felder.filter((x) => !FELDER_FASSUNG_3.includes(x));
-  const weg = FELDER_FASSUNG_3.filter((x) => !felder.includes(x));
-  check('H2 Schutz: die gespeicherten Felder sind die der Fassung 3 – ein neues Feld heißt VERSION hochzählen', spR5.VERSION === 3 && !neu.length && !weg.length,
+  const neu = felder.filter((x) => !FELDER_FASSUNG_4.includes(x));
+  const weg = FELDER_FASSUNG_4.filter((x) => !felder.includes(x));
+  check('H2 Schutz: die gespeicherten Felder sind die der Fassung 4 – ein neues Feld heißt VERSION hochzählen', spR5.VERSION === 4 && !neu.length && !weg.length,
     `neu: ${neu.join(', ') || '–'}; weg: ${weg.join(', ') || '–'}`);
 });
 try {
@@ -3601,7 +3611,8 @@ try {
   const geschrieben = JSON.parse(globalThis.localStorage.getItem(SCHLUESSEL_SD));
   const A2 = await import(`${pathToFileURL(altDatei).href}?runde7`);
   fall('H2 eine ältere Instanz (Fassung 2) neben der neuen', () => {
-    check('H2 die neue App speichert Fassung 3', geschrieben.version === 3, String(geschrieben.version));
+    // Begrüßung/Heute (Nov. 2026): jetzt Fassung 4.
+    check('H2 die neue App speichert Fassung 4', geschrieben.version === 4, String(geschrieben.version));
     check('H2 die ältere sieht einen neueren Stand und schreibt nicht', A2.speicherGrund() === 'neuer' && A2.kannSpeichern() === false, `${A2.speicherGrund()} / ${A2.kannSpeichern()}`);
     A2.aendern((s) => { s.profil.name = 'alt'; });
     A2.sofortSchreiben();

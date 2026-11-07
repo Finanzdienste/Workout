@@ -93,4 +93,35 @@ check(await page.locator('#ansicht a[href="tel:112"]').count() >= 1 && await pag
 'G23: … mit 112 und 116 117 als Knopf und dem Weg zu „Wann anrufen, wann 112"');
 check(await page.evaluate(() => document.documentElement.scrollWidth) <= 390, 'G23: das Kapitel bleibt ohne waagerechtes Scrollen');
 
+// ---------------------------------------------------------------- Begrüßung/Heute (Nov. 2026)
+
+// „Warum die Tablette wichtig ist": dasselbe wie das Begrüßungsfenster,
+// ausführlicher – als erstes Kapitel. Die verbotenen Muster oben gelten für
+// es mit (es steht in KAPITEL).
+const tab = nurText(kap('tablette'));
+check(kapitel[0].id === 'tablette' && kapitel[0].titel === 'Warum die Tablette wichtig ist', 'Begrüßung: „Warum die Tablette wichtig ist" ist das erste Kapitel');
+check(tab.includes('Diese Frage ist berechtigt') && tab.includes('Das ist genau dieses Hormon T4') && tab.includes('Der TSH-Wert ist dafür nur die Anzeige')
+  && tab.includes('Die Tablette macht die Schilddrüse nicht wieder gesund') && tab.includes('ein Leben lang'),
+'Begrüßung: Frage ernst genommen, die Tablette ist das Hormon, TSH ist die Anzeige, ehrlich: heilt nicht, meist lebenslang');
+check(tab.includes('rät die Leitlinie für Hausarztpraxen, zunächst keine Tablette zu beginnen') && tab.includes('lässt sich an einem Wert mit Tablette nicht ablesen'),
+  'Begrüßung: die ehrliche Grenze – nicht jeder braucht sie, das klärt die Praxis');
+check(tab.includes('Sagen Sie es der Praxis in den nächsten Tagen, offen und ohne schlechtes Gewissen') && tab.includes('Fehlende Tabletten werden nicht nachgeholt'),
+  'Begrüßung: weggelassen – in den nächsten Tagen der Praxis sagen (wie „mehrfach vergessene Tabletten"), nichts nachholen');
+check(/30 Minuten, besser 60 Minuten vor dem Frühstück/.test(tab) && !/sofort wieder|doppelt nehmen/.test(tab), 'Begrüßung: Einnahme 30, besser 60 Minuten vorher – und keine Aufforderung zum Nachholen');
+check(/Jede Änderung, auch eine Pause oder eine kleinere Menge, besprechen Sie bitte mit der Praxis/.test(kap('tablette').split('class="merke"')[1] || ''), 'Begrüßung: der Merke-Kasten am Ende');
+await page.click('#reiter-mehr');
+await page.click('[data-seite="wissen"]');
+check(await page.locator('#ansicht .zeile').first().getAttribute('data-param') === 'tablette', 'Begrüßung: in der Liste steht es oben');
+await page.click('[data-seite="wissen-kapitel"][data-param="tablette"]');
+check(await page.locator('#ansicht a[href="tel:112"]').count() >= 2 && await page.locator('#ansicht a[href="tel:116117"]').count() >= 1,
+  'Begrüßung: starker Mangel → 112, Herzklopfen seit Tagen → 116 117 und 112, als Knöpfe');
+for (const [seite, param, ziel] of [['wissen-kapitel', 'notfall', 'Wann anrufen, wann 112'], ['wissen-kapitel', 'einnahme', 'Die Tablette richtig nehmen'], ['fragen', null, 'Meine Fragen']]) {
+  await page.click(`#ansicht article [data-seite="${seite}"]${param ? `[data-param="${param}"]` : ''}`);
+  check((await page.locator('.kopf-titel').innerText()) === ziel, `Begrüßung: der Verweis führt zu „${ziel}"`);
+  await page.click('[data-act="zurueck"]');
+}
+check(await page.evaluate(() => document.documentElement.scrollWidth) <= 390, 'Begrüßung: das Kapitel bleibt ohne waagerechtes Scrollen');
+check(nurText(kap('gut-zu-wissen')).includes('Bitte nicht ohne Absprache absetzen') && !nurText(kap('gut-zu-wissen')).includes('nie eigenmächtig'),
+  'Begrüßung: „Dauerhaft nehmen" so ruhig wie das neue Kapitel');
+
 await ende();

@@ -132,8 +132,19 @@ export function beschwerdeKnoepfe(id, text = '', { ohneCheck = false } = {}) {
 
 /**
  * W0 – die Notfallleiste oben auf „Heute". Kompakt, aber nicht versteckt:
- * der eine Satz, der große 112-Knopf, darunter die drei anderen Nummern.
- * Wer akut krank ist, füllt keinen Fragebogen aus.
+ * eine Zeile mit dem roten 112-Knopf und „Weitere Nummern". Wer akut krank
+ * ist, füllt keinen Fragebogen aus – und tippt auch nichts auf, um 112 zu
+ * finden.
+ *
+ * Heute (Nov. 2026): Vorher standen hier der Satz, wann 112, der Knopf und
+ * die drei anderen Nummern offen untereinander – ein großer roter Kasten,
+ * der bei 360 × 740 und Schrift „groß" den Tabletten-Knopf unter die Leiste
+ * schob. Die Nutzerin las „Heute" als Seite, die nur sagt, worauf sie achten
+ * soll. Jetzt sind 116 117, Giftnotruf, Telefonseelsorge und der Satz, wann
+ * 112, unter „Weitere Nummern" aufklappbar – ein <details>, das ohne Skript
+ * auf- und zugeht. 112 bleibt ohne jeden Zwischenschritt anrufbar. Die feste
+ * Leiste in index.html (C18) bleibt ausführlich: Dort ist die App gar nicht
+ * erst gestartet.
  *
  * Ohne Bundesland steht beim Giftnotruf 112 (P5: „Ohne Angabe: 112
  * anzeigen"). Vorher stand dort nur ein Knopf ins Profil – wer im Notfall
@@ -147,16 +158,19 @@ export function beschwerdeKnoepfe(id, text = '', { ohneCheck = false } = {}) {
 export function notfallLeiste(stand) {
   const gift = sp.giftnotruf(stand.profil.bundesland);
   return `
-    <section class="notfall-leiste" aria-label="Notfall">
-      <p class="notfall-text"><strong>Notfall?</strong> Bei Brustschmerz, starker Atemnot, Ohnmacht, Lähmung, Sprachstörung oder plötzlicher Verwirrtheit: sofort 112.</p>
-      <a class="knopf knopf-notruf knopf-breit" href="tel:112"><span aria-hidden="true">📞</span> 112 anrufen</a>
-      <p class="notfall-nummern">
-        <span>Ärztlicher Bereitschaftsdienst <a class="nummer" href="tel:116117">116 117</a></span>
-        <span class="giftnotruf">Giftnotruf ${gift
+    <section class="notfall-leiste kompakt" aria-label="Notfall">
+      <a class="knopf knopf-notruf" href="tel:112"><span aria-hidden="true">📞</span> <span class="knopf-text">112 anrufen</span></a>
+      <details class="notfall-mehr">
+        <summary>Weitere Nummern</summary>
+        <ul class="notfall-nummern">
+          <li><span>Bereitschaftsdienst, wenn die Praxis zu hat</span> <a class="nummer" href="tel:116117">116 117</a></li>
+          <li class="giftnotruf"><span>Giftnotruf</span> ${gift
     ? `<a class="nummer" href="${esc(telHref(gift))}">${esc(gift)}</a>`
-    : '<a class="nummer" href="tel:112">112</a> <button type="button" class="nummer-zusatz" data-act="seite" data-seite="profil" data-param="bundesland">Bundesland eintragen</button>'}</span>
-        <span>Telefonseelsorge <a class="nummer" href="tel:08001110111">0800 111 0 111</a></span>
-      </p>
+    : '<a class="nummer" href="tel:112">112</a> <button type="button" class="nummer-zusatz" data-act="seite" data-seite="profil" data-param="bundesland">Bundesland eintragen</button>'}</li>
+          <li><span>Telefonseelsorge, Tag und Nacht</span> <a class="nummer" href="tel:08001110111">0800 111 0 111</a></li>
+        </ul>
+        <p class="notfall-text"><strong>Notfall?</strong> Bei Brustschmerz, starker Atemnot, Ohnmacht, Lähmung, Sprachstörung oder plötzlicher Verwirrtheit: sofort 112.</p>
+      </details>
     </section>`;
 }
 
@@ -175,13 +189,34 @@ export function w1Karte(stand, { id = '' } = {}) {
 /**
  * P6: Die Einschätzung gilt nur bei bekannter, behandelter Unterfunktion.
  * Solange das nicht bestätigt ist (Haken oder Behandlungsgrund), steht hier
- * der Text mit einem Knopf zum Bestätigen.
+ * die Frage mit einem Knopf zum Bestätigen.
+ *
+ * Heute (Nov. 2026): Vorher begann die Karte mit dem ganzen P6-Text – vier
+ * Sätze über Grenzen, darunter ein Knopf über drei Zeilen. Jetzt zuerst die
+ * Frage und wozu sie gut ist, dann der Knopf; der P6-Text steht unverändert
+ * darunter, klein. Gefragt wird dasselbe wie vorher: Unterfunktion und
+ * Tabletten, beides im Knopf, damit er auch allein (Vorleser) eindeutig ist.
+ *
+ * Gefragt wird nach der Behandlung, nicht nach der Einnahme (Prüfung
+ * Nov. 2026): Der Knopf hieß „Ja, ich nehme Tabletten …" – für die Nutzerin,
+ * die ihre Tabletten gerade nicht nimmt, ein falscher Satz. Wer ehrlich nicht
+ * tippte, sah zu TSH 7,9 und fT4 11,2 nie „In den nächsten Tagen anrufen".
+ * „Behandelt" heißt im P6-Text: Die Praxis hat die Tabletten verordnet. Ob
+ * sie genommen werden, rechnet die Einschätzung selbst ein (L5b: an wie
+ * vielen Tagen vor der Blutabnahme nicht genommen). Derselbe Wortlaut beim
+ * Haken im Einrichten und unter „Über mich" (P6_HAKEN).
  */
+export const P6_JA = 'Ja, mir wurden Tabletten gegen die Unterfunktion verordnet';
+export const P6_AUCH = 'auch wenn Sie die Tabletten gerade nicht nehmen';
+export const P6_HAKEN = 'Mir wurden Tabletten gegen eine Schilddrüsen-Unterfunktion verordnet – auch wenn ich sie gerade nicht nehme';
+
 export function p6Karte() {
   return `
     <div class="karte p6-karte" id="p6">
-      <p>${esc(ez.P6_TEXT)}</p>
-      <button type="button" class="knopf knopf-breit" data-act="behandelt" style="margin-top:.7rem">Ja, ich werde wegen einer Unterfunktion mit Tabletten behandelt</button>
+      <h2>Werden Sie wegen einer Unterfunktion behandelt?</h2>
+      <p>Dann ordnet die App Ihre Laborwerte für Sie ein – ${esc(P6_AUCH)}.</p>
+      <button type="button" class="knopf knopf-breit" data-act="behandelt">${esc(P6_JA)}</button>
+      <p class="klein gedaempft p6-text">${esc(ez.P6_TEXT)}</p>
     </div>`;
 }
 

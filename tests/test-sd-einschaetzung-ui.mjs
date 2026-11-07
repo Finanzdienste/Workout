@@ -47,6 +47,14 @@ check(await leiste.count() === 1, 'W0: die Notfallleiste steht auf „Heute"');
 check(await page.evaluate(() => document.querySelector('#ansicht').firstElementChild.classList.contains('notfall-leiste')
   || document.querySelector('#ansicht .notfall-leiste') === document.querySelector('#ansicht > *:not(.hinweis-karte)')), '… ganz oben');
 check(await leiste.locator('a.knopf-notruf[href="tel:112"]').count() === 1, '… mit 112 als großem Anruf-Knopf');
+// Begrüßung/Heute (Nov. 2026): Die Leiste ist eine Zeile – 112 sofort, die
+// übrigen Nummern und der Satz, wann 112, unter „Weitere Nummern" zum
+// Aufklappen. 112 ist ohne Aufklappen zu sehen und anrufbar; geprüft wird
+// danach alles Übrige aufgeklappt, so wie die Nutzerin es sieht.
+check(await leiste.locator('a.knopf-notruf[href="tel:112"]').isVisible() && await leiste.locator('a[href="tel:116117"]').isHidden(),
+  '… zugeklappt: 112 zu sehen, die übrigen Nummern nicht');
+await leiste.locator('.notfall-mehr > summary').click();
+check(await leiste.locator('a[href="tel:116117"]').isVisible() && await leiste.locator('a[href="tel:08001110111"]').isVisible(), '„Weitere Nummern" klappt die übrigen Nummern auf');
 check(await leiste.locator('a[href="tel:116117"]').count() === 1 && await leiste.locator('a[href="tel:08001110111"]').count() === 1, '… und Bereitschaftsdienst und Telefonseelsorge als Anruf');
 // Gewollt geändert (Durchsicht B48, RW1 P5 „Ohne Angabe: 112 anzeigen"):
 // Ohne Bundesland steht beim Giftnotruf 112 als Anruf – vorher nur ein Knopf
@@ -57,6 +65,13 @@ check((await leiste.innerText()).includes('Brustschmerz, starker Atemnot, Ohnmac
 
 check(await page.locator('#ansicht #p6').count() === 1, 'P6: ohne Bestätigung steht die Karte mit dem P6-Text auf „Heute"');
 check((await page.locator('#p6').innerText()).includes('rechnet nie eine neue Dosis aus'), '… mit dem Text aus dem Kern');
+// Begrüßung/Heute (Nov. 2026, nach der Prüfung): Gefragt wird nach der
+// Behandlung, nicht nach der Einnahme – „Ja, ich nehme Tabletten …" war für
+// die Nutzerin, die sie gerade nicht nimmt, ein falscher Satz.
+const p6Knopf = (await page.locator('#p6 [data-act="behandelt"]').innerText()).trim();
+check(p6Knopf === 'Ja, mir wurden Tabletten gegen die Unterfunktion verordnet' && !(await page.locator('#p6').innerText()).includes('ich nehme'),
+  `P6: der Knopf fragt nach der Verordnung („${p6Knopf}")`);
+check((await page.locator('#p6').innerText()).includes('auch wenn Sie die Tabletten gerade nicht nehmen'), '… „auch wenn Sie die Tabletten gerade nicht nehmen"');
 await seite('gesamtbild');
 check(await page.locator('#ansicht #p6').count() === 1 && !(await page.locator('#ansicht .stufe-karte').count()), 'das Gesamtbild ist ohne Bestätigung gesperrt');
 await page.click('#reiter-heute');
@@ -64,6 +79,11 @@ await page.click('#p6 [data-act="behandelt"]');
 let s = await gespeichert();
 check(s.profil.behandelt === true, '„Ja, ich werde … behandelt" setzt profil.behandelt');
 check(await page.locator('#ansicht #p6').count() === 0, '… und die Karte verschwindet');
+// Begrüßung/Heute (Nov. 2026): Mit dem Befund von vor 100 Tagen steht die
+// Einschätzung danach gleich auf „Heute" – mit genau einem Weg zur Dosis-Karte
+// (dem eigenen Verweis darauf oder dem Knopf in der Einschätzung).
+check(await page.locator('#ansicht .einschaetzung-verweis [data-seite="gesamtbild"]').count() === 1
+  && await page.locator('#ansicht [data-seite="dosis-karte"]').count() === 1, 'Heute (Nov. 2026): danach die Einschätzung zum Befund und ein Weg zur Dosis-Karte');
 await breitOk('Heute');
 
 // ---------------------------------------------------------------- Profil
@@ -207,6 +227,20 @@ check(s.labor.find((l) => l.id === befund.id).praxis === 'bleibt' && s.labor.fin
 check((await page.locator('#meldung').innerText()).includes('Es gilt, was die Praxis gesagt hat'), '… mit der Bestätigung');
 check(await page.locator('#dosis-karte').getAttribute('data-richtung') === 'klaeren', '… und die Karte zeigt keine Richtung mehr');
 check((await ansichtText(page)).includes('Die App zeigt zu diesem Befund keine Richtung mehr'), 'die Bestätigung steht auch auf der Karte');
+// Begrüßung/Heute (Nov. 2026): Mit Befund steht die Einschätzung auf „Heute"
+// immer da, auch bei „Kein besonderer Anlass" – vorher erst ab „Beim
+// nächsten Termin". Ohne eigenen Verweis auf die Dosis-Karte führt die
+// Einschätzung selbst dorthin, mit der Frage, die die Karte beantwortet.
+await page.click('#reiter-heute');
+const ezVerweis = page.locator('#ansicht .einschaetzung-verweis');
+const ezStufe = await ezVerweis.count() ? await ezVerweis.getAttribute('data-stufe') : 'keine Karte';
+check(ezStufe === 'keine' && (await ezVerweis.innerText()).includes('Kein besonderer Anlass'),
+  `Heute (Nov. 2026): nach „Die Dosis bleibt so" steht auf „Heute" die Einschätzung „Kein besonderer Anlass" (${ezStufe})`);
+check(await page.locator('#ansicht .dosis-verweis').count() === 0 && await page.locator('#ansicht [data-seite="dosis-karte"]').count() === 1
+  && (await ezVerweis.locator('[data-seite="dosis-karte"]').innerText()) === 'Spricht der Befund für mehr oder weniger?',
+'… mit „Einschätzung ansehen" und dem Weg zur Dosis-Karte: „Spricht der Befund für mehr oder weniger?"');
+await ezVerweis.locator('[data-seite="dosis-karte"]').click();
+check(await page.locator('#dosis-karte').count() === 1, '… der Knopf öffnet die Dosis-Karte');
 await page.click('[data-seite="praxis-entschieden"]');
 await page.click('[data-act="praxis-entscheid"][data-wert="geaendert"]');
 check(await page.locator('form[data-formular="dosis"]').count() === 1, '„Neue Dosis eintragen" öffnet das Dosis-Formular');
@@ -329,6 +363,37 @@ check(t.includes('Dosis-Karte der App'), '… und „Dosis-Karte der App"');
 check(t.includes('auf Anweisung der Praxis: ja'), '… und bei der Dosis „auf Anweisung der Praxis: ja"');
 check(t.includes('rechnet keine neue Dosis aus'), 'die Fußzeile: „rechnet keine neue Dosis aus"');
 check(!/undefined|NaN|\[object/.test(t), 'kein Rechenrest im Bericht');
+
+// ---------------------------------------------------------------- P6 ohne Einnahme
+
+/*
+ * Begrüßung/Heute (Nov. 2026, nach der Prüfung): Wer die Tabletten gerade
+ * nicht nimmt, kann P6 jetzt ehrlich bestätigen – und bekommt zu TSH 7,9 und
+ * fT4 11,2 die Einschätzung, die für sie zählt. Vorher fragte der einzige
+ * Knopf „Ja, ich nehme Tabletten …", und „Heute" blieb ohne Einschätzung.
+ */
+const nichtGenommen = {};
+for (let i = 1; i <= 42; i++) nichtGenommen[plus(TAG, -i)] = null;
+await page.waitForTimeout(400);   // das verzögerte Schreiben der App abwarten, sonst überschreibt es den neuen Stand
+await page.evaluate(({ key, st }) => localStorage.setItem(key, JSON.stringify(st)), {
+  key: SCHLUESSEL,
+  st: standMit(plus(TAG, -400), {
+    version: 2,
+    profil: { name: '', begruesst: true, seit: plus(TAG, -300) },
+    einnahmen: nichtGenommen,
+    labor: [{ id: 'lb', datum: plus(TAG, -2), tsh: { wert: 7.9, einheit: 'mU/l', von: 0.27, bis: 4.2 }, ft4: { wert: 11.2, einheit: 'pmol/l', von: 12, bis: 22 }, ft3: null, notiz: '' }],
+  }),
+});
+await uhr(TAG, '09:00');
+await page.click('#reiter-heute');   // die App merkt sich „Mehr" für das Neuladen am selben Tag
+check(await page.locator('#ansicht #p6').count() === 1 && !(await page.locator('#ansicht .einschaetzung-verweis').count()), 'Tabletten 6 Wochen nicht genommen, TSH 7,9 / fT4 11,2: ohne Bestätigung keine Einschätzung');
+await page.click('#p6 [data-act="behandelt"]');
+await page.waitForTimeout(300);
+const verweis = page.locator('#ansicht .einschaetzung-verweis');
+check(await verweis.count() === 1 && (await verweis.getAttribute('data-stufe')) === 'tage' && (await verweis.innerText()).includes('In den nächsten Tagen anrufen'),
+  `… nach „verordnet": auf „Heute" „In den nächsten Tagen anrufen" (${await verweis.count() ? await verweis.getAttribute('data-stufe') : 'keine Einschätzung'})`);
+await verweis.locator('[data-seite="gesamtbild"]').click();
+check((await ansichtText(page)).includes('nicht genommen'), '… und die Einschätzung nennt die nicht genommenen Tabletten');
 
 // Der Stand bleibt lesbar.
 check(await page.evaluate((key) => { try { return !!JSON.parse(localStorage.getItem(key)).version; } catch { return false; } }, SCHLUESSEL), 'der gespeicherte Stand ist gültiges JSON');

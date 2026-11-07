@@ -44,7 +44,8 @@ await download.saveAs(datei);
 const inhalt = JSON.parse(readFileSync(datei, 'utf8'));
 // Runde 7: H2 – geändert: Die Datenfassung ist jetzt 3 (neue Felder aus
 // Runde 6), damit eine ältere App die Datei ablehnt, statt Felder zu verwerfen.
-check(inhalt.app === 'schilddruese' && inhalt.version === 3, 'die Datei trägt App-Namen und Version');
+// Begrüßung/Heute (Nov. 2026): Fassung 4 – das Merkmal des Begrüßungsfensters.
+check(inhalt.app === 'schilddruese' && inhalt.version === 4, 'die Datei trägt App-Namen und Version');
 check(vergleich(inhalt) === vergleich(vorher), 'die Datei enthält Dosis, Einnahmen, Laborwerte und Fragen');
 let s = await gespeichert();
 check(s.letzteSicherung === TAG, 'das Datum der letzten Sicherung wird gemerkt');

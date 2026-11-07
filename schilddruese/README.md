@@ -5,11 +5,12 @@ eine Tablette nimmt und beim Arzttermin wissen will, was seit dem letzten Mal
 war.
 
 Die App liegt neben der Workout-App im selben Repository und folgt denselben
-Grundsätzen: **kein Bauschritt, keine Abhängigkeiten, kein Server, kein
-Konto.** `schilddruese/index.html` im Browser öffnen genügt; über GitHub Pages
-liegt sie unter `https://finanzdienste.github.io/Workout/schilddruese/` und
-lässt sich von dort aus „zum Startbildschirm hinzufügen". Alle Daten bleiben im
-Browser des Handys.
+Grundsätzen: **kein Bauschritt, keine Abhängigkeiten, kein Konto.**
+`schilddruese/index.html` im Browser öffnen genügt; über GitHub Pages liegt sie
+unter `https://finanzdienste.github.io/Workout/schilddruese/` und lässt sich
+von dort aus „zum Startbildschirm hinzufügen". Alle Einträge bleiben im Browser
+des Handys; nach draußen geht nur ein tägliches Lebenszeichen ohne
+Gesundheitsdaten ([Rückkanal](#rückkanal-und-übersicht)), abschaltbar.
 
 ## Was sie kann
 
@@ -17,11 +18,11 @@ Browser des Handys.
 | --- | --- |
 | **Heute** | Ganz oben die Notfallleiste (112, Bereitschaftsdienst 116 117, Giftnotruf des Bundeslands, Telefonseelsorge). Datum in Worten, die heute gültige Dosis, der große Knopf „Tablette genommen?". Darunter nur, was zutrifft, nach Dringlichkeit geordnet: seelische Not immer zuerst, Puls und Herzklopfen aus dem Befinden, die Stufe der Einschätzung mit Verweis, ein Verweis auf die Dosis-Karte, Kontrollen und Nachfragen nach einer Dosisänderung, eine schon eingetragene künftige Dosis, die Stärke fehlt noch, gestern nichts eingetragen, gestern nicht genommen („heute wie gewohnt – nicht doppelt"), ein Termin in den nächsten zwei Wochen, Vorrat geht zur Neige, lange keine Sicherung. Ganz unten „Wie geht es Ihnen heute?" mit drei Knöpfen. |
 | **Verlauf** | Laborwerte (TSH, fT4, fT3 und freiwillig weitere) je Befund mit der Tagesdosis, die damals galt; je Wert die Lage in Worten und woher der Bereich stammt, darunter die Einschätzung (siehe unten). Verlaufslinie ab zwei Werten, umgerechnet auf eine Einheit. Dosis mit Verlauf („aktuell", „geplant", „auf Anweisung der Praxis"). Einnahmen der letzten vier Wochen als Kalender mit ✓ ✗ ? zum Antippen und Nachtragen. Gewicht. Befinden mit Beschwerden. |
-| **Mehr** | Einschätzung (Gesamtbild), Dosis-Karte, Warnzeichen prüfen, „Was braucht Abstand?", „Über mich & weitere Mittel". Bericht für den Arzttermin (teilen, kopieren, drucken), eigene Fragen für den Termin, Termine (mit Kalenderdatei), Wissen in zehn Kapiteln, Erinnerung, Tablettenvorrat, Schrift und Farben, Sicherung, „Über diese App" mit „Alles löschen". |
+| **Mehr** | Einschätzung (Gesamtbild), Dosis-Karte, Warnzeichen prüfen, „Was braucht Abstand?", „Über mich & weitere Mittel". Bericht für den Arzttermin (teilen, kopieren, drucken), eigene Fragen für den Termin, Termine (mit Kalenderdatei), Wissen in zehn Kapiteln, Erinnerung, Tablettenvorrat, Schrift und Farben, Sicherung, „Über diese App" mit dem Schalter „Meldung an Tobi" und „Alles löschen". |
 
 Beim allerersten Öffnen drei Schritte: für wen die Einschätzung gilt (mit dem
-Haken „Ich werde wegen einer Schilddrüsen-Unterfunktion mit Tabletten
-behandelt"), Anrede und Geburtsjahr; Tablette (Präparat, Stärke in µg,
+Haken „Mir wurden Tabletten gegen eine Schilddrüsen-Unterfunktion verordnet –
+auch wenn ich sie gerade nicht nehme"), Anrede und Geburtsjahr; Tablette (Präparat, Stärke in µg,
 Tabletten am Tag, seit wann); Einnahmezeit. Die Stärke darf leer bleiben,
 wenn die Packung nicht zur Hand ist – geschätzt wäre schlimmer; „Heute"
 erinnert dann daran. Wer ein neues Handy hat, kann schon dort eine Sicherung
@@ -60,7 +61,9 @@ herauskommt.
 
 Die Einschätzung gilt nur für Erwachsene mit bekannter, behandelter
 Unterfunktion – eingeschaltet über den Haken im Willkommen oder im Profil
-(oder einen Behandlungsgrund). Ohne ihn zeigt die App die Lage der Werte,
+(oder einen Behandlungsgrund). Gefragt wird nach der Verordnung, nicht nach
+der Einnahme: Gerade wer die Tabletten gerade nicht nimmt, soll die
+Einschätzung bekommen – sie rechnet nicht genommene Tage selbst ein (L5b). Ohne ihn zeigt die App die Lage der Werte,
 aber kein Muster und keine Dringlichkeit. Notfallleiste, Warnzeichen-Check
 und die Hinweise bei seelischer Not und unregelmäßigem Puls gelten immer.
 
@@ -222,6 +225,75 @@ Drei Regeln aus der Workout-App, hier von Anfang an:
 - **„Stand vor dem Einlesen zurückholen"** fragt nach und steht nur am Tag des
   Einlesens und zwei Tage danach da; auf einem neuen Handy gar nicht.
 
+## Rückkanal und Übersicht
+
+Tobi will sehen, ob die App bei seiner Mutter installiert ist, ob sie läuft und
+ob sie aktuell ist. Von innen lässt sich das nicht beantworten, deshalb meldet
+die App **einmal am Tag beim Öffnen** ein Lebenszeichen
+(`js/rueckkanal.js`) an das Supabase-Projekt der Workout-App
+(`vjyohppohmvhhxgwouti`). Darin stehen genau sieben Felder: eine zufällige
+Gerätekennung (UUID), die Fassung der App (`APP_FASSUNG`, gleich `VERSION` in
+`sw.js`), ob sie vom Startbildschirm läuft, grob die Plattform
+(`ios`/`android`/`andere`), ob die Einführung angezeigt wurde, der erste und
+der heutige Tag – ohne Uhrzeit. **Nichts** über Werte, Einträge, Tabletten,
+Befinden, Name oder Anrede: `js/rueckkanal.js` bekommt den Stand gar nicht zu
+sehen, nur drei Wahrheitswerte (eingeschaltet, eingerichtet, Einführung
+angezeigt), und `sd_melde()` auf dem Server weist jedes weitere Feld ab. An
+wie vielen Tagen die App geöffnet wurde, zählt der Server selbst.
+
+- **Sichtbar.** Der Satz dazu steht auf der letzten Seite des
+  Begrüßungsfensters und unter „Mehr → Über diese App" („Meldung an Tobi",
+  dort als erste Karte), jeweils mit „An" / „Aus". Gemeldet wird erst, wenn
+  der Satz zu sehen war (`profil.einfuehrungDaten`): Wer das Fenster vor der
+  letzten Seite schließt, es wegen einer 112-Lage nicht bekommt oder auf
+  „Mehr" startet, sieht auf „Heute" eine kleine Karte („Die App schickt Tobi
+  einmal am Tag eine kurze Meldung …") mit „Verstanden" und „Ausschalten";
+  erst danach geht die erste Meldung raus. Solange das Begrüßungsfenster
+  offen ist, wartet sie ebenso; vor dem Einrichten geht nichts raus.
+- **Abschaltbar.** „Aus" schickt nichts mehr und löscht die eigene Zeile
+  (`sd_entferne`); ohne Netz wird das Löschen beim nächsten Öffnen nachgeholt.
+  Wieder eingeschaltet, meldet sich das Handy mit einer neuen Kennung. „Alles
+  löschen" löscht die Zeile ebenso. Eine Sicherung schaltet die Meldung nie
+  ein: War sie auf dem Handy aus, bleibt sie aus.
+- **Kein Test meldet.** Von einer lokalen Adresse (`localhost`, `127.0.0.1`,
+  `file://`, `.local`) geht nie etwas raus – wie `hatServer()` in
+  `js/config.js` der Workout-App, deren Übersicht so einmal rund 1000
+  erfundene Geräte zählte. `tests/test-sd-rueckkanal.mjs` schaltet es mit
+  `localStorage['schilddruese.rueckkanal.lokal'] = '1'` frei und fängt jeden
+  Aufruf ab.
+- **Gerät, nicht Stand.** Kennung, erster Tag und Tag der letzten Meldung
+  stehen unter einem eigenen Schlüssel (`schilddruese.rueckkanal.v1`), nicht
+  im Stand und nicht in der Sicherung – ein neues Handy ist ein neues Gerät.
+  Nur der Schalter (`einstellungen.rueckkanal`) gehört zum Stand.
+- **Wer es speichert.** Die Tabelle liegt bei Supabase. Wie jeder Dienst im
+  Netz sieht Supabase bei jeder Meldung die IP-Adresse des Handys; in die
+  Tabelle geschrieben wird sie nicht. Das steht auch in der App, unter „Mehr →
+  Über diese App" bei „Meldung an Tobi" (`RUECKKANAL_DIENST`) – wie in der
+  Workout-App seit v203.
+
+**Datenbank.** [`tools/schilddruese-rueckkanal.sql`](../tools/schilddruese-rueckkanal.sql)
+einmal im SQL Editor von Supabase ausführen; der Block ist wiederholbar. Er
+legt die Tabelle `sd_geraete` an (RLS an, kein Recht für `anon`) und drei
+Funktionen, die als einzige für `anon` ausführbar sind: `sd_melde(zeile)` mit
+Formprüfung (UUID, Fassung `v…`, Plattform aus drei Werten, Wahrheitswerte,
+Tage ohne Uhrzeit, kein Feld mehr), `sd_entferne(geraet)` mit der Zahl der
+gelöschten Zeilen und `sd_admin_liste(pass)`. Die prüft das Passwort über
+`admin_liste(pass)` der Workout-App – es gibt also nur ein Passwort, und es
+steht nirgends im Code.
+
+**Übersicht.** `schilddruese/uebersicht.html` (mit `uebersicht.js`) – nicht in
+der App verlinkt und nicht in `SHELL`. Nach dem Passwort je Gerät eine
+Tabelle: Fassung mit Vermerk, ob sie die aktuelle ist (gelesen aus `sw.js`
+auf dem Server), Startbildschirm, Plattform, zuletzt geöffnet (vor wie vielen
+Tagen), seit wann, an wie vielen Tagen, Einführung angezeigt. Darüber ein
+Hinweis, wenn die Fassung alt ist oder die App seit über sieben Tagen nicht
+geöffnet wurde. Alles vom Server wird als Text gesetzt, nie als HTML; das
+Passwort bleibt nur im Speicher der Seite.
+
+**Neue Fassung ausliefern:** `VERSION` in `sw.js` und `APP_FASSUNG` in
+`js/rueckkanal.js` zusammen hochzählen – sonst meldet die neue App die alte
+Nummer, und die Übersicht hält sie für veraltet.
+
 ## Gestaltung
 
 Für eine ältere Nutzerin: Grundschrift 20 px (wählbar 18 / 20 / 23 px), alle
@@ -252,10 +324,13 @@ alle drei Schriftgrößen.
 | `js/bericht.js` | Der Text für den Arzttermin |
 | `js/wissen.js` | Die Wissenskapitel |
 | `js/ics.js` | Kalenderdateien: tägliche Erinnerung, einzelne Termine |
+| `js/rueckkanal.js` | Das tägliche Lebenszeichen an den Betreiber, Abschalten, offene Löschungen ([Rückkanal](#rückkanal-und-übersicht)) |
+| `uebersicht.html`, `uebersicht.js` | Übersicht für den Betreiber – nicht in der App verlinkt, nicht in `SHELL` |
+| `../tools/schilddruese-rueckkanal.sql` | Tabelle und Funktionen des Rückkanals in Supabase, wiederholbar |
 | `js/diagramm.js` | Verlaufslinie ohne Bibliothek |
 | `js/datum.js`, `js/text.js` | Datum, Zahlen mit Komma, HTML entschärfen |
 
-Tests: `tests/test-sd-*.mjs` (vierzehn Dateien – die Oberfläche der
+Tests: `tests/test-sd-*.mjs` (neunzehn Dateien – die Oberfläche der
 Einschätzung in `test-sd-einschaetzung-ui.mjs`, die Regeln ohne Browser in
 `test-sd-regeln-*.mjs`), gemeinsame Helfer in
 `tests/sd-hilfe.mjs`. Sie laufen mit allen anderen:

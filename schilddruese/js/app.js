@@ -25,8 +25,13 @@ import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS, PRAXIS_NOCH_NICHT }
 import { fragenVorschlaege, abnahmeHeute, aenderungsArt } from './einschaetzung.js';
 import { dosisHinweise, wd4FrageArt, wartetAufPraxis, PRAXIS_DANACH } from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, willkommenEntwurf, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
+import {
+  SEITEN as BEGRUESSUNG_SEITEN, EINFUEHRUNG_FASSUNG, NOTLAGE_IM_BILD, faellig, vonSelbstErlaubt, notlageHeute, seiteHtml as begruessungHtml,
+  rueckkanalKarteFaellig,
+} from './ansicht-begruessung.js';
 import { berichtText } from './bericht.js';
 import { erinnerungICS, terminICS } from './ics.js';
+import * as rk from './rueckkanal.js';
 
 const $ansicht = document.getElementById('ansicht');
 const $kopf = document.getElementById('kopf');
@@ -381,6 +386,9 @@ function zeigeReiter(tab) {
   window.scrollTo(0, 0);
   render();
   $ansicht.focus({ preventScroll: true });
+  // Begrüßung (Nov. 2026): Startete die App auf einem anderen Reiter (Neuladen
+  // am selben Tag), kommt das fällige Fenster beim ersten „Heute".
+  if (tab === 'heute') begruessungVonSelbst();
 }
 
 /**
@@ -704,6 +712,7 @@ function sicherungLaden(datei) {
       return;
     }
     let ergebnis;
+    const rkVorher = sp.getStand().einstellungen.rueckkanal;
     try {
       ergebnis = sp.importJSON(text);
     } catch {
@@ -726,6 +735,15 @@ function sicherungLaden(datei) {
       // auch wenn sie ausnahmsweise ohne diesen Haken gespeichert wurde.
       if (!sp.getStand().profil.begruesst && sp.aktuelleDosis()) sp.aendern((s) => { s.profil.begruesst = true; });
       render();
+      // Begrüßung (Nov. 2026): Auf einem neuen Handy kommt die Einrichtung aus
+      // der Sicherung – ohne das Merkmal (etwa aus der alten App) ist das
+      // jetzt das erste „Heute".
+      begruessungVonSelbst();
+      // Rückkanal (Nov. 2026): Die Sicherung brachte „aus" mit – wie beim
+      // Ausschalten. Sonst ist das neue Handy jetzt eingerichtet und meldet
+      // sich (nach dem Begrüßungsfenster) als eigenes Gerät.
+      if (rkVorher && !sp.getStand().einstellungen.rueckkanal) rueckkanalAbschalten({ still: true });
+      rueckkanalPruefen();
     } else {
       window.alert(ergebnis.grund);
     }
@@ -1089,11 +1107,14 @@ function aktion(el) {
     case 'sicherung-laden':
       document.getElementById('sicherungDatei')?.click();
       break;
-    case 'sicherung-zurueck':
+    case 'sicherung-zurueck': {
       // Zurückholen ersetzt alles, was seit dem Einlesen eingetragen wurde –
       // „zurückholen" klingt aber nach „meine Daten wiederherstellen".
       if (!window.confirm('Den Stand von vor dem Einlesen zurückholen? Alles, was seitdem eingetragen wurde, geht dabei verloren.')) break;
+      const rkVorher = sp.getStand().einstellungen.rueckkanal;
       if (sp.importZurueck()) {
+        // Rückkanal (Nov. 2026): Brachte der Stand von vorher „aus" mit, wie beim Ausschalten.
+        if (rkVorher && !sp.getStand().einstellungen.rueckkanal) rueckkanalAbschalten({ still: true });
         // War der Stand von vorher eine unfertige Einrichtung, beginnt sie von
         // vorn – wie nach „Alles löschen". Vorher blieb die Seite „Sicherung"
         // stehen und öffnete sich nach „Fertig – zur App" statt „Heute"
@@ -1110,10 +1131,15 @@ function aktion(el) {
         render();
       } else meldung('Kein vorheriger Stand vorhanden');
       break;
+    }
     case 'alles-loeschen':
       if (window.confirm('Wirklich alle Daten dieser App löschen? Dosis, Einnahmen, Laborwerte, alles.')
         && window.confirm('Letzte Frage: Alles löschen? Das lässt sich nur mit einer Sicherung rückgängig machen.')) {
         sp.allesLoeschen();
+        // Rückkanal (Nov. 2026): „alles" heißt auch die Zeile beim Betreiber
+        // und die Kennung dieses Geräts. Nach dem neuen Einrichten meldet es
+        // sich als neues Gerät.
+        rueckkanalAbschalten({ still: true });
         ui.seite = null;
         ui.stapel = [];
         ui.tab = 'heute';
@@ -1163,6 +1189,12 @@ function aktion(el) {
         render();
         $ansicht.focus({ preventScroll: true });
         meldung('Fertig eingerichtet');
+        // Begrüßung (Nov. 2026): beim ersten „Heute" das Begrüßungsfenster.
+        // Die Sperre von eben gilt auch für seine Knöpfe – ein Doppeltipp auf
+        // „Fertig – zur App" blättert nicht gleich weiter.
+        begruessungVonSelbst();
+        // Rückkanal (Nov. 2026): erst nach dem Fenster (beim Schließen).
+        rueckkanalPruefen();
       } else {
         ui.schritt++;
         window.scrollTo(0, 0);
@@ -1173,6 +1205,32 @@ function aktion(el) {
     }
     case 'willkommen-zurueck':
       willkommenZurueck();
+      break;
+    // Begrüßung (Nov. 2026): das Fenster „So hilft Ihnen die App".
+    case 'begruessung':
+      begruessungZeigen({ zurueckZu: fokusMerkmal(el) });
+      break;
+    case 'begruessung-weiter':
+      begruessungSeite(begruessung ? begruessung.seite + 1 : 0);
+      break;
+    case 'begruessung-zurueck':
+      begruessungSeite(begruessung ? begruessung.seite - 1 : 0);
+      break;
+    case 'begruessung-zu':
+      begruessungSchliessen({ spaeter: true });
+      break;
+    case 'begruessung-fertig':
+      begruessungSchliessen();
+      break;
+    // Rückkanal (Nov. 2026): der Schalter unter „Mehr → Über diese App" und im Begrüßungsfenster.
+    case 'rueckkanal':
+      rueckkanalSchalten(el.dataset.wert === 'an');
+      break;
+    // Die Karte „Meldung an Tobi" auf „Heute": Der Satz war zu sehen – jetzt darf gemeldet werden.
+    case 'rueckkanal-verstanden':
+      sp.aendern((s) => { s.profil.einfuehrungDaten = true; });
+      render();
+      rueckkanalPruefen();
       break;
     default:
       break;
@@ -1482,6 +1540,216 @@ function auswahlFertig(wert) {
   if (dialog.open && dialog.close) dialog.close();
   dialog.remove();
   wahl(wert || null);
+}
+
+// ---------------------------------------------------------------- Begrüßung
+
+/*
+ * Begrüßung (Nov. 2026): das Fenster „So hilft Ihnen die App" – sechs kurze
+ * Seiten, warum die Tablette wichtig ist und was man in der App tun kann
+ * (Text und Regeln in js/ansicht-begruessung.js). Ein eigenes <dialog> wie
+ * die Rückfrage: Es liegt über der Ansicht, die darunter bleibt, wie sie ist.
+ *
+ * Von selbst kommt es einmal – beim ersten „Heute" nach dem Einrichten und
+ * bei einem eingerichteten Stand ohne das Merkmal (die Nutzerin mit Daten aus
+ * der alten App). Nie über einer 112-Karte, nie über einer offenen Seite oder
+ * Rückfrage, und nicht, wenn die App nichts speichern kann: Dann käme es bei
+ * jedem Öffnen wieder und verdeckte die Warnung dazu. Unter „Mehr →
+ * Einführung" lässt es sich jederzeit öffnen.
+ *
+ * Gemerkt wird es beim Anzeigen (profil.einfuehrung), nicht erst bei „Los
+ * geht's": „Später lesen" heißt, sie hat es gesehen und will jetzt nicht – es
+ * kommt nicht immer wieder. Keine Zeitsperre und keine gesperrten Knöpfe; die
+ * Sperre gegen den Doppeltipp (sperren) gilt auch hier. Escape und die
+ * Zurück-Geste (wo der Browser sie dem Fenster gibt) heißen „Später lesen".
+ */
+let begruessung = null;   // { dialog, seite, zurueckZu } – zurueckZu: wohin der Fokus danach geht
+
+/** Fällig, erlaubt, und nichts spricht dagegen? Dann das Fenster – von selbst. */
+function begruessungVonSelbst() {
+  const stand = sp.getStand();
+  if (begruessung || rueckfrage || auswahl || ui.seite || ui.tab !== 'heute') return;
+  if (!faellig(stand) || !vonSelbstErlaubt() || !sp.kannSpeichern()) return;
+  // Die 112-Karte: aus dem Stand gerechnet und im gezeichneten „Heute"
+  // gesucht – ohne die verborgene Karte eines Formulars (notfall-jetzt).
+  const imBild = [...$ansicht.querySelectorAll(NOTLAGE_IM_BILD)].some((el) => !el.closest('[hidden]'));
+  if (imBild || notlageHeute(stand, heuteISO())) return;
+  begruessungZeigen();
+}
+
+function begruessungZeigen({ zurueckZu = null } = {}) {
+  if (begruessung) return;
+  const dialog = document.createElement('dialog');
+  dialog.className = 'begruessung';
+  dialog.setAttribute('aria-label', 'Einführung: So hilft Ihnen die App');
+  dialog.addEventListener('cancel', (e) => { e.preventDefault(); begruessungSchliessen({ spaeter: true }); });
+  // Schließt der Browser das Fenster selbst (ein zweites Escape gleich nach
+  // dem ersten kommt ohne „cancel"), gilt es trotzdem als geschlossen – sonst
+  // wartete ein Update auf ein Fenster, das niemand mehr sieht.
+  dialog.addEventListener('close', () => { if (begruessung && begruessung.dialog === dialog) begruessungSchliessen(); });
+  document.body.appendChild(dialog);
+  begruessung = { dialog, seite: 0, zurueckZu };
+  begruessungSeite(0, { oeffnen: true });
+}
+
+/*
+ * Eine Seite zeigen: oben anfangen, der Fokus auf ihrer Überschrift – das
+ * Vorleseprogramm sagt den Titel mit „Seite x von 6" an. Stünde er auf
+ * „Weiter", rollte das Fenster bei Schrift „groß" bis nach unten.
+ */
+function begruessungSeite(i, { oeffnen = false } = {}) {
+  const b = begruessung;
+  if (!b) return;
+  const letzte = BEGRUESSUNG_SEITEN.length - 1;
+  b.seite = Math.max(0, Math.min(letzte, i));
+  b.dialog.innerHTML = begruessungHtml(b.seite, sp.getStand(), heuteISO());
+  if (oeffnen) {
+    if (b.dialog.showModal) b.dialog.showModal(); else b.dialog.setAttribute('open', '');
+  }
+  const h = b.dialog.querySelector('#begruessung-titel');
+  if (h) h.focus({ preventScroll: true });
+  b.dialog.scrollTop = 0;
+  // Angezeigt: diese Fassung – und mit der letzten Seite der Satz zum Rückkanal.
+  // Eine ältere Fassung des Fensters zählt für den Satz nicht mehr; die Karte
+  // „Meldung an Tobi" auf „Heute" (noch ganz ohne Fenster) schon – sie nennt
+  // denselben Inhalt (Rückkanal, Nov. 2026: rueckkanalPruefen).
+  const p = sp.getStand().profil;
+  if (p.einfuehrung < EINFUEHRUNG_FASSUNG || (b.seite === letzte && !p.einfuehrungDaten)) {
+    sp.aendern((s) => {
+      if (s.profil.einfuehrung < EINFUEHRUNG_FASSUNG) {
+        if (s.profil.einfuehrung > 0) s.profil.einfuehrungDaten = false;
+        s.profil.einfuehrung = EINFUEHRUNG_FASSUNG;
+      }
+      if (b.seite === letzte) s.profil.einfuehrungDaten = true;
+    });
+  }
+}
+
+/*
+ * Die offene Seite neu zeichnen, an derselben Stelle und mit dem Fokus auf
+ * demselben Knopf – für Knöpfe, die auf der Seite etwas ändern (den Schalter
+ * des Rückkanals, js/ansicht-begruessung.js: rueckkanalStelle).
+ */
+function begruessungZeichnen() {
+  const b = begruessung;
+  if (!b) return;
+  const aktiv = document.activeElement;
+  const merkmal = aktiv && b.dialog.contains(aktiv) && aktiv.dataset && aktiv.dataset.act ? fokusMerkmal(aktiv) : null;
+  const oben = b.dialog.scrollTop;
+  b.dialog.innerHTML = begruessungHtml(b.seite, sp.getStand(), heuteISO());
+  b.dialog.scrollTop = oben;
+  const ziel = (merkmal && b.dialog.querySelector(merkmal)) || b.dialog.querySelector('#begruessung-titel');
+  if (ziel) ziel.focus({ preventScroll: true });
+}
+
+/*
+ * `spaeter`: „Später lesen" oder Escape. Kam das Fenster von selbst und ist
+ * sie nicht bis zum Ende gekommen, sagt eine Meldung, wo es wieder zu finden
+ * ist – von selbst kommt es nicht noch einmal.
+ */
+const BEGRUESSUNG_SPAETER = 'Sie finden die Einführung jederzeit unter „Mehr → Einführung".';
+
+function begruessungSchliessen({ fokus = true, spaeter = false } = {}) {
+  const b = begruessung;
+  if (!b) return;
+  begruessung = null;
+  if (b.dialog.open && b.dialog.close) b.dialog.close();
+  b.dialog.remove();
+  // Rückkanal (Nov. 2026): War die letzte Seite zu sehen, gehört die Karte
+  // „Meldung an Tobi" darunter nicht mehr auf „Heute".
+  if ($ansicht.querySelector('.rueckkanal-hinweis') && !rueckkanalKarteFaellig(sp.getStand())) render();
+  // Zurück zur Zeile unter „Mehr", von der es kam – sonst auf die Ansicht.
+  if (fokus) ((b.zurueckZu && $ansicht.querySelector(b.zurueckZu)) || $ansicht).focus({ preventScroll: true });
+  if (spaeter && !b.zurueckZu && b.seite < BEGRUESSUNG_SEITEN.length - 1) meldung(BEGRUESSUNG_SPAETER);
+  // Ein Update, das gewartet hat, solange das Fenster offen war (neuLadenErlaubt).
+  if (window.__schilddrueseNeuLaden && neuLadenErlaubt()) neuLadenPlanen();
+  // Rückkanal (Nov. 2026): Die Meldung hat gewartet, solange das Fenster offen war.
+  rueckkanalPruefen();
+}
+
+// ---------------------------------------------------------------- Rückkanal
+
+/*
+ * Rückkanal (Nov. 2026): einmal am Tag das Lebenszeichen an den Betreiber –
+ * Fassung, Startbildschirm, Art des Handys, ob die Einführung angezeigt
+ * wurde, erster und letzter Tag (js/rueckkanal.js). Aus dem Stand gehen nur
+ * drei Wahrheitswerte hinein: eingeschaltet, eingerichtet, Einführung
+ * angezeigt.
+ *
+ * Nicht, solange das Begrüßungsfenster offen ist: Dort steht gerade der Satz
+ * dazu mit dem Schalter, und wer dort ausschaltet, soll nichts gemeldet
+ * haben. Beim Schließen wird es nachgeholt. Vor dem Einrichten auch nicht –
+ * dann kennt sie den Satz noch nicht (js/rueckkanal.js: melden).
+ *
+ * Und erst, wenn der Satz zu sehen war (profil.einfuehrungDaten): auf der
+ * letzten Seite des Fensters, oder auf der Karte „Meldung an Tobi" auf
+ * „Heute" mit „Verstanden" bzw. dem Schalter. Vorher ging die erste Meldung
+ * auch raus, wenn sie das Fenster auf Seite 1 mit „Später lesen" schloss,
+ * wenn es wegen einer 112-Lage gar nicht kam, oder wenn die App am selben
+ * Tag auf „Mehr" startete – „Sichtbar" hieß dann nur: irgendwo in der App
+ * (Prüfung Nov. 2026). So wartet die Meldung, bis sie es gelesen haben kann.
+ */
+function rueckkanalPruefen() {
+  if (begruessung) return;
+  const s = sp.getStand();
+  if (s.profil.einfuehrungDaten !== true) return;
+  rk.melden({ an: s.einstellungen.rueckkanal === true, eingerichtet: Boolean(s.profil.begruesst), einfuehrung: s.profil.einfuehrung > 0 })
+    .then((r) => { if (r.ok) rueckkanalNeuZeichnen(); });
+}
+
+/* Der Schalter zeigt, was gilt – nach einer Antwort des Servers an derselben Stelle neu gezeichnet. */
+function rueckkanalNeuZeichnen() {
+  if (begruessung) {
+    begruessungZeichnen();
+    return;
+  }
+  if (!ui.seite || ui.seite.name !== 'ueber' || rueckfrage || auswahl || eingabenGeaendert()) return;
+  const aktiv = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.act ? fokusMerkmal(document.activeElement) : null;
+  render();
+  if (aktiv) fokusZurueck(aktiv);
+}
+
+/*
+ * Aus: nichts geht mehr raus, und die eigene Zeile beim Betreiber wird
+ * gelöscht. Was der Server dazu sagt, steht danach neben dem Schalter und –
+ * außerhalb des Begrüßungsfensters, das die Meldung unten verdecken würde –
+ * in einer Meldung. `still`: ohne diese Meldung (nach „Alles löschen").
+ */
+function rueckkanalAbschalten({ still = false } = {}) {
+  rk.abschalten().then((r) => {
+    rueckkanalNeuZeichnen();
+    if (still || begruessung) return;
+    if (r.offen) meldung(`Ausgeschaltet. Gelöscht wird bei ${rk.BETREIBER}, sobald das Handy wieder Netz hat.`);
+    else meldung(`Ausgeschaltet. Es geht keine Meldung mehr an ${rk.BETREIBER}.`);
+  });
+}
+
+/*
+ * Der Schalter steht nur neben dem Satz zum Rückkanal (letzte Seite des
+ * Fensters, „Über diese App", Karte auf „Heute"): Wer ihn antippt, hat den
+ * Satz gesehen – vermerkt in profil.einfuehrungDaten, sonst wartete die
+ * Meldung nach „An" weiter auf ihn (rueckkanalPruefen).
+ */
+function rueckkanalSchalten(an) {
+  const kannteSatz = sp.getStand().profil.einfuehrungDaten === true;
+  if (!kannteSatz) sp.aendern((s) => { s.profil.einfuehrungDaten = true; });
+  if (sp.getStand().einstellungen.rueckkanal === an) {
+    // „An" bestätigt, was schon galt: Jetzt darf die wartende Meldung raus.
+    if (!kannteSatz && an) {
+      if (begruessung) begruessungZeichnen(); else render();
+      rueckkanalPruefen();
+    }
+    return;
+  }
+  sp.aendern((s) => { s.einstellungen.rueckkanal = an; });
+  if (begruessung) begruessungZeichnen(); else render();
+  if (!an) {
+    rueckkanalAbschalten();
+    return;
+  }
+  if (!begruessung) meldung(`Eingeschaltet. Einmal am Tag geht eine kurze Meldung an ${rk.BETREIBER}.`);
+  rk.nochmalVersuchen();
+  rueckkanalPruefen();
 }
 
 /*
@@ -1818,6 +2086,8 @@ function tagPruefen() {
       reiterMerken('heute');
       window.scrollTo(0, 0);
       render();
+      // Begrüßung (Nov. 2026): Wartete das Fenster gestern wegen einer 112-Karte.
+      begruessungVonSelbst();
     } else if (!einrichten && bleiben) {
       // Nicht neu zeichnen – die Nutzerin liest gerade oder wählt die Nummer.
       ui.stapel = [];
@@ -1829,6 +2099,9 @@ function tagPruefen() {
     }
   }
   tablettenHinweis();
+  // Rückkanal (Nov. 2026): Liegt die App über Mitternacht offen, ist das ein
+  // neuer Tag – einmal am Tag. Sonst tut das nichts (schon gemeldet).
+  rueckkanalPruefen();
 }
 setInterval(tagPruefen, 60000);
 
@@ -1967,6 +2240,11 @@ function fremdeAenderung() {
   const inhaltVorher = JSON.stringify(sp.getStand());
   if (!sp.neuLesen() || JSON.stringify(sp.getStand()) === inhaltVorher) return;
   const stand = sp.getStand();
+  // Begrüßung (Nov. 2026): Das offene Fenster zeigt den neuen Stand (etwa den
+  // Schalter des Rückkanals); nach „Alles löschen" im anderen Fenster geht es zu.
+  if (begruessung) {
+    if (stand.profil.begruesst) begruessungZeichnen(); else begruessungSchliessen({ fokus: false });
+  }
   if (warEingerichtet && !stand.profil.begruesst) {
     ui.seite = null;
     ui.stapel = [];
@@ -2064,8 +2342,10 @@ sp.abonnieren(() => {
 // offene Seite (Formular, Ergebnis des Checks) wäre sonst ohne Zutun weg.
 // Sonst wartet das Neuladen, bis render() eine solche Lage zeichnet. Startet
 // die App nicht, gibt es die Frage nicht, und es lädt wie bisher sofort neu.
+// Begrüßung (Nov. 2026): auch nicht, solange das Begrüßungsfenster offen ist –
+// es ginge mitten im Lesen zu. Beim Schließen wird nachgeholt.
 function neuLadenErlaubt() {
-  return Boolean(sp.getStand().profil.begruesst) && !ui.seite && !rueckfrage && !auswahl && !eingabenGeaendert();
+  return Boolean(sp.getStand().profil.begruesst) && !ui.seite && !rueckfrage && !auswahl && !begruessung && !eingabenGeaendert();
 }
 window.__schilddrueseNeuLadenErlaubt = neuLadenErlaubt;
 
@@ -2119,7 +2399,35 @@ document.addEventListener('visibilitychange', () => {
   neuLaden();
 });
 
+/*
+ * Die App startet immer oben auf einem Reiter. Nach dem Neuladen eines
+ * Updates stellte Chrome sonst die Rollposition der alten Seite wieder her –
+ * etwa eine Sekunde nach dem Laden, an der Stelle, an der in der alten App
+ * das Datum stand. In der neuen stehen darüber die Notfallleiste und bei
+ * „sehr groß" der Tabletten-Knopf: Beide lagen über dem Bildschirmrand,
+ * „Heute" begann mit „Samstag, 7. November" (Prüfung Nov. 2026, gegen W0).
+ * index.html stellt das schon vor allem anderen ab; hier noch einmal, falls
+ * die Seite aus einem Vorrat ohne diese Zeile kommt.
+ */
+try {
+  history.scrollRestoration = 'manual';
+} catch { /* dann eben nur scrollTo */ }
 render();
+window.scrollTo(0, 0);
+// Begrüßung (Nov. 2026): einmal von selbst – siehe begruessungVonSelbst().
+begruessungVonSelbst();
+// Rückkanal (Nov. 2026): offene Löschungen nachholen, dann die Meldung des
+// Tages – die wartet, falls eben das Begrüßungsfenster aufging.
+rk.loeschenNachholen().then((r) => { if (r.zeilen) rueckkanalNeuZeichnen(); });
+rueckkanalPruefen();
+// Wieder nach vorn oder wieder Netz: ein neuer Anlauf, falls es vorhin nicht ging.
+const rueckkanalNochmal = () => {
+  rk.nochmalVersuchen();
+  rk.loeschenNachholen();
+  rueckkanalPruefen();
+};
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') rueckkanalNochmal(); });
+window.addEventListener('online', rueckkanalNochmal);
 speicherFestnageln();
 tablettenHinweis();
 // Eine Meldung von vor dem Neuladen nach einem Update – einmal (F19).

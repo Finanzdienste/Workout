@@ -17,6 +17,7 @@ import { esc } from './text.js';
 import * as sp from './speicher.js';
 import { P6_TEXT } from './einschaetzung.js';
 import { tablettenWahl, jahrAus, STAERKE_GRENZE_TEXT, STAERKE_RUECKFRAGE, staerkeUngewoehnlich, zeileAus } from './ansicht-formulare.js';
+import { P6_HAKEN } from './ansicht-einschaetzung.js';
 
 export const WILLKOMMEN_SCHRITTE = 3;
 
@@ -61,12 +62,12 @@ export function willkommenAnsicht(schritt, stand, heute, entwurf = null) {
             <li><strong>Dosis, Laborwerte und Gewicht</strong> festhalten,</li>
             <li>zum Arzttermin einen <strong>fertigen Bericht</strong> mitnehmen.</li>
           </ul>
-          <p>Alles bleibt auf diesem Handy. Kein Konto, kein Internet nötig.</p>
+          <p>Ihre Einträge bleiben auf diesem Handy. Kein Konto nötig.</p>
         </div>
         <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Die App ordnet Ihre Laborwerte und Beschwerden ein und sagt, ob ein Wert eher für mehr oder weniger Tablette spricht. Sie ersetzt keinen Arztbesuch: Vor jeder Änderung der Dosis bitte kurz die Praxis anrufen.</div></div>
         <div class="karte p6-karte">
           <p>${esc(P6_TEXT)}</p>
-          <label class="haken haken-breit" style="margin-top:.7rem"><input type="checkbox" name="behandelt" ${behandelt ? 'checked' : ''}>Ich werde wegen einer Schilddrüsen-Unterfunktion mit Tabletten behandelt</label>
+          <label class="haken haken-breit" style="margin-top:.7rem"><input type="checkbox" name="behandelt" ${behandelt ? 'checked' : ''}>${esc(P6_HAKEN)}</label>
         </div>
         <label class="feld"><span>Wie dürfen wir Sie ansprechen? (freiwillig)</span>
           <input type="text" name="name" value="${esc(aus('name', stand.profil.name))}" placeholder="z. B. Frau Müller oder Vorname" maxlength="${sp.GRENZEN.name}" autocomplete="off">
@@ -123,7 +124,7 @@ export function willkommenAnsicht(schritt, stand, heute, entwurf = null) {
       </label>
       <div class="karte">
         <h2>So erinnert Sie das Handy</h2>
-        <p>Diese App kann sich <strong>nicht von selbst melden</strong>, wenn sie geschlossen ist – dafür bräuchte sie einen Server, und den hat sie mit Absicht nicht.</p>
+        <p>Diese App kann sich <strong>nicht von selbst melden</strong>, wenn sie geschlossen ist.</p>
         <p>Was zuverlässig klingelt, ist der <strong>Kalender oder der Wecker des Handys</strong>. Unter „Mehr → Erinnerung" gibt es dafür eine Kalenderdatei mit einem täglichen Termin – einmal in den Kalender legen, fertig.</p>
       </div>
       <div class="formular-fuss">

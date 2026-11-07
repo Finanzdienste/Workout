@@ -4,12 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1c6a86">
-<meta name="description" content="Tägliche Schilddrüsentablette abhaken, Dosis und Laborwerte festhalten, Zusammenfassung für den Arzttermin. Alles bleibt auf dem Handy.">
+<meta name="description" content="Tägliche Schilddrüsentablette abhaken, Dosis und Laborwerte festhalten, Zusammenfassung für den Arzttermin. Ihre Einträge bleiben auf dem Handy.">
 <title>Schilddrüse</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
+<!-- Der feste Ersatz in <main> (C18) bringt seine Gestaltung selbst mit: Er
+     steht gerade dann da, wenn die App nicht startet – etwa während eines
+     Updates, wenn die Seite noch Dateien aus dem Vorrat der alten Fassung
+     lädt. Deren styles.css kannte die Notfallleiste nicht: Der Text stand
+     ohne roten Kasten da, die Nummern als blaue Standardlinks, und der
+     Hinweis darunter sofort statt erst nach sechs Sekunden (Prüfung
+     Nov. 2026). Nur für .ersatz – die Leiste auf „Heute" gestaltet allein
+     css/styles.css; die Werte sind dieselben, die Farben dieselben Tokens. -->
+<style>
+.notfall-leiste.ersatz { border: 2px solid var(--gefahr, #b3261e); background: var(--gefahr-hell, #fbe7e5); border-radius: 16px; padding: .55rem .7rem .3rem; margin: 0 0 .6rem; }
+.ersatz .notfall-text { font-size: .88rem; line-height: 1.3; margin: 0 0 .4rem; }
+.ersatz a.knopf-notruf {
+  display: flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.7rem; padding: .4rem 1rem;
+  border: 2px solid var(--gefahr, #b3261e); border-radius: 14px; background: var(--gefahr, #b3261e); color: var(--auf-gefahr, var(--karte, #fff));
+  font-size: 1.05rem; font-weight: 700; line-height: 1.2; text-decoration: none;
+}
+.ersatz .notfall-nummern { display: flex; flex-wrap: wrap; gap: 0 .8rem; margin: .2rem 0 0; font-size: .85rem; line-height: 1.15; }
+.ersatz .notfall-nummern > span { display: inline-flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
+.ersatz .nummer { display: inline-flex; align-items: center; min-height: 44px; color: var(--gefahr, #b3261e); font-weight: 800; white-space: nowrap; text-decoration: underline; text-underline-offset: 2px; }
+.start-hinweis.ersatz { visibility: hidden; animation: start-hinweis 0s 6s forwards; margin-top: .6rem; }
+@keyframes start-hinweis { to { visibility: visible; } }
+</style>
 </head>
 <body>
 <header class="kopf">
@@ -25,7 +47,7 @@
        nicht zu den neuen Dateien passt), blieb sonst eine leere Seite ohne
        112 (C18). Das Bundesland kennt diese Zeile nicht: beim Giftnotruf 112,
        wie ohne Angabe im Profil (P5). -->
-  <section class="notfall-leiste" aria-label="Notfall">
+  <section class="notfall-leiste ersatz" aria-label="Notfall">
     <p class="notfall-text"><strong>Notfall?</strong> Bei Brustschmerz, starker Atemnot, Ohnmacht, Lähmung, Sprachstörung oder plötzlicher Verwirrtheit: sofort 112.</p>
     <a class="knopf knopf-notruf knopf-breit" href="tel:112"><span aria-hidden="true">📞</span> 112 anrufen</a>
     <p class="notfall-nummern">
@@ -34,7 +56,7 @@
       <span>Telefonseelsorge <a class="nummer" href="tel:08001110111">0800 111 0 111</a></span>
     </p>
   </section>
-  <p class="start-hinweis klein gedaempft">Erscheint hier nach ein paar Sekunden nichts weiter, schließen Sie die App bitte und öffnen Sie sie neu.</p>
+  <p class="start-hinweis ersatz klein gedaempft">Die App wird geladen oder gerade aktualisiert. Kommt nach einer Weile nichts weiter, schließen Sie die App bitte und öffnen Sie sie neu.</p>
 </main>
 
 <!-- Drei Reiter, mit Wort und Bild. Sie stehen fest im HTML, damit die App
@@ -88,6 +110,11 @@
      __schilddrueseNeuLadenPlanen her. -->
 <script>
 (function () {
+  // Die App startet immer oben. Ohne diese Zeile stellte Chrome nach dem
+  // Neuladen eines Updates die Rollposition der alten Seite wieder her, und
+  // auf „Heute" lagen Notfallleiste (W0) und Tabletten-Knopf über dem
+  // Bildschirmrand (Prüfung Nov. 2026). js/app.js setzt es noch einmal.
+  try { history.scrollRestoration = 'manual'; } catch (x) { /* dann eben nicht */ }
   try {
     var st = JSON.parse(localStorage.getItem('schilddruese.stand.v1') || 'null');
     var e = (st && st.einstellungen) || {};

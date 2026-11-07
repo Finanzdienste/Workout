@@ -11,11 +11,25 @@ import * as sp from './speicher.js';
 import { berichtText } from './bericht.js';
 import { KAPITEL, kapitel, kapitelHtml } from './wissen.js';
 import { vorratAndereStaerke, vorratText } from './ansicht-formulare.js';
+import { RUECKKANAL_SATZ, RUECKKANAL_DIENST, rueckkanalSchalter } from './ansicht-begruessung.js';
+import { APP_FASSUNG, BETREIBER } from './rueckkanal.js';
 
 const zeile = (seite, titel, unter, param = null, ri = '') => `
   <button type="button" class="zeile" data-act="seite" data-seite="${seite}"${param ? ` data-param="${esc(param)}"` : ''}>
     ${ri ? `<span class="ri" aria-hidden="true" style="font-size:1.4rem">${ri}</span>` : ''}
     <span class="zeile-text"><span class="zeile-titel">${titel}</span>${unter ? `<span class="zeile-unter">${unter}</span>` : ''}</span>
+    <span class="zeile-pfeil" aria-hidden="true">›</span>
+  </button>`;
+
+/*
+ * Begrüßung (Nov. 2026): das Begrüßungsfenster noch einmal – kein eigener
+ * Bildschirm, sondern dasselbe Fenster wie beim ersten Öffnen
+ * (js/ansicht-begruessung.js, geöffnet von js/app.js). Aussehen wie jede Zeile.
+ */
+const einfuehrungZeile = () => `
+  <button type="button" class="zeile" data-act="begruessung" aria-haspopup="dialog">
+    <span class="ri" aria-hidden="true" style="font-size:1.4rem">👋</span>
+    <span class="zeile-text"><span class="zeile-titel">Einführung: So hilft Ihnen die App</span><span class="zeile-unter">Wozu die Tablette – und was Sie hier tun können</span></span>
     <span class="zeile-pfeil" aria-hidden="true">›</span>
   </button>`;
 
@@ -60,7 +74,8 @@ export function mehrAnsicht(stand, heute) {
 
     <h2 class="abschnitt">Wissen</h2>
     <div class="zeilen">
-      ${zeile('wissen', 'Wissen zur Schilddrüse', 'Einnahme, Abstände, Laborwerte, Warnzeichen', null, '📖')}
+      ${einfuehrungZeile()}
+      ${zeile('wissen', 'Wissen zur Schilddrüse', 'Warum die Tablette wichtig ist, Einnahme, Abstände, Laborwerte, Warnzeichen', null, '📖')}
       ${zeile('wissen-kapitel', 'Wann anrufen, wann 112', 'Notruf, Bereitschaftsdienst, Praxis', 'notfall', '🚑')}
     </div>
 
@@ -70,7 +85,7 @@ export function mehrAnsicht(stand, heute) {
       ${zeile('vorrat', 'Tablettenvorrat', vorratUnter(stand, heute, reicht), null, '💊')}
       ${zeile('darstellung', 'Schrift, Farben, Anrede', stand.einstellungen.schrift === 'sehr-gross' ? 'Schrift sehr groß' : stand.einstellungen.schrift === 'normal' ? 'Schrift normal' : 'Schrift groß', null, '🔤')}
       ${zeile('sicherung', 'Sicherung', sicherungUnter(stand, heute), null, '💾')}
-      ${zeile('ueber', 'Über diese App', 'Was sie kann und was nicht · Alles löschen', null, 'ℹ️')}
+      ${zeile('ueber', 'Über diese App', `Meldung an ${BETREIBER}: ${stand.einstellungen.rueckkanal ? 'an' : 'aus'} · Was die App kann und was nicht · Alles löschen`, null, 'ℹ️')}
     </div>`;
 }
 
@@ -257,7 +272,7 @@ function sicherungSeite(stand, heute) {
     titel: 'Sicherung',
     html: `
       <div class="karte">
-        <p>Alle Daten liegen nur auf diesem Handy. Eine Sicherungsdatei rettet sie bei einem neuen Handy oder wenn der Browser aufräumt.</p>
+        <p>Alle Ihre Einträge liegen nur auf diesem Handy. Eine Sicherungsdatei rettet sie bei einem neuen Handy oder wenn der Browser aufräumt.</p>
         <p class="gedaempft">${stand.letzteSicherung ? `Letzte Sicherung: ${esc(datumInWorten(stand.letzteSicherung, { jahr: true }))}.` : 'Noch keine Sicherung gespeichert.'}</p>
         <button type="button" class="knopf knopf-haupt knopf-breit" data-act="sicherung-speichern" style="margin-top:.8rem">Sicherung speichern</button>
         <p class="klein gedaempft" style="margin-top:.5rem">Am besten an sich selbst oder an Tochter oder Sohn schicken – dann liegt sie nicht nur auf diesem Handy.</p>
@@ -273,17 +288,37 @@ function sicherungSeite(stand, heute) {
   };
 }
 
+/*
+ * Rückkanal (Nov. 2026): „Meldung an Tobi" – derselbe Satz wie auf der
+ * letzten Seite des Begrüßungsfensters, mit dem Schalter (js/rueckkanal.js).
+ * Unten die Fassung der App: Am Telefon lässt sie sich so vorlesen.
+ *
+ * Die Karte steht zuerst: Seite 6 des Fensters und die Karte auf „Heute"
+ * schicken hierher zum Ausschalten. Hinter dem Kapitel „app" lag der Schalter
+ * bei 360 × 740 und Schrift „groß" fünf Bildschirme tief, ohne Hinweis oben
+ * (Prüfung Nov. 2026). Dazu, wer die Meldung bekommt und was er dabei sieht:
+ * Wie jeder Dienst im Netz sieht Supabase die Adresse des Handys im Netz (die
+ * IP-Adresse), auch wenn sie nicht in die Tabelle kommt – so steht es auch in
+ * der Workout-App, seit v203 (README dort, „Wer es speichert").
+ */
 function ueberSeite(stand, heute) {
   return {
     titel: 'Über diese App',
     html: `
+      <div class="karte rueckkanal-karte">
+        <h2>Meldung an ${esc(BETREIBER)}</h2>
+        <p>${esc(RUECKKANAL_SATZ)}</p>
+        <p>Keine Werte, keine Einträge, nichts über Ihre Gesundheit. Beim Ausschalten wird auch die letzte Meldung bei ${esc(BETREIBER)} gelöscht.</p>
+        <p class="klein gedaempft">${esc(RUECKKANAL_DIENST)}</p>
+        ${rueckkanalSchalter(stand, heute, { titel: false })}
+      </div>
       <article class="karte wissen">${kapitel('app').html}</article>
       <div class="karte">
         <h2>Alles löschen</h2>
-        <p class="gedaempft">Löscht Dosis, Einnahmen, Laborwerte und alle Einstellungen auf diesem Handy. Vorher besser eine Sicherung speichern.</p>
+        <p class="gedaempft">Löscht Dosis, Einnahmen, Laborwerte und alle Einstellungen auf diesem Handy – und die Meldung bei ${esc(BETREIBER)}. Vorher besser eine Sicherung speichern.</p>
         <button type="button" class="knopf knopf-gefahr knopf-breit" data-act="alles-loeschen" style="margin-top:.8rem">Alles löschen</button>
       </div>
-      <p class="klein gedaempft mitte">Schilddrüse · Datenstand ${esc(datumKurz(heute))} · Speicherfassung ${sp.VERSION}</p>`,
+      <p class="klein gedaempft mitte">Schilddrüse · Fassung ${esc(APP_FASSUNG)} · Datenstand ${esc(datumKurz(heute))} · Speicherfassung ${sp.VERSION}</p>`,
   };
 }
 

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de" data-schrift="normal" data-farbe="hell">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Schilddrüse – Übersicht</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="stylesheet" href="css/styles.css">
+<!-- Die Übersicht für den Betreiber (Rückkanal, Nov. 2026): je Gerät das
+     tägliche Lebenszeichen der App – Fassung, Startbildschirm, wann zuletzt
+     geöffnet. Nicht in der App verlinkt und nicht im Vorrat des Service
+     Workers (sw.js, SHELL): Sie ist kein Teil der App, und sie soll immer
+     frisch vom Netz kommen. Gelesen wird über sd_admin_liste() mit dem
+     Passwort der Workout-Übersicht (tools/schilddruese-rueckkanal.sql). Das
+     Passwort bleibt nur im Speicher dieser Seite, nicht im Browser. -->
+<style>
+  body.uebersicht .ansicht { padding-bottom: 2rem; }
+  .uebersicht h1 { font-size: 1.4rem; line-height: 1.25; margin: .4rem 0 .5rem; }
+  .uebersicht .kopfzeile { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; margin: .8rem 0; }
+  .uebersicht table { width: 100%; border-collapse: collapse; }
+  .uebersicht caption { text-align: left; font-weight: 700; font-size: 1.1rem; margin-bottom: .4rem; overflow-wrap: anywhere; }
+  .uebersicht th, .uebersicht td { text-align: left; vertical-align: top; padding: .3rem .4rem .3rem 0; border-top: 1px solid var(--linie); overflow-wrap: anywhere; }
+  .uebersicht th { font-weight: 600; width: 45%; color: var(--gedaempft); }
+  .uebersicht .geraet-hinweis { margin: 0 0 .5rem; padding: .4rem .6rem; border-radius: .6rem; background: var(--warn-hell); color: var(--warn); font-weight: 600; }
+  .uebersicht .fehler { color: var(--gefahr); font-weight: 600; margin-top: .6rem; }
+  .uebersicht .fehler:empty { display: none; }
+  .uebersicht [hidden] { display: none !important; }
+</style>
+</head>
+<body class="uebersicht ohne-leiste">
+<main class="ansicht" id="uebersicht">
+  <h1>Läuft die App?</h1>
+  <p class="gedaempft">Je Gerät das tägliche Lebenszeichen der Schilddrüsen-App – Fassung, Startbildschirm, wann zuletzt geöffnet. Keine Werte, keine Einträge.</p>
+
+  <form id="anmelden" class="karte" style="margin-top:1rem" novalidate>
+    <label class="feld"><span>Passwort</span>
+      <input type="password" id="pass" name="pass" autocomplete="current-password" required>
+      <span class="hinweis">Dasselbe wie für die Übersicht der Workout-App.</span>
+    </label>
+    <button type="submit" class="knopf knopf-haupt knopf-breit">Öffnen</button>
+    <p class="fehler" id="fehler" role="alert"></p>
+  </form>
+
+  <section id="liste" hidden aria-labelledby="liste-titel">
+    <div class="kopfzeile">
+      <h2 id="liste-titel" class="abschnitt" style="margin:0">Geräte</h2>
+      <span>
+        <button type="button" class="knopf knopf-klein" id="neu">Neu laden</button>
+        <button type="button" class="knopf knopf-klein knopf-leise" id="abmelden">Abmelden</button>
+      </span>
+    </div>
+    <p id="stand" class="gedaempft" aria-live="polite"></p>
+    <div id="geraete"></div>
+  </section>
+</main>
+<script type="module" src="uebersicht.js"></script>
+</body>
+</html>

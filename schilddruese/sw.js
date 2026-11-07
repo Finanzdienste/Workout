@@ -26,9 +26,15 @@
  * hochzählen – daran hängt das Aufräumen alter Zwischenspeicher, und ohne
  * das trifft beim ersten Öffnen nach einem Update ein frisches index.html
  * auf ein altes app.js.
+ *
+ * Rückkanal (Nov. 2026): Dieselbe Fassung steht als APP_FASSUNG in
+ * js/rueckkanal.js – sie wird dem Betreiber gemeldet. Beide zusammen
+ * hochzählen (tests/test-sd-rueckkanal.mjs vergleicht sie). Die Übersicht
+ * (uebersicht.html, uebersicht.js) gehört nicht in SHELL: Sie ist nicht Teil
+ * der App, und sie soll immer frisch vom Netz kommen.
  */
 
-const VERSION = 'v12';
+const VERSION = 'v15';
 const CACHE = `schilddruese-${VERSION}`;
 
 const SHELL = [
@@ -48,6 +54,8 @@ const SHELL = [
   './js/ansicht-mehr.js',
   './js/ansicht-formulare.js',
   './js/ansicht-willkommen.js',
+  './js/ansicht-begruessung.js',
+  './js/rueckkanal.js',
   './js/einheiten.js',
   './js/einschaetzung.js',
   './js/dosis.js',

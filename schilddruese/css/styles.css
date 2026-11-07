@@ -633,13 +633,15 @@ a.knopf { text-decoration: none; }
 
 /* Bei „sehr groß" füllte die Leiste allein zwei Drittel des Bildschirms
    (360 × 740), der Knopf für die Tablette lag darunter. Dieselben Nummern,
-   dichter gesetzt; js/ansicht-heute.js stellt den Knopf dann direkt darunter. */
-:root[data-schrift="sehr-gross"] .notfall-leiste { padding: .4rem .55rem .15rem; }
-:root[data-schrift="sehr-gross"] .notfall-text { font-size: .76rem; line-height: 1.25; margin-bottom: .3rem; }
-:root[data-schrift="sehr-gross"] .notfall-leiste .knopf-notruf { min-height: 2.3rem; font-size: 1rem; padding-top: .25rem; padding-bottom: .25rem; }
-:root[data-schrift="sehr-gross"] .notfall-nummern { font-size: .76rem; margin-top: .1rem; }
-:root[data-schrift="sehr-gross"] .notfall-nummern .nummer { min-height: 44px; }
-:root[data-schrift="sehr-gross"] .notfall-nummern > span { column-gap: .3rem; row-gap: 0; }
+   dichter gesetzt; js/ansicht-heute.js stellt den Knopf dann direkt darunter.
+   Heute (Nov. 2026): nur noch für die feste Leiste in index.html – die auf
+   „Heute" ist eine Zeile (.kompakt, Block „Heute (Nov. 2026)" unten). */
+:root[data-schrift="sehr-gross"] .notfall-leiste:not(.kompakt) { padding: .4rem .55rem .15rem; }
+:root[data-schrift="sehr-gross"] .notfall-leiste:not(.kompakt) .notfall-text { font-size: .76rem; line-height: 1.25; margin-bottom: .3rem; }
+:root[data-schrift="sehr-gross"] .notfall-leiste:not(.kompakt) .knopf-notruf { min-height: 2.3rem; font-size: 1rem; padding-top: .25rem; padding-bottom: .25rem; }
+:root[data-schrift="sehr-gross"] .notfall-leiste:not(.kompakt) .notfall-nummern { font-size: .76rem; margin-top: .1rem; }
+:root[data-schrift="sehr-gross"] .notfall-leiste:not(.kompakt) .notfall-nummern .nummer { min-height: 44px; }
+:root[data-schrift="sehr-gross"] .notfall-leiste:not(.kompakt) .notfall-nummern > span { column-gap: .3rem; row-gap: 0; }
 
 /* Notfallzeile oben im Befinden (R2) und die große 112-Karte */
 .notfall-zeile { border: 2px solid var(--gefahr); border-radius: 14px; padding: .7rem .8rem; margin-bottom: 1rem; background: var(--gefahr-hell); }
@@ -803,6 +805,88 @@ dialog.rueckfrage li { margin-bottom: .4rem; }
 .wichtig-marke { font-weight: 800; color: var(--warn); text-transform: uppercase; font-size: .8rem; letter-spacing: .06em; }
 .abstand-uhr { font-weight: 800; font-size: 1.15rem; margin: .1rem 0 .3rem; }
 
+/* ======================================================================
+   Heute (Nov. 2026)
+   „Heute" zeigt, was man tun kann: die Notfallleiste als eine Zeile, die
+   Karte „Laborwerte eintragen", die Einschätzung mit ihren beiden Wegen und
+   die kürzere P6-Karte. Nur Tokens – hell und dunkel.
+   ====================================================================== */
+
+/* W0 kompakt: links der rote 112-Knopf, rechts „Weitere Nummern" zum
+   Aufklappen (<details>, geht ohne Skript). „Weitere Nummern" steht in zwei
+   Zeilen und ist so schmal wie sein längstes Wort: Grundbreite 0, gehalten
+   von min-width: auto, kein Wachsen. Den Rest der Zeile bekommt 112. So
+   rutscht es nicht unter den 112-Knopf – erst, wenn selbst das längste Wort
+   nicht mehr daneben passt. Aufgeklappt nimmt die Liste die ganze Breite
+   unter dem 112-Knopf ein. */
+.notfall-leiste.kompakt {
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem;
+  border: 0; background: none; border-radius: 0; padding: 0; margin: 0 0 .9rem;
+}
+.notfall-leiste.kompakt > .knopf-notruf {
+  flex: 1 1 7rem; min-height: 2.9rem; margin: 0; gap: .35rem;
+  padding: .35rem .5rem; font-size: 1.05rem; white-space: normal;
+}
+.notfall-mehr { flex: 0 1 0; }
+.notfall-mehr > summary {
+  list-style: none; cursor: pointer; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center; gap: .3rem;
+  height: 100%; min-height: 2.9rem; padding: .25rem .55rem;
+  border: 2px solid var(--gefahr); border-radius: 14px; background: var(--karte);
+  color: var(--gefahr); font-weight: 700; font-size: .9rem; line-height: 1.15; text-align: center;
+}
+.notfall-mehr > summary::-webkit-details-marker { display: none; }
+.notfall-mehr > summary::after { content: "▾"; flex: none; }
+.notfall-mehr > summary:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.notfall-mehr[open] {
+  flex-basis: 100%; border: 2px solid var(--gefahr); border-radius: 14px;
+  background: var(--gefahr-hell); padding: 0 .7rem .55rem;
+}
+.notfall-mehr[open] > summary { height: auto; min-height: 2.6rem; border: 0; background: none; padding: .2rem 0; justify-content: flex-start; }
+.notfall-mehr[open] > summary::after { content: "▴"; }
+/* Bei „sehr groß" passt das Hörer-Zeichen nicht mehr neben „112 anrufen"
+   und „Weitere Nummern" (360 px) – es ist nur Schmuck, das Wort bleibt. */
+:root[data-schrift="sehr-gross"] .notfall-leiste.kompakt > .knopf-notruf { flex-basis: 6.5rem; font-size: 1rem; }
+:root[data-schrift="sehr-gross"] .notfall-leiste.kompakt > .knopf-notruf > [aria-hidden="true"] { display: none; }
+:root[data-schrift="sehr-gross"] .notfall-mehr:not([open]) > summary { font-size: .8rem; padding-left: .4rem; padding-right: .4rem; }
+.notfall-leiste.kompakt .notfall-nummern {
+  display: flex; flex-direction: column; gap: 0; list-style: none; padding: 0; margin: 0;
+  font-size: .92rem; line-height: 1.25;
+}
+.notfall-leiste.kompakt .notfall-nummern > li {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .2rem .6rem;
+  padding: .3rem 0; border-top: 1px solid var(--linie);
+}
+.notfall-leiste.kompakt .notfall-nummern > li > span { flex: 1 1 8rem; min-width: 0; hyphens: auto; }
+/* Aufgeklappt ist Platz: die Nummern als Anruf-Knöpfe statt als Link im Satz. */
+.notfall-leiste.kompakt .notfall-nummern .nummer {
+  min-height: max(2.4rem, 44px); padding: .15rem .7rem; border: 2px solid var(--gefahr); border-radius: 12px;
+  background: var(--karte); text-decoration: none;
+}
+.notfall-leiste.kompakt .notfall-text { font-size: .88rem; line-height: 1.3; margin: .4rem 0 0; }
+
+/* Ohne Befund mit TSH: die Einladung, Werte einzutragen – deutlich, aber
+   ohne Alarmfarbe. */
+.labor-einladung { border: 2px solid var(--akzent); background: var(--akzent-hell); }
+.labor-einladung .knopf-reihe { margin-top: .5rem; }
+/* Prüfung Nov. 2026: der Knopf direkt unter der Frage, der Satz darunter. */
+.labor-einladung .knopf-reihe + p { margin-top: .5rem; }
+
+/* Rückkanal (Nov. 2026): die Karte „Meldung an Tobi" auf „Heute", solange
+   der Satz dazu noch nirgends zu sehen war – ruhig, ohne Stufe. */
+.rueckkanal-hinweis .knopf-reihe { margin-top: .6rem; }
+
+/* Die Einschätzung auf „Heute": „Einschätzung ansehen" und der Weg zur
+   Dosis-Karte. Die Frage ist länger als ein halber Bildschirm – dann
+   stehen beide Knöpfe untereinander, jeder in voller Breite. */
+.verweis-knoepfe { margin-top: .6rem; }
+.verweis-knoepfe .knopf { flex: 1 1 12rem; white-space: normal; }
+
+/* P6 kürzer: Frage, ein Satz, der Knopf, der P6-Text klein darunter. */
+.p6-karte h2 { font-size: 1.05rem; line-height: 1.3; }
+.p6-karte .knopf { margin-top: .7rem; }
+.p6-karte .p6-text { margin-top: .7rem; }
+
 /* ---------- Gesamtbild und Verweise auf „Heute" ---------- */
 .w5-karte p { font-weight: 600; }
 .links { margin-top: .4rem; }
@@ -817,3 +901,49 @@ p.hinweis.warn-text { color: var(--warn); }
   width: 1.3rem; height: 1.3rem; min-height: 0; padding: 0; border: 0; flex: none; margin: 0;
 }
 .feld .wahl-flaeche input[type="radio"] { width: 1.35rem; height: 1.35rem; }
+
+/* ---------- Begrüßungsfenster (Nov. 2026) ----------
+   „So hilft Ihnen die App" (js/ansicht-begruessung.js). Die Knopfzeile klebt
+   unten im Fenster: Bei Schrift „groß" auf 360 × 740 sind die Seiten 2 bis 6
+   höher als das Fenster, und „Weiter" bliebe sonst unter dem Text. Unten ohne
+   Innenabstand, damit die Zeile bündig am Rand klebt; ihr Hintergrund deckt
+   den Text, der darunter durchrollt. dvh: Auf dem Handy ist 100vh höher als
+   der sichtbare Teil, solange die Adresszeile zu sehen ist. */
+dialog.begruessung {
+  border: 2px solid var(--akzent); border-radius: var(--radius); background: var(--karte); color: var(--text);
+  padding: .8rem 1rem 0; width: min(34rem, calc(100vw - 1.6rem));
+  max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem); overflow: auto; overscroll-behavior: contain;
+}
+dialog.begruessung::backdrop { background: rgba(0, 0, 0, .55); }
+.begruessung-kopf { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.begruessung-kopf .schritte { margin: 0; }
+.begruessung-kopf .knopf-link { flex: none; }
+dialog.begruessung h2 { font-size: 1.3rem; line-height: 1.25; margin: .2rem 0 .6rem; }
+/* Die Überschrift trägt den Fokus nur fürs Vorleseprogramm (tabindex -1, kein
+   Bedienelement). Mit Rahmen sah sie aus wie ein Eingabefeld. */
+dialog.begruessung h2:focus { outline: none; }
+dialog.begruessung p:not(.schritte) { margin: 0 0 .75rem; line-height: 1.5; }
+.begruessung-knoepfe {
+  position: sticky; bottom: 0; display: flex; gap: .6rem;
+  margin: .2rem -1rem 0; padding: .6rem 1rem .9rem;
+  background: var(--karte); border-top: 1px solid var(--linie);
+}
+/* Breite nach dem Wort und etwas weniger Rand: So passt „Los geht's" neben
+   „Zurück" bei Schrift „groß" auf 360 px in eine Zeile. */
+.begruessung-knoepfe .knopf { flex: 1 1 auto; min-width: 0; white-space: normal; padding-left: .7rem; padding-right: .7rem; }
+/* „Sehr groß": Die Pfeile sind nur Schmuck – ohne sie bleibt mehr Platz für
+   das Wort. „Los geht's" bricht dort trotzdem in zwei Zeilen um. */
+:root[data-schrift="sehr-gross"] .begruessung-knoepfe .knopf { padding-left: .6rem; padding-right: .6rem; }
+:root[data-schrift="sehr-gross"] .begruessung-knoepfe .knopf > [aria-hidden="true"] { display: none; }
+
+/* ---------- Rückkanal (Nov. 2026) ----------
+   „Meldung an Tobi" mit „An" und „Aus" – unter „Mehr → Über diese App" und
+   auf der letzten Seite des Begrüßungsfensters (js/ansicht-begruessung.js:
+   rueckkanalSchalter). Die Knöpfe sind die von Schrift und Farben (.wahl).
+   Im Fenster steht der Schalter über der klebenden Knopfzeile; der Abstand
+   unten hält ihn von „Los geht's" fern. */
+.rueckkanal-schalter { margin: .7rem 0 .9rem; }
+.rueckkanal-titel { font-weight: 700; margin-bottom: .35rem; }
+.rueckkanal-schalter .wahl { max-width: 20rem; }
+.rueckkanal-stand { margin-top: .4rem; }
+.rueckkanal-karte p + p { margin-top: .6rem; }
