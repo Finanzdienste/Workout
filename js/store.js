@@ -1,4 +1,4 @@
-import { todayISO } from './dates.js';
+import { daysBetween, todayISO } from './dates.js';
 
 const KEY = 'workout.state.v1';
 
@@ -73,8 +73,11 @@ const DEFAULT_STATE = {
   // Der Fingerabdruck des Plans, unter dem der laufende Verlauf entstanden ist
   // – je Fokus. Ändert sich der Plan (neue Übungen, neu verteilt), zeigt ein
   // alter Eintrag auf etwas anderes als das, was gemacht wurde. Siehe
-  // planWechsel() in js/app.js.
+  // planWechsel() in js/tagstart.js.
   planStand: {},
+  // Dasselbe für die Satzzahlen allein (PLANS[f].saetze) – siehe satzWechsel()
+  // in js/tagstart.js.
+  planSaetze: {},
   // Übungen, die von Hand nach vorn geholt wurden, weil sie sonst regelmäßig
   // ausfallen. Kostet womöglich einen zusätzlichen Umbau – siehe js/muster.js.
   vorne: [],
@@ -98,9 +101,10 @@ const DEFAULT_STATE = {
   // und ohne Klimmzugstange.
   fehlt: [],
   friends: {},           // zuletzt geschickter Stand anderer: { id: { n, w, s, kg, r, p, d, am } }
-  customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}] }]
+  customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}], warum? }]
+                         // `warum` nur am Zusatztag: woher seine Übungen kommen (normWarum())
   session: null,         // laufendes Training: { n }
-  clock: null,           // Uhr der Einheit: { n, on, spent, since } – siehe startSession()
+  clock: null,           // Uhr der Einheit: { n, on, spent, since, halt } – siehe startSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
   // Hat der Browser zugesagt, diesen Speicher nicht von selbst freizugeben?
   // Ergebnis von storage.persist(), einmal beim Start erfragt – gemerkt, damit
@@ -111,7 +115,22 @@ const DEFAULT_STATE = {
   // damit ein erneuter Import die alten Termine überschreibt statt sie stehen
   // zu lassen.
   lastIcs: null,
-  rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log }]
+  // Google Kalender automatisch (js/kalender-sync.js): { token, url, minuten,
+  // erinnerung } oder null. Das Kennwort entsteht beim ersten „Code kopieren"
+  // und bleibt dann – ein zweites Kopieren gibt denselben Code. Es reist mit
+  // Sicherung und Exportdatei: Ein neues Handy, das die Sicherung einliest,
+  // schickt danach von selbst weiter. Was nur dieses Gerät angeht (seine
+  // Kennung für das Skript, der Zähler, wann zuletzt etwas ankam), steht nicht
+  // hier, sondern in workout.kalender.v1 – stünde „zuletzt angekommen" im
+  // Zustand, änderte jede Sendung den Zustand und löste die nächste aus.
+  // Geprüft wird über normKalender(), beim Laden und beim Einlesen.
+  kalender: null,
+  rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log, verlassen? }]
+  // Tage, an denen der laufende Verlauf schon einmal verlassen wurde und aus
+  // der Ablage zurückkam (wechsleFokus()): ['2026-09-23', …]. Das finishedOn
+  // der zurückgeholten Runde ginge sonst verloren, und mit ihm der Tag, ab dem
+  // ausfallTage() in js/plan.js nicht mehr nach diesem Plan rechnen darf.
+  verlassen: [],
   // Angehakte Verletzungen als IDs aus js/injuries.js. Sie gelten für alle
   // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
   injuries: [],
@@ -134,20 +153,86 @@ const DEFAULT_STATE = {
   // { id, name, woche, uebungen, saetze, fehlt, gruppen, am }. Die Einheit
   // selbst steht in `customs` und bleibt auch, wenn der Hinweis weg ist.
   zusatztag: null,
+  // Liegen gebliebene Einheiten, die sich am Folgetag selbst abgeschlossen
+  // haben, solange die Zeile dazu auf der Startseite steht:
+  // { am, einheiten: [{ n, tag, done, total }] }. `am` ist der Tag des
+  // Abschlusses, `tag` der Tag der Einheit (ihr startedOn), `done`/`total` die
+  // Sätze, mit denen sie abgeschlossen wurde. Seit v244 ohne Knopf – weg geht
+  // sie von selbst: mit dem ersten Eintrag in einer anderen Einheit, mit einem
+  // Eintrag in einer Einheit der Zeile oder ihrem Zurücksetzen (die gehört
+  // dann nicht mehr dazu), mit einem neuen Tagesabschluss und spätestens nach
+  // dem Tag danach (ABSCHLUSS_ZEILE_TAGE). Siehe tagAbschliessen() in
+  // js/app.js; gelesen wird nur über tagesabschluss() hier, das prüft, statt
+  // zu glauben.
+  tagesabschluss: null,
+  // (Hier stand bis v241 `letzterEintrag: { n, at }` – ein Platz für alle
+  // Einheiten. Er steht jetzt je Einheit im Protokoll, `zuletzt` unten;
+  // eintragUmziehen() holt einen alten Stand nach.)
+  //
   // Ein abgeschaffter Trainingsfokus, auf den dieses Gerät noch stand, solange
   // der Hinweis dazu offen ist: { von, nach, am, abgelegt }. `von` und `nach`
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
-  // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/app.js.
+  // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/tagstart.js.
   fokusUmzug: null,
   // Dasselbe eine Etage tiefer: Der Fokus bleibt, aber der *Inhalt* des Plans
-  // ist ein anderer geworden. Siehe planWechsel() in js/app.js.
+  // ist ein anderer geworden. Siehe planWechsel() in js/tagstart.js.
+  // { fest, einheiten, repariert, fokus }: `einheiten` zählt die
+  // festgeschriebenen Einheiten, `repariert` die von festReparieren() wieder
+  // vervollständigten – getrennt, weil beide Hinweise zugleich offen sein können.
   planUmbau: null,
-  // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn }
+  // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn,
+  //                   soll, nach, fest, festAus, festNetto, paare } }
+  // Je Satz:
   //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
   //   done abgehakt
   //   wie  'unter' | 'drin' | 'oben' – wo im Wiederholungsbereich der Satz
   //        lag, falls beantwortet. Fehlt, wenn die Frage übergangen wurde;
-  //        das ist der Normalfall und kostet nichts. }
+  //        das ist der Normalfall und kostet nichts.
+  //   seite 'l' | 'r' – bei einer einseitigen Übung („je Bein") die Seite,
+  //        die schon steht, solange die andere fehlt. Mit der zweiten wird
+  //        der Satz `done`, und `seite` geht weg (updateSet()). Ein halber
+  //        Satz zählt nirgends als Satz, aber als angefangen.
+  // Je Einheit, neben mode und startedOn:
+  //   soll    Satzzahl je Übung an diesem Tag, beim ersten Anzeigen festgehalten
+  //   nach    wie viele Sätze davon Nacharbeit waren, je Übung (merkeNach())
+  //   nachFest  die Nacharbeit der Einheit, festgehalten mit dem ersten Satz:
+  //           { db: { exId: k }, bw: { … } } – ab da gilt sie, statt neu
+  //           gerechnet zu werden (halteNachFest(), nacharbeit() in js/plan.js)
+  //   nachWarum  woher diese Nacharbeit kam, im selben Schritt festgehalten:
+  //           { db: { exId: { g: [Gruppe], q: [[n, exId, abgehakt, von]] } },
+  //           bw: { … } } – die Zeile unter der Satzzahl (nachWarum() in js/plan.js)
+  //   fest    nach einem Planwechsel die eigene Übungsliste
+  //           [{ id, sets, bwSets }] – ohne Nacharbeit, die kommt in exOf()
+  //           dazu; `bwSets` fehlt, wo es gleich `sets` ist, und in Listen
+  //           von vor dieser Angabe (dort gilt `sets` für beide Modi)
+  //   festNetto  die Satzzahlen in `fest` sind ohne Nacharbeit – geprüft von
+  //           festNachReparieren() in js/tagstart.js, einmal je Liste
+  //   festAus woher `fest` stammt: der Stand des Plans davor oder der, unter
+  //           dem das Protokoll entstand (planWechsel()), oder der Plan, aus
+  //           dem festReparieren() die Liste vervollständigt hat
+  //           (festErsetzen()). Fehlt nur an Listen aus Planwechseln bis
+  //           v219, darunter den kurzen von v215 – und nur die repariert
+  //           festReparieren() in js/tagstart.js, gegen den Plan, aus dem sie kamen.
+  //   paare   je Modus die Supersatz-Paarung, festgehalten mit dem ersten
+  //           abgehakten Satz: { db: { key, gruppen: [[id, id], [id]] } }
+  //           (superGruppen() in js/app.js)
+  //   zusatz  nur an Planeinheiten: der in diese Einheit eingefügte
+  //           Zusatztag, festgehalten mit dem ersten Eintrag und nie
+  //           überschrieben: { woche, ex: [{ id, sets, bwSets }], warum:
+  //           { exId: { g, q } } }. Seine Sätze stehen im gewohnten Eimer
+  //           (db/bw), gehören in der Wochenbilanz aber der Woche `woche`
+  //           (halteZusatz(), festerZusatz() und einheitEx() in js/plan.js).
+  //           Verwerfen und Zurücksetzen löschen ihn.
+  //   weiterAm  der letzte spätere Tag, an dem in dieser Einheit in einer
+  //           Sitzung und nach einer Pause von mindestens LIEGT_AB_MS wieder
+  //           abgehakt wurde – „Doch noch weitermachen" nach dem
+  //           Tagesabschluss (eingetragen()). startedOn bleibt der Tag
+  //           der Einheit (Kalender, Statistik); weiterAm zählt nur für die
+  //           Frage „heute schon trainiert?" (trainiertAm()).
+  //   zuletzt  der letzte Eintrag in dieser Einheit, in ms (eingetragen()).
+  //           Daran erkennt der Tagesabschluss, ob an einer Einheit von
+  //           gestern eben noch trainiert wurde (über Mitternacht) oder ob sie
+  //           liegt (lebenszeichen()). Gelesen nur über eintragZuletzt().
   log: {},
 };
 
@@ -223,8 +308,113 @@ function normCustoms(liste) {
       && /^[a-z0-9-]{1,60}$/.test(x.id)
       ? { id: x.id, sets: Math.min(10, Math.max(1, Math.round(Number(x.sets)) || 3)) } : null))
       .filter(Boolean);
-    return { id, name: standText(c.name, 60) || 'Eigenes Workout', ex };
+    const out = { id, name: standText(c.name, 60) || 'Eigenes Workout', ex };
+    // Die Herkunft eines Zusatztags (siehe normWarum()) – nur, wenn es eine gibt.
+    if (c.warum !== undefined) out.warum = normWarum(c.warum, ex.map((x) => x.id));
+    return out;
   }).filter(Boolean);
+}
+
+/*
+ * Woher die Übungen eines Zusatztags kommen – an seinem Träger in `customs`
+ * (`warum`) und, sobald er in einer Einheit festgehalten ist, an log[n].zusatz.
+ * Dieselbe Form wie `nachWarum`: je Übung { g: [Gruppe, …], q: [[n, exId,
+ * abgehakt, von, Modus], …] }.
+ *
+ * Auch das reist in der Sicherung mit, und die kommt von irgendwoher. Was hier
+ * durchgeht, sind kurze Wörter, kleine ganze Zahlen und bekannte Kennungen –
+ * nur für Übungen, die im selben Eintrag stehen. Alles andere fällt weg.
+ */
+const WARUM_GRUPPE = /^[a-zA-Z]{1,30}$/;
+const WARUM_UEBUNG = /^[a-z0-9-]{1,60}$/;
+const ganzIn = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
+export function normWarum(roh, ids) {
+  const out = {};
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return out;
+  const erlaubt = new Set(ids || []);
+  Object.keys(roh).forEach((id) => {
+    const w = roh[id];
+    if (!erlaubt.has(id) || !w || typeof w !== 'object' || Array.isArray(w)) return;
+    const g = (Array.isArray(w.g) ? w.g : [])
+      .filter((x) => typeof x === 'string' && WARUM_GRUPPE.test(x)).slice(0, 2);
+    const q = (Array.isArray(w.q) ? w.q : [])
+      .filter((t) => Array.isArray(t) && ganzIn(t[0], 1, 999)
+        && typeof t[1] === 'string' && WARUM_UEBUNG.test(t[1])
+        && ganzIn(t[2], 0, 20) && ganzIn(t[3], 1, 20) && (t[4] === 'db' || t[4] === 'bw'))
+      .slice(0, 3)
+      .map((t) => [t[0], t[1], t[2], t[3], t[4]]);
+    out[id] = { g, q };
+  });
+  return out;
+}
+
+/*
+ * Der Tagesabschluss und sein Lebenszeichen aus fremder Hand.
+ *
+ * Beides reist in der Sicherung mit (importJSON() übernimmt jedes Feld, dessen
+ * Vorgabe null ist, mit jedem Typ), und die Zeile auf der Startseite schreibt
+ * die Zahlen in die Seite. Was hier durchgeht: ISO-Tage, kleine ganze Zahlen,
+ * höchstens acht Einheiten – sonst nichts. Gelesen wird immer über diese
+ * Funktionen, nicht über das rohe Feld.
+ */
+const ABSCHLUSS_TAG = /^\d{4}-\d{2}-\d{2}$/;
+export function normAbschluss(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh) || !ABSCHLUSS_TAG.test(roh.am || '')) return null;
+  const einheiten = (Array.isArray(roh.einheiten) ? roh.einheiten : [])
+    .filter((e) => e && typeof e === 'object' && ganzIn(e.n, 1, 999) && ABSCHLUSS_TAG.test(e.tag || '')
+      && e.tag <= roh.am && ganzIn(e.total, 1, 200) && ganzIn(e.done, 0, e.total))
+    .slice(0, 8)
+    .map((e) => ({ n: e.n, tag: e.tag, done: e.done, total: e.total }));
+  return einheiten.length ? { am: roh.am, einheiten } : null;
+}
+
+/*
+ * Die Verbindung zum Kalender-Skript, auf genau ihre Felder gebracht.
+ *
+ * Sie kommt aus einer Sicherung oder einer Exportdatei, und hinter `url` geht
+ * das Kennwort hinaus. Deshalb nur eine Adresse, die eine Web-App von Google
+ * Apps Script ist (…/exec, auch unter einer eigenen Domain eines
+ * Google-Workspace-Kontos) – eine Datei, in der jemand eine andere Adresse
+ * eingetragen hat, schickt das Kennwort nirgendwohin sonst. Ohne gültiges
+ * Kennwort gibt es nichts zu verbinden (null). Die Standards sind die aus
+ * js/kalender.js (KALENDER_MINUTEN 17:30, KALENDER_ERINNERUNG 30) – dort
+ * nicht importierbar, dieses Modul steht ganz unten; tests/test-kalender-sync.mjs
+ * vergleicht beide.
+ */
+export const KALENDER_URL = /^https:\/\/script\.google\.com\/(?:macros|a\/macros\/[A-Za-z0-9.-]{1,100})\/s\/[A-Za-z0-9_-]{10,200}\/exec$/;
+export const KALENDER_TOKEN = /^[A-Za-z0-9_-]{16,128}$/;
+const kalGanz = (x, lo, hi, standard) => (Number.isInteger(x) && x >= lo && x <= hi ? x : standard);
+export function normKalender(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
+  if (typeof roh.token !== 'string' || !KALENDER_TOKEN.test(roh.token)) return null;
+  return {
+    token: roh.token,
+    url: typeof roh.url === 'string' && KALENDER_URL.test(roh.url) ? roh.url : null,
+    minuten: kalGanz(roh.minuten, 0, 1439, 17 * 60 + 30),
+    erinnerung: kalGanz(roh.erinnerung, 0, 1440, 30),
+  };
+}
+
+/** Der letzte Eintrag von v241: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
+function normEintrag(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
+  const n = String(roh.n ?? '');
+  if (!/^(\d{1,3}|c[\w-]{1,40})$/.test(n) || !Number.isFinite(roh.at) || roh.at <= 0) return null;
+  return { n, at: roh.at };
+}
+
+/**
+ * Ein Stand von v241 (beim Laden, aus einer Sicherung): Sein `letzterEintrag`
+ * zieht in die Einheit um, zu der er gehört (`zuletzt`), wenn dort nichts
+ * Neueres steht – und das alte Feld ist weg. Ein Wert aus der Zukunft zieht mit
+ * um und zählt dort so wenig wie vorher (eintragZuletzt()).
+ */
+function eintragUmziehen(s, roh) {
+  delete s.letzterEintrag;
+  const l = normEintrag(roh);
+  const e = l && s.log && typeof s.log === 'object' ? s.log[l.n] : null;
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return;
+  if (!(Number.isFinite(e.zuletzt) && e.zuletzt >= l.at)) e.zuletzt = l.at;
 }
 
 let state = load();
@@ -242,6 +432,9 @@ function load() {
     if ('adminPass' in state) delete state.adminPass;
     state.friends = normFreunde(state.friends);
     state.customs = normCustoms(state.customs);
+    state.tagesabschluss = normAbschluss(state.tagesabschluss);
+    state.kalender = normKalender(state.kalender);
+    eintragUmziehen(state, state.letzterEintrag);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
     // von Hand gesetzter (Sicherung, Tests). Sonst kommt sie aus ihrem eigenen
@@ -414,9 +607,13 @@ function schreibeRunden() {
  * vorherige Zustand zurück, und es bleibt beim Fehler. Rückgabe: ob es ging.
  */
 function mitAblage(aendern) {
+  // Die Zeile zum Tagesabschluss gehört dazu: Ein Fokuswechsel nimmt sie weg
+  // (wechsleFokus()), und scheitert er am vollen Speicher, steht sie wieder da
+  // – sonst wäre sie still verschwunden, obwohl sich sonst nichts geändert hat.
   const vorher = {
     log: state.log, rounds: state.rounds, shift: state.shift, focus: state.focus,
-    session: state.session, clock: state.clock, rest: state.rest,
+    session: state.session, clock: state.clock, rest: state.rest, verlassen: state.verlassen,
+    tagesabschluss: state.tagesabschluss,
   };
   state.rounds = [...(state.rounds || [])];
   aendern();
@@ -446,10 +643,21 @@ export function flush() {
   write();
 }
 
-function emit() {
-  listeners.forEach((fn) => fn(state));
+/**
+ * Alle, die zuhören, nach einer Änderung. `was` sagt es genauer, wo das einen
+ * Unterschied macht: 'pause' – geändert hat sich allein die laufende Pause
+ * (setRest() – Start, Ende, „+30 s"); 'ansicht' – nur, was die App gerade
+ * zeigt (der Reiter, die offene Einheit; setSetting() aus js/app.js, seit
+ * v247). Die Vorschau für den Kalender liest beides nicht und rechnet dann
+ * nicht neu (kalenderGeaendert() in js/kalender-sync.js); die Sicherung hört
+ * wie immer und zählt beides ohnehin nicht als Änderung (SICHERUNG_FLUECHTIG
+ * in js/sicherung.js).
+ */
+function emit(was) {
+  listeners.forEach((fn) => fn(state, was));
 }
 
+/** `fn(state, was)` nach jeder Änderung – `was` siehe emit(). */
 export function subscribe(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -457,8 +665,25 @@ export function subscribe(fn) {
 
 export function getState() { return state; }
 
+/**
+ * Die Wahl unter Mehr – sie gilt für jede Einheit, die noch nicht angefasst ist.
+ *
+ * Eine Einheit trägt ihre eigene Variante erst, wenn in ihr etwas steht
+ * (updateSet(), completeWorkout()). Bis v229 legte aber schon das bloße
+ * Ansehen ihrer Übungsliste einen Eintrag mit dem damaligen Modus an (ensure()),
+ * und der überstimmte danach jede neue Wahl: Workout 2 einmal vorab
+ * angeschaut, dann auf Bodyweight gestellt – und Workout 2 kam beim nächsten
+ * Training trotzdem mit Hanteln, entgegen „die nächsten nehmen sie von
+ * selbst". ensure() setzt deshalb keinen Modus mehr, und was aus der Zeit davor
+ * noch so dasteht, gibt die Wahl hier frei. Trainiertes und Abgeschlossenes
+ * bleibt in seiner Variante.
+ */
 export function setMode(mode) {
   state.mode = mode === 'bw' ? 'bw' : 'db';
+  Object.keys(state.log).forEach((k) => {
+    const e = state.log[k];
+    if (e && e.mode && !e.done && !isStarted(k)) delete e.mode;
+  });
   persist();
   emit();
 }
@@ -485,16 +710,40 @@ export function setWorkoutMode(n, mode) {
   emit();
 }
 
+// Ohne `mode`: Wer bloß hinsieht, wählt keine Variante (siehe setMode()).
 function ensure(n) {
-  if (!state.log[n]) state.log[n] = { db: {}, bw: {}, mode: state.mode };
+  if (!state.log[n]) state.log[n] = { db: {}, bw: {} };
   const e = state.log[n];
   if (!e.db) e.db = {};
   if (!e.bw) e.bw = {};
   return e;
 }
 
+/**
+ * Wie viele Sätze von `soll[exId]` an diesem Tag Nacharbeit waren – mit `soll`
+ * zusammen geschrieben, nie getrennt davon.
+ *
+ * `soll` hält die Satzzahl, die auf dem Bildschirm stand, und die enthält die
+ * „+1 nachgeholt". Für den Tag selbst ist das richtig. Ein Planwechsel schreibt
+ * aus `soll` aber die feste Liste der Einheit (vorherFassung() in js/plan.js),
+ * und die ist die *Basis*: exOf() legt die Nacharbeit darauf noch einmal
+ * obendrauf. Gemessen an einer angefangenen BBP-Einheit stand danach der Goblet
+ * Squat mit 5 statt 4 Sätzen da, die Einheit mit 23 statt 21. Wer den Vermerk
+ * hat, kann die Nacharbeit wieder herausrechnen.
+ *
+ * `nach` undefined heißt „unbekannt" (ein Aufrufer, der es nicht weiß) – dann
+ * wird nichts vermerkt. Gespeichert wird auch die Null: Fehlt der Eintrag,
+ * stammt `soll` aus der Zeit vor diesem Vermerk oder von einem solchen
+ * Aufrufer, und nur dann darf festNachReparieren() in js/tagstart.js schätzen.
+ */
+function merkeNach(e, exId, nach) {
+  if (nach === undefined) return;
+  if (!e.nach) e.nach = {};
+  e.nach[exId] = Math.max(0, Number(nach) || 0);
+}
+
 /** Satz-Array für eine Übung in einem Workout; legt es bei Bedarf an. */
-export function getSets(n, mode, exId, setCount) {
+export function getSets(n, mode, exId, setCount, nach) {
   const e = ensure(n);
   const bucket = e[mode];
   let arr = bucket[exId];
@@ -515,7 +764,10 @@ export function getSets(n, mode, exId, setCount) {
     // Satzliste beim bloßen Ansehen auf die heutige Zahl auf, und ein leerer
     // dritter Satz sieht danach aus wie einer, den jemand ausgelassen hat.
     if (!e.soll) e.soll = {};
-    if (e.soll[exId] === undefined) e.soll[exId] = setCount;
+    if (e.soll[exId] === undefined) {
+      e.soll[exId] = setCount;
+      merkeNach(e, exId, nach);
+    }
   }
   // Ein Satz ist: benutztes Gewicht, abgehakt, und – wenn beantwortet – wie er
   // gelaufen ist (`wie`, siehe updateSet). Ein Feld `r` für Wiederholungen
@@ -531,7 +783,7 @@ export function getSets(n, mode, exId, setCount) {
   // eine Einstellung darf keine Trainingsgeschichte wegräumen.
   // `r` steht in alten Ständen noch drin und darf einen Satz nicht am Leben
   // halten: geprüft wird auf leer im Sinne von "nichts eingetragen".
-  const leer = (x) => !x.done && !x.w && !x.wie;
+  const leer = (x) => !x.done && !x.w && !x.wie && !x.seite;
   while (arr.length > setCount && leer(arr[arr.length - 1])) arr.pop();
   return arr;
 }
@@ -541,7 +793,7 @@ export function isStarted(n) {
   const e = state.log[n];
   if (!e) return false;
   return ['db', 'bw'].some((m) => Object.values(e[m] || {}).some(
-    (arr) => Array.isArray(arr) && arr.some((s) => s.done || !!s.w || !!s.wie),
+    (arr) => Array.isArray(arr) && arr.some((s) => s.done || !!s.w || !!s.wie || !!s.seite),
   ));
 }
 
@@ -559,7 +811,196 @@ function syncStartedOn(n) {
     if (!e.startedOn) e.startedOn = todayISO();
   } else {
     delete e.startedOn;
+    delete e.weiterAm;
   }
+}
+
+/*
+ * Wann eine Einheit „liegt".
+ *
+ *     „Wieso steht da samstag? Heute ist Sonntag"
+ *
+ * Workout 12 war am Samstag angefangen (4 von 17 Sätzen) und nie
+ * abgeschlossen. Ab dem nächsten Tag schließt sie sich deshalb selbst ab
+ * (tagAbschliessen() in js/tagstart.js) – aber nicht, solange an ihr noch trainiert
+ * wird: Wer um 23:40 bei Satz 9 ist, hat um 0:05 keine liegen gebliebene
+ * Einheit, sondern ein Training über Mitternacht.
+ *
+ * Den Unterschied macht die Zeit seit dem letzten Lebenszeichen der Einheit:
+ * ihr letzter Eintrag (`zuletzt`), das Anhalten ihrer Uhr (`halt` –
+ * App weggeschaltet oder Seite geschlossen) oder, wenn die Seite hart beendet
+ * wurde und die Uhr noch lief, der Moment, seit dem sie lief (`since`).
+ *
+ * **Drei Stunden.** Eine Pause dauert höchstens drei Minuten, ein Anruf oder
+ * das Abendessen mitten im Training eine Stunde; wer drei Stunden nichts
+ * eingetragen hat, trainiert nicht mehr. Und drei Stunden sind kurz genug,
+ * dass eine Einheit vom späten Abend am nächsten Morgen erledigt ist – auch
+ * wenn sie erst nach Mitternacht liegen blieb.
+ */
+export const LIEGT_AB_MS = 3 * 3600 * 1000;
+
+/** Ein Zeitpunkt in ms, der als Lebenszeichen gilt: eine Zahl, nicht aus der Zukunft. */
+function lebtNoch(t, jetzt) {
+  return Number.isFinite(t) && t > 0 && t <= jetzt + 60000;
+}
+
+/**
+ * Der letzte Eintrag in der Einheit `n` in ms – 0, wenn keiner gilt.
+ *
+ * Je Einheit, nicht einer für alle. Bis v241 gab es einen Platz
+ * (`letzterEintrag`), und jeder Eintrag überschrieb ihn – auch ein Fehltipp in
+ * einer anderen Einheit: Samstag bis 23:50 in Workout 12 abgehakt, um 23:55 in
+ * Workout 13 einen Satz an und gleich wieder ab, und um Mitternacht war
+ * Workout 12 „liegen geblieben" und abgeschlossen – zehn Minuten nach dem
+ * letzten Satz statt drei Stunden. In einer Sitzung machte derselbe Fehltipp
+ * aus dem nächsten Satz nach Mitternacht einen zweiten Trainingstag
+ * (eingetragen()). `zuletzt` kommt auch aus einer Sicherung, also aus fremder
+ * Hand: Unsinn und Werte aus der Zukunft zählen nicht.
+ */
+function eintragZuletzt(n, jetzt) {
+  const e = state.log[n];
+  return e && lebtNoch(e.zuletzt, jetzt) ? e.zuletzt : 0;
+}
+
+/**
+ * Das letzte Lebenszeichen der Einheit `n` in ms – 0, wenn keines bekannt ist
+ * (ein Stand von vor diesem Vermerk: dann liegt sie). Werte aus der Zukunft
+ * zählen nicht – eine Sicherung von einem Gerät mit falsch gehender Uhr hielte
+ * die Einheit sonst für immer offen.
+ */
+export function lebenszeichen(n, jetzt = Date.now()) {
+  const k = String(n);
+  const gilt = (t) => lebtNoch(t, jetzt);
+  let t = eintragZuletzt(k, jetzt);
+  const c = state.clock;
+  if (c && String(c.n) === k) {
+    if (gilt(c.halt)) t = Math.max(t, c.halt);
+    if (gilt(c.since)) t = Math.max(t, c.since);
+  }
+  return Math.min(t, jetzt);
+}
+
+/**
+ * Wurde am Tag `iso` in dieser Einheit trainiert? An ihrem Tag (startedOn)
+ * oder an einem späteren, an dem in ihr nach einer langen Pause in einer
+ * Sitzung weiter abgehakt wurde (`weiterAm`) – „Doch noch weitermachen" nach
+ * dem Tagesabschluss.
+ *
+ * Gefragt von allem, was wissen will, ob *heute* schon trainiert wurde: dem
+ * Zusatztag (zusatzEinheit() in js/plan.js, naechsteEinheit() und zusatzLage()
+ * in js/app.js) und der Zeile am Ruhetag. Mit startedOn allein galt ein
+ * Sonntag, an dem der Rest vom Samstag nachgeholt wurde, als frei: „Heute
+ * frei", und der Zusatztag stand als nächste Einheit für heute da.
+ */
+export function trainiertAm(k, iso) {
+  const e = state.log[k];
+  return !!e && (e.startedOn === iso || (e.weiterAm === iso && isStarted(k)));
+}
+
+/**
+ * Nach jedem Eintrag: Lebenszeichen setzen, einen späteren Trainingstag
+ * vermerken und die Zeile zum Tagesabschluss nachführen – ist damit eine
+ * *andere* Einheit angefangen, hat sie ausgedient; ist es eine Einheit *aus*
+ * der Zeile, gehört die nicht mehr hinein (abschlussOhne()).
+ *
+ * `weiterAm` nur in einer laufenden Sitzung dieser Einheit – „Doch noch
+ * weitermachen" startet eine. Ein Haken ohne Sitzung ist Nachtragen: der
+ * vergessene dritte Floor-Press-Satz von gestern, in der
+ * Liste nachgeholt (tests/test-nacharbeit-ruhetag.mjs, R12). Der macht aus
+ * heute keinen Trainingstag. Und nur nach einer Pause von mindestens
+ * LIEGT_AB_MS seit dem letzten Eintrag in derselben Einheit: Über Mitternacht
+ * weiter trainiert ist kein zweiter Trainingstag – das Training gehört zum
+ * Tag des ersten Satzes.
+ *
+ * **Und die Uhr nach langer Stille.** Der Deckel in clockStop() sah nur beim
+ * Anhalten nach, wie lange das letzte Lebenszeichen her ist. Tablet, App
+ * sichtbar: Start 10:00, ein Satz um 10:45, dann fast vier Stunden weg. Um
+ * 14:30 der nächste Satz – damit war das Lebenszeichen frisch –, um 14:45
+ * „Abschließen": gebucht 4 h 45 statt einer Stunde, und das ging als fertige
+ * Einheit in die Zeiteichung. Wer zuerst auf „Abschließen" tippte, bekam 45
+ * Minuten. Jetzt bemerkt schon der Eintrag die Stille: Die Uhr hält am alten
+ * Lebenszeichen an (clockStop() mit Deckel) und läuft ab jetzt weiter.
+ */
+function eingetragen(n, warAngefangen, gehakt) {
+  const e = state.log[n];
+  const jetzt = Date.now();
+  const heute = todayISO();
+  const c = state.clock;
+  if (c && String(c.n) === String(n) && c.since !== null && jetzt - lebenszeichen(n, jetzt) >= LIEGT_AB_MS) {
+    clockStop();
+    state.clock = { ...state.clock, since: jetzt };
+  }
+  const vorher = eintragZuletzt(n, jetzt);
+  const amStueck = vorher > 0 && jetzt - vorher < LIEGT_AB_MS;
+  const inSitzung = !!state.session && String(state.session.n) === String(n);
+  if (gehakt && inSitzung && e && e.startedOn && e.startedOn < heute && (e.weiterAm === heute || !amStueck)) {
+    e.weiterAm = heute;
+  }
+  if (e) e.zuletzt = jetzt;
+  if (!warAngefangen && isStarted(n) && state.tagesabschluss) state.tagesabschluss = null;
+  else abschlussOhne(n);
+}
+
+/*
+ * Wie lange die Zeile zum Tagesabschluss höchstens steht: am Tag des
+ * Abschlusses (`am`) und am Tag danach.
+ *
+ *     „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von
+ *      selbst einfach das optimale passieren"
+ *
+ * Bis v242 ging sie mit „OK" weg oder mit „Rest heute machen". Die Knöpfe sind
+ * raus, die Zeile ist eine Auskunft – und eine Auskunft, die niemand wegtippen
+ * kann, muss von selbst gehen. Meist geht sie mit dem ersten Satz der nächsten
+ * Einheit (eingetragen()). Wird gar nicht trainiert, stünde sie sonst ewig –
+ * eine Woche später noch „Workout 12 vom Samstag, 24. Oktober ist
+ * abgeschlossen".
+ *
+ * Zwei Tage, weil der Abschluss oft an einem Ruhetag kommt (Sonntag, Workout
+ * 12 vom Samstag) und die Zeile am Tag danach sagt, was in die Einheit von
+ * heute kommt („Von den 11 offenen Sätzen kommen heute 3 in Workout 13 mit
+ * rein."). Vergeht auch der ohne Training, ist es keine Neuigkeit mehr – was
+ * nachgeholt wird, steht dann an den Übungen selbst (die Herkunftszeile) und
+ * an einem Ruhetag in der Zeile darunter (ruhetagZeile() in js/app.js).
+ */
+export const ABSCHLUSS_ZEILE_TAGE = 2;
+
+/**
+ * Die Zeile zum Tagesabschluss, geprüft (normAbschluss()) – oder null, auch
+ * wenn sie abgelaufen ist (ABSCHLUSS_ZEILE_TAGE) oder `am` nach `heute` liegt
+ * (eine Sicherung von einem Gerät mit falsch gehender Uhr – sonst stünde sie,
+ * bis dieser Tag kommt).
+ */
+export function tagesabschluss(heute = todayISO()) {
+  const a = normAbschluss(state.tagesabschluss);
+  if (!a) return null;
+  const tage = daysBetween(a.am, heute);
+  return tage >= 0 && tage < ABSCHLUSS_ZEILE_TAGE ? a : null;
+}
+
+/**
+ * Die Einheit `n` gehört nicht mehr in die Zeile zum Tagesabschluss: An ihr
+ * wurde weitergemacht oder nachgetragen, oder sie ist zurückgesetzt. Was die
+ * Zeile über sie sagt („4 von 15 Sätzen", „ist abgeschlossen"), stimmt dann
+ * nicht mehr – und wer dort etwas einträgt, weiß, wie es um sie steht. Die
+ * übrigen Einheiten der Zeile bleiben; war sie die einzige, ist die Zeile weg.
+ */
+function abschlussOhne(n) {
+  const a = normAbschluss(state.tagesabschluss);
+  if (!a || !a.einheiten.some((e) => String(e.n) === String(n))) return;
+  state.tagesabschluss = normAbschluss({ ...a, einheiten: a.einheiten.filter((e) => String(e.n) !== String(n)) });
+}
+
+/** Eine abgelaufene Zeile aus dem Zustand nehmen; true, wenn eine dastand. */
+export function abschlussAufraeumen() {
+  if (!state.tagesabschluss || tagesabschluss()) return false;
+  setzeTagesabschluss(null);
+  return true;
+}
+
+export function setzeTagesabschluss(wert) {
+  state.tagesabschluss = normAbschluss(wert);
+  persist();
+  emit();
 }
 
 /**
@@ -570,7 +1011,7 @@ function syncStartedOn(n) {
 export function setRest(rest) {
   state.rest = rest;
   persist();
-  emit();
+  emit('pause');
 }
 
 /** Arbeitsgewicht einer Übung; null, solange der Nutzer nichts geändert hat. */
@@ -619,8 +1060,9 @@ export function startSession(n) {
   emit();
 }
 
-export function endSession() {
-  clockStop();
+/** `bis`: siehe clockStop() – nur der Tagesabschluss gibt es mit. */
+export function endSession(bis) {
+  clockStop(bis);
   state.session = null;
   persist();
   emit();
@@ -649,11 +1091,36 @@ function bucheZeit() {
   state.clock = { ...c, gebucht: gesamt };
 }
 
-/** Uhr anhalten – App im Hintergrund oder Training beendet. */
-export function clockStop() {
+/**
+ * Uhr anhalten – App im Hintergrund oder Training beendet.
+ *
+ * `halt` merkt sich, wann: Daran misst der Tagesabschluss, wie lange eine
+ * Einheit schon liegt (lebenszeichen()). Gezählt wird bis jetzt – oder bis
+ * `bis`, wenn eine liegen gebliebene Einheit beendet wird, deren Uhr noch lief
+ * (Seite hart beendet, App über Nacht offen): Dann gehört nur die Zeit bis zu
+ * ihrem letzten Lebenszeichen zum Training, nicht die Nacht danach.
+ *
+ * **Und nie über drei Stunden Stille hinaus** (LIEGT_AB_MS), ganz gleich, wer
+ * anhält. Blieb die App über Nacht sichtbar und kam die Uhr um Mitternacht
+ * nicht dran – Rechner oder Tablet geschlafen –, hielten am Morgen das
+ * Wegschalten, das Neuladen (pagehide) oder „Abschließen" die Uhr bis *jetzt*
+ * an: 14 Stunden gebucht statt 45 Minuten. Und weil `halt` dann frisch war,
+ * galt die Einheit als eben noch trainiert und blieb offen. Jetzt endet die
+ * Zählung an ihrem letzten Lebenszeichen, wenn das drei Stunden und mehr her
+ * ist – wer so lange nichts eingetragen hat, trainiert nicht mehr –, und
+ * `halt` bleibt dort: Beim Zurückkommen oder Laden schließt der
+ * Tagesabschluss sie regulär ab. Kommt nach der Stille zuerst ein neuer
+ * Eintrag, wäre das Lebenszeichen hier schon frisch – den Fall fängt
+ * eingetragen() ab, bevor es das wird.
+ */
+export function clockStop(bis) {
   const c = state.clock;
   if (!c || c.since === null) return;
-  state.clock = { ...c, spent: c.spent + (Date.now() - c.since), since: null };
+  const jetzt = Date.now();
+  let ende = Number.isFinite(bis) ? Math.min(jetzt, bis) : jetzt;
+  const zuletzt = lebenszeichen(c.n, jetzt);
+  if (zuletzt && jetzt - zuletzt >= LIEGT_AB_MS) ende = Math.min(ende, zuletzt);
+  state.clock = { ...c, spent: c.spent + Math.max(0, ende - c.since), since: null, halt: ende };
   bucheZeit();
   persist();
 }
@@ -727,6 +1194,22 @@ export function setShift(days) {
   emit();
 }
 
+/**
+ * Die festgehaltene Supersatz-Paarung einer Einheit in einem Modus, oder null:
+ * { key, gruppen: [[id, id], [id]] }. Siehe superGruppen() in js/app.js.
+ */
+export function paarung(n, mode) {
+  const e = state.log[n];
+  return (e && e.paare && e.paare[mode]) || null;
+}
+
+export function setPaarung(n, mode, wert) {
+  const e = ensure(n);
+  if (!e.paare || typeof e.paare !== 'object') e.paare = {};
+  e.paare[mode] = wert;
+  persist();
+}
+
 /** Nur lesen – legt nichts an, damit reines Blättern den Speicher nicht füllt. */
 export function peekSets(n, mode, exId) {
   const e = state.log[n];
@@ -734,16 +1217,29 @@ export function peekSets(n, mode, exId) {
   return Array.isArray(arr) ? arr : null;
 }
 
-export function updateSet(n, mode, exId, setCount, index, patch) {
-  const arr = getSets(n, mode, exId, setCount);
+export function updateSet(n, mode, exId, setCount, index, patch, nach) {
+  const war = isStarted(n);
+  const arr = getSets(n, mode, exId, setCount, nach);
+  const halbVorher = !!arr[index].done || !!arr[index].seite;
   Object.assign(arr[index], patch);
+  // Eine Seite steht nur, solange der Satz nicht ganz steht – `seite: null`
+  // nimmt sie weg, `done` macht sie überflüssig.
+  if (arr[index].done || !arr[index].seite) delete arr[index].seite;
+  // Neu abgehakt ist auch die erste Seite eines Satzes – nicht aber die, die
+  // stehen bleibt, wenn man bei einem fertigen Satz die andere zurücknimmt.
+  const gehakt = !!(patch && patch.done) || (!!arr[index].seite && !halbVorher);
   const e = ensure(n);
   // Beim Antippen zählt, was gerade auf dem Bildschirm steht: Wer die Stufe
   // mitten in einer Einheit wechselt, trainiert ab da die neue Satzzahl.
   if (!e.soll) e.soll = {};
   e.soll[exId] = setCount;
+  // Und mit ihr, wie viel davon Nacharbeit ist (siehe merkeNach()). Ohne
+  // Angabe passt ein alter Vermerk nicht mehr zur neuen Zahl – dann lieber
+  // keiner als ein falscher.
+  if (nach === undefined) { if (e.nach) delete e.nach[exId]; } else merkeNach(e, exId, nach);
   e.mode = mode;
   syncStartedOn(n);
+  eingetragen(n, war, gehakt);
   persist();
   emit();
 }
@@ -753,24 +1249,130 @@ export function resetWorkout(n, mode) {
   if (!e) return;
   e[mode] = {};
   if (e.done === mode) delete e.done;
+  // Ein neuer Anlauf paart neu – nach dem Gewicht von jetzt.
+  if (e.paare) delete e.paare[mode];
   // Verworfen ist verworfen: Der nächste Anlauf an dieser Einheit fängt die
   // Zeit wieder bei null an.
   if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
+  // Steht danach nichts mehr, ist der nächste Anlauf ein neuer – mit der
+  // Nacharbeit, die dann gilt, und mit dem Zusatztag, der dann gilt.
+  if (!isStarted(n)) { delete e.nachFest; delete e.nachWarum; delete e.zusatz; }
+  // Nicht mehr abgeschlossen – dann sagt die Zeile zum Tagesabschluss über sie
+  // nichts mehr, was stimmt.
+  if (!e.done) abschlussOhne(n);
+  persist();
+  emit();
+}
+
+/**
+ * Eine Einheit ganz verwerfen – beide Varianten.
+ *
+ * Abbrechen hieß bisher resetWorkout() im eingestellten Modus. Seit das
+ * Umschalten mitten im Training gewollt ist, stehen die Sätze aber womöglich
+ * in beiden: Zwei Sätze mit Hanteln, dann unter Mehr auf Bodyweight, dann
+ * „Abbrechen" – die Rückfrage nannte die zwei Sätze, gelöscht wurde der leere
+ * Bodyweight-Eimer, und der Toast meldete „nichts gespeichert", während die
+ * Einheit angefangen auf dem Dashboard stand.
+ */
+export function verwirfEinheit(n) {
+  const e = state.log[n];
+  if (!e) return;
+  e.db = {};
+  e.bw = {};
+  delete e.done;
+  delete e.paare;
+  delete e.nachFest;
+  delete e.nachWarum;
+  // Und der eingefügte Zusatztag: Verworfen ist verworfen. pruefeZusatztag()
+  // in js/tagstart.js legt danach einen neuen Träger an, und die Einheit zeigt ihn
+  // wieder – neu gerechnet, wie vor dem ersten Satz.
+  delete e.zusatz;
+  if (state.clock && state.clock.n === n) state.clock = null;
+  syncStartedOn(n);
+  abschlussOhne(n);
+  persist();
+  emit();
+}
+
+/**
+ * Den Zusatztag in einer Einheit festhalten – einmal, mit dem ersten Eintrag,
+ * und im selben Schritt seinen Träger verbrauchen.
+ *
+ * `wert` ist { woche, ex: [{ id, sets, bwSets }], warum }. Danach gilt in
+ * dieser Einheit, was gerade auf dem Bildschirm stand (zusatzListe() in
+ * js/plan.js), und der Träger „Zusatztag Woche N" samt seinem Protokoll ist
+ * weg – in *einem* Schreibvorgang, damit nie beides zugleich dasteht: die
+ * Übungen fest in der Einheit und noch einmal als eigener Zusatztag daneben.
+ */
+export function halteZusatz(n, wert, traegerId) {
+  const e = ensure(n);
+  const z = e.zusatz;
+  if (z && typeof z === 'object' && Number.isInteger(z.woche) && Array.isArray(z.ex) && z.ex.length) return;
+  e.zusatz = clone(wert);
+  if (traegerId) {
+    state.customs = customs().filter((c) => c.id !== traegerId);
+    delete state.log[traegerId];
+    // Und eine Sitzung, die noch auf dem Träger stand – angetippt an seinem
+    // Ruhetag, ohne einen Satz. Blieb sie stehen, zeigte die Einheit, in der
+    // er jetzt steckt, „Eigenes Workout läuft noch. Zurück zu Eigenes
+    // Workout" – eine zweite Einheit, die es gar nicht mehr gab.
+    if (state.session && state.session.n === traegerId) state.session = null;
+    if (state.clock && state.clock.n === traegerId) state.clock = null;
+  }
+  persist();
+  emit();
+}
+
+/**
+ * Eine Sitzung ohne Buchung beenden – für eine Einheit, die nicht mehr für
+ * sich steht: einen Zusatztag, der jetzt in der Einheit des Tages steckt
+ * (traegerSitzungLoesen() in js/tagstart.js). Gebucht wird nichts, weil es nichts
+ * zu buchen gibt: Ein Träger, der sich einfügen lässt, hat keinen Satz, und
+ * seine Zeit gehört keiner Einheit, die es noch gibt.
+ */
+export function sitzungVerwerfen(n) {
+  const s = state.session && state.session.n === n;
+  const c = state.clock && state.clock.n === n;
+  if (!s && !c) return;
+  if (s) state.session = null;
+  if (c) state.clock = null;
+  persist();
+  emit();
+}
+
+/**
+ * Die Nacharbeit einer Einheit festhalten – einmal, mit dem ersten Satz.
+ * `jeModus` ist { db: { exId: k }, bw: { … } }. Siehe nacharbeit() in
+ * js/plan.js: Ab hier wird sie nicht mehr neu gerechnet.
+ *
+ * `warum` ist ihre Herkunft in derselben Form ({ db: { exId: { g, q } } }),
+ * und sie wird im selben Schritt festgehalten: Eine Erklärung, die später neu
+ * gerechnet wird, könnte einen Satz mit einem Rückstand begründen, aus dem er
+ * nicht stammt – etwa wenn in der Einheit davor noch ein Satz nachgetragen
+ * wird. Die Sätze stehen fest, also steht auch ihr Grund fest.
+ */
+export function halteNachFest(n, jeModus, warum) {
+  const e = ensure(n);
+  if (e.nachFest) return;
+  e.nachFest = { db: { ...(jeModus.db || {}) }, bw: { ...(jeModus.bw || {}) } };
+  if (warum) e.nachWarum = { db: { ...(warum.db || {}) }, bw: { ...(warum.bw || {}) } };
   persist();
   emit();
 }
 
 export function completeWorkout(n, mode, exList) {
+  const war = isStarted(n);
   const e = ensure(n);
   e.mode = mode;
   exList.forEach((item) => {
-    const arr = getSets(n, mode, item.id, item.sets);
+    const arr = getSets(n, mode, item.id, item.sets, item.nach || 0);
     // `w` mitschreiben, sonst fehlt der Eintrag später überall dort, wo das
     // Gewicht zählt: in der Verlaufskurve und in der Steigerungsserie.
-    arr.forEach((s) => { s.done = true; if (item.w && s.w === '') s.w = item.w; });
+    arr.forEach((s) => { s.done = true; delete s.seite; if (item.w && s.w === '') s.w = item.w; });
   });
   syncStartedOn(n);
+  eingetragen(n, war, true);
   persist();
   emit();
 }
@@ -803,21 +1405,79 @@ export function toggleCare(n, key) {
  * abgeschlossen wurde; ein Zurücksetzen nimmt sie wieder zurück.
  */
 /**
+ * Ein Eintrag einer festen Liste: die Übung und ihre Satzzahl in *beiden*
+ * Modi. Bis hierher ging nur `sets` mit, die Zahl des Modus, in dem trainiert
+ * wurde – wer die Einheit danach in der anderen Variante weitermachte (das
+ * Umschalten ist ausdrücklich erlaubt, siehe set-modus in js/app.js), bekam
+ * die Satzzahl des Hantel-Tages: hängendes Knieheben mit 3 statt 4 Sätzen.
+ * Alte Listen ohne `bwSets` gelten weiter mit `sets` für beide Modi, so wie
+ * bisher (gestufteSaetze() in js/plan.js).
+ */
+function festEintrag({ id, sets, bwSets }) {
+  return bwSets === undefined || bwSets === sets ? { id, sets } : { id, sets, bwSets };
+}
+
+/**
  * Einheiten auf ihre eigene Übungsliste festschreiben – siehe planWechsel()
- * in js/app.js. `einheiten`: { [n]: [{ id, sets }] }. Was schon eine hat,
+ * in js/tagstart.js. `einheiten`: { [n]: [{ id, sets, bwSets }] }. Was schon eine hat,
  * behält sie: Festgeschrieben wird der Stand des Tages, an dem trainiert
  * wurde, nicht der des zweiten Planwechsels danach.
+ *
+ * `ausPlan`: { [n]: Stand } für Listen, die ganz aus dem Plan davor kommen
+ * statt aus dem Protokoll. Der Stand landet als `festAus` an der Einheit –
+ * festReparieren() lässt solche Listen in Ruhe.
  */
-export function festschreiben(einheiten) {
+export function festschreiben(einheiten, ausPlan = {}) {
   let neu = 0;
   Object.entries(einheiten).forEach(([n, liste]) => {
     const e = state.log[n];
     if (!e || e.fest || !liste.length) return;
-    e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    e.fest = liste.map(festEintrag);
+    if (ausPlan[n]) e.festAus = ausPlan[n];
     neu += 1;
   });
   if (neu) { persist(); emit(); }
   return neu;
+}
+
+/**
+ * Festgeschriebene Listen ersetzen – nur für festReparieren() in js/tagstart.js,
+ * das die Fälle eng eingrenzt. festschreiben() lässt vorhandene bewusst stehen.
+ * Die neue Liste stammt aus dem Plan `stand` und trägt ihn als `festAus`:
+ * Einmal repariert ist sie vollständig, auch wenn später eine Beschwerde
+ * wegfällt und der Plan davor dann länger aussähe.
+ */
+export function festErsetzen(einheiten, stand) {
+  let neu = 0;
+  Object.entries(einheiten).forEach(([n, liste]) => {
+    const e = state.log[n];
+    if (!e || e.done || !liste.length) return;
+    e.fest = liste.map(festEintrag);
+    if (stand) e.festAus = stand;
+    neu += 1;
+  });
+  if (neu) { persist(); emit(); }
+  return neu;
+}
+
+/**
+ * Feste Listen als „ohne Nacharbeit" vermerken, wo nötig mit berichtigten
+ * Satzzahlen – nur für festNachReparieren() in js/tagstart.js. `einheiten`:
+ * { [n]: Liste }. Gibt zurück, wie viele Listen sich dabei geändert haben.
+ */
+export function festNetto(einheiten) {
+  let geaendert = 0;
+  let neu = 0;
+  Object.entries(einheiten).forEach(([n, liste]) => {
+    const e = state.log[n];
+    if (!e || e.festNetto || !Array.isArray(e.fest)) return;
+    const jetzt = liste.map(festEintrag);
+    if (JSON.stringify(jetzt) !== JSON.stringify(e.fest)) { e.fest = jetzt; geaendert += 1; }
+    e.festNetto = true;
+    neu += 1;
+  });
+  if (neu) { persist(); emit(); }
+  return geaendert;
 }
 
 export function markDone(n, mode) {
@@ -846,6 +1506,10 @@ export function saveCustom(entwurf) {
   const liste = customs();
   const id = entwurf.id || `c${Date.now().toString(36)}`;
   const eintrag = { id, name: entwurf.name || 'Eigenes Workout', ex: entwurf.ex || [] };
+  // Die Herkunft eines Zusatztags, nur wenn sie im Entwurf steht. Der Baukasten
+  // reicht keine durch – wer einen Zusatztag von Hand umbaut, hat danach ein
+  // eigenes Workout, und dessen Übungen kommen von ihm, nicht aus einer Woche.
+  if (entwurf.warum !== undefined) eintrag.warum = normWarum(entwurf.warum, eintrag.ex.map((x) => x.id));
   const i = liste.findIndex((c) => c.id === id);
   if (i >= 0) liste[i] = eintrag;
   else liste.push(eintrag);
@@ -893,30 +1557,55 @@ export function setBand(exId, farbe) {
 /** Aufschlag an Wiederholungen im Bodyweight-Modus. */
 export function bwPlusOf(exId) { return state.bwPlus[exId] || 0; }
 
+/**
+ * „+Wdh." – meldet sich wie jede Änderung. Bis v247 schwieg es: Die
+ * automatische Sicherung erfuhr vom Aufschlag erst mit der nächsten Meldung,
+ * und wer danach nichts mehr antippte, hatte ihn nur auf diesem Gerät.
+ *
+ * Die Vorschau für den Kalender rechnet dabei mit, und das mit Grund: Die
+ * Texte der Termine nennen zwar die geplanten Wiederholungen, nicht den
+ * Aufschlag (terminText() in js/ics.js), aber `bwPlus` zählt zur Einstufung
+ * (leistungsStand() in js/stufen.js). Die prüft jeder Start, also auch jeder
+ * Tag der Vorschau (pruefeAufstieg() in tagNachziehen(), js/tagstart.js) –
+ * hebt ein Aufschlag den Median über die nächste Stufe, steht ab morgen ein
+ * Satz mehr in den Terminen. Kommt dasselbe heraus, geht nichts hinaus
+ * (gleicher Fingerabdruck); ein Tipp auf „+Wdh." ist selten, und er kostet
+ * eine Rechnung im Worker.
+ */
 export function addBwPlus(exId, delta) {
   state.bwPlus[exId] = Math.max(0, (state.bwPlus[exId] || 0) + delta);
   persist();
+  emit();
 }
 
-/** Verletzung an- oder abhaken. Gilt für alle kommenden Trainings. */
+/**
+ * Verletzung an- oder abhaken. Gilt für alle kommenden Trainings – und damit
+ * für die Termine im Kalender und die Sicherung: Beide hören auf die Meldung.
+ * Bis zum Gegenlesen von v246 kam keine, und seit die Pause die Vorschau
+ * nicht mehr neu rechnet, ging nach einer Beschwerde mitten im Training die
+ * Vorschau von davor hinaus, mit der gesperrten Übung.
+ */
 export function toggleInjury(id, on) {
   const set = new Set(state.injuries || []);
   if (on) set.add(id);
   else set.delete(id);
   state.injuries = [...set];
   persist();
+  emit();
 }
 
 /** Alle Haken auf einmal entfernen. */
 export function clearInjuries() {
   state.injuries = [];
   persist();
+  emit();
 }
 
-export function setSetting(key, value) {
+/** `was`: wie bei emit() – 'ansicht' für den Reiter und die offene Einheit. */
+export function setSetting(key, value, was) {
   state[key] = value;
   persist();
-  emit();
+  emit(was);
 }
 
 /** Hält fest, dass gesichert wurde – gemessen an der Zahl erledigter Einheiten. */
@@ -948,10 +1637,12 @@ export function restartPlan(shiftDays, bilanz) {
       // zurückholen, in den er nicht gehört.
       state.rounds.push({
         finishedOn: todayISO(), log: state.log, focus: state.focus,
+        ...(verlassenSpur()),
         ...(bilanz ? { bilanz } : {}),
       });
     }
     state.log = {};
+    state.verlassen = [];
     state.session = null;
     state.clock = null;
     state.rest = null;
@@ -982,7 +1673,7 @@ export function restartPlan(shiftDays, bilanz) {
  *
  * `startShift` gilt nur für einen Fokus, der noch keinen Verlauf hat: Damit legt
  * die App fest, auf welchen Tag dessen Workout 1 fällt (siehe frischerStart()
- * in js/app.js). Ohne das begänne ein neuer Plan am Tag nach dem letzten
+ * in js/tagstart.js). Ohne das begänne ein neuer Plan am Tag nach dem letzten
  * Training – oder heute, als dritter Trainingstag in Folge.
  */
 export function wechsleFokus(key, bilanz, startShift) {
@@ -992,18 +1683,39 @@ export function wechsleFokus(key, bilanz, startShift) {
     if (Object.keys(state.log).length) {
       state.rounds.push({
         finishedOn: todayISO(), log: state.log, focus: alt, shift: state.shift,
+        ...(verlassenSpur()),
         ...(bilanz ? { bilanz } : {}),
       });
     }
     const zurueck = letzteRunde(key);
     if (zurueck) state.rounds = state.rounds.filter((r) => r !== zurueck);
     state.log = (zurueck && zurueck.log) || {};
+    // Der Tag, an dem dieser Verlauf verlassen wurde, kommt mit zurück – als
+    // Spur, nicht als finishedOn: Der Verlauf läuft ja weiter. Siehe
+    // ausfallTage() in js/plan.js.
+    state.verlassen = zurueck
+      ? [...(Array.isArray(zurueck.verlassen) ? zurueck.verlassen : []), zurueck.finishedOn].filter(Boolean)
+      : [];
     state.shift = Math.round(Number(zurueck ? zurueck.shift : startShift) || 0);
     state.session = null;
     state.clock = null;
     state.rest = null;
     state.focus = key;
+    // Die Zeile zum Tagesabschluss sprach vom alten Plan. Nach dem Wechsel
+    // stand über „Morgen · Workout 1" im Aufbau weiter „✓ Workout 12 vom
+    // Samstag ist abgeschlossen – 4 von 15 Sätzen." – Workout 12 des neuen
+    // Plans liegt aber in 20 Tagen und ist unberührt. Bis v242 ließ sie sich
+    // mit „OK" wegtippen; ohne Knopf stand sie bis zum ersten Satz oder bis
+    // Dienstag. Der Wechsel ist ein Ende wie der neue Tagesabschluss: Was sie
+    // sagte, gilt für diesen Plan nicht. Auch beim Umzug eines alten Fokus
+    // (fokusUmzug() in js/tagstart.js), der denselben Weg geht.
+    state.tagesabschluss = null;
   });
+}
+
+/** Die Spur `verlassen` für eine Runde, die gerade abgelegt wird – nur, wenn es eine gibt. */
+function verlassenSpur() {
+  return Array.isArray(state.verlassen) && state.verlassen.length ? { verlassen: state.verlassen } : {};
 }
 
 /**
@@ -1046,6 +1758,10 @@ export function restoreRound() {
     Object.keys(zurueck).forEach((n) => {
       if (!state.log[n]) state.log[n] = zurueck[n];
     });
+    // Ihre Spur kommt mit: Die Einheiten, zu denen sie gehört, stehen jetzt hier.
+    if (Array.isArray(runde.verlassen) && runde.verlassen.length) {
+      state.verlassen = [...new Set([...(state.verlassen || []), ...runde.verlassen])].sort();
+    }
   });
 }
 
@@ -1066,15 +1782,59 @@ export function restorable() {
   return null;
 }
 
-/** Hält fest, dass eine Kalenderdatei erzeugt wurde, und zählt SEQUENCE hoch. */
-export function markIcs(count = 0) {
+/**
+ * Hält fest, dass eine Kalenderdatei erzeugt wurde, und zählt SEQUENCE hoch.
+ *
+ * `plan` ({ focus, stand }) sagt, aus welchem Plan die Termine stammen. Jeder
+ * Termin trägt Übungsliste, Satzzahl und Dauer; ändert ein Plan-Update, was
+ * hinter den Nummern steht, stimmt der Kalender nicht mehr, obwohl kein Tag
+ * verschoben ist (icsStale() in js/app.js). Eine Datei aus lauter Absagen hat
+ * keinen Plan – nach ihr steht nichts mehr im Kalender, was veralten könnte.
+ */
+export function markIcs(count = 0, plan = null) {
   const seq = (state.lastIcs && state.lastIcs.seq) || 0;
   // `count` merkt sich, wie viele Termine in der Datei standen. Beim nächsten
   // Export weiß die App damit, welche Nummern abzusagen sind.
-  state.lastIcs = { on: todayISO(), shift: state.shift, seq: seq + 1, count };
+  state.lastIcs = {
+    on: todayISO(), shift: state.shift, seq: seq + 1, count,
+    ...(plan ? { focus: plan.focus, stand: plan.stand } : {}),
+  };
   persist();
   emit();
   return state.lastIcs;
+}
+
+/**
+ * Einem Export ohne Planangabe den Plan nachtragen, unter dem er entstand.
+ *
+ * Exporte von vor dieser Angabe kennen ihren Plan nicht. Beim Start ist er
+ * aber noch zu sagen: Der Export kam spätestens aus der letzten Sitzung, und
+ * in der galt der Plan, den `planStand` zuletzt vermerkt hat. Danach meldet
+ * icsStale() auch für ihn das nächste Plan-Update. Nur einmal, und nicht nach
+ * einer Datei aus lauter Absagen (`count` 0).
+ */
+export function icsPlanNachtragen(focus, stand) {
+  const i = state.lastIcs;
+  if (!i || i.count === 0 || i.stand !== undefined || !stand) return;
+  state.lastIcs = { ...i, focus, stand };
+  persist();
+  emit();
+}
+
+/** Die Verbindung zum Kalender-Skript – { token, url, minuten, erinnerung } oder null. */
+export function kalender() { return state.kalender; }
+
+/**
+ * Die Verbindung ändern: `teil` wird übernommen und geprüft (normKalender()),
+ * null trennt ganz. Gibt zurück, was jetzt gilt. Geschrieben wird gleich – das
+ * Kennwort muss im Speicher stehen, bevor der Code mit ihm die App verlässt.
+ */
+export function setzeKalender(teil) {
+  state.kalender = teil === null ? null : normKalender({ ...(state.kalender || {}), ...teil });
+  persist();
+  flush();
+  emit();
+  return state.kalender;
 }
 
 /**
@@ -1118,6 +1878,16 @@ export function importJSON(text) {
   fresh.injuries = fresh.injuries.filter((x) => typeof x === 'string');
   fresh.friends = normFreunde(fresh.friends);
   fresh.customs = normCustoms(fresh.customs);
+  fresh.tagesabschluss = normAbschluss(fresh.tagesabschluss);
+  // Die Verbindung zum Kalender kommt mit der Datei – ein neues Handy schickt
+  // damit weiter. Kennt die Datei keine Adresse (eine Sicherung von vor dem
+  // „Verbinden"), bleibt die dieses Geräts: Sie gehört zu Tobis Google-Konto,
+  // nicht zum Trainingsstand, und ein Einlesen trennte sonst still einen
+  // Kalender, der dann sechs Wochen lang nach einer alten Vorschau schöbe.
+  const kalDatei = normKalender(fresh.kalender);
+  fresh.kalender = kalDatei && (kalDatei.url || !(state.kalender && state.kalender.url))
+    ? kalDatei : (state.kalender || null);
+  eintragUmziehen(fresh, parsed.letzterEintrag);
   // Was an *diesem Gerät* hängt, kommt nicht aus der Datei. Vorher übernahm
   // der Import auch `share`, `deviceId` und `lastShare`: Eine bewusst
   // abgeschaltete Telemetrie war danach still wieder an, und zwei Geräte
@@ -1165,6 +1935,9 @@ export function resetAll() {
   try {
     localStorage.removeItem(KEY);
     localStorage.removeItem(KEY_RUNDEN);
+    localStorage.removeItem('workout.satzuhr.v1');   // Pausenuhr der Supersätze (js/app.js)
+    // Das Diagnoseprotokoll räumt js/app.js (reset-all, diagnoseLeeren('reset'));
+    // seinen Schalter workout.diagnose.aus lässt es stehen.
   } catch { /* ignorieren */ }
   persist();
   emit();

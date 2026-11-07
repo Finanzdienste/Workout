@@ -10,20 +10,26 @@
  * ------------------------------------------------------------------ */
 import * as store from './store.js';
 import { PLAN } from './data.js';
-import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
+import { EX_BY_ID, satzKilo, stufenWerte } from './uebung.js';
 import { LEISTUNG_MIN, LEVELS, SAETZE_JE_STUFE, leistungsStand, naechsteStufe } from './stufen.js';
 import { esc, fmtNum } from './text.js';
 import { fmtDate, plural } from './dates.js';
-import { effDate, exOf } from './plan.js';
+import { effDate, einheitEx } from './plan.js';
 import { gesamtStats } from './bilanz.js';
 import { abbruch, ausgelassen, vorneListe } from './muster.js';
 
-/** Letzter protokollierter Eintrag derselben Übung im selben Modus. */
+/**
+ * Letzter protokollierter Eintrag derselben Übung im selben Modus.
+ *
+ * In der ganzen Einheit gesucht (einheitEx()), nicht nur in ihrem Plan: Die
+ * Chin-ups aus einem eingefügten Zusatztag sind beim nächsten Mal „Zuletzt
+ * (Workout 9)", nicht „noch nie".
+ */
 export function lastLoggedFor(exId, mode, beforeN) {
   for (let i = PLAN.length - 1; i >= 0; i--) {
     const w = PLAN[i];
     if (w.n >= beforeN) continue;
-    const item = exOf(w, mode).find((x) => x.id === exId);
+    const item = einheitEx(w, mode).find((x) => x.id === exId);
     if (!item) continue;
     const arr = store.peekSets(w.n, mode, exId);
     if (!arr) continue;
@@ -36,7 +42,8 @@ export function lastLoggedFor(exId, mode, beforeN) {
 
 /**
  * Zeitreihen aus dem Protokoll: je Übung das benutzte Gewicht, je
- * Muskelgruppe das Volumen (Gewicht × geplante Wdh. × Sätze) einer Einheit.
+ * Muskelgruppe das Volumen einer Einheit (Gewicht × gezählte Wdh. je Satz,
+ * mit dem Anteil der Gruppe an der Übung gewichtet).
  *
  * Nur abgehakte Sätze zählen, und nur die Hantel-Variante trägt Kilo bei –
  * Bodyweight-Einheiten haben schlicht kein Gewicht, das man summieren könnte.
@@ -76,8 +83,17 @@ export function progressSeries() {
       if (!perExercise.has(id)) perExercise.set(id, []);
       perExercise.get(id).push({ label: day, value: kg });
 
-      const vol = kg * plannedReps(stufenWerte(ex.db).reps) * done.length;
-      ex.db.muscles.forEach((m) => muscleDay.set(m, (muscleDay.get(m) || 0) + vol));
+      // Volumen wie in der Kachel darüber: jeder Satz mit seinem eigenen
+      // Gewicht (satzKilo). Auf die Gruppen verteilt nach ihren Anteilen, wie
+      // beim Wochenvolumen – ein Goblet Squat ist für den Beinbeuger an der
+      // Hüfte (Anteil 0,15) kein Beintraining. Voll gutgeschrieben überzeichnete
+      // er dessen Kurve um das Sechsfache, und ein Tag ohne Kreuzheben sah dort
+      // fast genauso aus wie einer mit.
+      const reps = stufenWerte(ex.db).reps;
+      const vol = done.reduce((sum, x) => sum + satzKilo(x, reps), 0);
+      Object.entries(ex.db.shares).forEach(([m, anteil]) => {
+        muscleDay.set(m, (muscleDay.get(m) || 0) + vol * anteil);
+      });
     });
 
     muscleDay.forEach((vol, m) => {

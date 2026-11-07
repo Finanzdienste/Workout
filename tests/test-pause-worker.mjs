@@ -117,28 +117,12 @@ console.log('     Töne:', JSON.stringify(toene.versuche));
 check(toene.versuche.every(([, ok]) => ok === true),
   `jeder Ton lässt sich aufbauen (${toene.versuche.filter(([, o]) => o !== true).map(([n]) => n).join(', ') || 'alle'})`);
 
-// Und dass wirklich Klang entsteht, nicht nur Stille: einmal offline rendern
-// und nachsehen, ob der Puffer Ausschläge hat. Ohne diese Prüfung würde ein
-// vertippter Hüllkurvenwert (Lautstärke 0) nirgends auffallen.
-const laut = await page.evaluate(async () => {
-  const oc = new OfflineAudioContext(1, 44100 * 2, 44100);
-  const osc = oc.createOscillator();
-  const g = oc.createGain();
-  g.gain.setValueAtTime(0.0001, 0);
-  g.gain.exponentialRampToValueAtTime(0.3, 0.012);
-  g.gain.exponentialRampToValueAtTime(0.0001, 0.6);
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(880, 0);
-  osc.connect(g).connect(oc.destination);
-  osc.start(0);
-  osc.stop(0.7);
-  const buf = await oc.startRendering();
-  const d = buf.getChannelData(0);
-  let max = 0;
-  for (let i = 0; i < d.length; i++) max = Math.max(max, Math.abs(d[i]));
-  return max;
-});
-check(laut > 0.1, `eine Hüllkurve dieser Bauart erzeugt hörbaren Pegel (${laut.toFixed(2)})`);
+// Ob wirklich Klang entsteht, prüft tests/test-sound.mjs („Was wirklich
+// herauskommt"): Es rendert die Töne der App offline. Hier stand bis v249 eine
+// Hüllkurve „dieser Bauart", von Hand nachgebaut, mit eigenem connect() – sie
+// klang, während in js/audio.js der Anschluss des Oszillators fehlte und die
+// App nur den Rauschanschlag spielte. Eine Prüfung an einer Kopie prüft die
+// Kopie.
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

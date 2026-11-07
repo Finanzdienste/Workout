@@ -110,6 +110,37 @@ for (const [key, z] of Object.entries(ziele)) {
     `${key}: die Bodyweight-Fassung trifft jetzt auch (schlechteste ${z.bw[0]} ${z.bw[1].toFixed(3)})`);
 }
 
+// --- 2b. Ohne Hanteln so wenige Wochen über der Grenze wie möglich ------
+// Gezählt wie tools/pruefung/wochen-cap.py: je Gruppe und Woche, Grenze
+// max(cap, Ziel). bw_verteilen() in tools/build-plan.py hielt die Zahl bis
+// zum 05.10. nur unter der der gleichmäßigen Verteilung und ließ den Rest die
+// Nähe zu ihr entscheiden – im Aufbau lagen so 75 Gruppenwochen darüber, wo
+// 62 gehen, ohne dass eine Einheit länger oder eine Woche stärker wird. Ein
+// Vergleichsstand wie tools/pruefung/befunde.json: Die Zahlen dürfen sinken,
+// nicht steigen. plan-pruefen.py sieht nur die stärkste Woche, nicht wie oft.
+const DRUEBER_OHNE_HANTELN = { standard: 62, bbp: 16, cut: 13, oberkoerper: 9 };
+const drueber = await page.evaluate(async () => {
+  const { PLANS, EXERCISES } = await import('./js/data.js');
+  const byId = new Map(EXERCISES.map((e) => [e.id, e]));
+  return Object.fromEntries(Object.entries(PLANS).map(([key, v]) => {
+    const wochen = [];
+    v.plan.forEach((w, i) => w.ex.forEach((it) => {
+      const woche = (wochen[Math.floor(i / 4)] ||= {});
+      for (const [m, a] of Object.entries(byId.get(it.id).bw.shares)) {
+        woche[m] = (woche[m] || 0) + (it.bwSets ?? it.sets) * a;
+      }
+    }));
+    const n = wochen.reduce((s, woche) => s + Object.entries(woche)
+      .filter(([m, x]) => x > Math.max(v.cap, v.target[m] || 0) + 1e-9).length, 0);
+    return [key, n];
+  }));
+});
+for (const [key, n] of Object.entries(drueber)) {
+  const stand = DRUEBER_OHNE_HANTELN[key];
+  check(stand !== undefined && n <= stand,
+    `${key}: ohne Hanteln ${n} Gruppenwochen über der Grenze (Vergleichsstand ${stand ?? '–'})`);
+}
+
 // --- 3. Die App zeigt je Modus die Zahl dieses Modus -------------------
 const fall = await page.evaluate(async () => {
   const { PLANS } = await import('./js/data.js');
@@ -197,6 +228,182 @@ check(!/Abgeschlossen/.test(abzeichen),
   `die Einheit gilt nicht als abgeschlossen (${abzeichen.slice(0, 70)}…)`);
 check(abzeichen.includes(`${soll.gesetzt}/${soll.db}`),
   `und die Anzeige nennt das Hantel-Soll ${soll.gesetzt}/${soll.db} (${abzeichen.slice(0, 70)}…)`);
+
+// --- 6. Umstellen unter Mehr: laufende und unberührte Einheit, keine fertige ---
+// set-modus schrieb den Modus der Einheit um, die zuletzt auf dem Dashboard
+// stand – auch einer fertigen. Die Hantel-Einheit von heute hieß nach „ab
+// jetzt Bodyweight" plötzlich Bodyweight-Einheit.
+await page.evaluate(() => localStorage.setItem('workout.state.v1',
+  JSON.stringify({ greeted: true, name: 'T', level: 'geuebt', mode: 'db', restSeconds: 0 })));
+await page.reload({ waitUntil: 'networkidle' });
+await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  const { workoutByNo } = await import('./js/plan.js');
+  s.completeWorkout(1, 'db', workoutByNo(1, 'db').ex);
+  s.markDone(1, 'db');
+});
+await page.reload({ waitUntil: 'networkidle' });
+const modusVon = (n) => page.evaluate(async (nn) => {
+  const s = await import('./js/store.js');
+  return { mode: s.workoutMode(nn), eintrag: (s.getState().log[nn] || {}).mode || null };
+}, n);
+const umstellen = async (m) => {
+  await page.locator('.tab[data-tab="settings"]').click();
+  await page.waitForTimeout(200);
+  await page.locator(`[data-act="set-modus"][data-v="${m}"]`).first().click();
+  await page.waitForTimeout(200);
+  await page.locator('.tab[data-tab="dashboard"]').click();
+  await page.waitForTimeout(200);
+};
+// Zur fertigen Einheit 1 zurückblättern, dann umstellen.
+const vorn6 = await page.evaluate(() => (document.querySelector('.hero-eyebrow') || {}).textContent || '');
+if (!/Workout 1\b/.test(vorn6)) {
+  await page.locator('[data-act="nav-workout"][data-delta="-1"]').first().click();
+  await page.waitForTimeout(200);
+}
+await umstellen('bw');
+const fertig1 = await modusVon(1);
+const naechste2 = await modusVon(2);
+check(fertig1.mode === 'db', `die fertige Hantel-Einheit bleibt Hantel-Einheit (${fertig1.mode})`);
+check(naechste2.mode === 'bw', `die nächste, unberührte Einheit nimmt die neue Variante (${naechste2.mode})`);
+// Mitten in Einheit 2 zurück auf Hanteln: Die laufende wechselt mit.
+await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+await page.waitForTimeout(200);
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(200);
+await page.locator('.focus-set').first().click();
+await page.waitForTimeout(200);
+await umstellen('db');
+const laufend2 = await modusVon(2);
+check(laufend2.mode === 'db', `die laufende Einheit wechselt mitten im Training mit (${laufend2.mode})`);
+check((await modusVon(1)).mode === 'db', 'und die fertige bleibt, wie sie war');
+
+// --- 7. Vorab angesehen heißt nicht gewählt -----------------------------
+// Das bloße Öffnen der Übungsliste von Workout 2 legte einen Eintrag mit dem
+// damaligen Modus an, und der überstimmte danach jeden Wechsel unter Mehr:
+// Workout 2 kam beim nächsten Training mit Hanteln, entgegen „die nächsten
+// nehmen sie von selbst".
+// Frisch anfangen. Erst die laufende Einheit beenden und warten: Beim
+// Neuladen hält die App die Uhr an und schreibt ihren Stand (pagehide), und
+// der überholte sonst den hier gesetzten.
+const neuerStand = async () => {
+  await page.evaluate(async () => (await import('./js/store.js')).endSession());
+  await page.waitForTimeout(300);
+  await page.evaluate(() => localStorage.setItem('workout.state.v1',
+    JSON.stringify({ greeted: true, name: 'T', level: 'geuebt', mode: 'db', restSeconds: 0 })));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(200);
+};
+await neuerStand();
+await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+await page.waitForTimeout(200);
+await page.locator('[data-act="show-list"]').first().click();
+await page.waitForTimeout(300);
+const angesehen = await page.evaluate(async () => (await import('./js/store.js')).getState().log[2] || null);
+check(angesehen && !angesehen.mode,
+  `die Liste von Workout 2 ist angesehen, ohne eine Variante festzulegen (${JSON.stringify(angesehen && angesehen.mode)})`);
+await page.locator('[data-act="hide-list"]').first().click();
+await page.waitForTimeout(200);
+await page.locator('[data-act="nav-workout"][data-delta="-1"]').first().click();
+await page.waitForTimeout(200);
+await umstellen('bw');
+check((await modusVon(2)).mode === 'bw',
+  `die vorab angesehene Einheit nimmt die neue Variante (${(await modusVon(2)).mode})`);
+// Auch ein Eintrag aus der Zeit davor, der schon einen Modus trägt, folgt.
+await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  s.getState().log[3] = { db: {}, bw: {}, mode: 'bw' };
+});
+await umstellen('db');
+check((await modusVon(3)).mode === 'db',
+  `ein alter, unberührter Eintrag mit Modus folgt ebenso (${(await modusVon(3)).mode})`);
+
+// --- 8. „Alle Sätze abhaken" beendet die laufende Einheit ---------------
+// Bisher hakte der Knopf nur ab: Die Uhr lief weiter, jede andere Einheit
+// zeigte „Workout 1 läuft noch", und ein Wechsel unter Mehr stellte die
+// fertige Einheit als „laufende" auf Bodyweight um – 17/18.
+await neuerStand();
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(300);
+await page.locator('[data-act="focus-list"]').first().click();
+await page.waitForTimeout(300);
+await page.locator('[data-act="complete-workout"]').first().click();
+await page.waitForTimeout(400);
+const nachAlle = await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  const e = s.getState().log[1] || {};
+  return { session: s.getState().session, done: e.done || null };
+});
+check(!nachAlle.session && nachAlle.done === 'db',
+  `nach „Alle Sätze abhaken" ist die Einheit abgeschlossen und läuft nicht mehr (${JSON.stringify(nachAlle)})`);
+await umstellen('bw');
+check((await modusVon(1)).mode === 'db',
+  `ein Wechsel danach lässt die fertige Hantel-Einheit, wie sie ist (${(await modusVon(1)).mode})`);
+// Und set-modus stellt auch eine laufende Einheit nicht um, die schon ganz
+// abgehakt ist und nur noch auf „Abschließen" wartet.
+await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  const { workoutByNo } = await import('./js/plan.js');
+  s.setMode('db');
+  s.startSession(2);
+  workoutByNo(2, 'db').ex.forEach((it) => {
+    for (let i = 0; i < it.sets; i++) s.updateSet(2, 'db', it.id, it.sets, i, { done: true }, it.nach || 0);
+  });
+});
+await page.reload({ waitUntil: 'networkidle' });
+await umstellen('bw');
+check((await modusVon(2)).mode === 'db',
+  `eine fertig abgehakte, noch laufende Einheit bleibt bei Hanteln (${(await modusVon(2)).mode})`);
+
+// --- 9. Abbrechen nach einem Wechsel verwirft beide Varianten -----------
+// Zwei Sätze mit Hanteln, dann unter Mehr auf Bodyweight, dann „Abbrechen":
+// Die Rückfrage nannte die zwei Sätze, gelöscht wurde aber nur der leere
+// Bodyweight-Eimer – und der Toast meldete „nichts gespeichert".
+const fragen = [];
+page.on('dialog', (d) => fragen.push(d.message()));
+const zweiSaetzeDannBw = async () => {
+  await neuerStand();
+  await page.locator('[data-act="start-session"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-set').first().click();
+  await page.waitForTimeout(200);
+  await page.locator('.focus-set:not(.on)').first().click();
+  await page.waitForTimeout(200);
+  await umstellen('bw');
+  // Zur Übungsliste der laufenden Einheit – aus der Fokusansicht oder der Übersicht.
+  const weg = (await page.locator('[data-act="focus-list"]').count()) ? 'focus-list' : 'show-list';
+  await page.locator(`[data-act="${weg}"]`).first().click();
+  await page.waitForTimeout(300);
+};
+const stand1 = () => page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  const e = s.getState().log[1] || {};
+  const zahl = (m) => Object.values(e[m] || {})
+    .reduce((a, arr) => a + (Array.isArray(arr) ? arr.filter((x) => x.done).length : 0), 0);
+  return { db: zahl('db'), bw: zahl('bw'), angefangen: s.isStarted(1), session: s.getState().session };
+});
+await zweiSaetzeDannBw();
+const vorAbbruch = await stand1();
+check(vorAbbruch.db === 2 && vorAbbruch.bw === 0, `zwei Hantelsätze, dann Bodyweight (${JSON.stringify(vorAbbruch)})`);
+fragen.length = 0;
+await page.locator('[data-act="discard-session"]').first().click();
+await page.waitForTimeout(400);
+const nachAbbruch = await stand1();
+const toastAbbruch = await page.evaluate(() => document.getElementById('toast').textContent);
+check(/2 abgehakte Sätze/.test(fragen[0] || ''), `die Rückfrage nennt die zwei Sätze („${fragen[0]}")`);
+check(nachAbbruch.db === 0 && nachAbbruch.bw === 0 && !nachAbbruch.angefangen && !nachAbbruch.session,
+  `und genau die sind danach weg – in beiden Varianten, die Einheit ist unberührt (${JSON.stringify(nachAbbruch)})`);
+check(/nichts gespeichert/.test(toastAbbruch), `„nichts gespeichert" stimmt jetzt („${toastAbbruch}")`);
+
+// Zurücksetzen bei laufender Einheit genauso.
+await zweiSaetzeDannBw();
+fragen.length = 0;
+await page.locator('[data-act="reset-workout"]').first().click();
+await page.waitForTimeout(400);
+const nachReset = await stand1();
+check(/beiden Varianten/.test(fragen[0] || ''), `„Zurücksetzen" sagt, dass beide Varianten gehen („${fragen[0]}")`);
+check(nachReset.db === 0 && nachReset.bw === 0 && !nachReset.angefangen,
+  `und setzt bei der laufenden Einheit beide zurück (${JSON.stringify(nachReset)})`);
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

@@ -87,6 +87,67 @@ check(new Set(gerastet.grob.map((s) => s.kg)).size === gerastet.grob.length,
 check(gerastet.fein.every((s) => Number.isFinite(s.kg) && s.kg % 1.25 < 1e-9),
   `mit feinen Scheiben trotzdem keine krummen Zahlen (${gerastet.fein.map((s) => s.kg).join(' / ')})`);
 
+// --- 2b. Ohne Raster: die Schrittweite der Übung, kein Viertelkilo -----
+//
+// Ohne eingetragene Scheiben – der Normalfall – stand vorher das Viertelkilo
+// da: 26,25 kg an der Stange, 13,25 kg je Hand, 7,25 kg auf der Hüfte. Dasselbe
+// mit Scheiben bei beiden Kurzhanteln, wenn von keiner Größe vier Stück da
+// sind: Dort gibt es kein Raster, und die Rechnung blieb stehen.
+const ohneRaster = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { aufwaermsaetze } = await import('./js/gewichte.js');
+  const { EXERCISES } = await import('./js/data.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const { erreichbar } = await import('./js/scheiben.js');
+  const raster = (ex) => (['barbell', 'hipbar', 'szbar'].includes(ex.equip)
+    ? Math.min(ex.step, 2.5) : ex.step);
+  // Gibt es ein Raster aus den Scheiben, zählt das; sonst die Schrittweite.
+  const passt = (ex, kg, satz) => {
+    const liste = erreichbar(ex.equip, satz);
+    if (liste && liste.length > 1) return liste.includes(kg);
+    const r = kg / raster(ex);
+    return Math.abs(r - Math.round(r)) < 1e-9;
+  };
+  const daneben = (satz) => {
+    store.setSetting('scheiben', satz);
+    const aus = [];
+    EXERCISES.filter((ex) => ex.weight > 0).forEach((ex) => {
+      [0.5, 1, 1.5].forEach((f) => {
+        const kg = Math.round(ex.weight * f * 2) / 2;
+        aufwaermsaetze(ex, kg, ex.db.reps).forEach((s) => {
+          if (!passt(ex, s.kg, satz)) aus.push(`${ex.id} ${kg} → ${s.kg}`);
+        });
+      });
+    });
+    return aus;
+  };
+  const ohne = daneben(null);
+  // Der echte Satz aus js/scheiben.js: je zwei Stück – für beide Kurzhanteln
+  // kein Raster, für alles andere schon.
+  const zweiJe = daneben({ stange: { kh: null, sz: null, lh: null },
+    scheiben: [[0.5, 2], [1.25, 2], [2, 2], [2.5, 2], [4, 2], [5, 2], [10, 2], [20, 2]] });
+  const kh = aufwaermsaetze(EX_BY_ID.get('kurzhantel-bodenpresse'), 17.5, '6–12').map((s) => s.kg);
+  store.setSetting('scheiben', null);
+  return {
+    ohne, zweiJe, kh,
+    rudern: aufwaermsaetze(EX_BY_ID.get('einarmiges-kh-rudern'), 35, '6–12').map((s) => s.kg),
+    becken: aufwaermsaetze(EX_BY_ID.get('beckenheben'), 12, '10–15').map((s) => s.kg),
+  };
+});
+console.log('     ohne Scheiben:', JSON.stringify(ohneRaster.ohne.slice(0, 6)));
+console.log('     zwei je Größe:', JSON.stringify(ohneRaster.zweiJe.slice(0, 6)));
+console.log('     Rudern 35:', ohneRaster.rudern.join(' / '), '· Beckenheben 12:', ohneRaster.becken.join(' / '),
+  '· Bodenpresse 17,5 mit zwei je Größe:', ohneRaster.kh.join(' / '));
+check(ohneRaster.ohne.length === 0,
+  `ohne Scheiben liegt jeder Aufwärmsatz auf der Schrittweite der Übung (${ohneRaster.ohne.length} daneben)`);
+check(ohneRaster.zweiJe.length === 0,
+  `auch mit Scheiben, die für beide Kurzhanteln kein Raster ergeben (${ohneRaster.zweiJe.length} daneben)`);
+check(ohneRaster.rudern.join('/') === '17.5/25',
+  `an der Stange ein Paar 1,25er fein: 35 → 17,5 / 25 (${ohneRaster.rudern.join(' / ')})`);
+check(ohneRaster.kh.join('/') === '7.5/12.5',
+  `beide Kurzhanteln ohne Raster: 17,5 → 7,5 / 12,5 je Hand, nicht 8,75 / 13,25 (${ohneRaster.kh.join(' / ')})`);
+check(ohneRaster.becken.join('/') === '8', `Beckenheben 12 → 8, nicht 7,25 (${ohneRaster.becken.join(' / ')})`);
+
 // --- 3. In der App: eine Zeile, kein Knopf -----------------------------
 await page.evaluate(async () => {
   const store = await import('./js/store.js');

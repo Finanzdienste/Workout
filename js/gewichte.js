@@ -9,7 +9,9 @@ import * as store from './store.js';
 import { EX_BY_ID, repsBereich } from './uebung.js';
 import { esc, fmtNum } from './text.js';
 import { levelFaktor } from './stufen.js';
-import { belegungText, gepflegt, nachbar, normSatz, raste, stangeZaehlt } from './scheiben.js';
+import {
+  belegungAlsText, belegungText, erreichbar, gepflegt, nachbar, normSatz, raste, stangeZaehlt,
+} from './scheiben.js';
 
 /** Der eingetragene Scheibensatz – oder ein leerer, wenn nichts eingetragen ist. */
 export const meinSatz = () => normSatz(store.getState().scheiben);
@@ -56,6 +58,35 @@ export function gerastet(ex, kg) {
 /** Anteile des Arbeitsgewichts je Stufe – schwerer heißt mehr Anlauf. */
 const AUFWAERM_STUFEN = { 1: [0.5, 0.75], 2: [0.6] };
 
+/** Geräte, auf die Scheiben paarweise kommen – je Seite eine. */
+const STANGEN = new Set(['barbell', 'hipbar', 'szbar']);
+
+/**
+ * Ein Aufwärmgewicht auf etwas legen, das sich einstellen lässt.
+ *
+ * Mit eingetragenen Scheiben ist das das Raster daraus. Ohne – und das ist der
+ * Normalfall – stand hier vorher das Viertelkilo: 26,25 kg an der Stange
+ * (13,125 je Seite), 13,25 kg je Hand, 7,25 kg auf der Hüfte. Genau die
+ * „Rechnung, keine Ansage", die der Abschnitt oben ausschließen will. Dasselbe
+ * passierte *mit* Scheiben bei beiden Kurzhanteln, sobald von keiner Größe vier
+ * Stück da sind: Dann gibt es dort kein Raster (siehe raste()), und das
+ * Viertelkilo blieb stehen.
+ *
+ * Ohne Raster gilt deshalb die Schrittweite der Übung – dieselbe, in der auch
+ * das Arbeitsgewicht wandert, bei Kurzhanteln also je Hand. An der Stange
+ * höchstens 2,5 kg, ein Paar 1,25er: Die Schrittweite 5 ist dort für das
+ * Arbeitsgewicht gedacht, und 17,5 kg für die Hälfte von 35 lassen sich
+ * aufstecken. Bei gleichem Abstand nach unten, wie in raste().
+ */
+function aufwaermGewicht(ex, roh) {
+  const satz = meinSatz();
+  const r = gepflegt(ex.equip, satz) ? raste(roh, ex.equip, satz) : null;
+  if (r !== null) return r;
+  const step = ex.step || 2.5;
+  const raster = STANGEN.has(ex.equip) ? Math.min(step, 2.5) : step;
+  return Math.ceil(roh / raster - 0.5 - 1e-9) * raster;
+}
+
 /**
  * Die Aufwärmsätze einer Übung: [{ kg, reps }] – oder eine leere Liste.
  *
@@ -70,8 +101,7 @@ export function aufwaermsaetze(ex, kg, reps) {
   const gesehen = new Set([kg]);
   const liste = [];
   stufen.forEach((anteil) => {
-    const roh = Math.round(kg * anteil * 4) / 4;
-    const w = gerastet(ex, roh);
+    const w = aufwaermGewicht(ex, kg * anteil);
     // Über dem Arbeitsgewicht ist kein Aufwärmsatz, sondern ein Fehler: Das
     // passiert, wenn das Raster grob ist und nach oben schnappt.
     if (!(w > 0) || w >= kg || gesehen.has(w)) return;
@@ -147,9 +177,18 @@ export function doneWeightNote(n, mode, exId) {
  *
  * Sortiert wird deshalb nach Gerät und innerhalb des Geräts absteigend nach
  * Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in kleinen
- * Schritten nach unten statt hin und her. Am Plan gemessen sind das rund 30 %
- * weniger Kilo, die in einer Einheit bewegt werden – und schwer zuerst ist
- * ohnehin die richtige Reihenfolge fürs Training.
+ * Schritten nach unten statt hin und her – und schwer zuerst ist ohnehin die
+ * richtige Reihenfolge fürs Training.
+ *
+ * Was das bringt, ist die Zahl der Auf- und Umbauten, nicht die Kilo. Über alle
+ * 84 Einheiten mit den Startgewichten nachgezählt, ist es je Plan das Minimum,
+ * das unter denselben Nebenbedingungen überhaupt geht. Wie viele das sind, steht
+ * nicht hier, sondern als Rüstvorgänge je Einheit in tests/ruestaufwand-stand.json;
+ * tests/test-reihenfolge.mjs misst sie mit setupOf() und ruestOrder() nach und
+ * schlägt an, wenn es mehr werden. Hier standen sie einmal als Zahlen, und die
+ * nächste Neurechnung der Pläne hat sie überholt. Die bewegten Kilo bleiben
+ * dabei ungefähr gleich (bis 3 % mehr); hier stand einmal „rund 30 % weniger
+ * Kilo", und das lässt sich an den heutigen Plänen nicht mehr nachmessen.
  *
  * Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
  * Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach
@@ -338,21 +377,105 @@ export function ruestOrder(items) {
   return vorgezogen(out) ? items : out;
 }
 
-/** Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist. */
-export function ruestHint(n, mode, list, i) {
-  if (mode !== 'db') return '';
-  const cur = setupOf(list[i].id, workingWeight(list[i].id));
-  if (!cur) return '';
+/**
+ * Wie oft in dieser Liste auf- oder umgebaut wird, in der Reihenfolge von
+ * ruestOrder().
+ *
+ * Gezählt wie die Rüstzeile (ruestHint(), vorherAufgebaut()): Eine Übung mit
+ * Aufbau kostet einen Schritt, wenn davor keine mit Aufbau stand oder deren
+ * Gerät oder Gewicht ein anderes war. Übungen ohne Aufbau dazwischen ändern
+ * nichts – die Stange bleibt ja geladen.
+ *
+ * Gebraucht, wenn ein Zusatztag in eine Einheit eingefügt wird (zusatztagEx()
+ * in js/tagstart.js): Bei gleichem Nutzen gewinnt die Übung, die keinen weiteren
+ * Umbau kostet.
+ */
+export function ruestSchritte(items) {
+  let n = 0;
   let prev = null;
-  for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, workingWeight(list[k].id));
+  ruestOrder(items).forEach((it) => {
+    const s = setupOf(it.id, workingWeight(it.id));
+    if (!s) return;
+    if (!prev || prev.fam !== s.fam || !(Math.abs(prev.kg - s.kg) < 0.01)) n += 1;
+    prev = s;
+  });
+  return n;
+}
+
+/**
+ * Der Aufbau, der vor dieser Übung zuletzt dran war – oder null.
+ *
+ * Ohne Supersatz ist das die nächste Übung mit Aufbau weiter oben in der
+ * Liste. Im Supersatz stimmt die Liste nicht mehr mit dem Ablauf überein:
+ * Partner liegen bis zu drei Plätze auseinander, und dazwischen wird
+ * gewechselt. Gefunden auf dem Weg durch Workout 3 des Aufbau-Plans: Beim
+ * ersten RDL-Satz stand „Stange bleibt bei 40 kg – nichts umbauen" (die Stange
+ * war noch leer, die 40 kg gehörten zum Floor Press darüber, der erst danach
+ * kam), beim Floor Press direkt nach drei RDL-Sätzen mit 40 kg „Aufbauen", und
+ * bei den Crunches „Umbauen: Kurzhantel von 20 auf 5 kg" – die 20 kg gehörten
+ * zum Goblet Squat, den noch niemand angefasst hatte.
+ *
+ * `ablauf` sind deshalb, wenn es ihn gibt, die Übungen in der Reihenfolge der
+ * Sätze (schritte() je Gruppe aus superGruppen() in js/app.js). Gezählt wird
+ * vom ersten Satz dieser Übung rückwärts: Die Rüstzeile sagt, was vor ihr zu
+ * tun ist, wie ohne Supersatz auch.
+ */
+function vorherAufgebaut(list, i, ablauf) {
+  const aufbau = (id) => setupOf(id, workingWeight(id));
+  const erst = ablauf ? ablauf.indexOf(list[i].id) : -1;
+  let prev = null;
+  if (erst < 0) {
+    for (let k = i - 1; k >= 0 && !prev; k--) prev = aufbau(list[k].id);
+    return prev;
+  }
+  for (let k = erst - 1; k >= 0 && !prev; k--) prev = aufbau(ablauf[k]);
+  return prev;
+}
+
+/**
+ * Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist.
+ *
+ * `mit.ablauf`: die Reihenfolge der Sätze im Supersatz (vorherAufgebaut()).
+ * `mit.belegung`: die Belegung, mit der diese Übung und ihr Partner zugleich
+ * stehen (paarBelegung() in js/supersatz.js) – dann steht bei beiden genau
+ * die, nicht jede für sich.
+ * `mit.zweiteHantel`: Diese Übung nimmt die zweite Kurzhantel, die erste
+ * bleibt für den Partner geladen (ruestMit() in js/app.js). Was darauf zuletzt
+ * lag, weiß die Zeile nicht – sie kennt nur den Aufbau davor, und der ist der
+ * des Partners. Also: aufbauen, und die erste in Ruhe lassen.
+ */
+export function ruestHint(n, mode, list, i, mit = {}) {
+  if (mode !== 'db') return '';
+  const id = list[i].id;
+  const cur = setupOf(id, workingWeight(id));
+  if (!cur) return '';
+  const prev = vorherAufgebaut(list, i, mit.ablauf || null);
   const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
   // Sind die Scheiben bekannt, steht hier nicht nur das Ziel, sondern der Weg
   // dahin: Welche Scheiben, wie viele, auf welche Seite. Das ist die Zeile, die
   // den Umbau kurz macht.
-  const lade = ladeText(list[i].id, cur.kg);
-  const wie = lade ? ` <span class="ruest-lade">(${esc(lade)})</span>` : '';
+  const lade = ladeText(id, cur.kg, mit.belegung || null);
+  let wie = lade ? ` <span class="ruest-lade">(${esc(lade)})</span>` : '';
+  // Lässt sich das Gewicht mit dem Vorrat gar nicht stecken – gesetzt, bevor
+  // die Scheiben eingetragen waren, oder frei eingetippt –, blieb die Zeile
+  // ohne Scheiben und ohne Grund: „Aufbauen: Kurzhanteln auf 12 kg", und an
+  // der Hantel merkt man, dass es nicht aufgeht. Dann steht hier, was geht.
+  const geht = gerastet(EX_BY_ID.get(id), cur.kg);
+  if (!lade && geht !== null && Math.abs(geht - cur.kg) > 1e-9) {
+    wie = ` <span class="ruest-lade knapp">(${esc(fmtNum(cur.kg))} kg lässt sich so nicht stecken – nächstes: ${
+      esc(fmtNum(geht))} kg)</span>`;
+  }
+  if (mit.zweiteHantel) {
+    // Ohne den Zusatz „eine Hantel": „zweite Kurzhantel auf 10 kg eine Hantel"
+    // sagte dasselbe zweimal.
+    return `<div class="ruest">Aufbauen: zweite ${esc(cur.label)} auf ${esc(fmtNum(cur.kg))} kg${
+      wie} – die erste bleibt geladen</div>`;
+  }
   if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
-    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
+    // Im Paar kann die gemeinsame Belegung eine andere sein als die, mit der
+    // die Stange gerade daliegt – dann muss sie dastehen.
+    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen${
+      mit.belegung ? wie : ''}</div>`;
   }
   if (prev && prev.fam === cur.fam) {
     return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}${wie}</div>`;
@@ -410,12 +533,27 @@ export const stepOf = (exId) => {
 const mindestSchritt = (jetzt, schritt) =>
   Math.min(schritt, Math.max(0.5, jetzt * 0.05));
 
-export function naechstesGewicht(exId, richtung) {
+export function naechstesGewicht(exId, richtung, mode = 'db') {
   const ex = EX_BY_ID.get(exId);
   const jetzt = workingWeight(exId) || 0;
   const schritt = stepOf(exId);
-  if (!ex || !gepflegt(ex.equip, meinSatz())) return Math.max(0, jetzt + richtung * schritt);
-  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), mindestSchritt(jetzt, schritt));
+  // Der Rucksack rastet nur mit Hanteln auf den Scheibenvorrat. Ohne Hanteln
+  // ist man unterwegs, die Scheiben liegen zu Hause, und hinein kommen Bücher
+  // oder Flaschen – dann freie Schritte wie ohne Eintrag (RASTER in
+  // js/scheiben.js).
+  const frei = mode === 'bw' && ex && ex.equip === 'backpack';
+  const liste = ex && !frei ? erreichbar(ex.equip, meinSatz()) : null;
+  // Kein Raster (nichts eingetragen, oder bei beiden Kurzhanteln von keiner
+  // Größe vier Stück): freie Schritte. Vorher gab nachbar() im zweiten Fall
+  // null zurück, und der Knopf blieb einfach stehen.
+  if (!liste || liste.length <= 1) return Math.max(0, jetzt + richtung * schritt);
+  // Liegt das Gewicht neben dem Raster – gesetzt, bevor die Scheiben
+  // eingetragen waren, oder frei eingetippt –, geht der erste Schritt auf den
+  // nächsten erreichbaren Wert, ohne Mindestweite. Sonst sprang 12 kg je Hand
+  // bei 2,5er-Schritten auf 15 und über die 12,5 hinweg, die nur ein halbes
+  // Kilo daneben liegen.
+  const aufRaster = liste.some((w) => Math.abs(w - jetzt) < 1e-9);
+  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), aufRaster ? mindestSchritt(jetzt, schritt) : 0);
   return n === null ? jetzt : n;
 }
 
@@ -441,9 +579,16 @@ export function naechstesGewicht(exId, richtung) {
  * laufen kann, ist keine Reserve, sondern Ballast.
  * ------------------------------------------------------------------ */
 
-/** „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt. */
-export function ladeText(exId, kg) {
+/**
+ * „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt.
+ *
+ * `belegung` ist eine schon bestimmte Belegung – im Supersatz die, mit der
+ * beide Aufbauten zugleich stehen (paarBelegung() in js/supersatz.js). Ohne
+ * gilt die mit den wenigsten Scheiben für diese Übung allein.
+ */
+export function ladeText(exId, kg, belegung = null) {
   const ex = EX_BY_ID.get(exId);
   if (!ex || kg === null) return '';
+  if (belegung) return belegungAlsText(belegung, ex.equip, meinSatz());
   return belegungText(kg, ex.equip, meinSatz());
 }

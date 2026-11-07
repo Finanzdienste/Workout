@@ -36,6 +36,19 @@ export function fmtDate(iso, long) {
   return `${wd}, ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.`;
 }
 
+const WEEKDAYS_LONG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+
+/** Der Wochentag ausgeschrieben: „Samstag". */
+export function wochentag(iso) {
+  return WEEKDAYS_LONG[parseISO(iso).getDay()];
+}
+
+/** Tag und Monat: „3. Oktober". */
+export function tagMonat(iso) {
+  const d = parseISO(iso);
+  return `${d.getDate()}. ${MONTHS[d.getMonth()]}`;
+}
+
 export function plural(n, one, many) {
   return `${n} ${n === 1 ? one : many}`;
 }

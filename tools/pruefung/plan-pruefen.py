@@ -151,7 +151,7 @@ def feste_regeln(v, modus, m):
         # Beide Modi, dieselben Ziele. Das galt lange nicht: Gerechnet war der
         # Plan für die Hantel-Fassung, und der Bodyweight-Modus lag eben
         # daneben. Seit er eine eigene Satzzahl je Auftritt hat, trifft er
-        # dieselben Ziele – in vier von sechs Varianten exakt, sonst auf
+        # dieselben Ziele – in zwei von vier Varianten exakt, sonst auf
         # Hundertstel. Die Schranke von 0,05 Sätzen fängt genau das ab: Sie
         # lässt den Rest der Ganzzahligkeit durch und schlüge sofort an, wenn
         # die alten 0,59 Sätze Abweichung zurückkämen.
@@ -169,11 +169,13 @@ def feste_regeln(v, modus, m):
         # einzelner Tag sie ausschöpft, ist etwas grundsätzlich schiefgegangen,
         # egal was die Trainingslehre zum optimalen Tagesvolumen sagt.
         #
-        # Sie greift heute nirgends: Der höchste Wert über alle sechs Pläne und
-        # beide Modi ist 9,0 bei einer Obergrenze von 10. Das ist der Sinn der
-        # Sache – sie soll nichts ändern, sondern anschlagen, wenn sich etwas
-        # ändert. Gemessen wird in gewichtetem Volumen, derselben Währung wie
-        # die Ziele; die rohe Satzzahl taugt dafür nicht, weil sie ein Drücken
+        # Sie greift nirgends. Am 05.10. war der höchste Wert über alle vier
+        # Pläne und beide Modi 8,85 (Trizeps, Oberkörper ohne Hanteln) bei
+        # einer Obergrenze von 13, am knappsten der Trizeps im Aufbau ohne
+        # Hanteln mit 8,8 bei 10; den heutigen Stand zeigt --bericht in der
+        # Spalte „Spitzentag". Das ist der Sinn der Sache – sie soll nichts
+        # ändern, sondern anschlagen, wenn sich etwas ändert. Gemessen wird in
+        # gewichtetem Volumen, derselben Währung wie die Ziele; die rohe Satzzahl taugt dafür nicht, weil sie ein Drücken
         # voll auf den Trizeps rechnet.
         if m['spitze'][g] > m['cap'] + 0.05:
             fehler.append(f'{name}: eine einzelne Einheit gibt {m["spitze"][g]:.2f} – '

@@ -122,6 +122,41 @@ const leer = await page.evaluate(async () => {
 });
 check(leer === 2, `leere Sätze werden auf die neue Zahl gekürzt (${leer})`);
 
+// --- 5. Fortgeschritten trifft sein Soll auch ohne Hanteln ---
+// Ohne Hanteln stehen zwei und vier Sätze je Auftritt, und je Auftritt
+// gerundet wurden daraus drei und fünf: Im BBP lag der Bauch damit 0,45 Sätze
+// je Woche unter dem Soll, das die Statistik zeigt (targetOf() in js/app.js:
+// Ziel × satzFaktor()). Gemessen wird hier je Plan und Gruppe das Wochenvolumen
+// so, wie die App die Einheiten zusammenstellt (planSaetze), gegen genau dieses
+// Soll. Was bw_saetze() im Generator selbst nicht exakt trifft (bis 0,03), darf
+// mit dem Faktor mitwachsen; die Rundung der Stufe darf nichts dazutun.
+for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
+  const abw = {};
+  for (const stufe of ['geuebt', 'fortgeschritten']) {
+    await stellen(stufe, fokus);
+    abw[stufe] = await page.evaluate(async () => {
+      const d = await import('./js/data.js');
+      const { planSaetze } = await import('./js/plan.js');
+      const { satzFaktor } = await import('./js/stufen.js');
+      const ex = new Map(d.EXERCISES.map((e) => [e.id, e]));
+      const vol = {};
+      d.PLAN.forEach((w) => planSaetze(w, 'bw').forEach((it) => {
+        Object.entries(ex.get(it.id).bw.shares).forEach(([m, a]) => { vol[m] = (vol[m] || 0) + it.sets * a; });
+      }));
+      const wochen = d.PLAN.length / 4;
+      const targetOf = (m) => (d.TARGET[m] ?? 10) * satzFaktor();    // wie in js/app.js
+      return Object.fromEntries(Object.keys(d.TARGET).filter((m) => !d.DERIVED.includes(m))
+        .map((m) => [m, (vol[m] || 0) / wochen - targetOf(m)]));
+    });
+  }
+  const schlimmste = Object.entries(abw.fortgeschritten)
+    .map(([m, x]) => [m, x - (4 / 3) * abw.geuebt[m]])
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0];
+  check(Math.abs(schlimmste[1]) <= 0.05,
+    `${fokus} ohne Hanteln, Fortgeschritten: jede Gruppe auf ihrem Soll (größte Abweichung durch die Rundung: `
+    + `${schlimmste[0]} ${schlimmste[1].toFixed(3)} Sätze/Woche)`);
+}
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

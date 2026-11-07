@@ -18,38 +18,77 @@
  * Weiter aufteilen ginge, hieße aber, `ui`, `render()` und `go()` über eine
  * Registrierung zu entkoppeln – mehr Maschinerie, als es einbringt.
  */
+// Als Erstes: Das Diagnoseprotokoll hängt seine Fehler-Lauscher ein, bevor
+// data.js und store.js ausgewertet werden (siehe js/diagnose.js).
+import {
+  diagnoseAn, diagnoseFassung, diagnoseGrundMerken, diagnoseLeeren, diagnosePlatzMachen, diagnoseSauber,
+  diagnoseSchalten, diagnoseSchreiben, diagnoseStand, diagnoseStart, diagnoseText, diagnoseZeilen, diagnoseZone,
+  notieren, uaKurz,
+} from './diagnose.js';
 import { EXERCISES, FOCUS, FOKUS_ERSATZ, PLAN, PLANS, TARGET, REST } from './data.js';
 import * as store from './store.js';
-import { todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD } from './dates.js';
+import {
+  todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD, tagMonat,
+  toISO, wochentag,
+} from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
 import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
 import { sparkPanel } from './chart.js';
 import { buildICS } from './ics.js';
+import { kalenderEinheiten } from './kalender.js';
 import { CONFIG, hatServer } from './config.js';
 import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
-import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
-import { esc, fmtNum, komma1 } from './text.js';
-import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, wdhTeile } from './anzeige.js';
 import {
-  AKT_ICON, aktivitaetTage, calMonthNow, calendarCell, calendarDetail, dayState, fruehereTage,
+  linkVermerken, loeschenAusstehend, passwortManagerDa, schluesselAblegen, schluesselAus,
+  schluesselAusManager, schluesselPruefen, sicherungAblageVerwerfen, sicherungAn, sicherungEinrichten,
+  sicherungGeaendert, sicherungHolen, sicherungJetzt, sicherungLink, sicherungLoeschen,
+  sicherungMetaLesen, sicherungNachsehen, sicherungRueckweg, sicherungSchalten, sicherungStart,
+  sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
+} from './sicherung.js';
+import {
+  KALENDER_JAHR, KALENDER_STOCKT, kalenderCode, kalenderCodeKopiert, kalenderEinrichten, kalenderGeaendert, kalenderJahrGesehen, kalenderJetzt,
+  kalenderKurz, kalenderLage, kalenderNachfragen, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen,
+  kalenderVerbinden, kalenderVergessen, kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
+} from './kalender-sync.js';
+import {
+  initAudio, playSound, scheduleSound, cancelSound, signalStand, probeSpielen, tonStand, onTonStand,
+  tonUeberholt,
+} from './audio.js';
+import { esc, fmtNum, komma1 } from './text.js';
+import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, umfangText, wdhTeile } from './anzeige.js';
+import {
+  AKT_ICON, aktivitaetTage, calMonthNow, calendarCell, calendarDetail, dayState, eigeneTage, fruehereTage,
 } from './ansicht-kalender.js';
-import { EX_BY_ID } from './uebung.js';
-import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, satzFaktor, satzZahl } from './stufen.js';
+import { EX_BY_ID, einseitig, seitenPause } from './uebung.js';
+import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, satzFaktor, satzZahlIm } from './stufen.js';
 import {
   aufwaermsaetze, doneWeightNote, gewichtNotiz, naechstesGewicht,
   ruestCache, ruestHint,
   workingWeight,
 } from './gewichte.js';
 import { normSatz } from './scheiben.js';
-import { roherSatz } from './ansicht-scheiben.js';
+import { roherSatz, scheibenEinstellbar, scheibenZeilenHinweis } from './ansicht-scheiben.js';
 import { uebungsListe, vorratKarte } from './ansicht-vorrat.js';
 import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
-import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
-import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
+import {
+  eigeneGriffe, gruppeVon, naechsterOffen, naechsterSchritt, paarBelegung, paare, scheibenReichen, schritte,
+} from './supersatz.js';
+import {
+  PLAN_WEEKS, WEEK_SESSIONS, ZUSATZ_NAME,
+  activeInjuries, ausfallTage, completedMode, defaultWorkoutNo, effDate, einheitEx, ersatzGrund,
+  exOf, fassungen, festerZusatz, firstOpen, hasAnyEntry, injuryNotes, istCustom, liegenGeblieben, nacharbeit,
+  nacharbeitPlan, nacharbeitVorschau, nachWarumJe, offenImBlock, progressOf, saetzeErledigt,
+  resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo,
+  zusatzBindung, zusatzEinheitFuer, zusatzRueckstand, zusatzVergeben, zusatzWeg,
+} from './plan.js';
+import { lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
+import {
+  frischerStart, naechsteEinheit, pruefeZusatztag, tagAbschliessen, tagNachziehen, tagstartAnschliessen,
+  traegerGebunden, weeklyDone, zusatzZiel, zusatztagEx,
+} from './tagstart.js';
 import { vorneUm } from './muster.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat, uebungGeht } from './vorrat.js';
 import { termine, terminLabel } from './termine.js';
@@ -77,6 +116,33 @@ const toastEl = document.getElementById('toast');
  * diesem Kommentar finden – gefunden beim ersten Bauversuch.)
  */
 const EINZELDATEI = !document.querySelector('script[src$="js/app.js"]');
+
+/** Größe eines Schlüssels im Speicher in KB – fürs Diagnoseprotokoll. */
+function kb(schluessel) {
+  try {
+    return Math.round((localStorage.getItem(schluessel) || '').length / 1024);
+  } catch {
+    return null;
+  }
+}
+
+// Die Startzeile des Diagnoseprotokolls: mit allem, was nur die App weiß –
+// auch, ob gerade eine Einheit oder eine Pause lief (Neuladen mittendrin).
+{
+  const s = store.getState();
+  diagnoseStart({
+    einzeldatei: EINZELDATEI,
+    speicher: store.speicherGrund() || 'ok',
+    haupt: kb('workout.state.v1'),
+    ablage: kb('workout.rounds.v1'),
+    plan: PLAN.length,
+    fokus: s.focus || 'standard',
+    stand: FOCUS.stand,
+    sw: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+    einheit: s.session ? s.session.n : undefined,
+    pause: s.rest ? Math.round((s.rest.endsAt - Date.now()) / 1000) : undefined,
+  });
+}
 
 /* ------------------------------------------------------------------ *
  * Der Punkt am App-Symbol
@@ -238,147 +304,6 @@ function aufstiegMelden(nach) {
   } catch { /* Meldungen sind Beiwerk – sie dürfen nichts umwerfen. */ }
 }
 
-/* ------------------------------------------------------------------ *
- * Abgeschaffter Trainingsfokus
- *
- * Der Fokus steht im Browser, der Plan in der App. Wird eine Variante
- * gestrichen, treffen sich beim nächsten Laden ein Schlüssel und kein Plan.
- * js/data.js löst das für sich – es lädt den benannten Nachfolger, sonst
- * stünde die halbe App ohne Übungen da. Aber `state.focus` zeigt danach noch
- * auf den alten Wert, und zwei Angaben, die dasselbe meinen sollen, liefen von
- * da an dauerhaft auseinander:
- *
- *   * `restorable()` in js/store.js vergleicht den Fokus eines abgelegten
- *     Durchlaufs mit `state.focus`. Beide stünden auf 'kurz' – ein Protokoll
- *     aus 96 Einheiten ließe sich in einen Plan mit 84 zurückholen und
- *     markierte dort Einheiten als erledigt, die nie stattgefunden haben.
- *   * Die Fokusauswahl hätte keine Karte markiert, weil zu 'kurz' keine
- *     gehört – jeder Plan sähe nicht ausgewählt aus.
- *   * Der Rückkanal meldete weiter „Kurz und knapp" für einen Cut-Plan.
- *
- * Deshalb einmal beim Start umschreiben, und zwar auf demselben Weg wie ein
- * Wechsel von Hand: Der bisherige Verlauf wandert als eigene Runde in die
- * Ablage (mit dem *alten* Fokus als Vermerk – restartPlan() liest ihn, bevor
- * wir ihn ändern), die Gewichte bleiben stehen. Ein Protokoll nach
- * Workout-Nummer in einen anderen Plan zu übernehmen ginge nicht: Workout 12
- * hieß dort etwas anderes.
- * ------------------------------------------------------------------ */
-function fokusUmzug() {
-  const s = store.getState();
-  const alt = s.focus;
-  const ziel = FOKUS_ERSATZ[alt];
-  if (!ziel || !PLANS[ziel.nach]) return false;
-  // Reihenfolge: erst ablegen, dann umschreiben. restartPlan() vermerkt den
-  // Fokus, der beim Training galt, und das war der alte.
-  const hatteVerlauf = Object.keys(s.log || {}).length > 0;
-  // **Nicht** rundenBilanz(): Die rechnet über den Plan, den die App gerade
-  // geladen hat – und das ist hier schon der *Nachfolger*. js/data.js löst
-  // FOKUS_ERSATZ beim Import auf, lange bevor diese Zeile läuft. Das Protokoll
-  // stammt dagegen noch aus dem alten Plan, mit dessen Einheiten und Übungen.
-  //
-  // Gemessen, was dabei herauskam: ein Gerät mit einer vollständigen
-  // „Kurz und knapp"-Runde – 96 Einheiten, 1230 Sätze – bekam eine Bilanz von
-  // {0, 0, 0} in die Ablage geschrieben. Ein Cut-Plan gegen ein Kurz-Protokoll
-  // gezählt findet fast keine Übung wieder, und die zwölf Einheiten 85–96 sieht
-  // er überhaupt nicht. Weil bilanzAus() eine vorhandene Bilanz unbesehen
-  // zurückgibt, wäre die Null endgültig gewesen – ausgerechnet auf dem einen
-  // Weg, für den die ganze Rechnerei gebaut ist.
-  //
-  // bilanzAus() nimmt den Fokus der Runde als Ausgangspunkt und kommt deshalb
-  // auf die richtigen Zahlen. Es bekommt hier eine Runde gereicht, die es so
-  // gleich noch einmal sieht – dieselbe Rechnung, nur eben rechtzeitig.
-  // Passt die Ablage nicht mehr in den Speicher, bleibt alles, wie es ist –
-  // beim nächsten Start wird es wieder versucht.
-  if (!store.wechsleFokus(ziel.nach, bilanzAus({ log: s.log, focus: alt }), frischerStart())) return false;
-  store.setSetting('fokusUmzug', {
-    von: ziel.name, nach: PLANS[ziel.nach].name, am: todayISO(), abgelegt: hatteVerlauf,
-  });
-  return true;
-}
-
-/* ------------------------------------------------------------------ *
- * Der Plan hat sich geändert
- *
- * Ein Protokoll steht nach Workout-Nummer. Kommen Übungen in den Katalog und
- * verteilt der Generator neu, steckt hinter Nummer 3 etwas anderes als an dem
- * Tag, an dem sie abgehakt wurde – und die App behauptete rückwirkend, es sei
- * schon immer das gewesen. Das ist derselbe Fehler wie beim Fokuswechsel, nur
- * ohne dass jemand darauf getippt hätte.
- *
- * Deshalb trägt jede Planvariante seit js/data.js einen Fingerabdruck ihrer
- * Inhalte. Stimmt er nicht mehr mit dem überein, unter dem der laufende Verlauf
- * entstanden ist, werden die Einheiten, die schon angefangen oder trainiert
- * sind, auf das festgeschrieben, was im Protokoll steht (`fest`, siehe
- * gestufteSaetze() in js/plan.js). Die übrigen bekommen den neuen Plan, und
- * die Runde läuft weiter.
- *
- * Bis v204 wanderte stattdessen der ganze Verlauf in die Ablage, und die Runde
- * fing bei eins an. Verloren ging dabei nichts, aber jede Verbesserung am Plan
- * kostete einen Neustart – und damit war jede ein Grund, sie zu unterlassen.
- *
- * Aus dem Protokoll allein, nicht aus dem alten Plan: Der ist beim Laden schon
- * ersetzt. Das Protokoll kennt die Liste trotzdem – beim ersten Anzeigen legt
- * die App für jede Übung der Einheit einen Eintrag an und hält die Satzzahl
- * dieses Tages in `soll` fest.
- *
- * Termine gehen in den Fingerabdruck nicht ein – die verschieben sich im
- * Betrieb ständig und ändern nichts an dem, was zu tun ist.
- * ------------------------------------------------------------------ */
-function planWechsel() {
-  const s = store.getState();
-  const fokus = s.focus || 'standard';
-  const jetzt = (PLANS[fokus] || {}).stand || '';
-  const vorher = (s.planStand || {})[fokus];
-  if (!jetzt) return false;
-  // Beim ersten Mal steht nichts da. Das ist kein Wechsel, sondern der Anfang
-  // der Buchführung – sonst legte dieses Merkmal bei seiner Einführung jeden
-  // laufenden Verlauf einmal weg.
-  if (vorher === undefined || vorher === jetzt) {
-    if (vorher !== jetzt) {
-      store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
-    }
-    return false;
-  }
-  const liste = festeListen(s.log || {}, s.mode);
-  const einheiten = store.festschreiben(liste);
-  // **Und gesagt wird es auch** – eine Einheit, die plötzlich andere Übungen
-  // zeigt, braucht einen Grund, den man lesen kann.
-  store.setSetting('planUmbau', { einheiten, fest: true, fokus: (PLANS[fokus] || {}).name || fokus });
-  store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
-  return true;
-}
-
-/**
- * Die Übungsliste jeder angefangenen oder trainierten Einheit, aus dem Protokoll.
- *
- * Nur Einheiten, in denen etwas passiert ist (abgehakt, Gewicht, Rückmeldung
- * oder abgeschlossen). Bloß angesehene zählen nicht: Wer vorausblättert, legt
- * dabei Einträge an, und die Einheit soll trotzdem den neuen Plan bekommen.
- *
- * Aus dem Modus, in dem am meisten abgehakt ist. Bei einer abgeschlossenen
- * Einheit nur, was angefasst wurde – eine ausgelassene Übung wird sonst im
- * Nachhinein zu einer offenen. Bei einer angefangenen alles, was dort stand:
- * der Rest ist noch zu tun.
- */
-function festeListen(log, grundModus) {
-  const aktiv = (x) => x && (x.done || x.w || x.wie);
-  const out = {};
-  Object.entries(log).forEach(([n, e]) => {
-    if (!e || e.fest) return;
-    const zahl = (m) => Object.values(e[m] || {})
-      .reduce((a, arr) => a + (Array.isArray(arr) ? arr.filter((x) => x && x.done).length : 0), 0);
-    const angefasst = (m) => Object.values(e[m] || {}).some((arr) => Array.isArray(arr) && arr.some(aktiv));
-    if (!e.done && !angefasst('db') && !angefasst('bw')) return;
-    let m = e.mode || grundModus || 'db';
-    if (zahl('db') || zahl('bw')) m = zahl('bw') > zahl('db') ? 'bw' : 'db';
-    const soll = e.soll || {};
-    out[n] = Object.entries(e[m] || {})
-      .filter(([id, arr]) => Array.isArray(arr) && EX_BY_ID.has(id) && (!e.done || arr.some(aktiv)))
-      .map(([id, arr]) => ({ id, sets: soll[id] || arr.length }));
-  });
-  return out;
-}
-
 /**
  * Der Hinweis zum überarbeiteten Plan – bis er weggetippt wird.
  *
@@ -386,13 +311,19 @@ function festeListen(log, grundModus) {
  * ist, was mit dem Bisherigen passiert ist, und was *nicht* verloren geht. Die
  * dritte Zeile ist die wichtigste: Eine zurückgesetzte Runde sieht aus wie ein
  * Datenverlust, und sie ist keiner.
+ *
+ * Planwechsel und Reparatur können zugleich offen sein (siehe festReparieren()),
+ * dann stehen beide Absätze in einem Hinweis, der Planwechsel zuerst.
  */
 function umbauHinweis() {
   const u = store.getState().planUmbau;
   if (!u) return '';
+  // Bis v218 stand bei einer Reparatur `repariert: true` und die Zahl in
+  // `einheiten` – so liegt es auf manchem Gerät noch, bis es weggetippt ist.
+  const repariert = u.repariert === true ? u.einheiten : (u.repariert || 0);
+  const teile = [];
   if (u.fest) {
-    return `
-    <div class="notice aufstieg" style="margin:0 0 12px">
+    teile.push(`
       <strong>Der Plan wurde überarbeitet</strong>
       <div class="small" style="margin-top:6px">
         ${u.einheiten
@@ -401,7 +332,22 @@ function umbauHinweis() {
     : ''}Ab der nächsten offenen Einheit gelten in „${esc(u.fokus)}" die neuen Übungen,
         und die Runde läuft einfach weiter. <b>Gewichte, Bänder, Erfahrungsstufe und
         Statistik bleiben, wie sie sind.</b>
-      </div>
+      </div>`);
+  }
+  if (repariert) {
+    teile.push(`
+      <strong${teile.length ? ' style="display:block;margin-top:12px"' : ''}>Deine angefangene Einheit ist wieder vollständig</strong>
+      <div class="small" style="margin-top:6px">
+        Beim Plan-Update eben ${repariert === 1 ? 'hatte eine angefangene Einheit' : `hatten ${repariert} angefangene Einheiten`}
+        in „${esc(u.fokus)}" Übungen verloren – nur die schon angezeigten waren
+        geblieben. Das war ein Fehler in der App. Jetzt stehen wieder alle Übungen
+        drin, die dort vorher standen; was du schon abgehakt hast, bleibt abgehakt.
+      </div>`);
+  }
+  if (teile.length) {
+    return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      ${teile.join('')}
       <div class="btn-row nav" style="margin-top:10px">
         <button type="button" class="btn btn-primary" data-act="umbau-ok">Verstanden</button>
       </div>
@@ -459,14 +405,19 @@ function downloadBackup() {
   // auch im Textfeld zum Kopieren.
   const io = document.getElementById('io');
   if (io) io.value = json;
-  const blob = new Blob([json], { type: 'application/json' });
+  herunterladen(json, `workout-backup-${todayISO()}.json`, 'application/json');
+  store.markBackup(doneCount());
+  notieren('datei', { was: 'download', bytes: json.length });
+  toast('Gesichert – falls kein Download kam: Text in „Mehr" kopieren');
+}
+
+/** Text als Datei herunterladen – die Sicherung und das Diagnoseprotokoll. */
+function herunterladen(text, name, typ) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `workout-backup-${todayISO()}.json`;
+  a.href = URL.createObjectURL(new Blob([text], { type: typ }));
+  a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  store.markBackup(doneCount());
-  toast('Gesichert – falls kein Download kam: Text in „Mehr“ kopieren');
 }
 
 /* ------------------------------------------------------------------ *
@@ -487,10 +438,23 @@ function downloadBackup() {
  *                           Teilen-Weg: Die Datei geht an Drive, an eine Mail
  *                           an sich selbst, an was auch immer da ist.
  *
- * Was hier bewusst *nicht* passiert: die Sicherung von selbst irgendwohin
- * schicken. Der Rückkanal an den Betreiber trägt eine Handvoll Zahlen und ist
- * abschaltbar; ein vollständiger Trainingsverlauf ist etwas anderes, und der
- * geht nur dorthin, wohin er ausdrücklich geschickt wird.
+ * Hier stand bis v239: „Was hier bewusst *nicht* passiert: die Sicherung von
+ * selbst irgendwohin schicken." Tobi – Nutzer und Betreiber in einer Person –
+ * hat das anders entschieden:
+ *
+ *     „Wenn ich auch 'Sicherung weitergeben' klicke passiert nichts. Lass das
+ *      doch generell einfach automatisch sichern"
+ *
+ * Jetzt geht der Verlauf von selbst an den Server des Betreibers – aber erst,
+ * nachdem er auf dem Gerät verschlüsselt wurde, mit einem Schlüssel, der das
+ * Gerät nie verlässt, außer der Mensch legt ihn selbst in seinen
+ * Passwortmanager oder schickt sich den Link. Lesen kann ihn also nur, wer den
+ * Schlüssel hat; der Betreiber nicht. Die Grundsätze von damals gelten weiter:
+ * Einstieg und Mehr sagen, was geschieht, ein Schalter stellt es ab, ein Knopf
+ * löscht es auf dem Server. Wie, steht in js/sicherung.js; was davon zu sehen
+ * ist, weiter unten bei „Automatische Sicherung".
+ *
+ * Der Datei-Weg bleibt daneben, für den, der keinen Server will oder hat.
  * ------------------------------------------------------------------ */
 
 /**
@@ -505,30 +469,66 @@ async function speicherFestnageln() {
   try {
     const schon = navigator.storage.persisted ? await navigator.storage.persisted() : false;
     const ok = schon || await navigator.storage.persist();
+    notieren('speicher', { dauerhaft: ok, schon });
     if (store.getState().dauerhaft !== ok) store.setSetting('dauerhaft', ok);
-  } catch { /* kennt der Browser nicht – dann eben nicht */ }
+  } catch (e) {
+    notieren('speicher', { dauerhaft: 'fehler', name: e && e.name });   // kennt der Browser nicht – dann eben nicht
+  }
 }
 
 /**
  * Die Sicherung weitergeben statt herunterladen.
  *
- * Fällt auf den Download zurück, wo es das Teilen nicht gibt oder es abgelehnt
- * wird – und zwar still: „Teilen abgebrochen" ist keine Meldung wert, das war
- * eine Entscheidung.
+ *     „Wenn ich auch 'Sicherung weitergeben' klicke passiert nichts."
+ *
+ * Zwei Fehler, die zusammen genau das ergaben:
+ *
+ *   Der Typ.     Chrome teilt Dateien nur mit bestimmten Endungen und Typen
+ *                (ShareServiceImpl, PERMITTED_EXTENSIONS / _MIME_TYPES): Text,
+ *                Bilder, Audio, Video, PDF. .json und application/json stehen
+ *                nicht darauf. canShare() sagt trotzdem ja – es prüft den Typ
+ *                gar nicht –, und erst share() lehnt ab, mit NotAllowedError.
+ *                Deshalb .txt und genau 'text/plain': Der Vergleich ist exakt,
+ *                „text/plain;charset=utf-8" fiele schon wieder durch. „Datei
+ *                laden" nimmt .txt ohnehin an (importBackupDatei()).
+ *   Das Schweigen. Hier stand `catch { return; }` mit dem Kommentar
+ *                „abgebrochen – kein Grund für eine Meldung". Abgebrochen ist
+ *                aber nur ein AbortError. Alles andere ist eine Ablehnung, und
+ *                die wurde mitverschluckt: kein Dialog, keine Meldung, kein
+ *                Download.
+ *
+ * Jetzt: Abbruch bleibt still. Jede andere Ablehnung endet im Download, mit
+ * einer Meldung, die den Grund nennt und den Textweg zeigt – ob ein Download
+ * ohne frische Berührung auf jedem Handy durchgeht, ist nicht belegt, das
+ * Textfeld unter Mehr → Daten dagegen schon.
  */
 async function teileBackup() {
   const json = store.exportJSON();
-  const datei = new File([json], `workout-backup-${todayISO()}.json`,
-    { type: 'application/json' });
+  const datei = new File([json], `workout-backup-${todayISO()}.txt`, { type: 'text/plain' });
+  ui.teilenFehler = '';
   if (navigator.canShare && navigator.canShare({ files: [datei] })) {
     try {
       await navigator.share({ files: [datei], title: 'Workout-Sicherung' });
+      notieren('datei', { was: 'teilen', ok: true, bytes: json.length });
       store.markBackup(doneCount());
       render();
       return;
-    } catch { return; }   // abgebrochen – kein Grund für eine Meldung
+    } catch (e) {
+      if (e && e.name === 'AbortError') {   // abgebrochen: eine Entscheidung, keine Meldung
+        notieren('datei', { was: 'teilen', abbruch: true });
+        return;
+      }
+      ui.teilenFehler = e && e.name ? `${e.name}${e.message ? ` – ${e.message}` : ''}` : 'ohne Angabe';
+      notieren('datei', { was: 'teilen', ok: false, name: e && e.name, msg: e && e.message });
+    }
   }
   downloadBackup();
+  if (ui.teilenFehler) {
+    if (ui.tab === 'settings') render();
+    const io = document.getElementById('io');
+    if (io) io.value = json;
+    toast('Teilen hat der Browser abgelehnt – als Datei gespeichert. Der Text steht unter Mehr → Daten zum Kopieren.');
+  }
 }
 
 /**
@@ -555,24 +555,61 @@ async function teileBackup() {
  * jetzt importJSON selbst).
  */
 function einlesen(text, meldung) {
+  if (!ersetzenErlaubt()) {
+    notieren('datei', { was: 'import', abgelehnt: true });
+    return;
+  }
+  store.importJSON(text);
+  notieren('datei', { was: 'import', ok: true, bytes: text.length });
+  // Beiseitegelegt ist jetzt der Stand von vor *dieser* Datei. Was die
+  // Sicherung vor einem früheren Zurückholen wusste, gehört nicht mehr dazu
+  // (sicherungRueckweg() in js/sicherung.js).
+  sicherungAblageVerwerfen();
+  ui.setupStep = 0;
+  neuStarten(meldung);
+}
+
+/** Die Rückfrage vor jedem Einlesen – aus einer Datei wie vom Server. */
+function ersetzenErlaubt() {
   const vorher = store.getState();
   const hatVerlauf = Object.keys(vorher.log || {}).length > 0 || (vorher.rounds || []).length > 0;
-  if (hatVerlauf && !confirm('Die Sicherung ersetzt deinen ganzen jetzigen Verlauf. '
-    + 'Der jetzige Stand wird beiseitegelegt und lässt sich unter Mehr einmal zurückholen. Weiter?')) {
-    return;
-  }
-  const fokusVorher = vorher.focus;
-  store.importJSON(text);
-  ui.setupStep = 0;
-  if (store.getState().focus !== fokusVorher) {
-    // Der Plan wird beim Start gewählt; ohne Neuladen gälte bis dahin der alte.
-    store.flush();
-    sessionStorage.setItem('workout.nachImport', meldung);
-    location.reload();
-    return;
-  }
-  render();
-  toast(meldung);
+  return !hatVerlauf || confirm('Die Sicherung ersetzt deinen ganzen jetzigen Verlauf. '
+    + 'Der jetzige Stand wird beiseitegelegt und lässt sich unter Mehr einmal zurückholen. Weiter?');
+}
+
+/**
+ * Nach einem fremden Stand – Sicherung oder Rückweg davor – einmal neu laden.
+ *
+ * Bis hierher nur, wenn der Fokus ein anderer war: Der Plan wird beim Start
+ * gewählt. Beim Start läuft aber noch mehr, und nur dort – planWechsel(),
+ * festReparieren(), festNachReparieren(), stempleFertige(). Eine Sicherung
+ * aus einem älteren Planstand mit angefangener Einheit zeigte deshalb bis zum
+ * nächsten Öffnen die Übungen des neuen Plans; wer weitertrainierte, bekam
+ * danach die alte Liste festgeschrieben und eine schon gemachte Übung offen
+ * daneben. Gleicher Fokus oder nicht – ein eingelesener Stand ist ein Start.
+ *
+ * Der Reiter bleibt, wie ohne Neuladen: Wer unter Mehr eingelesen hat, findet
+ * dort danach auch „Stand von vor dem Import zurückholen". Der eingelesene
+ * Stand brächte sonst seinen eigenen mit. Hat der Start etwas zu sagen – einen
+ * Planwechsel –, führt er selbst aufs Dashboard.
+ */
+function neuStarten(meldung) {
+  store.setSetting('tab', ui.tab, 'ansicht');
+  store.flush();
+  sessionStorage.setItem('workout.nachImport', meldung);
+  vorDemNeuladen('import');
+  location.reload();
+}
+
+/**
+ * Vor jedem Neuladen, das die App selbst auslöst: dem Diagnoseprotokoll sagen,
+ * warum (die nächste Startzeile trägt es), und schreiben, was aussteht – wie
+ * store.flush() daneben.
+ */
+function vorDemNeuladen(grund) {
+  notieren('sicht', { zu: 'neu laden', grund });
+  diagnoseGrundMerken(grund);
+  diagnoseSchreiben();
 }
 
 function importBackupDatei() {
@@ -586,7 +623,12 @@ function importBackupDatei() {
     if (!datei) return;
     datei.text()
       .then((text) => einlesen(text, `Eingelesen: ${datei.name}`))
-      .catch((err) => toast(`Import fehlgeschlagen: ${err.message}`));
+      .catch((err) => {
+        // Nur der Name des Fehlers: Die Meldung eines JSON-Fehlers zitiert den
+        // Anfang der Datei – und darin stünde der Name aus der Sicherung.
+        notieren('datei', { was: 'import', quelle: 'datei', ok: false, name: err && err.name, bytes: datei.size });
+        toast(`Import fehlgeschlagen: ${err.message}`);
+      });
   });
   feld.click();
 }
@@ -600,20 +642,22 @@ function importBackupDatei() {
  */
 function downloadICS() {
   const vorher = store.getState().lastIcs;
-  const stand = store.markIcs(PLAN.length);
+  const stand = store.markIcs(PLAN.length, { focus: store.getState().focus || 'standard', stand: FOCUS.stand || '' });
+  // Dieselbe Quelle wie der Kalender, der sich selbst angleicht (js/kalender.js):
+  // jede Einheit an ihrem Tag, in ihrer Variante – hier ohne Zusatz, wie bisher.
+  const einheiten = kalenderEinheiten({ zusatz: false });
   // Was beim letzten Mal exportiert wurde und diesmal nicht mehr vorkommt, muss
   // aus dem Kalender wieder heraus: ein anderer Trainingsfokus hat womöglich
   // weniger Einheiten, und ein Tag, an dem Verletzungen alles sperren, hat gar
   // keinen Termin mehr.
-  const jetzt = new Set(PLAN.filter((w) => exOf(workoutByNo(w.n)).length).map((w) => w.n));
+  const jetzt = new Set(einheiten.filter((e) => e.posten.length).map((e) => e.n));
   const cancel = [];
   for (let n = 1; n <= Math.max((vorher && vorher.count) || 0, PLAN.length); n++) {
     if (!jetzt.has(n)) cancel.push(n);
   }
   const text = buildICS(
-    PLAN.map((w) => ({ n: w.n, date: effDate(w) })),
-    (w) => exOf(workoutByNo(w.n, store.workoutMode(w.n)), store.workoutMode(w.n))
-      .map((it) => resolve(it, store.workoutMode(w.n))),
+    einheiten.map((e) => ({ n: e.n, date: e.datum, posten: e.posten })),
+    (w) => w.posten,
     { hour: 18, seq: stand.seq, cancel },
   );
   const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
@@ -660,10 +704,635 @@ function downloadICSAus() {
   toast(`${cancel.length} Absagen erzeugt – importieren, dann sind die Termine weg`);
 }
 
-/** Stimmen die Termine im Kalender noch, oder hat sich der Plan seither verschoben? */
+/**
+ * Stimmen die Termine im Kalender noch? Null, wenn ja – sonst, warum nicht:
+ * `tage` (um so viele Tage verschoben), `fokus` (exportiert unter einem
+ * anderen Trainingsfokus) oder `plan` (derselbe Fokus, aber ein Plan-Update
+ * hat geändert, was hinter den Nummern steht).
+ *
+ * Bis hierher zählte nur die Verschiebung. Jeder Termin trägt aber auch die
+ * Übungsliste, die Satzzahl und die Dauer – und nach der Neuverteilung vom
+ * 03.10. standen beim Cut 69 von 84 Terminen mit anderen Übungen im Kalender,
+ * ohne dass die App ein Wort sagte. Verglichen wird der Fingerabdruck des
+ * Plans (`stand`), nicht die einzelnen Listen: Die ändern sich mit jeder
+ * Nacharbeit und jedem Aufstieg, und ein Hinweis, der nach jedem Training
+ * kommt, wird nicht mehr gelesen.
+ */
 function icsStale() {
   const s = store.getState();
-  return !!s.lastIcs && s.lastIcs.shift !== s.shift;
+  const i = s.lastIcs;
+  if (!i) return null;
+  const fokus = s.focus || 'standard';
+  const grund = {
+    tage: i.shift !== s.shift ? Math.abs(s.shift - i.shift) : 0,
+    fokus: !!i.focus && i.focus !== fokus,
+    plan: !!i.stand && i.focus === fokus && !!(PLANS[fokus] || {}).stand && i.stand !== PLANS[fokus].stand,
+  };
+  return grund.tage || grund.fokus || grund.plan ? grund : null;
+}
+
+/**
+ * Der Hinweis dazu unter Mehr → Kalender, mit dem Grund.
+ *
+ * Er schweigt, solange der Kalender „Workout" sich selbst angleicht (Google
+ * Kalender automatisch, js/kalender-sync.js): Sonst riete er nach jedem
+ * Nachrücken zum Neu-Import, und jeder Import stellte dieselben Trainings ein
+ * zweites Mal hin. Die Datei bleibt erreichbar – mit genau diesem Satz.
+ */
+function icsHinweis() {
+  if (kalenderVerbunden()) {
+    return `<div class="hint" id="icsDoppelt" style="margin-top:8px">Der Kalender „Workout" pflegt sich schon
+        selbst. Die Datei brauchst du dafür nicht – importierst du sie trotzdem, stehen die Termine doppelt da.</div>`;
+  }
+  const g = icsStale();
+  if (!g) return '';
+  const i = store.getState().lastIcs;
+  const name = (f) => (PLANS[f] || FOKUS_ERSATZ[f] || {}).name || f;
+  const teile = [];
+  if (g.fokus) {
+    teile.push(`Exportiert hast du „${esc(name(i.focus))}" – jetzt gilt „${esc(FOCUS.name)}",
+      und im Kalender stehen noch die Übungen von damals.`);
+  } else if (g.plan) {
+    teile.push(`Der Plan wurde seit dem letzten Export überarbeitet: Hinter den Terminen
+      stehen jetzt andere Übungen, Satzzahlen und Dauern als im Kalender.`);
+  }
+  if (g.tage) {
+    teile.push(`Der Plan hat sich seit dem letzten Export um ${esc(plural(g.tage, 'Tag', 'Tage'))}
+      verschoben.`);
+  }
+  return `<div class="hint" style="color:var(--accent);margin-top:8px">
+        ${teile.join(' ')} Datei neu erzeugen und noch einmal importieren, dann
+        ${g.fokus || g.plan ? 'stimmen Termine und Übungen wieder' : 'wandern die Termine mit'}.</div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Google Kalender automatisch – was davon zu sehen ist
+ *
+ *     „Ja aber nur wenn es wirklich keinen Weg gibt wie verschoben wird auch
+ *      wenn ich die app nicht öffne"
+ *
+ * Die Technik steht in js/kalender-sync.js (Senden, Takt, Antwort), die
+ * Rechnung in js/kalender-vorschau.js, das Skript in
+ * kalender/workout-kalender.gs. Hier steht, wo man es sieht:
+ *
+ *   Mehr → Kalender   die Karte: was es tut und wer was sieht, die Schritte
+ *                     zum Einrichten, „Code kopieren", URL und „Verbinden";
+ *                     verbunden: wann zuletzt etwas ankam, Uhrzeit und
+ *                     Erinnerung, „Trennen"
+ *   Dashboard         eine Zeile, und nur, wenn Tobi etwas richten muss
+ *
+ * Keine Wahl, die er treffen müsste: 17:30 und 30 Minuten stehen fertig da,
+ * gesendet wird von selbst. Kennwort und Adresse stehen nirgends in einer
+ * Meldung – nur im Code, den er kopiert, und im Feld, in das er die URL
+ * einfügt.
+ * ------------------------------------------------------------------ */
+
+// Kurz, weil das Feld bei 360 px Breite nur gut 100 px Platz hat – „30 Min.
+// vorher" stand dort als „30 Min. vorhe" (gemessen bei der Prüfung). Das
+// „vorher" steht einmal im Namen des Felds.
+const KALENDER_ERINNERUNGEN = [[0, 'keine'], [10, '10 Min.'], [15, '15 Min.'],
+  [30, '30 Min.'], [60, '1 Std.'], [120, '2 Std.']];
+
+const kalenderUhr = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+/** Der erste Satz eines Ergebnisses – für die eine Zeile auf dem Dashboard. */
+function kalenderErsterSatz(satz) {
+  const i = satz.indexOf('. ');
+  return i > 0 ? satz.slice(0, i + 1) : satz;
+}
+
+/** Die Zeile auf dem Dashboard: nur, wenn Tobi selbst etwas richten muss. */
+function kalenderZeile() {
+  const l = kalenderLage();
+  if (!l.verbunden || !(l.handeln || l.zuAlt)) return '';
+  // Ein Hinweis des Skripts selbst ist kurz und sagt im zweiten Satz, was zu
+  // tun ist – der bleibt ganz. Die langen Sätze der App kommen unter Mehr.
+  const satz = l.zuAlt ? 'Der Code in Apps Script ist älter als die App – „Kalender-Code erneuern".'
+    : l.letzte.ok ? kalenderSatz(l.letzte) : kalenderErsterSatz(kalenderSatz(l.letzte));
+  return `<div class="notice warn zeile" id="kalenderZeile">📅 <span>Google Kalender: ${esc(satz)}</span>
+      <button type="button" class="btn" data-act="kalender-ansehen">Ansehen</button></div>`;
+}
+
+/**
+ * Einmal, dezent, die Bitte um neuen Code für das Jahr:
+ *
+ *     „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
+ *      machen"
+ *
+ * Kaputt ist dabei nichts – das Skript der Fassung 1 bekommt, was es
+ * versteht, und verschiebt weiter. Aber das Jahr, um das Tobi gebeten hat,
+ * gibt es erst mit neuem Code, und den kann nur er einfügen. Unter Mehr →
+ * Kalender schaut er von sich aus nicht nach; dort stünde die Bitte, ohne
+ * dass er sie je sieht. Deshalb steht sie einmal hier – ohne Warnfarbe, weil
+ * nichts schiefgeht –, bis er sie angesehen oder den Code kopiert hat. Danach
+ * nur noch auf der Karte, bis die App die neue Fassung sieht.
+ *
+ * Klein gesetzt wie die Zeile zum Ton (.notice.kurz): Als gewöhnliche Zeile
+ * waren es bei 360×740 vier Zeilen, 97 px, und der Fuß lag 26 px unter der
+ * Leiste (Prüfung des Entwurfs). Und sie eilt nicht – steht oben schon etwas
+ * anderes, tritt sie zurück und kommt, wenn das weg ist (renderOverview()).
+ * Seit v247 mit „einrichten": Es gehört zu jedem Code-Tausch (KALENDER_JAHR in
+ * js/kalender-sync.js), und schon die Zeile soll nicht nach weniger Arbeit
+ * klingen, als es ist.
+ */
+function kalenderJahrZeile() {
+  const l = kalenderLage();
+  if (!l.verbunden || l.handeln || l.zuAlt || !l.neuerCode || l.gesehen) return '';
+  return `<div class="notice zeile kurz" id="kalenderJahrZeile">📅 <span>Google Kalender: Ein Jahr im Voraus geht jetzt –
+      dafür einmal den Code im Skript erneuern und einrichten ausführen.</span>
+      <button type="button" class="btn" data-act="kalender-jahr-ansehen">Ansehen</button></div>`;
+}
+
+/** Eine Dauer, kurz: „80 Min.", „2 Std.", „3 Tagen" – für „seit …". */
+function dauerKurz(ms) {
+  const min = Math.max(1, Math.round(ms / 60000));
+  if (min < 120) return `${min} Min.`;
+  if (min < 48 * 60) return `${Math.floor(min / 60)} Std.`;
+  return `${Math.floor(min / (24 * 60))} Tagen`;
+}
+
+/** Ein Tag als „Mo 26.10." – aus ms, in der Zeit dieses Geräts. */
+const kalenderTagKurz = (ms) => fmtDate(toISO(new Date(ms))).replace(',', '');
+
+/**
+ * Welchen Trainingsstand dieses Gerät dem Skript schickt – als Satzteil für
+ * die Karte: „zuletzt trainiert Workout 13 am Mo 26.10." oder „noch nie
+ * trainiert". Aus dem echten Zustand, so wie trainingsStand() in
+ * js/kalender-vorschau.js `stand.zuletzt` rechnet: das jüngste Lebenszeichen
+ * einer Einheit (store.lebenszeichen(), samt Uhr der Sitzung) über das
+ * laufende Protokoll und die abgelegten Runden. Daran entscheidet das Skript
+ * „Wer gilt", wenn zwei Geräte schicken. Trägt kein Eintrag ein Lebenszeichen
+ * (ein Stand von vor v241), der jüngste Trainingstag (startedOn) – der Satz
+ * soll nicht „noch nie" sagen, wo trainiert wurde.
+ *
+ * Seit v247, aus Tobis Tag am 28.10.: Er hat die App auch im Browser am
+ * Rechner, mit eigenem Speicher und eigenem Stand – dort fehlte Workout 13 vom
+ * Montag, trainiert hatte er am Handy –, und hatte sie dort mit einem zweiten
+ * Skript-Projekt in einem anderen Google-Konto verbunden. Dessen Kalender
+ * hinkte eine Einheit hinterher (So/Mo/Mi/Fr statt Mo/Mi/Fr/Sa), und nichts in
+ * der App sagte, warum. Jetzt steht auf jedem Gerät, was es weiß.
+ */
+function kalenderGeraetStand() {
+  const s = store.getState();
+  const jetzt = Date.now();
+  const name = (k) => {
+    if (/^\d+$/.test(k)) return `Workout ${k}`;
+    const c = store.customs().find((x) => x.id === k);
+    return c && c.name ? `„${c.name}"` : 'ein eigenes Workout';
+  };
+  let best = null;
+  const nimm = (t, k) => { if (t > 0 && (!best || t > best.t)) best = { t, k }; };
+  Object.keys(s.log || {}).forEach((k) => nimm(store.lebenszeichen(k, jetzt), k));
+  (Array.isArray(s.rounds) ? s.rounds : []).forEach((r) => Object.entries((r && r.log) || {}).forEach(([k, e]) => {
+    const t = e && Number.isFinite(e.zuletzt) && e.zuletzt <= jetzt + 60 * 1000 ? e.zuletzt : 0;
+    nimm(t, k);
+  }));
+  if (best) return `zuletzt trainiert ${name(best.k)} am ${kalenderTagKurz(best.t)}`;
+  // Ohne Lebenszeichen: der jüngste Tag, an dem eine Einheit angefangen wurde.
+  let tag = null;
+  const tagNimm = (iso, k) => { if (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso) && (!tag || iso > tag.iso)) tag = { iso, k }; };
+  Object.entries(s.log || {}).forEach(([k, e]) => tagNimm(e && e.startedOn, k));
+  (Array.isArray(s.rounds) ? s.rounds : []).forEach((r) => Object.entries((r && r.log) || {}).forEach(([k, e]) => tagNimm(e && e.startedOn, k)));
+  if (tag) return `zuletzt trainiert ${name(tag.k)} am ${fmtDate(tag.iso).replace(',', '')}`;
+  return 'noch nie trainiert';
+}
+
+/** Der Tag als „27.10.2027". */
+const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
+
+/**
+ * Wie lange ein Versprechen der Karte gilt, gezählt ab der Auskunft, aus der es
+ * kommt (kalenderImKalender()): „in den nächsten Minuten" eine Viertelstunde –
+ * ein „weiter" kommt drei Minuten nach dem vorigen Lauf, und auf der
+ * aufgeschlagenen Karte fragt die App alle paar Minuten nach –, „mit dem
+ * nächsten stündlichen Abgleich" 75 Minuten (dazwischen muss ein stündlicher
+ * Lauf gelegen haben, wie bei KAL_STOCKT_NACH in js/kalender-sync.js).
+ * „morgen" gilt am Tag der Auskunft.
+ */
+const KALENDER_VERSPRECHEN = { minuten: 15 * 60 * 1000, stunde: 75 * 60 * 1000 };
+
+/**
+ * Was im Kalender steht – aus der letzten Auskunft des Skripts (Fassung 2,
+ * kalenderLage().stand). Solange es das Jahr noch einträgt, nur, was schon
+ * steht, und dass der Rest folgt: Bis zur Prüfung stand hier gleich nach dem
+ * Code-Update „Termine bis 27.10.2027", als erst die vier Wochen da waren und
+ * 183 Änderungen offen. Gekürzt hat die App nur, wenn die Sendung sonst zu
+ * groß geworden wäre; das steht dann dabei, statt still weniger zu zeigen.
+ *
+ * `s.morgen`: Google hat das Tageskontingent aufgebraucht – dann nicht „mit
+ * dem nächsten stündlichen Abgleich" (die nächste Stunde schafft es nicht).
+ * Es kommt aus derselben Auskunft wie `offen` (kalStand() in
+ * js/kalender-sync.js), nicht aus dem Hinweis der letzten Sendung.
+ *
+ * `stockt` (kalenderLage().stockt): Über mindestens 75 Minuten und zwei Proben
+ * hat keine Auskunft einen kleineren Stand gesagt. Dann verspricht der Satz
+ * nichts mehr („in den nächsten Minuten" stimmte bei Tobi am 28.10. nicht),
+ * sondern sagt, seit wann nichts weniger wird; was zu tun ist, steht darunter
+ * in der Akzentfarbe (KALENDER_STOCKT, kalenderKarte()).
+ *
+ * Und keine Auskunft verspricht länger, als ihr Versprechen gilt
+ * (KALENDER_VERSPRECHEN): Danach sagt der Satz, was sie wusste und wann sie
+ * kam („Stand vor 5 Std."), statt etwas zuzusagen, das längst hätte
+ * eintreten müssen. Bis zur Prüfung von v247 stand nach fünf Stunden weg beim
+ * Zurückkommen anderthalb Minuten lang „in den nächsten Minuten" da – bis die
+ * zweite Probe den Stillstand zeigte –, ohne Wegschalten bis zur 75. Minute,
+ * und ein „morgen" von gestern blieb „morgen".
+ */
+function kalenderImKalender(s, wann, stockt = null) {
+  if (!s || !s.bis) return '';
+  const kurz = s.gekuerzt ? ' Diesmal nicht ein ganzes Jahr – die Sendung wäre sonst zu groß geworden (viele verschiedene Termine).' : '';
+  if (s.offen > 0 && stockt) {
+    const fehlen = s.offen === 1 ? 'fehlt noch 1 Änderung' : `fehlen noch ${s.offen} Änderungen`;
+    return `Im Kalender: ${s.stehen ? `Termine bis ${kalenderDatum(s.stehen)}. Bis` : 'Bis'} ${kalenderDatum(s.bis)} ${fehlen}, `
+      + `seit ${dauerKurz(Date.now() - stockt.seit)} nicht weniger.${kurz}`;
+  }
+  if (s.offen > 0) {
+    const bekannt = Number.isFinite(s.zeit);
+    const alter = bekannt ? Date.now() - s.zeit : Infinity;
+    const spaet = s.morgen && !s.folge;
+    let wie = null;
+    if (s.folge) wie = alter <= KALENDER_VERSPRECHEN.minuten ? 'in den nächsten Minuten' : null;
+    else if (spaet) wie = bekannt && toISO(new Date(s.zeit)) === todayISO() ? 'morgen' : null;
+    else wie = alter <= KALENDER_VERSPRECHEN.stunde ? 'mit dem nächsten stündlichen Abgleich' : null;
+    const noch = `noch ${s.offen} ${s.offen === 1 ? 'Änderung' : 'Änderungen'}`;
+    const stand = bekannt && (s.probe || !wie || alter > KALENDER_VERSPRECHEN.minuten) ? ` (Stand ${wann(s.zeit)})` : '';
+    if (s.stehen) {
+      return `Im Kalender: Termine bis ${kalenderDatum(s.stehen)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript `
+        + `${wie ? `${wie} ` : ''}nach – ${noch}${stand}.${kurz}`;
+    }
+    const zeitWort = !wie ? '' : spaet ? ' morgen' : ' gerade';
+    return `Im Kalender: Das Skript trägt die Termine bis ${kalenderDatum(s.bis)}${zeitWort} ein – ${noch}${wie && !spaet ? `, ${wie}` : ''}`
+      + `${stand}.${kurz}`;
+  }
+  return `Im Kalender: Termine bis ${kalenderDatum(s.bis)}.${kurz}`;
+}
+
+/**
+ * Was die Karte über den letzten Stand sagt – ein Absatz, ohne Kennwort und
+ * Adresse. Die Fassung des Skripts ist die aus seiner letzten lesbaren
+ * Antwort, nicht die der letzten Sendung, die ankam: Zurück aus Apps Script
+ * stand bis zur Prüfung des Entwurfs rund eine halbe Minute lang „(Skript
+ * Fassung 1)" da, während die erste Sendung mit dem Jahr schon beim neuen
+ * Code lag – genau dann, wenn Tobi nachsieht, ob es geklappt hat.
+ */
+function kalenderStandText(l) {
+  const wann = (ms) => vorWann(new Date(ms).toISOString());
+  const teile = [];
+  const fassung = l.fassung ?? (l.angekommen ? l.angekommen.version : null);
+  // Neuer Code erkannt, das Jahr ist unterwegs (kalenderLage().unterwegs).
+  if (l.unterwegs) {
+    teile.push(`✓ Verbunden. Neuer Code erkannt (Skript Fassung ${fassung}) – das ganze Jahr geht jetzt an das Skript. `
+      + `Zuletzt angekommen: ${punkt(wann(l.angekommen.zeit))}`);
+  } else if (l.angekommen) {
+    teile.push(`✓ Verbunden. Zuletzt angekommen: ${fassung ? `${wann(l.angekommen.zeit)} (Skript Fassung ${fassung}).` : punkt(wann(l.angekommen.zeit))}`);
+  } else {
+    teile.push(l.letzte && !l.letzte.ok ? 'Verbunden, aber beim Skript ist noch nichts angekommen.'
+      : 'Verbunden – die erste Vorschau ist unterwegs.');
+  }
+  const im = kalenderImKalender(l.stand, wann, l.stockt);
+  if (im) teile.push(im);
+  // Ein gescheiterter Versuch, nach dem der Service Worker doch zugestellt
+  // hat, ist überholt (kalenderLage().nachgeholt); „aelter" steht seit v247 als
+  // eigener Hinweis darunter (kalenderKarte(), #kalenderFremd) – nur dieser
+  // Versuch selbst fällt hier weg. Scheitert danach einer (das Skript
+  // beschäftigt, kein Netz), steht er hier, und der Hinweis bleibt: Bis zur
+  // Prüfung von v247 nahm so ein Versuch ihn weg. Und ein
+  // Hinweis, der nur den Augenblick der letzten Sendung beschreibt –
+  // „Tageskontingent aufgebraucht – morgen …", „Google bremst gerade" –, gilt
+  // nur, bis eine neuere Auskunft da ist (kalenderLage().hinweisAlt): eine
+  // Probe danach oder eine Sendung, die der Service Worker nachgeschickt hat.
+  // Kam der Stand mit ihr, ist er genauso alt, und der Hinweis bleibt. Bis zur
+  // Prüfung der Nachbesserung von v246 zählte nur die Probe, und bis v247 nur
+  // das Kontingent: „Google bremst gerade – der Rest folgt mit dem nächsten
+  // stündlichen Abgleich" stand neben einer Probe, die längst einen neueren
+  // Stand sagte. Was Tobi tun soll („einrichten", eine URL), bleibt stehen.
+  if (l.letzte && !l.letzte.ok && !l.zuAlt && !l.nachgeholt && !(l.fremd && l.letzte.ergebnis === 'aelter')) {
+    const satz = kalenderSatz(l.letzte);
+    teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);
+    if (l.letzte.wieder && !/noch einmal/.test(satz)) teile.push('Die App versucht es gleich noch einmal.');
+  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe' && !l.hinweisAlt) {
+    teile.push(`Das Skript sagt: ${l.letzte.hinweis}`);
+  }
+  // Nachgeschickt hat der Service Worker aus fünf Gründen (KAL_GRUENDE in
+  // js/kalender-sync.js); „Ohne Netz trainiert" stimmt nur bei einem. Bis
+  // v247 stand es bei jedem – an Tobis Stand geht beim Wegschalten jede
+  // Sendung über 64 KiB durch den Service Worker, mit Netz –, und es blieb,
+  // weil der Vermerk nie verfiel, dazu „vor 1 Min.." mit zwei Punkten. Jetzt
+  // verfällt er mit der nächsten eigenen Sendung, die ankommt.
+  if (l.nach) {
+    const netz = l.nach.grund === 'netz' ? 'Ohne Netz trainiert: ' : '';
+    teile.push(punkt(`${netz}Im Hintergrund nachgeschickt ${wann(l.nach.zeit)}`));
+  }
+  return teile.join(' ');
+}
+
+/**
+ * Der Hinweis zu „aelter" (kalenderLage().fremd): deutlich, auf der Karte –
+ * mit dem, was zu tun ist, und wann dort zuletzt trainiert wurde, wenn die
+ * Antwort den Stand trug. Nicht auf dem Dashboard: Der Kalender stimmt ja –
+ * für das Gerät, mit dem trainiert wird –, nur dieses hier schickt umsonst.
+ */
+function kalenderFremdText(l) {
+  const satz = kalenderSatz({ ergebnis: 'aelter' });
+  const t = l.fremd && Number.isFinite(l.fremd.zuletzt) && l.fremd.zuletzt > 0 ? l.fremd.zuletzt : 0;
+  return t ? `${satz} Dort zuletzt trainiert am ${kalenderTagKurz(t)}` : satz;
+}
+
+/**
+ * Die Bitte um neuen Code für das Jahr (KALENDER_JAHR in js/kalender-sync.js):
+ * kurz, mit den Schritten und „Code kopieren" gleich darunter. Mit
+ * „einrichten" (Schritt 4) – seit v247, warum steht bei KALENDER_JAHR. Meldet
+ * eine Antwort ein paar Minuten nach dem Kopieren noch die alte Fassung,
+ * steht darüber, was meist fehlt: „Neue Version" (kalenderLage().fehlt).
+ */
+function kalenderJahrBitte(l) {
+  const j = KALENDER_JAHR;
+  const fehlt = l.fehlt
+    ? `<div class="small" id="kalenderJahrFehlt" style="margin-top:6px;color:var(--accent)">${esc(j.fehlt)}</div>` : '';
+  return `<div class="notice" id="kalenderJahr" style="margin-top:8px">
+      <strong>${esc(j.titel)}</strong>
+      ${fehlt}
+      <div class="small" style="margin-top:4px">${esc(j.satz)}</div>
+      <ol class="small kalender-schritte" id="kalenderJahrSchritte">${j.schritte.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" data-act="kalender-code">Code kopieren</button>
+      </div>
+      <div class="small muted" style="margin-top:6px">${esc(j.danach)}</div>
+    </div>`;
+}
+
+/** Mehr → Kalender: die Karte „Google Kalender automatisch". */
+function kalenderKarte() {
+  const l = kalenderLage();
+  // Die Vorlage schon jetzt holen: „Code kopieren" soll gleich im Tipp kopieren
+  // können – manche Browser lassen das nur dort zu. Und nachfragen, wenn es
+  // etwas zu erfahren gibt (neuer Code da? wie weit ist das Jahr?) – höchstens
+  // alle zwei Minuten, die Antwort zeichnet die Karte neu.
+  if (l.moeglich) kalenderVorlage().catch(() => {});
+  if (l.verbunden) kalenderNachfragen();
+  // Ein Jahr steht erst mit dem Skript der Fassung 2 im Kalender. Bei Fassung
+  // 1 hieß es hier bis zur Prüfung des Entwurfs trotzdem „ein Jahr im
+  // Voraus" – zwei Absätze über der Bitte „trägt nur die nächsten vier Wochen
+  // ein", und für immer, wenn Tobi den Code nie erneuert.
+  const vierWochen = l.verbunden && l.neuerCode;
+  const wieWeit = vierWochen ? 'vier Wochen im Voraus (ein Jahr mit neuem Code, siehe unten)' : 'ein Jahr im Voraus';
+  const danach = vierWochen ? '' : ' und wie es danach weitergeht,';
+  const was = `<div class="lbl">Google Kalender automatisch</div>
+      <div class="small muted" id="kalenderWas" style="margin-top:4px">Deine Trainings stehen in einem eigenen
+        Kalender „Workout" in deinem Google-Konto, um ${esc(kalenderUhr(l.minuten))} mit den Übungen, ${wieWeit}.
+        Verpasst du eins, rückt es nach – auch wenn du die App nicht öffnest: Die App schickt einem kleinen Skript
+        in deinem Google-Konto, wie der Plan die nächsten sechs Wochen aussähe, wenn du nicht trainierst,${danach}
+        und das Skript gleicht den Kalender jede Stunde danach an. Trainierst du, schickt die App das Neue
+        hinterher.</div>`;
+  if (!l.moeglich) {
+    return `<div class="card" id="kalenderAuto">${was}
+      <div class="small" style="margin-top:8px">Das geht nur in der App aus dem Netz (am Startbildschirm
+        installiert), nicht in dieser Einzeldatei – hier gibt es weder den Code zum Kopieren noch den Rechner im
+        Hintergrund.</div></div>`;
+  }
+  // Was an Google geht und die Grenzen – ganz da, aber zugeklappt: Vor den
+  // Schritten standen sie mit rund 200 Wörtern, und Schritt 1 begann bei 360 px
+  // erst unten am ersten Bildschirm (Prüfung: Karte 1326 px hoch). Im
+  // Dokument bleiben sie (hidden), damit nichts davon verschwindet.
+  const mehrOffen = !!ui.kalenderMehr;
+  const wer = `<button type="button" class="detail-toggle ${mehrOffen ? 'on' : ''}" data-act="kalender-mehr"
+              id="kalenderMehrKnopf" aria-expanded="${mehrOffen}" aria-controls="kalenderMehr">
+        Was an Google geht · Grenzen <span class="chev">▼</span></button>
+      <div id="kalenderMehr"${mehrOffen ? '' : ' hidden'}>
+      <div class="small muted" id="kalenderWer" style="margin-top:8px">An Google geht nur, was im Kalender
+        steht – Titel, Übungen, Tage und Uhrzeit –, in dein eigenes Konto; kein Server der App sieht es. Google fragt
+        beim Einrichten nach Zugriff auf alle deine Kalender, so ist Googles Baustein gebaut. Das Skript fasst
+        trotzdem nur „Workout" an – das ist eine Regel in seinem Code, keine Sperre von Google.</div>
+      <div class="small muted" id="kalenderGrenze" style="margin-top:6px">Ehrlich dazu: Was die App nicht schicken
+        konnte, gilt im Kalender als nicht trainiert. Trainierst du ohne Netz, schiebt er das Training womöglich
+        weiter, bis die App wieder Netz hat – auf Android schickt sie es dann von selbst nach, meist auch bei
+        geschlossener App. Öffnest du die App sechs Wochen lang nicht, ist der Plan aufgebraucht: Der Kalender
+        schiebt dann nicht mehr und sagt es dir mit einem Termin. Und Kennwort und URL reisen mit Sicherung und
+        Exportdatei: Wer die Exportdatei hat, kann damit Termine in „Workout" schreiben, sonst nichts.</div>
+      <div class="small muted" id="kalenderSchaetzung" style="margin-top:6px">Weiter als vier Wochen voraus ist der
+        Kalender eine Schätzung: so, wie es weiterginge, wenn du ab heute nach Plan trainierst – auch über das Ende
+        der Runde hinaus, mit deinen Einstellungen von heute. Steigst du auf oder wechselst den Fokus, sieht es dort
+        anders aus; je näher die Tage rücken, desto genauer wird es.</div>
+      </div>`;
+  // Die Meldung einer Handlung („Verbinden", „Code kopieren", „Trennen") gilt,
+  // bis ein neueres Ergebnis da ist – dann sagt kalenderStandText() den Stand.
+  // Vorher stand nach dem Verbinden über „✓ Verbunden. Zuletzt angekommen …"
+  // weiter groß „Noch keine Vorschau angekommen", die ganze Sitzung lang.
+  const ueberholt = !!(l.letzte && Number.isInteger(l.letzte.nr) && l.letzte.nr > (ui.kalenderMeldungNr || 0));
+  // Die Meldung von „Code kopieren" zur Bitte um neuen Code gilt, bis eine
+  // Antwort nach dem Kopieren die Fassung sagt: Ist es die neue, ist die Bitte
+  // weg; ist es die alte, sagt die Karte selbst, was meist fehlt (l.fehlt).
+  // Bis zur Prüfung des Entwurfs stand das grüne „… merkt den neuen Code von
+  // selbst" die ganze Sitzung neben dem orangen „meldet noch Fassung 1".
+  const kopiertAlt = !!ui.kalenderKopiert
+    && (l.fehlt || (l.kopiert !== null && Number.isFinite(l.fassungZeit) && l.fassungZeit > l.kopiert));
+  const meldung = ui.kalenderMeldung && !ueberholt && !kopiertAlt ? `<div class="hint" id="kalenderMeldung"
+        style="color:${ui.kalenderGut ? 'var(--ok)' : 'var(--accent)'};margin-top:8px">${esc(ui.kalenderMeldung)}</div>` : '';
+  const codeText = ui.kalenderCodeText ? `<textarea class="io" id="kalenderCodeText" readonly
+        aria-label="Code für Apps Script">${esc(ui.kalenderCodeText)}</textarea>` : '';
+  const urlFeld = (platzhalter, haupt) => `<input type="url" class="name-input" id="kalenderUrl" inputmode="url"
+        autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(platzhalter)}"
+        aria-label="Web-App-URL des Skripts">
+      <div class="btn-row">
+        <button type="button" class="btn${haupt ? ' btn-primary' : ''}" data-act="kalender-verbinden"
+                ${ui.kalenderLaeuft ? 'disabled' : ''}>Verbinden</button>
+      </div>`;
+  const offenAus = l.ausstehend ? `<div class="small" id="kalenderAusOffen" style="margin-top:8px">📅 Ein Trennen
+        wartet noch auf Netz – die App schickt es dem Skript, sobald welches da ist.</div>` : '';
+  if (!l.verbunden) {
+    return `<div class="card" id="kalenderAuto">${was}
+      <div class="lbl" style="margin-top:12px">Einrichten – einmal, am Handy</div>
+      <ol class="small kalender-schritte" id="kalenderSchritte">
+        <li>Unten „Code kopieren" tippen. Darin steckt ein Kennwort nur für deinen Kalender – nicht weitergeben.</li>
+        <li>In Chrome <i>script.google.com</i> öffnen, im Drei-Punkte-Menü <i>Desktopwebsite</i> anhaken und dein
+          Projekt öffnen – das von der Probe (sonst <i>script.new</i>).</li>
+        <li>Den ganzen Code dort durch deinen ersetzen und speichern.</li>
+        <li>Oben die Funktion <i>einrichten</i> wählen und <i>Ausführen</i> tippen. Fragt Google nach Zugriff:
+          <i>Berechtigungen prüfen</i> → dein Konto → <i>Erweitert</i> → <i>… öffnen (unsicher)</i> →
+          <i>Zulassen</i>. Warten, bis unten „Ausführung abgeschlossen" steht.</li>
+        <li><i>Bereitstellen → Bereitstellungen verwalten → Bearbeiten</i> (Stift) <i>→ Version: Neue Version →
+          Bereitstellen</i> – die URL bleibt dieselbe. Gibt es noch keine Bereitstellung: <i>Bereitstellen → Neue
+          Bereitstellung → Web-App</i>, „Ausführen als: Ich", „Zugriff: Jeder".</li>
+        <li>Die <i>Web-App-URL</i> (endet auf /exec) kopieren, hier einfügen und <i>Verbinden</i> tippen.</li>
+      </ol>
+      <div class="btn-row">
+        <button type="button" class="btn${l.token ? '' : ' btn-primary'}" data-act="kalender-code">Code kopieren</button>
+      </div>
+      ${l.token ? `<div class="small muted" id="kalenderKennwort" style="margin-top:6px">Das Kennwort ist fest
+        gespeichert – noch einmal kopieren gibt denselben Code.</div>` : ''}
+      ${codeText}
+      ${urlFeld('https://script.google.com/macros/s/…/exec', l.token)}
+      ${meldung}${offenAus}
+      ${wer}
+    </div>`;
+  }
+  const optionen = [...KALENDER_ERINNERUNGEN];
+  if (!optionen.some(([v]) => v === l.erinnerung)) optionen.push([l.erinnerung, `${l.erinnerung} Min.`]);
+  // Ein neues Skript-Projekt braucht Tobi so gut wie nie – zugeklappt, und
+  // „Verbinden" dort nicht als auffälligster Knopf der Karte.
+  const neuOffen = !!ui.kalenderNeu;
+  // Welchen Stand dieses Gerät schickt, und dass nur eins verbunden sein soll
+  // (kalenderGeraetStand()) – kurz, unter dem Stand des Skripts.
+  const geraetStand = kalenderGeraetStand();
+  const geraet = `<div class="small muted" id="kalenderGeraet" style="margin-top:6px">Dieses Gerät schickt:
+        ${esc(/\.$/.test(geraetStand) ? geraetStand : `${geraetStand}.`)} Verbunden sein soll nur das Gerät, auf dem du
+        trainierst – jedes Gerät hat seinen eigenen Stand, und ein zweites schickt einen Plan, der hinterherhinkt.</div>`;
+  return `<div class="card" id="kalenderAuto">${was}
+      <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
+      ${l.stockt ? `<div class="small" id="kalenderStockt" style="margin-top:6px;color:var(--accent)">${esc(KALENDER_STOCKT)}</div>` : ''}
+      ${l.fremd ? `<div class="notice warn" id="kalenderFremd" style="margin-top:8px">${esc(kalenderFremdText(l))}</div>` : ''}
+      ${geraet}
+      ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}
+      ${l.neuerCode && !l.zuAlt ? kalenderJahrBitte(l) : ''}
+      ${meldung}
+      <div class="zeit-row">
+        <label class="zeit"><span class="lbl">Uhrzeit</span>
+          <input type="time" id="kalenderUhrzeit" data-act="kalender-uhrzeit" step="300"
+                 value="${esc(kalenderUhr(l.minuten))}"></label>
+        <label class="zeit"><span class="lbl">Erinnerung vorher</span>
+          <select id="kalenderErinnerung" data-act="kalender-erinnerung">
+            ${optionen.map(([v, t]) => `<option value="${v}"${v === l.erinnerung ? ' selected' : ''}>${esc(t)}</option>`).join('')}
+          </select></label>
+      </div>
+      <div class="small muted" style="margin-top:6px">Uhrzeit (Berliner Zeit) und Erinnerung stellst du hier ein,
+        nicht im Kalender – das Skript gleicht seine Termine jede Stunde an. Siehst du „Workout" am Handy nicht:
+        Google-Kalender-App → Einstellungen → Workout → <i>Synchronisieren</i>.</div>
+      <div class="small muted" id="kalenderMail" style="margin-top:6px">Schickt Google dir eine Mail „Summary of
+        failures", kommt sie von diesem Skript: Beim stündlichen Abgleich ist etwas schiefgegangen, und in der Mail
+        steht, was. Meist hilft, in Apps Script einmal <i>einrichten</i> auszuführen – sonst dem Assistenten Bescheid
+        geben.</div>
+      <div class="btn-row">
+        ${l.neuerCode && !l.zuAlt ? '' : '<button type="button" class="btn" data-act="kalender-code">Code kopieren</button>'}
+        <button type="button" class="btn btn-ghost" data-act="kalender-trennen"
+                ${ui.kalenderLaeuft ? 'disabled' : ''}>Trennen</button>
+      </div>
+      <div class="small muted" id="kalenderTrennenText" style="margin-top:6px">„Code kopieren" brauchst du nur, wenn die
+        App hier um neuen Code bittet. ${l.fremd ? '„Trennen": Dieses Gerät schickt dann nichts mehr; die Termine des anderen Geräts bleiben stehen, und das Skript pflegt sie weiter.'
+    : '„Trennen": Die Termine ab heute verschwinden aus „Workout", und das Skript schiebt nichts mehr; ganz weg ist es erst, wenn du das Projekt in Apps Script löschst.'}</div>
+      ${codeText}
+      ${wer}
+      <button type="button" class="detail-toggle ${neuOffen ? 'on' : ''}" data-act="kalender-neu" id="kalenderNeuKnopf"
+              aria-expanded="${neuOffen}" aria-controls="kalenderNeu">Neues Skript-Projekt? <span class="chev">▼</span></button>
+      <div id="kalenderNeu"${neuOffen ? '' : ' hidden'}>
+        <div class="small muted" style="margin-top:6px">Nur, wenn du in Apps Script ein neues Projekt angelegt hast:
+          seine Web-App-URL hier einfügen. ${l.fremd ? 'Das alte behält dann den Plan des anderen Geräts – es bekommt kein „Trennen".'
+    : 'Das alte bekommt dann ein „Trennen".'}</div>
+        ${urlFeld('https://script.google.com/macros/s/…/exec', false)}
+      </div>
+      ${offenAus}
+    </div>`;
+}
+
+/**
+ * Eine Meldung der Karte setzen – mit der Nummer des letzten Versuchs, damit
+ * die Karte sie wegnimmt, sobald ein neueres Ergebnis da ist (kalenderKarte()).
+ */
+function kalenderMelden(text, gut, nr = null, kopiert = false) {
+  ui.kalenderMeldung = text;
+  ui.kalenderGut = !!gut;
+  ui.kalenderMeldungNr = Number.isInteger(nr) ? nr : ((kalenderLage().letzte || {}).nr || 0);
+  // Die Meldung von „Code kopieren" zur Bitte um neuen Code (kalenderKarte()).
+  ui.kalenderKopiert = !!kopiert;
+}
+
+/** „Code kopieren": erst das Kennwort fest speichern, dann kopieren – oder zum Abschreiben zeigen. */
+async function kalenderCodeKopieren() {
+  let code;
+  try {
+    code = await kalenderCode();
+  } catch (e) {
+    kalenderMelden(e && e.code === 'speicher' ? e.message
+      : 'Die Vorlage des Codes ist gerade nicht da – mit Netz noch einmal tippen.', false);
+    notieren('kalender', { was: 'code', ok: false, grund: e && e.code === 'speicher' ? 'speicher' : 'vorlage' }, true);
+    render();
+    return;
+  }
+  // Wer den Code kopiert, hat die Bitte darum gesehen – sie steht dann nicht
+  // mehr auf dem Dashboard, nur noch auf der Karte. Und wann: Meldet das
+  // Skript Minuten später noch die alte Fassung, sagt die Karte, was meist fehlt.
+  kalenderJahrGesehen();
+  kalenderCodeKopiert();
+  const gut = () => {
+    ui.kalenderCodeText = '';
+    // Steht die Bitte um neuen Code auf der Karte, stehen ihre Schritte direkt
+    // darüber – dann genügt der Verweis auf Schritt 2. Bis zur Prüfung des
+    // Entwurfs wiederholte die Meldung darunter die Schritte 3 und 4 in sieben
+    // Zeilen. Verbunden ohne Bitte (das Skript selbst bittet um neuen Code)
+    // gibt es keine nummerierten Schritte: dann die ganze Folge – ohne „Neue
+    // Version" liefe die Web-App mit dem alten Code, und ohne „einrichten"
+    // womöglich der stündliche Auslöser (KALENDER_JAHR in js/kalender-sync.js
+    // sagt, warum; bis v247 stand hier, es brauche es nicht).
+    const bitte = kalenderLage().neuerCode;
+    const text = bitte ? 'Code kopiert – mit demselben Kennwort wie bisher. Weiter mit Schritt 2.'
+      : kalenderVerbunden()
+        ? 'Code kopiert – mit demselben Kennwort wie bisher. In Apps Script im selben Projekt den ganzen Code damit '
+          + 'ersetzen, speichern, oben einrichten wählen und Ausführen tippen (fragt Google noch einmal nach Zugriff: '
+          + 'erlauben; es gleicht sofort ab und kann ein paar Minuten laufen), dann Bereitstellen → Bereitstellungen '
+          + 'verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen. Die App merkt den neuen Code von selbst.'
+        : 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).';
+    kalenderMelden(text, true, null, bitte);
+    notieren('kalender', { was: 'code', ok: true, kopiert: true });
+    render();
+  };
+  const zeigen = () => {
+    ui.kalenderCodeText = code;
+    kalenderMelden('Kopieren ging nicht – der Code steht unten markiert, dort lang drücken und kopieren.', false);
+    notieren('kalender', { was: 'code', ok: true, kopiert: false });
+    render();
+    const ta = document.getElementById('kalenderCodeText');
+    if (ta) { ta.focus(); ta.select(); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(gut, zeigen);
+    return;
+  }
+  zeigen();
+}
+
+async function kalenderVerbindenTipp() {
+  const feld = document.getElementById('kalenderUrl');
+  const eingabe = feld ? feld.value : '';
+  ui.kalenderLaeuft = true;
+  kalenderMelden('Frage das Skript …', true);
+  render();
+  let r;
+  try {
+    r = await kalenderVerbinden(eingabe);
+  } catch {
+    r = { ok: false, satz: 'Das ging gerade nicht – noch einmal versuchen.' };
+  }
+  ui.kalenderLaeuft = false;
+  // Gelungen und nichts zu tun: ein Satz, der bis zur ersten Vorschau gilt –
+  // dann übernimmt der Stand der Karte. Bittet das Skript um etwas (einrichten,
+  // ein anderes Projekt pflegt den Kalender) oder ist sein Code zu alt: dessen
+  // Satz, in der Farbe für „da ist etwas zu tun", ohne Versprechen.
+  if (r.ok && !(r.handeln || r.zuAlt)) {
+    kalenderMelden('Verbunden – die erste Vorschau ist unterwegs. Nach etwa einer Minute stehen die Termine in „Workout".', true, r.nr);
+  } else {
+    kalenderMelden(r.satz || 'Verbunden.', false, r.nr);
+  }
+  if (r.ok) ui.kalenderNeu = false;
+  ui.kalenderCodeText = '';
+  render();
+  // Was er eingefügt hatte, bleibt im Feld stehen, wenn es nicht ging – zum Ausbessern.
+  if (!r.ok) {
+    const neu = document.getElementById('kalenderUrl');
+    if (neu) neu.value = eingabe;
+  }
+}
+
+async function kalenderTrennenTipp() {
+  ui.kalenderLaeuft = true;
+  render();
+  let r;
+  try {
+    r = await kalenderTrennen();
+  } catch {
+    r = { satz: 'Getrennt.' };
+  }
+  ui.kalenderLaeuft = false;
+  kalenderMelden(r.satz, true);
+  render();
 }
 
 /** Zahl der abgeschlossenen Einheiten in dieser Runde. */
@@ -688,16 +1357,35 @@ function backupDue() {
  * "Abbrechen" verwirft die Einheit ganz, damit sie als nicht trainiert gilt
  * und der Plan sie behandelt wie einen verpassten Tag. Ohne diese Trennung
  * blieb nach jedem Abbruch ein halb abgehaktes Workout stehen.
+ *
+ * Nicht auf einer Einheit, die an einem früheren Tag trainiert und
+ * abgeschlossen ist (frueherFertig()) – „Doch noch weitermachen" auf einer
+ * Einheit von gestern, auch nach dem Tagesabschluss (bis v242 ebenso „Rest
+ * heute machen" in seiner Zeile). Dort hieß „Abbrechen" „doch nicht heute",
+ * und es löschte das Training von Samstag
+ * mit: Workout 12 war untrainiert, der Plan rückte einen Tag, und am Sonntag
+ * stand „Heute · Workout 12" da. Was an einem früheren Tag trainiert ist, nimmt
+ * ein Abbruch von heute nicht zurück; dann bleibt nur „Abschließen", und ein
+ * versehentlicher Haken lässt sich einzeln zurücknehmen. Eine Einheit von
+ * heute verwirft „Abbrechen" weiter ganz, auch nach „Doch noch weitermachen"
+ * (tests/test-new.mjs) – und ein Training über Mitternacht ebenso, es ist
+ * noch nicht abgeschlossen.
  */
 function sessionButtons(n, mode) {
   const prog = progressOf(n, mode);
   return `
     <div class="btn-row nav">
-      <button type="button" class="btn btn-danger" data-act="discard-session">Abbrechen</button>
+      ${frueherFertig(n) ? '' : '<button type="button" class="btn btn-danger" data-act="discard-session">Abbrechen</button>'}
       <button type="button" class="btn btn-ok" data-act="finish-session">
         ✓ Abschließen${prog.done ? ` (${prog.done}/${prog.total})` : ''}
       </button>
     </div>`;
+}
+
+/** An einem früheren Tag angefangen und abgeschlossen – siehe sessionButtons(). */
+function frueherFertig(n) {
+  const tag = store.startedOn(n);
+  return !!tag && tag < todayISO() && !!completedMode(n);
 }
 
 /** Pausenlänge für eine Übung – empfohlen oder fest, je nach Einstellung. */
@@ -746,11 +1434,11 @@ const VORLAUF = 5;
  * Training zwanzigmal, und ob man das mag, ist Geschmackssache – die
  * Ereignisse drumherum kommen ein- bis zweimal und stören niemanden.
  */
-function sound(name) {
+function sound(name, wann) {
   const s = store.getState();
   if (!s.sound) return;
   if (name === 'set' && !s.soundSets) return;
-  playSound(name);
+  playSound(name, wann);
 }
 
 /* Hinweis zum Pausenende, wenn die App gerade nicht im Vordergrund ist.
@@ -817,7 +1505,10 @@ function planNote(secs, text) {
     noteTimer = null;
     // Nur, wenn die App gerade nicht zu sehen ist: Wer davorsitzt, hört den Ton
     // und sieht die Leiste – eine Systemmeldung wäre da nur Lärm.
-    if (!document.hidden) return;
+    if (!document.hidden) {
+      notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: false, grund: 'sichtbar' });
+      return;
+    }
     const opt = {
       body: text,
       tag: NOTE_TAG,          // ersetzt eine ältere, statt sie zu stapeln
@@ -827,10 +1518,26 @@ function planNote(secs, text) {
       badge: './badge-96.png',
       vibrate: [180, 90, 180],
     };
+    // Fürs Diagnoseprotokoll erst das Ergebnis, nicht den Versuch: Bis zum
+    // Gegenlesen stand hier vorher „gezeigt=true", und ein Fehlschlag verschwand
+    // im catch – auf Chrome Android wirft `new Notification()` ohne Service
+    // Worker („Illegal constructor"), und genau die Frage „kam die Meldung?"
+    // war damit falsch beantwortet.
+    let ueber;   // bleibt leer, wenn schon die Frage nach dem Worker scheitert
     swReg().then((reg) => {
-      if (reg) reg.showNotification('Pause vorbei', opt);
-      else new Notification('Pause vorbei', opt);
-    }).catch(() => {});
+      if (reg) {
+        ueber = 'worker';
+        return reg.showNotification('Pause vorbei', opt);
+      }
+      ueber = 'konstruktor';
+      new Notification('Pause vorbei', opt);
+      return undefined;
+    }).then(
+      () => notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: true, ueber }),
+      (e) => notieren('pause', {
+        was: 'meldung', weg: 'seite', gezeigt: false, ueber, name: (e && e.name) || 'Fehler', msg: e && e.message,
+      }),
+    );
   }, Math.max(0, secs) * 1000);
 }
 
@@ -874,12 +1581,20 @@ function armRest() {
   }
   const left = (rest.endsAt - Date.now()) / 1000;
   if (store.getState().sound) {
-    restArmed = scheduleSound([['ready', left - VORLAUF], ['rest', left]]);
+    // Ohne Berührung seit dem Laden legt der Tonkanal nichts auf – er merkt
+    // sich stattdessen diesen Aufruf und holt ihn nach der ersten Berührung
+    // nach, mit dann frisch gerechneter Restzeit. Bis dahin ist restArmed
+    // false, und endRest() sorgt am Ende selbst für den Ton.
+    restArmed = scheduleSound([['ready', left - VORLAUF], ['rest', left]], armRest);
   } else {
     cancelSound();
     restArmed = false;
   }
   planNote(left, rest.next);
+  notieren('pause', {
+    was: 'auflegen', rest: Math.round(left), armed: restArmed, toene: !!store.getState().sound,
+    meldung: noteAllowed() ? (navigator.serviceWorker && navigator.serviceWorker.controller ? 'worker' : 'seite') : 'aus',
+  });
 }
 
 /**
@@ -894,43 +1609,111 @@ async function holdScreen(on) {
       await wakeLock.release();
       wakeLock = null;
     }
-  } catch {
+  } catch (e) {
     wakeLock = null; // nicht unterstützt oder abgelehnt – kein Beinbruch
+    notieren('pause', { was: 'wakelock', an: on, ok: false, name: e && e.name });
   }
 }
 
-function startRest(exName, setIndex, sets, secs) {
+/**
+ * Eine Pause starten. Mit `seite` ist es die Pause zwischen den Seiten eines
+ * Satzes (seiteAntippen()): Danach kommt derselbe Satz, nur die andere Seite.
+ */
+function startRest(exName, setIndex, sets, secs, exId = null, { seite = null } = {}) {
   if (!secs) return;
+  notieren('pause', { was: 'start', dauer: secs, ex: exId, satz: setIndex + 1, von: sets, seite: seite || undefined });
+  const wort = seite === 'r' ? 'rechts' : 'links';
   store.setRest({
     endsAt: Date.now() + secs * 1000,
     total: secs,
-    next: `Satz ${setIndex + 2} von ${sets} · ${exName}`,
+    // Die Seite vorn: Die Leiste kürzt hinten ab, und „rechts" ist hier das
+    // Wichtigste – der Name steht ohnehin darüber.
+    next: seite ? `Satz ${setIndex + 1} von ${sets}, ${wort} · ${exName}`
+      : `Satz ${setIndex + 2} von ${sets} · ${exName}`,
+    ex: exId,   // wessen Pause – siehe leistenPause()
   });
   announce(`Pause ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} Minuten, `
-    + `danach Satz ${setIndex + 2} von ${sets}, ${exName}`);
+    + (seite ? `danach Satz ${setIndex + 1} von ${sets}, ${wort}, ${exName}`
+      : `danach Satz ${setIndex + 2} von ${sets}, ${exName}`));
   holdScreen(true);
   armRest();
   tickRest();
 }
 
+/*
+ * Wie lange nach ihrem Ende eine Pause noch „gerade eben vorbei" ist.
+ *
+ * Nach einem Neustart der Seite ruft tickRest() auch für eine Pause endRest(),
+ * die vor einer Stunde ablief – Leiste weg, Hinweis, fertig. Ein Gong dazu wäre
+ * dann kein Signal mehr, sondern ein Rätsel. Innerhalb dieser Frist ist er es
+ * noch: Das ist der Fall „Seite mitten in der Pause neu geladen, keiner hat
+ * getippt", und dort kommt er nach der ersten Berührung nach – aber nur, wenn
+ * die noch in die Frist fällt. Die Frist zählt ab dem Pausenende, nicht ab dem
+ * Vormerken: Ohne sie kam der Gong beim ersten Tipp auch 70 s danach, mitten
+ * in den nächsten Satz. Ist diese erste Berührung der nächste Haken, kommt er
+ * auch innerhalb der Frist nicht – die neue Pause hat ihn überholt (siehe
+ * nachholen() in js/audio.js).
+ */
+const NACHKLANG_MS = 60000;
+
 function endRest(withSignal) {
   if (!restBar) return;
-  if (restTicker) { clearInterval(restTicker); restTicker = null; }
+  const vorbei = store.getState().rest;
   holdScreen(false);
   store.setRest(null);
-  restBar.hidden = true;
   restBar.classList.remove('ready');
-  document.body.classList.remove('resting');
-  // Das Signal liegt längst auf der Audio-Uhr und hat gerade selbst gespielt –
-  // hier noch einmal anzustoßen, gäbe ein Echo. Nur wenn das Voraussetzen nicht
-  // geklappt hat (kein Ton freigeschaltet, Browser ohne Web Audio), kommt der
-  // Ton jetzt. cancelSound() lässt ein bereits laufendes Signal ausklingen.
-  if (withSignal && !restArmed) sound('rest');
-  cancelSound();
+  /*
+   * Das Signal liegt auf der Audio-Uhr – aber hat es gespielt? Vier Fälle:
+   *
+   *   erklungen / läuft   Es kam oder kommt gerade. Noch einmal anstoßen gäbe
+   *                       ein Echo; cancelSound() lässt es ausklingen.
+   *   offen               Es liegt noch vor uns – weil der Kontext im
+   *                       Hintergrund angehalten war und seine Uhr hinter der
+   *                       Wanduhr zurückliegt. Dann käme es nie oder zur
+   *                       Unzeit: verwerfen und jetzt den Ton geben.
+   *   keins               Nichts lag auf der Uhr (kein Ton freigeschaltet,
+   *                       Töne aus, kein Web Audio) – jetzt den Ton geben.
+   *
+   * Vor diesem Umbau stand hier `if (!restArmed) sound('rest')` – und
+   * tickRest() beendete die Pause bis zu eine halbe Sekunde zu früh, sodass
+   * cancelSound() das vorausgelegte Signal jedes Mal vor seinem Start stoppte:
+   * Das lauteste Signal der App kam im Vordergrund nie. *„Jetzt fehlt iwie die
+   * Pause"* – und *„es gibt iwie überhaupt keine sounds"*.
+   *
+   * Ohne Berührung seit dem Laden merkt sich playSound() den Ton und holt ihn
+   * bei der ersten nach – aber nur, wenn die Pause gerade eben zu Ende ging
+   * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war, nur
+   * bis NACHKLANG_MS nach dem Ende, und nicht, wenn diese Berührung selbst
+   * einen Ton anstößt (eine neue Pause), der nächste Haken ist – auch ein
+   * stummer – oder die Töne ausschaltet (tonUeberholt()).
+   *
+   * Aufgeräumt wird danach mit `ausklingen` nur am echten Ende: Ein Signal,
+   * das in den nächsten 0,3 s anfängt, ist das dieses Endes. Bei „Pause weg"
+   * (withSignal false) geht auch das – wer wegtippt, will keinen Gong mehr.
+   * Gibt es einen Ersatz, zählt der liegengebliebene nicht als verpasst; gibt
+   * es keinen (Pause schon zu lange vorbei), zählt er – er war fällig und kam
+   * nie.
+   */
+  const stand = restArmed ? signalStand('rest') : 'keins';
+  const frisch = !vorbei || Date.now() - vorbei.endsAt < NACHKLANG_MS;
+  const ersatz = withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft';
+  // Die Stelle von „Jetzt fehlt iwie die Pause": was hier entschieden wurde.
+  // `spaet` nur nach dem Ende, davor `rest` (wie viel noch übrig war) – beim
+  // Gegenlesen stand bei einem Abbruch „spaet=-4", und der Name sagte das
+  // Gegenteil.
+  const ueberzogen = vorbei ? Math.round((Date.now() - vorbei.endsAt) / 1000) : undefined;
+  notieren('pause', {
+    was: withSignal ? 'ablauf' : 'abbruch', stand, frisch, ersatz, toene: !!store.getState().sound,
+    leiste: !restBar.hidden, sichtbar: !document.hidden,
+    spaet: ueberzogen !== undefined && ueberzogen >= 0 ? ueberzogen : undefined,
+    rest: ueberzogen !== undefined && ueberzogen < 0 ? -ueberzogen : undefined,
+  });
+  if (ersatz) sound('rest', vorbei ? { faellig: vorbei.endsAt, bis: vorbei.endsAt + NACHKLANG_MS } : undefined);
+  cancelSound({ ausklingen: withSignal, ersetzt: ersatz ? 'rest' : null });
   // Bei einer abgebrochenen Pause den Hinweis abbestellen – bei einer
-  // abgelaufenen gerade nicht: Diese Zeile läuft bis zu eine halbe Sekunde vor
-  // dem Ende (der Timer prüft im Vierteltakt und rundet), der Wecker soll aber
-  // noch losgehen, falls die App im Hintergrund ist.
+  // abgelaufenen gerade nicht: Der Wecker soll noch losgehen, falls die App im
+  // Hintergrund ist. (Diese Zeile läuft seit v241 erst nach dem Ende, nicht
+  // mehr bis zu eine halbe Sekunde davor.)
   if (!withSignal) dropNote();
   restArmed = false;
   if (withSignal) {
@@ -939,6 +1722,9 @@ function endRest(withSignal) {
   } else {
     announce('');
   }
+  // Im Supersatz kann unten trotzdem noch etwas stehen: die Pause der gezeigten
+  // Übung, wenn es nicht die war, die eben zu Ende ging (leistenPause()).
+  tickRest();
 }
 
 function tickRest() {
@@ -946,16 +1732,32 @@ function tickRest() {
   // stammen, fehlt die Leiste - dann lieber ohne Timer weiterlaufen als alles
   // mit einem Fehler anhalten.
   if (!restBar) return;
-  const rest = store.getState().rest;
-  if (!rest) { restBar.hidden = true; document.body.classList.remove('resting'); return; }
-
-  const left = Math.round((rest.endsAt - Date.now()) / 1000);
-  if (left <= 0) {
+  const laeuft = store.getState().rest;
+  // Das Ende der Pause, auf die der Ablauf wartet, meldet sich – gleich, was
+  // die Leiste gerade zeigt. endRest() zeichnet die Leiste danach selbst neu.
+  //
+  // Erst NACH dem Endzeitpunkt, nicht gerundet: Mit `Math.round(...) <= 0`
+  // endete die Pause bei 0,49 s Rest – und endRest() verwarf das Signal, das
+  // 0,25 bis 0,5 s später auf der Audio-Uhr lag, vor seinem Start. Gemessen:
+  // in jeder Runde, 0,499 s und 0,511 s zu früh, das Pausensignal kam im
+  // Vordergrund nie. Die Anzeige rundet weiter (unten, Math.max(1, …)) und
+  // zeigt in der letzten halben Sekunde 0:01 statt 0:00.
+  if (laeuft && laeuft.endsAt - Date.now() <= 0) {
     endRest(true);
     toast('Pause vorbei – nächster Satz');
     return;
   }
+  const rest = leistenPause();
+  if (!rest) {
+    restBar.hidden = true;
+    document.body.classList.remove('resting');
+    // Der Takt läuft weiter, solange eine Pause läuft, auch wenn sie gerade
+    // nicht zu sehen ist – sonst käme ihr Ende nie an.
+    if (!laeuft && restTicker) { clearInterval(restTicker); restTicker = null; }
+    return;
+  }
 
+  const left = Math.max(1, Math.round((rest.endsAt - Date.now()) / 1000));
   restBar.hidden = false;
   document.body.classList.add('resting');
   // Die letzten Sekunden gehören dem Weg zur Hantel, nicht mehr der Pause.
@@ -964,7 +1766,9 @@ function tickRest() {
   if (restLabel) restLabel.textContent = gleich ? 'Fertig machen' : 'Pause';
   restTime.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   restNext.textContent = rest.next;
-  restFill.style.width = `${Math.max(0, (left / rest.total) * 100)}%`;
+  // Gedeckelt: Eine Pause, die länger ist als ihr Ganzes, zeigt einen vollen
+  // Balken und keinen, der über den Rand hinausläuft.
+  restFill.style.width = `${Math.min(100, Math.max(0, (left / rest.total) * 100))}%`;
 
   if (!restTicker) restTicker = setInterval(tickRest, 250);
 }
@@ -977,12 +1781,39 @@ setInterval(() => {
   badge.textContent = `⏱ ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 }, 1000);
 
-document.getElementById('restSkip')?.addEventListener('click', () => endRest(false));
+/*
+ * Die beiden Knöpfe gelten der Pause, die unten steht – im Supersatz also der
+ * der gezeigten Übung, nicht unbedingt der, deren Ende gleich klingelt.
+ */
+document.getElementById('restSkip')?.addEventListener('click', () => {
+  const gezeigt = leistenPause();
+  if (!gezeigt) return;
+  notieren('pause', { was: 'weg', ex: gezeigt.ex, eigene: gezeigt === store.getState().rest });
+  // Weggetippt ist weggetippt: Auch wer danach zu dieser Übung zurückwischt,
+  // bekommt die Pause nicht noch einmal (leistenPause() rechnet aus satzUhr).
+  if (gezeigt.ex) { satzUhr.delete(gezeigt.ex); satzPlus.delete(gezeigt.ex); uhrMerken(); }
+  // Die Pause, auf die der Ablauf wartet, endet nur, wenn sie es war, die
+  // unten stand. Tippt man beim Partner dessen Pause weg, klingelt die andere
+  // trotzdem.
+  if (gezeigt === store.getState().rest) endRest(false);
+  else tickRest();
+});
 document.getElementById('restPlus')?.addEventListener('click', () => {
+  const gezeigt = leistenPause();
+  if (!gezeigt) return;
   const rest = store.getState().rest;
-  if (!rest) return;
-  store.setRest({ ...rest, endsAt: rest.endsAt + 30000, total: rest.total + 30 });
-  armRest(); // Signal 30 s weiter hinten neu auflegen
+  notieren('pause', { was: '+30', ex: gezeigt.ex, eigene: gezeigt === rest });
+  // Die 30 s gehören zur Übung, nicht zur Leiste – beim Zurückwischen bleiben
+  // sie, und zwar auch im Ganzen, an dem der Balken misst (satzPlus).
+  if (gezeigt.ex && satzUhr.has(gezeigt.ex)) {
+    satzUhr.set(gezeigt.ex, satzUhr.get(gezeigt.ex) + 30000);
+    satzPlus.set(gezeigt.ex, (satzPlus.get(gezeigt.ex) || 0) + 30);
+    uhrMerken();
+  }
+  if (gezeigt === rest) {
+    store.setRest({ ...rest, endsAt: rest.endsAt + 30000, total: rest.total + 30 });
+    armRest(); // Signal 30 s weiter hinten neu auflegen
+  }
   tickRest();
 });
 
@@ -1034,24 +1865,365 @@ const ui = {
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
+  // Die Übung, die renderFocus() zuletzt gezeichnet hat, oder null – daran
+  // liest die Pausenleiste im Supersatz ab, wessen Pause sie zeigt
+  // (leistenPause()).
+  gezeigt: null,
+  // Hat der erste Haken einer Einheit den Plan auf heute vorgezogen, steht
+  // hier, welcher Stand vorher galt – nimmt man den Haken gleich wieder
+  // zurück, gilt er wieder (toggle-set).
+  vorgezogen: null,
+  // Steht die stille Zeile zum Ton im Dashboard? Gesetzt über onTonStand(),
+  // wenn der Tonkanal nach einer Berührung weiter schläft (tonHinweis()).
+  tonHinweis: false,
   // Kalender: gezeigter Monat und der angetippte Tag. Beides fängt bei der
   // nächsten offenen Einheit an, nicht stur bei heute – wer den Tab öffnet,
   // will meistens wissen, was als Nächstes kommt.
   calMonth: null,
   calDay: null,
+  // Automatische Sicherung (js/sicherung.js) – nur, was gerade auf dem
+  // Bildschirm steht: ein Schlüssel aus einem Wiederherstellungs-Link, ob das
+  // Eingabefeld offen ist, was beim Zurückholen schiefging, und warum das
+  // Teilen der Datei zuletzt abgelehnt wurde.
+  sicherungAngebot: null,
+  sicherungEingabe: false,
+  sicherungMeldung: '',
+  sicherungLaeuft: false,
+  sicherungLinkText: '',
+  teilenFehler: '',
+  // Diagnoseprotokoll unter Mehr → Daten: ganzer Text aufgeklappt, und warum
+  // das Teilen nicht ging (wie teilenFehler bei der Sicherung).
+  diagnoseOffen: false,
+  diagnoseFehler: '',
+  // Google Kalender automatisch (js/kalender-sync.js), Mehr → Kalender: was
+  // „Code kopieren", „Verbinden" und „Trennen" eben gesagt haben, ob gerade
+  // eins davon läuft, und der Code zum Abschreiben, wenn das Kopieren nicht
+  // ging. Kennwort und Adresse stehen nur im Code und im Eingabefeld.
+  kalenderMeldung: '',
+  kalenderMeldungNr: 0,
+  kalenderGut: false,
+  kalenderKopiert: false,   // die Meldung ist die von „Code kopieren" zur Bitte um neuen Code
+  kalenderMehr: false,   // „Was an Google geht · Grenzen" aufgeklappt
+  kalenderNeu: false,    // „Neues Skript-Projekt?" aufgeklappt
+  kalenderLaeuft: false,
+  kalenderCodeText: '',
 };
 
 /* ------------------------------------------------------------------ *
  * Dashboard
  * ------------------------------------------------------------------ */
 
-/** Index der ersten Übung, in der noch ein Satz offen ist. */
+/**
+ * Index der Übung, die als Nächstes dran ist: der ersten, in der noch ein Satz
+ * offen ist.
+ *
+ * Mit Supersätzen entscheidet der Wechsel (naechsterOffen() in
+ * js/supersatz.js): Nach A1 ist B dran, obwohl A in der Planreihenfolge vorn
+ * steht und noch Sätze offen hat. Vorher kannte diese Funktion nur die
+ * Planreihenfolge: Nach dem Neuladen stand wieder A da, wo superWeiter() eben
+ * noch zu B gesprungen war, und Tobi machte A2 vor B1. Jetzt dieselbe Antwort
+ * für alle, die fragen – das Neuladen, „Training fortsetzen" und das
+ * Weiterrücken nach einer fertigen Übung.
+ */
 function firstOpenExercise(n, mode) {
   const w = workoutByNo(n, mode);
+  if (superAn()) {
+    const ziel = naechsterOffen(superGruppen(n, mode), satzSteht(n, mode));
+    const idx = ziel ? w.ex.findIndex((x) => x.id === ziel.id) : -1;
+    if (idx >= 0) return idx;
+  }
   const idx = w.ex.findIndex((item) => {
     return saetzeErledigt(n, item.id, item.sets) < item.sets;
   });
   return idx === -1 ? w.ex.length - 1 : idx;
+}
+
+/**
+ * Die Nacharbeit einer Einheit festhalten, bevor in ihr etwas eingetragen wird.
+ *
+ *     Workout 4 bekam „+1 nachgeholt" auf Schulterdrücken und Crunches, 17
+ *     Sätze. Nach dem dritten Crunch-Satz endete die Einheit von selbst bei
+ *     16/17 und meldete „Alle 15 Sätze stehen".
+ *
+ * Die Nacharbeit wurde bei jedem Zeichnen neu gerechnet und fiel weg, sobald
+ * die Grundsätze standen (siehe nacharbeit() in js/plan.js). Jetzt gilt ab dem
+ * ersten Eintrag, was beim Start angesagt war – für beide Varianten, damit ein
+ * Wechsel unter Mehr sie nicht verliert. Eine Einheit, die das schon hat, oder
+ * eine eigene ohne Nacharbeit bleibt unberührt.
+ */
+function nachFesthalten(n) {
+  if (istCustom(n) || !PLAN[n - 1]) return;
+  const e = store.getState().log[n];
+  if (e && e.nachFest) return;
+  const jeModus = {};
+  // Und mit ihr, woher sie kommt (die Zeile unter der Satzzahl, nachZeile()) –
+  // ebenfalls für beide Varianten. Nur für Übungen, die wirklich Nacharbeit
+  // tragen, und nur als schlichte Objekte: Das landet im Speicher.
+  const warum = {};
+  ['db', 'bw'].forEach((m) => {
+    const x = nacharbeit(PLAN[n - 1], m);
+    jeModus[m] = x ? Object.fromEntries(x) : {};
+    const p = x ? nacharbeitPlan(PLAN[n - 1], m) : null;
+    warum[m] = p ? Object.fromEntries([...p.warum].filter(([id]) => x.has(id))) : {};
+  });
+  store.halteNachFest(n, jeModus, warum);
+  const ex = Object.entries(jeModus).filter(([, o]) => Object.keys(o).length)
+    .map(([m, o]) => `${m}:${Object.keys(o).join('+')}`).join(' ');
+  if (ex) notieren('nach', { n, ex });
+}
+
+/**
+ * Den eingefügten Zusatztag festhalten, bevor in der Einheit etwas eingetragen
+ * wird – wie die Nacharbeit, aus demselben Grund und am selben Ort.
+ *
+ *     „Was soll das mit zweite Einheit. Wenn heute Übungen dazu kommen dann
+ *      soll alles flüssig in EINE Einheit"
+ *
+ * Bis zum ersten Eintrag kommen die Übungen live aus dem Träger (dem
+ * „Zusatztag Woche N" unter den eigenen Workouts) und werden mit ihm neu
+ * gerechnet. Ab dem ersten Eintrag ist die Einheit angefangen, und
+ * angefangene Einheiten bleiben fest: Fest steht jetzt genau das, was auf dem
+ * Bildschirm stand (zusatzListe() in js/plan.js), und der Träger ist im selben
+ * Schritt verbraucht (store.halteZusatz()).
+ *
+ * Muss **vor** dem Eintrag laufen: Danach ist die Einheit angefangen, die
+ * Bindung greift nicht mehr (zusatzEinheit()), und der Zusatz wäre aus der
+ * Liste gefallen – samt dem Satz, der gerade abgehakt wird. Und vor
+ * paarungFesthalten(), damit der Schlüssel der Paarung alle Übungen kennt.
+ */
+function zusatzFesthalten(n) {
+  if (istCustom(n) || !PLAN[n - 1]) return;
+  const e = store.getState().log[n];
+  if (festerZusatz(e) || store.isStarted(n)) return;
+  const b = zusatzBindung();
+  if (!b || b.w.n !== n) return;
+  const zus = workoutByNo(n, store.workoutMode(n)).ex.filter((it) => it.zusatz && it.zusatz.live);
+  if (!zus.length) return;
+  const warum = b.c.warum || {};
+  store.halteZusatz(n, {
+    woche: b.woche,
+    ex: zus.map((it) => {
+      const x = b.c.ex.find((y) => y.id === it.id);
+      return { id: it.id, sets: x.sets, bwSets: x.sets };
+    }),
+    warum: Object.fromEntries(zus.map((it) => [it.id, warum[it.id]]).filter(([, v]) => v)),
+  }, b.c.id);
+  notieren('zusatz', { n, woche: b.woche, ex: zus.map((it) => it.id).join('+'), traeger: b.c.id });
+}
+
+/*
+ * Woher ein Nachholsatz kommt – eine stille Zeile an der Übung.
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * An der Übung stand „4 Sätze … +1 nachgeholt". Die 4 las sich wie eine neue
+ * Grundzahl, und wofür der Satz nachgeholt wird, stand nirgends. Jetzt steht
+ * an der Übung die ganze Satzzahl („4 Sätze", seit v240 wieder die Summe –
+ * v238 und v239 schrieben „3 + 1", siehe umfangText() in js/anzeige.js) und
+ * darunter, wofür: der Tag und die Übung, die den Rückstand hinterlassen
+ * haben, mit ihren Haken. „abgehakt",
+ * weil die App nur Haken kennt – ob jemand den Satz gemacht und nicht
+ * abgehakt hat, weiß sie nicht.
+ *
+ * Kein Popup, kein Toast, nichts wegzutippen: Die Zeile steht da, wo man den
+ * Satz macht, und wer sie nicht braucht, liest darüber hinweg.
+ */
+
+/**
+ * Der Tag einer früheren Einheit, vom Tag der Einheit aus gesehen: in
+ * derselben Woche das Kürzel („Sa"), sonst mit Datum („Do 24.9.").
+ * Keine relativen Wörter wie „vorgestern" – die Zeile bleibt im Verlauf
+ * stehen, und dort stimmte „vorgestern" schon morgen nicht mehr.
+ *
+ * In beide Richtungen: Die Zeile am Ruhetag nennt auch kommende Tage so
+ * („Mo", ruhetagZeile()). `mitDatum` erzwingt das Datum – dort, wo im selben
+ * Satz ein zweiter Tag dasselbe Kürzel trägt.
+ */
+function tagKurz(isoQuelle, isoEinheit, mitDatum = false) {
+  const wt = fmtDate(isoQuelle).slice(0, 2);
+  const d = Math.abs(daysBetween(isoQuelle, isoEinheit));
+  if (!mitDatum && d >= 1 && d <= 6) return wt;
+  const [, mo, ta] = isoQuelle.split('-').map(Number);
+  return `${wt} ${ta}.${mo}.`;
+}
+
+/** Die Herkunftszeile als Text (ohne HTML). `warum` aus nachWarumJe(), oder null. */
+function nachText(w, mode, it, warum) {
+  const N = it.nach;
+  const heute = effDate(w);
+  const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), heute) : `Workout ${nq}`);
+  // Die Quelle heißt so, wie sie an *ihrem* Tag hieß – im Modus, in dem sie
+  // trainiert wurde (`mq`, fünfter Eintrag in q). Wer am Donnerstag ohne
+  // Hanteln trainiert hat, hat die Standwaage gemacht, nicht das Rumänische
+  // Kreuzheben; die Zeile soll gerade das „aber ich hab doch …" beantworten,
+  // da darf sie keine Übung nennen, die es an dem Tag nicht gab.
+  const name = (id, mq) => {
+    const ex = EX_BY_ID.get(id);
+    return (ex && (ex[mq || mode] || ex.db || ex.bw) || {}).name || id;
+  };
+  // Ohne festgehaltene Erklärung (Altbestand, oder keine Rechnung kommt mehr
+  // auf dieselben Sätze): nur die Tage, aus denen der Rest stammen kann – die
+  // abgeschlossenen Einheiten dieser Woche vor dieser. Mit Wochentag wie der
+  // Rest der Zeile („am Sa …", „(Sa 1 von 3)"), nicht mit Workout-Nummern,
+  // die beim Training niemand im Kopf hat.
+  const spanne = () => {
+    const start = Math.floor((w.n - 1) / WEEK_SESSIONS) * WEEK_SESSIONS + 1;
+    const tage = [];
+    for (let k = start; k < w.n; k++) if (completedMode(k)) tage.push(tag(k));
+    if (!tage.length) return '';
+    const liste = tage.length === 1 ? tage[0] : `${tage.slice(0, -1).join(', ')} und ${tage[tage.length - 1]}`;
+    return `Rest vom ${liste}`;
+  };
+  const mitSpanne = (kopf) => { const s = spanne(); return s ? `${kopf}: ${s}` : kopf; };
+  const q = warum && Array.isArray(warum.q) ? warum.q : [];
+  const g = warum && Array.isArray(warum.g) ? warum.g : [];
+  if (!warum) return mitSpanne(`+${N} nachgeholt`);
+  // Dieselbe Übung war an einem früheren Tag zu kurz: Das beantwortet die
+  // Frage direkt – „vorgestern hab ich doch …".
+  if (q.length === 1 && q[0][1] === it.id) {
+    const [nq, , ab, von] = q[0];
+    return ab > 0
+      ? `+${N} nachgeholt: am ${tag(nq)} nur ${ab} von ${von} Sätzen abgehakt`
+      : `+${N} nachgeholt: am ${tag(nq)} keinen von ${von} Sätzen abgehakt`;
+  }
+  const fuer = g.length ? ` für ${g.map((m) => MUSCLE_LABEL[m] || m).join(' und ')}` : '';
+  if (!q.length) return mitSpanne(`+${N} nachgeholt${fuer}`);
+  const quellen = q.slice(0, 2).map(([nq, id, ab, von, mq]) => `${name(id, mq)} (${tag(nq)} ${ab} von ${von})`).join(', ');
+  const mehr = q.length > 2 ? ` und ${q.length - 2} weitere` : '';
+  return `+${N} nachgeholt${fuer}: ${quellen}${mehr}`;
+}
+
+/** Die Zeile unter der Satzzahl, oder nichts, wenn die Übung keine Nacharbeit trägt. */
+function nachZeile(n, mode, it, warumJe) {
+  if (!it.nach || istCustom(n) || !PLAN[n - 1]) return '';
+  const w = PLAN[n - 1];
+  const je = warumJe === undefined ? nachWarumJe(w, mode) : warumJe;
+  const text = nachText(w, mode, it, (je && je[it.id]) || null);
+  return `<div class="nach-warum" id="nw-${esc(it.id)}">${esc(text)}</div>`;
+}
+
+/*
+ * Woher eine Übung des Zusatztags kommt – dieselbe stille Zeile wie bei der
+ * Nacharbeit, an derselben Stelle.
+ *
+ *     „Check ich nicht. Wann soll ich das machen?"
+ *
+ * Das fragte Tobi, als der Zusatztag allein auf der Startseite stand:
+ * „Zusatztag Woche 2 · 2 Übungen · 6 Sätze", und kein Wort davon, woher die
+ * Übungen kommen und warum sie heute dran sind. Jetzt steckt er in der
+ * Einheit des Tages (einheitEx() in js/plan.js), der Kopf zählt sie mit
+ * („6 Übungen"), und an der Übung steht, was sie nachholt: die Woche, die Gruppe
+ * und die Übung, die dort liegen geblieben ist, mit ihren Haken.
+ *
+ * Kein Popup, kein Toast, nichts zum Wegtippen – wie bei der Nacharbeit.
+ */
+
+/** Die Herkunftszeile einer Zusatzübung als Text (ohne HTML). */
+function zusatzText(w, it) {
+  const z = it.zusatz;
+  // Vom Tag der Einheit aus gesehen – beim allein stehenden Zusatztag ist das
+  // der Tag, an dem er gemacht wird.
+  const bezug = w.custom ? (store.startedOn(w.n) || todayISO()) : effDate(w);
+  const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), bezug) : `Workout ${nq}`);
+  const name = (id, mq) => {
+    const ex = EX_BY_ID.get(id);
+    return (ex && (ex[mq] || ex.db || ex.bw) || {}).name || id;
+  };
+  const kopf = `Nachgeholt aus Woche ${z.woche}`;
+  const warum = z.warum;
+  if (!warum) return kopf;
+  const q = Array.isArray(warum.q) ? warum.q : [];
+  const g = Array.isArray(warum.g) ? warum.g : [];
+  // Dieselbe Übung ist in jener Woche liegen geblieben: Das beantwortet das
+  // „Wann soll ich das machen?" am kürzesten.
+  if (q.length === 1 && q[0][1] === it.id) {
+    const [nq, , ab, von] = q[0];
+    return ab > 0
+      ? `${kopf}: am ${tag(nq)} nur ${ab} von ${von} Sätzen abgehakt`
+      : `${kopf}: am ${tag(nq)} keinen von ${von} Sätzen abgehakt`;
+  }
+  const fuer = g.length ? ` für ${g.map((m) => MUSCLE_LABEL[m] || m).join(' und ')}` : '';
+  if (!q.length) return `${kopf}${fuer}`;
+  const quellen = q.slice(0, 2).map(([nq, id, ab, von, mq]) => `${name(id, mq)} (${tag(nq)} ${ab} von ${von})`).join(', ');
+  const mehr = q.length > 2 ? ` und ${q.length - 2} weitere` : '';
+  return `${kopf}${fuer}: ${quellen}${mehr}`;
+}
+
+/** Die Zeile an einer Zusatzübung, oder nichts. `w` ist die Einheit (workoutByNo()). */
+function zusatzZeile(w, it) {
+  if (!it.zusatz) return '';
+  return `<div class="nach-warum" id="zw-${esc(it.id)}">${esc(zusatzText(w, it))}</div>`;
+}
+
+/**
+ * Ist dieser Satz einer der nachgeholten (sie stehen am Ende)? Bei einer Übung
+ * aus dem Zusatztag ist es jeder.
+ */
+const istNachSatz = (it, idx) => !!it.zusatz || (!!it.nach && idx >= it.sets - it.nach);
+
+/** Beschriftung eines Satzknopfs – der Nachholsatz sagt, dass er einer ist. */
+function satzLabel(it, idx, seite = '') {
+  if (seite) return `Satz ${idx + 1} von ${it.sets}, ${seite}${istNachSatz(it, idx) ? ', nachgeholt' : ''}, erledigt`;
+  return `Satz ${idx + 1} von ${it.sets}${istNachSatz(it, idx) ? ', nachgeholt,' : ''} erledigt`;
+}
+
+/**
+ * Die Satzknöpfe einer Übung – bei einer einseitigen zwei je Satz.
+ *
+ *     „Vllt sollten bei Übungen bei denen man mit beiden Körperteilen
+ *      unabhängig voneinander macht jedesmal abhaken oder? Also hier zb 6?"
+ *
+ * Ein Satz bleibt ein Satz: Er steht, wenn beide Seiten stehen, und erst dann
+ * zählt er – im Kopf, in der Statistik, in der Nacharbeit. Die beiden Hälften
+ * stehen deshalb dicht beieinander als ein Knopf, der geteilt ist, und nicht
+ * als sechs gleichrangige. Jede hat ihren eigenen Haken (toggle-side).
+ */
+function satzKnoepfe(it, sets, klasse) {
+  if (!einseitig(it)) {
+    return sets.map((s, idx) => `
+      <button type="button" class="${klasse} ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
+              aria-label="${satzLabel(it, idx)}"${nachVerweis(it, idx)}
+              data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('');
+  }
+  return sets.map((s, idx) => `
+      <div class="set-paar ${s.done ? 'on' : ''}" role="group" aria-label="Satz ${idx + 1} von ${it.sets}">${
+        [['l', 'links', 'L'], ['r', 'rechts', 'R']].map(([k, wort, kurz]) => {
+          const an = !!s.done || s.seite === k;
+          return `<button type="button" class="${klasse} set-seite ${an ? 'on' : ''}" aria-pressed="${an}"
+              aria-label="${satzLabel(it, idx, wort)}"${nachVerweis(it, idx)}
+              data-act="toggle-side" data-ex="${it.id}" data-i="${idx}" data-seite="${k}">${an ? '✓' : idx + 1}<small>${kurz}</small></button>`;
+        }).join('')}</div>`).join('');
+}
+
+/**
+ * Verweis auf die Herkunftszeile – nur am Nachholsatz selbst. An allen Knöpfen
+ * hing sonst „+1 nachgeholt für …" auch an Satz 1 bis 3, und die
+ * Vorlesefunktion hängte die Nacharbeit an jeden Grundsatz.
+ */
+function nachVerweis(it, idx) {
+  // Eine Übung aus dem Zusatztag ist ganz nachgeholt – jeder Knopf verweist
+  // auf ihre Herkunftszeile (zusatzZeile()).
+  if (it.zusatz) return ` aria-describedby="zw-${esc(it.id)}"`;
+  return istNachSatz(it, idx) ? ` aria-describedby="nw-${esc(it.id)}"` : '';
+}
+
+/**
+ * Die Sätze einer Übung zum Anzeigen.
+ *
+ * Eine Übung aus einem noch nicht festgehaltenen Zusatztag (`live`) wird nur
+ * gelesen, nicht angelegt: Bis zum ersten Eintrag kann der Zusatztag noch neu
+ * gerechnet werden oder wegfallen, und dann lägen ein `soll`-Stempel und ein
+ * leeres Satzfeld einer Übung im Protokoll, die nie in dieser Einheit stand –
+ * festeListen() und die Nacharbeit läsen sie als „stand da, nicht angefasst".
+ */
+function saetzeZeigen(n, mode, it) {
+  if (it.zusatz && it.zusatz.live) {
+    const arr = (store.peekSets(n, mode, it.id) || []).slice();
+    while (arr.length < it.sets) arr.push({ w: '', done: false });
+    return arr;
+  }
+  return store.getSets(n, mode, it.id, it.sets, it.nach || 0);
 }
 
 /** Zur nächsten offenen Übung rücken und sagen, welche das ist. */
@@ -1080,14 +2252,106 @@ function weiterZurNaechsten(n, mode) {
  * kürzer. Genau das ist der ganze Trick, und er steht in dieser einen Zeile.
  * ------------------------------------------------------------------ */
 
-/** Wann war diese Übung zuletzt dran? Nur für diese Sitzung, im Arbeitsspeicher. */
-const satzUhr = new Map();
+/**
+ * Wann war diese Übung zuletzt dran?
+ *
+ * Bis v222 nur im Arbeitsspeicher. Seit die Leiste unten der angezeigten Übung
+ * folgt (leistenPause()), wird hier auch nachgelesen, wenn man nur zur
+ * anderen Übung wischt – und nach einem Neuladen der Seite (kurz aus der App,
+ * das Handy hat sie verworfen) wäre die Uhr leer gewesen: Die laufende Pause
+ * wäre beim ersten Wischen verschwunden. Deshalb steht sie auch im Gerät, nur
+ * dort, nie in der Sicherung, und nach drei Stunden ist sie bedeutungslos.
+ */
+const UHR_KEY = 'workout.satzuhr.v1';
+const uhrRoh = (() => {
+  try {
+    const roh = JSON.parse(localStorage.getItem(UHR_KEY) || 'null');
+    if (roh && Array.isArray(roh.m) && Date.now() - roh.t < 3 * 3600 * 1000) return roh;
+  } catch { /* kein Speicher – dann eben nur im Arbeitsspeicher */ }
+  return null;
+})();
+const satzUhr = new Map(uhrRoh ? uhrRoh.m : []);
+/**
+ * Wie viel „+30 s" in der Uhr einer Übung steckt.
+ *
+ * satzUhr verschiebt dafür den Zeitpunkt, damit die Wartezeit stimmt. Das Ganze,
+ * an dem der Balken unten misst, wusste davon nichts: Nach „+30 s", einmal weg-
+ * und zurückgewischt, stand die Restzeit bei 2:57 und das Ganze bei 2:30 – der
+ * Balken lief mit 118 % über den Rand und blieb eine halbe Minute voll stehen
+ * (gefunden bei der Durchsicht).
+ */
+const satzPlus = new Map(uhrRoh && Array.isArray(uhrRoh.p) ? uhrRoh.p : []);
+const uhrMerken = () => {
+  try {
+    localStorage.setItem(UHR_KEY, JSON.stringify({ t: Date.now(), m: [...satzUhr], p: [...satzPlus] }));
+  } catch (e) {
+    notieren('speicher', { was: 'satzuhr', ok: false, name: e && e.name });   // s. o.
+  }
+};
 
 const superAn = () => !!store.getState().supersatz;
 
-/** Die Paare dieser Einheit. Neu gerechnet ist billiger als falsch gemerkt. */
+/**
+ * Die Paare dieser Einheit – und zwar, sobald trainiert wird, immer dieselben.
+ *
+ * Seit die Scheiben mitreden (passtZusammen() fragt zusammen() in
+ * js/scheiben.js), hängt ein Paar am Gewicht. Neu gerechnet bei jedem Aufruf
+ * hieß das: Ein Tipp auf + mitten im Supersatz löste das Paar auf. Der Hinweis
+ * „Im Wechsel mit …" verschwand, nach dem nächsten Satz blieb die App bei
+ * derselben Übung, und die angefangene Partnerübung rutschte hinter das nächste
+ * Paar – bei Hip Thrust ↔ Schulterdrücken sechs Sätze weit (gefunden bei der
+ * Durchsicht). Dasselbe beim Ändern des Vorrats unter Mehr. Die Paarung ist
+ * aber ein Plan für diese Einheit, wie die Rüst-Reihenfolge
+ * (ruestOrderStabil() in js/gewichte.js), keine ständig nachgeführte Rechnung.
+ *
+ * Festgehalten wird sie deshalb mit dem ersten abgehakten Satz, im Protokoll
+ * der Einheit (paarungFesthalten()) – im Arbeitsspeicher allein hätte ein
+ * Neuladen mit dem neuen Gewicht sie genauso gekippt. Vorher richtet sie sich
+ * nach Gewicht und Vorrat: Wer unter Mehr seinen Vorrat einträgt, soll in der
+ * Vorschau sehen, was daraus folgt. Ändern sich die Übungen selbst (Beschwerde
+ * angehakt, Gerät weg, andere Fassung), ist es eine andere Einheit und wird
+ * neu gepaart.
+ *
+ * Reichen die Scheiben nach einer Erhöhung nicht mehr für beide Aufbauten,
+ * bleibt das Paar trotzdem – die Fokusansicht sagt dann, dass zwischen den
+ * Sätzen umzustecken ist (scheibenReichen()), statt still umzustellen.
+ */
 function superGruppen(n, mode) {
-  return paare(workoutByNo(n, mode).ex.map((x) => resolve(x, mode)), mode);
+  const items = workoutByNo(n, mode).ex.map((x) => resolve(x, mode));
+  const fest = festePaarung(n, mode, items);
+  return fest || paare(items, mode);
+}
+
+/** Welche Übungen eine Paarung meint – unabhängig von ihrer Reihenfolge. */
+const paarungsKey = (items) => items.map((x) => x.id).sort().join(',');
+
+/**
+ * Die festgehaltene Paarung, falls sie zu genau diesen Übungen passt. Nach
+ * der Reihenfolge wird nicht gefragt: Die Rüst-Reihenfolge wird beim Laden neu
+ * bestimmt und hängt am Gewicht – an ihr darf eine festgehaltene Paarung nicht
+ * zerbrechen.
+ */
+function festePaarung(n, mode, items) {
+  const fest = store.paarung(n, mode);
+  if (!fest || fest.key !== paarungsKey(items) || !Array.isArray(fest.gruppen)) return null;
+  const byId = new Map(items.map((x) => [x.id, x]));
+  const gruppen = fest.gruppen.map((g) => (Array.isArray(g) ? g.map((id) => byId.get(id)) : []));
+  const ids = gruppen.flat();
+  // Was aus einer Sicherung kommt, wird nicht geglaubt, sondern nachgezählt.
+  const heil = gruppen.every((g) => g.length >= 1 && g.length <= 2 && g.every(Boolean))
+    && ids.length === items.length && new Set(ids).size === items.length;
+  return heil ? gruppen : null;
+}
+
+/** Mit dem ersten abgehakten Satz: Die Paarung gilt ab jetzt für die Einheit. */
+function paarungFesthalten(n, mode) {
+  if (!superAn()) return;
+  const items = workoutByNo(n, mode).ex.map((x) => resolve(x, mode));
+  if (festePaarung(n, mode, items)) return;
+  store.setPaarung(n, mode, {
+    key: paarungsKey(items),
+    gruppen: paare(items, mode).map((g) => g.map((x) => x.id)),
+  });
 }
 
 /** Steht diese Übung im Wechsel, und mit wem? */
@@ -1095,6 +2359,105 @@ function superPartner(n, mode, id) {
   if (!superAn()) return null;
   const g = gruppeVon(superGruppen(n, mode), id);
   return g && g.length === 2 ? g.find((x) => x.id !== id) : null;
+}
+
+/**
+ * Was die Rüstzeile im Supersatz zusätzlich wissen muss (ruestHint() in
+ * js/gewichte.js): in welcher Reihenfolge die Übungen wirklich drankommen, und
+ * mit welcher Belegung diese Übung neben ihrem Partner steht. Ohne Supersatz
+ * nichts davon – dann gilt die Liste.
+ *
+ * Dazu, ob sie die zweite Kurzhantel nimmt: Im Paar aus zwei Übungen mit je
+ * einer Hantel (eigeneGriffe() in js/supersatz.js) bleibt die erste für den
+ * Partner geladen, der vorher dran war. Ohne das stünde beim Wadenheben
+ * „Umbauen: Kurzhantel von 20 auf 10 kg" – genau der Umbau, den das Paar
+ * erspart. Reichen die Scheiben nicht für beide, wird doch umgesteckt; dann
+ * gilt die Zeile wie ohne Paar, passend zum Hinweis darüber.
+ */
+function ruestMit(n, mode, it) {
+  if (!superAn()) return {};
+  const ablauf = superGruppen(n, mode).flatMap((g) => schritte(g).map((s) => s.id));
+  const partner = superPartner(n, mode, it.id);
+  const beide = partner ? paarBelegung(it, partner, mode) : null;
+  const zweiteHantel = !!partner && eigeneGriffe(it, partner, mode)
+    && ablauf.indexOf(partner.id) < ablauf.indexOf(it.id) && scheibenReichen(it, partner, mode);
+  return { ablauf, belegung: (beide && beide.get(it.id)) || null, zweiteHantel };
+}
+
+/**
+ * Im Supersatz zeigt die Leiste unten die Pause der Übung, die gerade zu
+ * sehen ist.
+ *
+ *     „Bei supersatz soll unten die pausenzeit angezeigt werden von der Übung
+ *      die grad angezeigt wird"
+ *
+ * Im Wechsel laufen zwei Pausen zugleich, eine je Übung. Sie sind aber nicht
+ * gleich wichtig, und das trennt zwei Fragen:
+ *
+ *   **Was klingelt.** Ton, Vibration und Systemmeldung gehören der Pause, auf
+ *   die der Ablauf wartet – der des nächsten Schritts, wie ihn superWeiter()
+ *   oder das Abhaken gestartet hat (`store.rest`). Die läuft weiter, egal
+ *   wohin man wischt. Zuerst tauschte die Leiste beim Wischen auch das
+ *   Signal mit aus: Zur dritten, noch nicht begonnenen Übung gewischt, war die
+ *   Pause samt Ton und Meldung weg; zum Partner gewischt, klingelte es zu
+ *   dessen Ende statt zu dem der Übung, die als Nächste dran ist (gefunden
+ *   bei der Durchsicht). Die Pause des Partners klingelt bewusst nicht: Ist
+ *   sie kürzer, käme ihr Ton, während man noch auf die andere wartet.
+ *
+ *   **Was unten steht.** Die Pause der gezeigten Übung: ist es die laufende,
+ *   genau die; sonst ihre eigene, aus der Uhr (satzUhr) gerechnet wie in
+ *   superWeiter(); ist die Übung erholt, fertig oder noch gar nicht dran
+ *   gewesen, nichts. Wischt man zurück, steht die andere wieder da – nichts
+ *   davon ist verloren, es wird nur neu abgelesen.
+ *
+ * Abgelesen wird an dem, was renderFocus() zuletzt gezeichnet hat
+ * (`ui.gezeigt`), und render() fragt nach jedem Zeichnen neu. Damit passt die
+ * Leiste zu jeder Stelle, die ui.focusIdx setzt – vorher wurde nur nach dem
+ * Wischen und Tippen nachgezogen, und nach „Training fortsetzen" oder dem
+ * Neuladen stand unter den Liegestützen die Pause der Pull-ups.
+ *
+ * Ohne Supersätze bleibt alles beim Alten: Dort gibt es nur eine Pause.
+ */
+function leistenPause() {
+  const rest = store.getState().rest;
+  const g = ui.gezeigt;
+  if (!superAn() || !g) return rest;
+  if (rest && rest.ex === g.id) return rest;
+  const zuletzt = satzUhr.get(g.id);
+  const ende = zuletzt ? zuletzt + g.pause * 1000 : 0;
+  if (!(g.fertig > 0 && g.fertig < g.sets && ende - Date.now() >= 1000)) return null;
+  return {
+    endsAt: ende,
+    total: g.pause + (satzPlus.get(g.id) || 0),
+    next: `Satz ${g.fertig + 1} von ${g.sets} · ${g.name}`,
+    ex: g.id,
+  };
+}
+
+/**
+ * Steht dieser Satz schon? Die Frage, die naechsterSchritt() stellt – beim
+ * Abhaken (superWeiter) und beim Fortsetzen (firstOpenExercise) wörtlich
+ * dieselbe, sonst landeten beide an verschiedenen Stellen. Nur nachgesehen:
+ * peekSets() legt anders als getSets() nichts im Protokoll an.
+ *
+ * **Eine Übung, die über beide Modi fertig ist, ist fertig.** Umschalten geht
+ * auch mitten in einer Einheit (set-modus), und saetzeErledigt() zählt die
+ * Sätze aus Hanteln und Bodyweight zusammen – so steht es auf der Karte, im
+ * Fortschritt und beim Neuladen. Gefragt wurde hier bis v219 nur der Eimer des
+ * gerade eingestellten Modus: Paar 1 mit Hanteln durch, dann auf Bodyweight
+ * umgestellt, und „Training fortsetzen", das Weiterrücken nach Paar 2 und das
+ * Neuladen führten alle zurück zu Paar 1 – zu Übungen, deren Karte „fertig"
+ * sagt. Welcher Satz innerhalb einer halb fertigen Übung dran ist, bleibt die
+ * Frage des eingestellten Modus; nur ganz Fertiges gilt nie mehr als offen.
+ */
+function satzSteht(n, mode) {
+  const soll = new Map(workoutByNo(n, mode).ex.map((x) => [x.id, x.sets]));
+  return (exId, satz) => {
+    const arr = store.peekSets(n, mode, exId);
+    if (arr && arr[satz] && arr[satz].done) return true;
+    const s = soll.get(exId);
+    return s > 0 && saetzeErledigt(n, exId, s) >= s;
+  };
 }
 
 /**
@@ -1106,19 +2469,13 @@ function superPartner(n, mode, id) {
 function superWeiter(n, mode, id) {
   if (!superAn() || !ui.focus) return false;
   const w = workoutByNo(n, mode);
-  const items = w.ex.map((x) => resolve(x, mode));
-  const g = gruppeVon(paare(items, mode), id);
+  const g = gruppeVon(superGruppen(n, mode), id);
   if (!g || g.length < 2) return false;
 
-  const erledigt = (exId, satz) => {
-    const v = items.find((x) => x.id === exId);
-    const arr = store.getSets(n, mode, exId, v.sets);
-    return !!(arr[satz] && arr[satz].done);
-  };
-  const ziel = naechsterSchritt(g, erledigt);
+  const ziel = naechsterSchritt(g, satzSteht(n, mode));
   if (!ziel) return false;              // Paar durch – der normale Weg greift
 
-  const v = items.find((x) => x.id === ziel.id);
+  const v = g.find((x) => x.id === ziel.id);
   const idx = w.ex.findIndex((x) => x.id === ziel.id);
   if (idx >= 0) ui.focusIdx = idx;
 
@@ -1127,7 +2484,7 @@ function superWeiter(n, mode, id) {
   const seit = zuletzt ? (Date.now() - zuletzt) / 1000 : Infinity;
   const wartet = Math.max(0, Math.round(restFor(v) - seit));
   if (wartet > 0) {
-    startRest(v.name, ziel.satz - 1, v.sets, wartet);
+    startRest(v.name, ziel.satz - 1, v.sets, wartet, ziel.id);
   } else if (store.getState().rest) {
     endRest(false);
   }
@@ -1154,15 +2511,23 @@ function progressStrip(n, mode, w, cur) {
     <div class="prog">
       ${w.ex.map((item, k) => {
         const v = resolve(item, mode);
-        const arr = store.peekSets(n, mode, v.id) || [];
-        const done = arr.slice(0, v.sets).filter((x) => x.done).length;
+        // Über beide Modi gezählt, wie der Kopf daneben und die Listenansicht
+        // (saetzeErledigt()). Bis hierher nur der Eimer des eingestellten
+        // Modus: Nach dem Umschalten auf Bodyweight stand die mit Hanteln
+        // fertige Übung 1 mit 0 von 2 Feldern da, während der Kopf „2/16
+        // Sätze" meldete.
+        const done = saetzeErledigt(n, v.id, v.sets);
+        // Ein halber Satz (eine Seite steht) ist ein halbes Feld – gezählt
+        // wird er nicht, aber man soll ihn sehen.
+        const halb = Math.min(v.sets - done, (store.peekSets(n, mode, v.id) || [])
+          .slice(0, v.sets).filter((s) => s && !s.done && s.seite).length);
         return `
         <button type="button" class="prog-ex ${k === cur ? 'cur' : ''} ${done === v.sets ? 'done' : ''}"
                 style="flex-grow:${v.sets}" data-act="focus-goto" data-i="${k}"
-                aria-label="Übung ${k + 1}, ${esc(v.name)}, ${done} von ${v.sets} Sätzen"
+                aria-label="Übung ${k + 1}, ${esc(v.name)}, ${done} von ${v.sets} Sätzen${v.zusatz ? ', nachgeholt' : ''}"
                 aria-current="${k === cur}">
           <span class="prog-sets">
-            ${Array.from({ length: v.sets }, (_, x) => `<i class="${x < done ? 'on' : ''}"></i>`).join('')}
+            ${Array.from({ length: v.sets }, (_, x) => `<i class="${x < done ? 'on' : (x < done + halb ? 'halb' : '')}"></i>`).join('')}
           </span>
         </button>`;
       }).join('')}
@@ -1177,6 +2542,18 @@ function renderFocus() {
   const n = ui.workoutNo;
   const w = workoutByNo(n);
   const mode = store.workoutMode(n);
+  // Die ganze Einheit ins Protokoll, nicht nur die angezeigte Übung – so wie
+  // die Listenansicht es mit jeder Karte tut. Sonst kennt ein späterer
+  // Planwechsel von einer angefangenen Einheit nur das erste Paar und schreibt
+  // sie darauf fest (siehe festReparieren()). Ohne die Übungen eines noch
+  // nicht festgehaltenen Zusatztags – die werden nur gelesen (saetzeZeigen()).
+  if (!w.custom) {
+    w.ex.forEach((x) => {
+      if (x.zusatz && x.zusatz.live) return;
+      const v = resolve(x, mode);
+      store.getSets(n, mode, v.id, v.sets, v.nach || 0);
+    });
+  }
   const prog = progressOf(n, mode);
 
   // Eine Einheit kann leer sein: mit genug angehakten Beschwerden fällt jede
@@ -1191,8 +2568,18 @@ function renderFocus() {
   const i = Math.min(Math.max(0, ui.focusIdx), w.ex.length - 1);
   const item = w.ex[i];
   const it = resolve(item, mode);
-  const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
+  const sets = saetzeZeigen(n, mode, it).slice(0, it.sets);
   const doneCount = sets.filter((s) => s.done).length;
+  // Sätze aus dem anderen Modus zählen mit – wie auf der Karte der Liste,
+  // samt demselben Satz darunter. Sonst stand eine schon fertige Übung hier
+  // mit leeren Knöpfen und grauem „Weiter", und ein Tipp darauf buchte einen
+  // Satz, den es nie gab (siehe toggle-set).
+  const anderswo = Math.max(0, saetzeErledigt(n, it.id, it.sets) - doneCount);
+  const exFertig = doneCount + anderswo >= it.sets;
+  ui.gezeigt = {
+    id: it.id, name: it.name, sets: it.sets, pause: restFor(it),
+    fertig: saetzeErledigt(n, it.id, it.sets),
+  };
   const kg = it.weight === null ? null : workingWeight(it.id);
   const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
 
@@ -1228,6 +2615,7 @@ function renderFocus() {
          verloren geht. Aufgefallen ist das erst, als der Test den Speicher
          wirklich vollgeschrieben hat. -->
     ${speicherWarnung()}
+    ${tonHinweis()}
 
     <div class="focus-fig" id="focusFig"></div>
 
@@ -1238,26 +2626,47 @@ function renderFocus() {
          dritte Satz war Nacharbeit aus derselben Woche, aber in dieser Ansicht
          stand nur „3 Sätze" – und dann sucht man den Grund da, wo man zuletzt
          etwas umgestellt hat. Der Supersatz ändert keine einzige Satzzahl; er
-         ordnet nur um. -->
-    <div class="focus-meta">${it.sets} Sätze × ${esc(mitWdh(repsLabel(it, mode)))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}${
-      it.nach ? ` · <b>+${it.nach} nachgeholt</b>` : ''}</div>
+         ordnet nur um.
+         Und es muss dastehen, *wofür*: *„Jetzt vier Sätze je Übung? Wegen
+         Wiederholung? Aber vorgestern hab ich ja goblet sqauds gemacht"* Die 4
+         las sich wie eine neue Grundzahl. Darunter steht deshalb die Herkunft
+         (nachZeile()). Im Supersatz nur an der gezeigten Übung – die
+         Nacharbeit des Partners steht da, wenn er dran ist.
+
+         Die Zahl selbst ist die Summe, „4 Sätze", nicht „3 + 1 Sätze" wie in
+         v238 und v239: *„Da soll einfach die normale Zahl dieses Trainings
+         inkl der nachholübungen stehen. Also einfach 6 in diesem Fall.
+         Genauso bei den Sätzen"* Gemacht werden vier, und so viele Satzknöpfe
+         stehen darunter; warum es einer mehr ist, sagt die Zeile direkt unter
+         der Zahl. Für die Vorlesefunktion ist das schlichter Text wie jeder
+         andere: „4 Sätze × 8–12", und der vierte Knopf heißt „Satz 4 von 4,
+         nachgeholt" (satzLabel()). -->
+    <div class="focus-meta">${it.sets} Sätze × ${esc(mitWdh(repsLabel(it, mode)))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</div>
+    ${nachZeile(n, mode, it)}
+    ${zusatzZeile(w, it)}
     ${(() => {
       // Im Wechsel muss dastehen, mit wem – sonst wirkt der Sprung zur nächsten
       // Übung wie ein Fehler statt wie der Plan.
       const partner = superPartner(n, mode, it.id);
-      return partner ? `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}</div>` : '';
+      if (!partner) return '';
+      // Das Paar bleibt, auch wenn ein Gewicht inzwischen so gestiegen ist,
+      // dass die Scheiben nicht mehr für beide reichen – dann muss man es
+      // aber wissen, sonst steht man vor der leeren Stange.
+      const knapp = scheibenReichen(it, partner, mode) ? ''
+        : '<div class="super-hin knapp">Die Scheiben reichen nicht für beide Aufbauten – zwischen den Sätzen umstecken.</div>';
+      return `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}</div>${knapp}`;
     })()}
 
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
-      ${ruestHint(n, mode, w.ex, i)}
+      ${ruestHint(n, mode, w.ex, i, ruestMit(n, mode, it))}
       <div class="ex-weight focus-weight">
-        ${kgKnopf(it, -1)}
+        ${kgKnopf(it, -1, mode)}
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(gewichtNotiz(it.id))}` : ''}</span>
         </div>
-        ${kgKnopf(it, 1)}
+        ${kgKnopf(it, 1, mode)}
       </div>
       ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
       ${aufwaermZeile(it, mode, n)}`}
@@ -1265,11 +2674,10 @@ function renderFocus() {
     ${anfaengerZeile(it)}
 
     <div class="focus-sets">
-      ${sets.map((s, idx) => `
-        <button type="button" class="set-btn focus-set ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
-                aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
-                data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
+      ${satzKnoepfe(it, sets, 'set-btn focus-set')}
     </div>
+    ${anderswo > 0 ? `<div class="small muted ex-anderswo">${anderswo === 1 ? 'Ein Satz' : `${anderswo} Sätze`}
+      schon ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} gemacht – ${anderswo === 1 ? 'zählt' : 'zählen'} mit.</div>` : ''}
     </section>
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
@@ -1279,7 +2687,7 @@ function renderFocus() {
 
     <div class="btn-row nav">
       <button type="button" class="btn btn-ghost" data-act="focus-step" data-d="-1" ${i === 0 ? 'disabled' : ''}>← Zurück</button>
-      <button type="button" class="btn ${doneCount === it.sets ? 'btn-primary' : 'btn-ghost'}"
+      <button type="button" class="btn ${exFertig ? 'btn-primary' : 'btn-ghost'}"
               data-act="focus-step" data-d="1" ${i === w.ex.length - 1 ? 'disabled' : ''}>Weiter →</button>
     </div>
 
@@ -1295,89 +2703,59 @@ function renderFocus() {
 }
 
 /**
- * Was fertig war, bleibt fertig – einmalig nachgetragen.
+ * Bei offener App: um Mitternacht nachsehen – und dann, wenn eine Einheit von
+ * gestern liegen wird, an der kurz vorher noch trainiert wurde.
  *
- * Bis eben hielt die App nur die Häkchen fest, nicht die Aussage „dieser Tag
- * war fertig". Solange die Satzzahl gleich blieb, war das dasselbe. Sie hängt
- * aber an der Erfahrungsstufe (zwei, drei oder vier Sätze je Übung), und beim
- * Wechsel wurde aus jeder abgeschlossenen Einheit rückwirkend eine halbe.
+ * Bisher gab es keine Uhr dafür; der Tag wurde nur beim Laden und beim
+ * Zurückkommen (visibilitychange) nachgezogen. Auf dem Handy genügt das fast
+ * immer, der Bildschirm geht aus. Bleibt die App aber sichtbar – Tablet auf
+ * dem Ständer, Rechner, Handy am Ladekabel mit Display an –, stand am Morgen
+ * „Gestern · Workout 12" mit „Training fortsetzen" da, bis jemand die App
+ * wegschaltet: genau das Bild aus Tobis Frage. Eine Uhr, die einmal am Tag
+ * feuert, kostet nichts. Läuft dabei gerade ein Training über Mitternacht,
+ * ändert sie nichts (liegenGeblieben()), sie sieht drei Stunden nach dem
+ * letzten Eintrag wieder nach.
  *
- * Neue Einheiten stempeln sich beim letzten Haken selbst ab. Für alles, was
- * vorher entstanden ist, holt das hier einmal nach: Was **jetzt** vollständig
- * ist, wird als vollständig vermerkt. Das ist keine Umdeutung, sondern die
- * Aufzeichnung dessen, was ohnehin gerade gilt – und danach überlebt sie jede
- * Umstellung.
+ * Nur bei sichtbarer Seite: Im Hintergrund schläft der Timer ohnehin, und das
+ * Zurückkommen zieht den Tag selbst nach.
  */
-function stempleFertige() {
-  const log = store.getState().log || {};
-  Object.keys(log).forEach((k) => {
-    if (log[k].done) return;
-    const n = Number(k);
-    if (!Number.isInteger(n)) return;    // eigene Einheiten zählen nicht im Plan
-    const mode = completedMode(n);
-    if (mode) store.markDone(n, mode);
-  });
+let tagesUhr = null;
+function tagesUhrStellen() {
+  clearTimeout(tagesUhr);
+  const jetzt = new Date();
+  // Über das Datum gerechnet, nicht über 24 Stunden: Der 25. Oktober hat 25.
+  let wann = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate() + 1, 0, 0, 5).getTime();
+  const { spaeter } = liegenGeblieben(todayISO(), jetzt.getTime());
+  if (spaeter && spaeter < wann) wann = spaeter + 1000;
+  tagesUhr = setTimeout(() => {
+    notieren('tag', { was: 'uhr', sichtbar: !document.hidden });
+    if (!document.hidden) tagNachziehenZeigen();
+    tagesUhrStellen();
+  }, Math.max(1000, wann - Date.now()));
 }
 
 /**
- * Der Plan hört nicht auf.
+ * Früher angefangen, als der Plan sagt: Der Restplan rückt vor – auf jedem Weg.
  *
- * Am Ende der 84 Einheiten stand bisher „🎉 Plan geschafft" und ein Knopf „Von
- * vorn beginnen". Beides ist weg, auf Ansage: *„Der Plan soll unendlich
- * laufen."* Eine Runde ist eine Buchführungseinheit, kein Ereignis, das den
- * Nutzer etwas angeht – die Zahlen dazu stehen weiter in der Statistik.
- *
- * Also rollt die Runde hier von selbst weiter: Verlauf in die Ablage, Gewichte
- * bleiben stehen, Workout 1 beginnt neu.
- *
- * **Wann** ist die einzige Frage, die dabei zu entscheiden war. Nicht sofort
- * beim letzten Haken – dann flöge man aus der gerade fertigen Einheit heraus,
- * während man noch draufschaut. Deshalb läuft das dort, wo auch das Nachrücken
- * läuft: beim Öffnen der App und beim Zurückkommen aus dem Hintergrund.
- *
- * **Auf welchen Tag** ergibt sich aus dem Plan selbst: der übliche Abstand nach
- * der letzten Einheit. Liegt der Tag schon in der Vergangenheit, zieht
- * catchUpPlan() ihn ohnehin auf heute – es braucht also keinen Sonderfall für
- * „drei Wochen nicht reingeschaut".
+ * Bisher tat das nur „Start" (start-session). Wer Workout 10 am Freitag statt
+ * am Samstag in „Übungen & Gewichte" abhakte, ließ den Plan stehen: Workout 11
+ * blieb am Montag, über „Start" wäre es am Sonntag gewesen. Dasselbe Training
+ * ergab je nach Knopf eine andere Woche – und ausfallTage() in js/plan.js, das
+ * den Rhythmus aus dem Protokoll rechnet und nicht aus `shift`, meldete den
+ * Sonntag als „Workout 11 · ausgefallen", obwohl die App an dem Tag „morgen ·
+ * Workout 11" gezeigt hatte. Jetzt gilt beim ersten Haken und bei „Alle Sätze
+ * abhaken" dasselbe wie beim Start: Ist es die nächste offene Einheit und liegt
+ * ihr Termin noch vorn, fällt sie auf heute – und ein Zusatztag, der dann in
+ * sie gehört, kommt hinein.
  */
-function rundeWeiter() {
-  if (PLAN.some((w) => !completedMode(w.n))) return false;
-  const letzte = PLAN[PLAN.length - 1];
-  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
-  const ab = addDays(store.startedOn(letzte.n) || effDate(letzte), abstand);
-  if (!store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz())) return false;
-  ui.workoutNo = PLAN[0].n;
-  ui.focus = false;
-  ui.listView = false;
-  ui.openEx.clear();
+function planVorziehen(n) {
+  if (istCustom(n) || store.isStarted(n) || firstOpen().n !== n) return false;
+  if (daysBetween(todayISO(), effDate(workoutByNo(n))) <= 0) return false;
+  const von = store.getState().shift;
+  store.setShift(shiftToToday());
+  pruefeZusatztag();
+  notieren('plan', { was: 'vorgezogen', n, von, nach: store.getState().shift });
   return true;
-}
-
-/**
- * Auf welchen Tag Workout 1 fällt, wenn ein Fokus frisch anfängt.
- *
- * Der Plan trägt feste Daten; `shift` verschiebt sie. Beim Wechsel auf einen
- * Fokus, in dem noch nie trainiert wurde, stand dieser Wert bisher auf 0 – und
- * weil alle Plandaten in der Vergangenheit liegen, zog catchUpPlan() die erste
- * Einheit sofort auf **heute**. Wer gestern und vorgestern trainiert hat, stand
- * damit vor dem dritten Trainingstag in Folge, nur weil er den Fokus gewechselt
- * hat.
- *
- * Gerechnet wird deshalb wie beim Rundenwechsel: der übliche Abstand zwischen
- * zwei Einheiten, gezählt ab dem letzten Tag, an dem tatsächlich trainiert
- * wurde. Liegt der schon in der Vergangenheit, macht catchUpPlan() daraus von
- * selbst heute – ein Sonderfall für „drei Wochen nicht reingeschaut" ist nicht
- * nötig.
- *
- * Alle Varianten beginnen am selben Datum (js/data.js), die Verschiebung passt
- * also auch auf den Plan, der gleich geladen wird.
- */
-function frischerStart() {
-  const tage = Object.values(store.getState().log || {})
-    .map((e) => e && e.startedOn).filter(Boolean).sort();
-  if (!tage.length) return store.getState().shift;
-  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
-  return daysBetween(PLAN[0].date, addDays(tage[tage.length - 1], abstand));
 }
 
 /**
@@ -1398,7 +2776,13 @@ function frischerStart() {
  * Knopf steht dann hier, statt ihn eine Ebene tiefer suchen zu lassen.
  */
 function startBlock(n, mode, prog) {
-  const laeuft = !!store.getState().session;
+  // Nur die eigene Einheit „läuft". Bis hierher genügte irgendeine laufende:
+  // Wer mitten im Training zur nächsten Einheit blätterte, sah dort „▶︎ Start",
+  // und ein Tipp ersetzte die Uhr der laufenden Einheit – die Zeit seit dem
+  // letzten Wegschalten der App war weg, ohne ein Wort.
+  const sess = store.getState().session;
+  const laeuft = !!sess && sess.n === n;
+  if (sess && !laeuft && !prog.erledigt) return laufendWoandersBlock(sess.n, prog);
 
   if (prog.erledigt && laeuft) {
     return `
@@ -1419,15 +2803,24 @@ function startBlock(n, mode, prog) {
     // vorhanden. „Abgeschlossen" ist eine Aussage über den Tag, kein Schloss:
     // Wer bei 16 von 18 abbricht und zehn Minuten später doch weitermacht,
     // darf nicht vor einer Karte ohne Knöpfe stehen.
+    //
+    // „Für heute durch" nur, wenn heute an ihr trainiert wurde – an ihrem Tag
+    // oder danach mit „Doch noch weitermachen" (store.trainiertAm()). Eine
+    // Einheit von gestern, die sich am Morgen selbst abgeschlossen hat (der
+    // Tagesabschluss), hieß sonst beim Zurückblättern „Für heute durch",
+    // unter „Gestern · Workout 12" – und dasselbe jede fertige Einheit von
+    // früher. Dann steht da, was stimmt: abgeschlossen, mit wie viel; dass die
+    // nächste von selbst kommt, ist dann längst geschehen.
+    const heute = store.trainiertAm(n, todayISO());
     return `
       <div class="fertig">
-        <div class="fertig-kopf">✓ Für heute durch</div>
+        <div class="fertig-kopf">${heute ? '✓ Für heute durch' : '✓ Abgeschlossen'}</div>
         <div class="fertig-sub">${wieViel}${
-          min ? ` · ${min} min` : ''}. Die nächste Einheit kommt von selbst.</div>
+          min ? ` · ${min} min` : ''}.${heute ? ' Die nächste Einheit kommt von selbst.' : ''}</div>
       </div>
-      ${prog.complete ? '' : `
+      ${sess ? `<div style="margin-top:8px">${zurLaufendenKnopf(sess.n)}</div>` : (prog.complete ? '' : `
       <button type="button" class="btn btn-ghost btn-block" data-act="start-session"
-              style="margin-top:8px">Doch noch weitermachen</button>`}`;
+              style="margin-top:8px">Doch noch weitermachen</button>`)}`;
   }
 
   if (prog.done) {
@@ -1452,6 +2845,94 @@ function startBlock(n, mode, prog) {
     </button>`;
 }
 
+/** Wie die laufende Einheit heißt – für Knöpfe und Hinweise. */
+function einheitTitel(k) {
+  return istCustom(k) ? ((store.customById(k) || {}).name || 'Eigenes Workout') : `Workout ${k}`;
+}
+
+/**
+ * Das Wann über dem Titel: „Heute", „Morgen", „Gestern", „in 3 Tagen", „vor
+ * 2 Tagen".
+ *
+ * Und bei einer Einheit, die an einem früheren Tag angefangen wurde und noch
+ * offen ist, „Gestern angefangen". Das ist nach dem Tagesabschluss vor allem
+ * das Training über Mitternacht: Um 0:10 stand „Gestern · Workout 12 / Sa, 24.
+ * Oktober" über der Einheit, an der man gerade sitzt – genau die Zeile, die
+ * Tobi fragen ließ: „Wieso steht da samstag? Heute ist Sonntag". „Gestern
+ * angefangen" sagt, warum. Eine abgeschlossene Einheit von gestern war
+ * gestern und heißt weiter so.
+ *
+ * Außer, an ihr wird heute weiter trainiert – „Doch noch weitermachen" nach
+ * dem Tagesabschluss: Die Sitzung läuft auf ihr, oder heute steht schon ein Satz
+ * (store.trainiertAm()). Bis zur Nachbesserung stand dann „Gestern · Workout
+ * 12 / Sa, 24. Oktober 2026" über dem Training von heute und nach dem Ende
+ * über „Für heute durch" – das Bild aus Tobis Frage. Mit „Gestern angefangen"
+ * passt beides zusammen: Die Einheit bleibt auf ihrem Tag, und der Kopf sagt,
+ * warum dort Samstag steht.
+ */
+function wannWort(w, diff) {
+  let when;
+  if (diff === 0) when = 'Heute';
+  else if (diff === 1) when = 'Morgen';
+  else if (diff === -1) when = 'Gestern';
+  else if (diff > 1) when = `in ${diff} Tagen`;
+  else when = `vor ${-diff} Tagen`;
+  if (diff < 0 && !w.custom && store.isStarted(w.n)) {
+    const s = store.getState();
+    const heuteDran = (!!s.session && String(s.session.n) === String(w.n)) || store.trainiertAm(w.n, todayISO());
+    if (!completedMode(w.n) || heuteDran) when += ' angefangen';
+  }
+  return when;
+}
+
+/**
+ * Die Zeile über dem Titel: wann und was.
+ *
+ * Ein Zusatztag, der allein steht – an einem Tag ohne Planeinheit –, hieß hier
+ * „Eigenes Workout", wie alles, was man sich selbst zusammenstellt:
+ *
+ *     „Check ich nicht. Wann soll ich das machen?"
+ *
+ * Jetzt sagt die Zeile, wann (wie bei jeder Planeinheit, „Heute") und was:
+ * „Heute · Zusatztag". Was er nachholt, steht an jeder Übung (zusatzZeile()).
+ * Ein selbst zusammengestelltes Workout bleibt „Eigenes Workout".
+ */
+function einheitAugenbraue(w, when) {
+  if (!w.custom) return `${when} · Workout ${w.n}`;
+  return ZUSATZ_NAME.test(w.name || '') ? `${when} · Zusatztag` : 'Eigenes Workout';
+}
+
+/**
+ * Eine andere Einheit läuft gerade.
+ *
+ * Der Nutzer will dabei zweierlei: nichts verlieren und nichts unbemerkt
+ * ändern. Wer mitten im Training zur nächsten Einheit blättert, schaut fast
+ * immer nur voraus – also führt der erste Knopf zurück in die laufende, ohne
+ * an ihr etwas anzurühren. Wer wirklich wechseln will (falsche Einheit
+ * erwischt), kann das, aber nur mit einem Knopf, der sagt, was passiert: Die
+ * laufende wird beendet, ihre Zeit gebucht wie beim Wegschalten der App, und
+ * ihre Sätze bleiben stehen – sie ist danach angefangen wie jede
+ * unterbrochene Einheit (start-session unten). Einfach den Startknopf zu
+ * zeigen und die Uhr still zu ersetzen, war die eine Lösung, die beides
+ * verfehlte.
+ */
+function laufendWoandersBlock(k, prog) {
+  const titel = einheitTitel(k);
+  return `
+    <div class="small muted laeuft-woanders" style="margin-bottom:8px">${esc(titel)} läuft noch.</div>
+    ${zurLaufendenKnopf(k)}
+    <button type="button" class="btn btn-ghost btn-block" data-act="start-session" style="margin-top:8px">
+      ${prog.done ? 'Diese fortsetzen' : 'Diese starten'} – ${esc(titel)} wird beendet
+    </button>`;
+}
+
+function zurLaufendenKnopf(k) {
+  return `
+    <button type="button" class="btn btn-primary btn-block btn-start" data-act="zur-laufenden">
+      ▶︎ Zurück zu ${esc(einheitTitel(k))}
+    </button>`;
+}
+
 /**
  * Hanteln oder Bodyweight – unter Mehr, als Wahl zwischen zwei Dingen.
  *
@@ -1466,11 +2947,15 @@ function startBlock(n, mode, prog) {
  * trainieren, keine Abweichung von einer Norm. Und ohne das Wort: Was hier
  * steht, gilt ab sofort und nicht „normalerweise".
  *
- * **Die offene Einheit wechselt mit**, sofern noch kein Satz steht. Ein
- * Umschalter, der nur „ab dem nächsten Mal" wirkt, während vorn unverändert die
- * alte Variante steht, sähe kaputt aus. Was schon läuft, bleibt dagegen, wie es
- * ist – mitten im Training die Übungen auszutauschen wäre das Gegenteil von
- * hilfreich, und das Protokoll führt beide Varianten getrennt.
+ * **Die laufende Einheit wechselt mit, und die vorn stehende, solange sie
+ * unberührt ist.** Ein Umschalter, der nur „ab dem nächsten Mal" wirkt, während
+ * vorn unverändert die alte Variante steht, sähe kaputt aus. Mitten im Training
+ * umzustellen ist ausdrücklich gewollt (siehe set-modus) – das Protokoll führt
+ * beide Varianten getrennt, und Sätze beider zählen zusammen. Eine schon
+ * trainierte oder angefangene, aber nicht laufende Einheit bleibt dagegen in
+ * ihrer Variante: Hier stand einmal, sie bleibe, „wie sie ist", und der Code
+ * kippte trotzdem jede Einheit, die gerade vorn stand – auch die fertige von
+ * heute.
  */
 function modusKarte(mode) {
   return `
@@ -1478,8 +2963,9 @@ function modusKarte(mode) {
     <div class="card">
       <div class="small muted">Beide Fassungen stehen im selben Plan und treffen dieselben
         Muskelgruppen – nur mit dem, was gerade da ist. Umgestellt wird hier, so oft du willst,
-        <b>auch mitten im Training</b>: Die App führt für jede Variante ein eigenes Protokoll,
-        abgehakte Sätze der anderen bleiben stehen und sind beim Zurückschalten wieder da.</div>
+        <b>auch mitten im Training</b>: Die laufende Einheit wechselt mit, abgehakte Sätze der
+        anderen Variante bleiben stehen und zählen weiter. Eine schon trainierte Einheit bleibt
+        in der Variante, in der du sie gemacht hast.</div>
       <div class="btn-row nav" style="margin-top:10px" role="group" aria-label="Variante wählen">
         ${['db', 'bw'].map((m) => `
           <button type="button" class="btn ${m === mode ? 'btn-primary' : ''}"
@@ -1487,6 +2973,30 @@ function modusKarte(mode) {
             ${MODE_ICON[m]} ${esc(MODE_LABEL[m])}</button>`).join('')}
       </div>
     </div>`;
+}
+
+/**
+ * Kürzeste und längste Pause im laufenden Plan, je mit der Übung, die sie am
+ * häufigsten hat.
+ *
+ * Gerechnet, nicht hingeschrieben: Hier stand „0:45 – 2:30 min, 2:30 beim
+ * Squat, 0:45 bei Crunches" – drei Wochen, nachdem die Pausen auf 1:30 bis
+ * 3:00 angehoben worden waren. Ein Text, der Zahlen aus den Daten abschreibt,
+ * veraltet mit der nächsten Änderung an den Daten.
+ */
+function pausenSpanne(mode) {
+  const je = new Map();   // Pause -> Map(Name -> Anzahl)
+  PLAN.forEach((w) => exOf(w, mode).forEach((it) => {
+    const r = resolve(it, mode);
+    if (!(r.rest > 0)) return;
+    if (!je.has(r.rest)) je.set(r.rest, new Map());
+    je.get(r.rest).set(r.name, (je.get(r.rest).get(r.name) || 0) + 1);
+  }));
+  if (!je.size) return null;
+  const haeufigste = (rest) => [...je.get(rest).entries()].sort((a, b) => b[1] - a[1])[0][0];
+  const min = Math.min(...je.keys());
+  const max = Math.max(...je.keys());
+  return { min, max, minName: haeufigste(min), maxName: haeufigste(max) };
 }
 
 /**
@@ -1511,15 +3021,19 @@ function modusKarte(mode) {
  */
 function pausenKarte(s) {
   const wahl = s.useExerciseRest ? 'je' : (s.restSeconds ? 'fest' : 'aus');
-  const fest = `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min`;
+  const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  const fest = `${mmss(s.restSeconds)} min`;
+  const sp = pausenSpanne(s.mode === 'bw' ? 'bw' : 'db');
+  const spanne = sp && sp.min !== sp.max;
   const ARTEN = [
-    ['je', '⏱️ Je Übung', '0:45 – 2:30 min'],
+    ['je', '⏱️ Je Übung', spanne ? `${mmss(sp.min)} – ${mmss(sp.max)} min` : 'Je Übung'],
     ['fest', '⏲️ Feste Länge', fest],
     ['aus', '🚫 Aus', 'Aus'],
   ];
   const erklaerung = {
-    je: 'Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen – 2:30 beim '
-      + 'Squat, 0:45 bei Crunches. Die Längen stehen in der Übung selbst.',
+    je: `Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen${spanne
+      ? ` – ${mmss(sp.max)} bei ${sp.maxName}, ${mmss(sp.min)} bei ${sp.minName}` : ''}. `
+      + 'Die Längen stehen in der Übung selbst.',
     fest: 'Dieselbe Pause nach jedem Satz, egal welche Übung.',
     aus: 'Kein Timer, kein Ton – Sätze nur abhaken.',
   };
@@ -1561,6 +3075,418 @@ function aktNamen(namen) {
     : `${eindeutig.slice(0, 3).join(', ')} +${eindeutig.length - 3}`;
 }
 
+/*
+ * Am Ruhetag: wohin der Rückstand der Woche geht – eine stille Zeile im Kopf.
+ *
+ *     „Hab gestern nicht vollständig trainiert. Trotzdem soll ich heute
+ *      nichts nachholen?"
+ *
+ * Tobi, Freitag, ein planmäßiger Ruhetag. Am Donnerstag war Workout 9 nicht
+ * ganz fertig geworden, und die Startansicht zeigte „Morgen · Workout 10 …
+ * 15 + 2 Sätze" – richtig, aber kein Wort dazu, dass der Rest schon verteilt
+ * ist. Was in einer Woche liegen bleibt, kommt auf ihre restlichen Einheiten
+ * (höchstens drei Sätze je Einheit, nacharbeit() in js/plan.js); was dort
+ * nicht hineinpasst, nach der Woche in einen Zusatztag. Ein Ruhetag
+ * dazwischen ist also richtig, und jetzt steht es da:
+ *
+ *     Heute frei. Was am Do liegen blieb, kommt dazu: morgen +2, Mo +1,
+ *     Di +1, der Rest entfällt.
+ *
+ * Die Zahlen kommen aus nacharbeitVorschau() – derselben Verteilung, mit der
+ * jede dieser Einheiten an ihrem Tag ihre Nacharbeit rechnet, nicht aus einer
+ * zweiten Rechnung; eine schon festgehaltene Nacharbeit gilt auch hier.
+ *
+ * **Was mit dem Rest geschieht, steht am Ende.** „der Rest danach" nur, wenn
+ * das, was nach der letzten Einheit offen bleibt, einen Zusatztag trägt – mit
+ * derselben Schwelle wie der Zusatztag selbst (zusatzRueckstand()). Bleibt
+ * weniger, aber in einer Gruppe mehr als ein halber Satz, verfällt es, und
+ * dann steht „der Rest entfällt" da. Ohne das versprach „Was am Do liegen
+ * blieb, kommt dazu" das Ganze: Bei Tobi holt der Face Pull am Montag einen
+ * der zwei liegen gebliebenen Reverse-Fly-Sätze nach, den zweiten keine
+ * Einheit mehr. Vier Sätze offen, vier kommen dazu – und trotzdem bleibt
+ * hintere Schulter liegen. „danach" und nicht „nach der Woche": Die Woche des
+ * Plans (Do bis Di) ist nicht die Kalenderwoche, und am Sonntag hieß „nach
+ * der Woche" ab morgen – genau da, wo schon „+2" stand. Trägt die letzte
+ * Einheit selbst nichts, steht ihr Tag da („der Rest nach Di").
+ *
+ * Tage statt Workout-Nummern: die Quelle als Wochentag, an dem es liegen
+ * blieb, das Ziel als „morgen" oder Wochentag. Trägt ein Quelltag dasselbe
+ * Kürzel wie ein Ziel oder ein anderer Quelltag, steht sein Datum dabei
+ * („Was am Do 8.10. liegen blieb, kommt dazu: morgen +1, Do +1") – zwei
+ * verpasste Tage dehnen eine Woche über sieben, und dann waren es im selben
+ * Satz zwei Donnerstage.
+ *
+ * **Und der Zusatztag der Woche davor, wenn er morgen in die Einheit kommt**
+ * (zusatzMorgen()). Er entsteht erst am Tag selbst, der Kopf zeigt ihn heute
+ * noch nicht – morgen stand dann „15 + 4" statt der angekündigten „+1". Er
+ * steht als eigener Satz da, mit seinem Namen aus der Übung („Nachgeholt aus
+ * Woche 3"): „Aus Woche 3 kommt dazu: morgen +3."
+ *
+ * Nur, wenn heute wirklich frei ist: Die gezeigte Einheit ist die, die die App
+ * für heute zeigt, und liegt nach heute; heute wurde nichts trainiert – keine
+ * Planeinheit, kein eigenes Workout, kein allein stehender Zusatztag –, und
+ * nichts läuft. Ist die fällige verpasst, rückt der Plan nach (catchUpPlan())
+ * und sie steht auf heute – keine Zeile. Ohne Rückstand auch keine: „Morgen ·
+ * Workout 10" sagt schon, dass heute frei ist.
+ *
+ * Kein Popup, nichts zum Wegtippen, keine Karte – eine Zeile unter der
+ * Satzzahl, so leise wie die Herkunftszeile an der Übung.
+ *
+ * ruhetagTeile() rechnet, ob die Zeile steht und woraus: { heute, v,
+ * quellen, zus } oder null. Die Zeile zum Tagesabschluss liest dieselben
+ * Teile (abschlussWohin()), statt sie ein zweites Mal zu rechnen.
+ */
+function ruhetagTeile(w) {
+  const heute = todayISO();
+  // Die Einheit, die die App für heute zeigt (naechsteEinheit()) – nicht eine
+  // angeblätterte, und nicht, wenn heute ein Zusatztag allein dasteht.
+  if (w.custom || store.getState().session || naechsteEinheit() !== w.n) return null;
+  if (daysBetween(heute, effDate(w)) <= 0) return null;
+  // Heute schon trainiert: jede Einheit im Protokoll, auch ein eigenes Workout
+  // oder ein allein stehender Zusatztag. startedOn steht erst mit dem ersten
+  // Eintrag (syncStartedOn() in js/store.js) – nur geöffnet zählt nicht. Und
+  // der Rest einer abgeschlossenen Einheit, heute gemacht (store.trainiertAm()).
+  if (Object.keys(store.getState().log || {}).some((k) => store.trainiertAm(k, heute))) return null;
+  const v = nacharbeitVorschau(w);
+  const danach = !!v && !!zusatzRueckstand(v.rest);
+  const quellen = !v || (!v.einheiten.length && !danach) ? []
+    : [...new Set([...v.einheiten.flatMap((e) => e.quellen),
+      ...(danach || !v.einheiten.length ? v.herkunft.map((h) => h.n) : [])])].sort((a, b) => a - b);
+  const zus = zusatzMorgen(w);
+  if (!quellen.length && !zus) return null;
+  return { heute, v, quellen, zus };
+}
+
+/**
+ * Die Zeile selbst. Was die Zeile zum Tagesabschluss oben schon sagt
+ * (abschlussWohin() – dieselben Teile, auf die abgeschlossene Einheit
+ * bezogen), steht hier nicht noch einmal: dieselbe Zahl zweimal auf einem
+ * Bildschirm ist eine zu viel. Ist die Zeile dort weg, steht es wieder hier.
+ */
+function ruhetagZeile(w) {
+  const t = ruhetagTeile(w);
+  if (!t) return '';
+  const deckt = abschlussDeckt();
+  const { heute, v } = t;
+  const quellen = deckt.nach ? [] : t.quellen;
+  const zus = deckt.zus ? null : t.zus;
+  if (!quellen.length && !zus) return '';
+  const tagVon = (n) => effDate(PLAN[n - 1]);
+  const saetze = [];
+  if (quellen.length) {
+    const { ziele, zielTage, letzte, nachLetzter, ziel } = restZiele(v, heute);
+    const quellTage = [...new Set(quellen.map(tagVon))];
+    // Ein Kürzel, zwei Tage: Der Quelltag bekommt sein Datum.
+    const kuerzel = (iso) => fmtDate(iso).slice(0, 2);
+    const genannt = [...zielTage, ...(nachLetzter ? [letzte] : []), ...(zus ? [effDate(w)] : [])];
+    const quelle = (iso) => tagKurz(iso, heute,
+      [...genannt, ...quellTage.filter((d) => d !== iso)].some((d) => kuerzel(d) === kuerzel(iso)));
+    const am = undListe(quellTage.map(quelle));
+    if (zielTage.length) {
+      saetze.push(`Was am ${am} liegen blieb, kommt dazu: ${ziele.join(', ')}.`);
+    } else {
+      saetze.push(`Was am ${am} liegen blieb, kommt nach ${daysBetween(heute, letzte) === 1 ? 'der Einheit morgen' : ziel(letzte)} dazu.`);
+    }
+  }
+  if (zus) saetze.push(`Aus Woche ${zus.woche} kommt dazu: morgen\u00a0+${zus.saetze}.`);
+  return `<div class="ov-frei">${esc(`Heute frei. ${saetze.join(' ')}`)}</div>`;
+}
+
+/**
+ * Wohin der Rückstand der Woche geht, als Satzteile („morgen +2", „Mo +1",
+ * „der Rest entfällt") – aus nacharbeitVorschau() `v`, von `heute` aus. Eine
+ * Stelle für die Zeile am Ruhetag und die Zeile zum Tagesabschluss
+ * (abschlussWohin()), damit beide dasselbe sagen und keine zweite Rechnung
+ * daneben steht.
+ *
+ * „der Rest danach" nur, wenn das, was nach der letzten Einheit offen bleibt,
+ * einen Zusatztag trägt (zusatzRueckstand()); bleibt weniger, aber in einer
+ * Gruppe mehr als ein halber Satz, „der Rest entfällt". Trägt die letzte
+ * Einheit selbst nichts, steht ihr Tag da („der Rest nach Di"). Ein Ziel, das
+ * heute ist, heißt „heute" – das kommt nur beim Tagesabschluss vor; am
+ * Ruhetag liegt jede Einheit nach heute.
+ */
+function restZiele(v, heute) {
+  const tagVon = (n) => effDate(PLAN[n - 1]);
+  const ziel = (iso) => {
+    const d = daysBetween(heute, iso);
+    if (d === 0) return 'heute';
+    return d === 1 ? 'morgen' : tagKurz(iso, heute);
+  };
+  const danach = !!zusatzRueckstand(v.rest);
+  const zielTage = v.einheiten.map((e) => tagVon(e.n));
+  const letzte = tagVon(v.letzte);
+  // Der Tag der letzten Einheit steht im Satz, wenn der Rest nach ihr kommt
+  // und sie selbst nichts trägt.
+  const nachLetzter = !zielTage.length || (danach && zielTage[zielTage.length - 1] !== letzte);
+  // Tag und Zahl gehören zusammen – ein festes Leerzeichen, damit auf 360 px
+  // nicht „morgen" am Zeilenende steht und „+2" am Anfang der nächsten.
+  const ziele = v.einheiten.map((e, i) => `${ziel(zielTage[i])}\u00a0+${e.saetze}`);
+  if (zielTage.length) {
+    if (danach) ziele.push(nachLetzter ? `der Rest nach ${ziel(letzte)}` : 'der Rest danach');
+    else if (Object.values(v.rest).some((x) => x > 0.5)) ziele.push('der Rest entfällt');
+  }
+  return { ziele, zielTage, letzte, nachLetzter, danach, ziel };
+}
+
+/*
+ * Die Zeile zum Tagesabschluss – oben auf der Startseite, eine Auskunft ohne
+ * Knopf:
+ *
+ *     ✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Von
+ *       den 11 offenen Sätzen kommen morgen 3 in Workout 13 mit rein.
+ *
+ *     „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von
+ *      selbst einfach das optimale passieren"
+ *
+ * Bis v242 standen darunter „Rest heute machen" und „OK". Tobi fragte erst,
+ * was der Unterschied sei – „OK" blendete nur aus, man blieb im Rhythmus, und
+ * ein Teil des Fehlenden kam per Zusatz in die nächste Einheit; „Rest heute
+ * machen" holte alles nach, und der Plan rutschte einen Tag. Empfohlen war
+ * „OK". Eine Wahl, deren eine Seite die empfohlene ist, ist keine – also tut
+ * die App sie: Sie bleibt im Rhythmus, und was fehlt, verteilen Nacharbeit und
+ * Zusatztag wie bisher. Damit das nicht unbemerkt geschieht, bleibt die Zeile
+ * – sie sagt, was passiert ist und wohin der Rest geht, und geht von selbst:
+ *
+ *   der erste Eintrag in einer anderen Einheit   die nächste ist angefangen
+ *   ein Eintrag in einer Einheit der Zeile, ihr   die Zeile stimmt für sie
+ *     Zurücksetzen                                nicht mehr (abschlussOhne()
+ *                                                 in js/store.js)
+ *   ein neuer Tagesabschluss                      er ersetzt sie
+ *   ein Fokuswechsel, „Von vorn beginnen"         sie sprach vom alten Plan
+ *   der übernächste Tag                           ABSCHLUSS_ZEILE_TAGE in
+ *                                                 js/store.js – nie ewig
+ *
+ * Sie tritt zurück, solange auf einer ihrer Einheiten eine Sitzung läuft
+ * (abschlussListe()), und auf der Karte dieser Einheit selbst – die sagt dort
+ * schon „✓ Abgeschlossen · 4 von 17 Sätzen" (renderOverview()).
+ *
+ * Wer doch in die Einheit zurück will, blättert zu ihr: „Doch noch
+ * weitermachen" (startBlock()), mit denselben Sicherungen wie vorher der Knopf
+ * hier – kein „Abbrechen", das den Samstag löscht (frueherFertig()), der
+ * Sonntag als Trainingstag (`weiterAm`), im Kopf „Gestern angefangen".
+ *
+ * Sagt, was passiert ist, mit den Zahlen von dem Moment und dem Tag der
+ * Einheit als Wochentag – „von gestern" stimmte am Montag schon nicht mehr.
+ * Länger als sechs Tage her mit Datum.
+ *
+ * **Wohin der Rest geht, nur wenn es stimmt** (abschlussWohin()), und
+ * gerechnet von den Stellen, die es dann auch tun – keine zweite Rechnung.
+ */
+function abschlussHinweis() {
+  const liste = abschlussListe();
+  if (!liste.length) return '';
+  const heute = todayISO();
+  const vom = (iso) => {
+    const d = daysBetween(iso, heute);
+    return d >= 1 && d <= 6 ? `vom ${wochentag(iso)}` : `vom ${wochentag(iso)}, ${tagMonat(iso)}`;
+  };
+  const saetze = (e) => `${e.done} von ${e.total} ${e.total === 1 ? 'Satz' : 'Sätzen'}`;
+  const was = liste.length === 1
+    ? `Workout ${liste[0].n} ${vom(liste[0].tag)} ist abgeschlossen – ${saetze(liste[0])}.`
+    : `${undListe(liste.map((e) => `Workout ${e.n} ${vom(e.tag)} (${saetze(e)})`))} sind abgeschlossen.`;
+  const wohin = abschlussWohin(liste).text;
+  // Klein gesetzt: Die Startseite bleibt auch mit der Zeile eine
+  // Bildschirmseite, bis 360×740 (siehe .notice.abschluss in css/styles.css).
+  // Was zusammengehört, bricht nicht um: Bei 360 px stand „– 4" am Zeilenende
+  // und „von 15 Sätzen" darunter, bei 414 px „4 von 15" und „Sätzen". Und das
+  // letzte Wort steht nie allein: An Tobis Sonntag stand bei 360 px „rein." in
+  // einer vierten Zeile (dazu der kürzere Satz in abschlussWohin()).
+  const satz = `${was}${wohin ? ` ${wohin}` : ''}`
+    .replace(/(\d+) von (\d+) (Satz|Sätzen)/g, '$1 von $2 $3')
+    .replace(/Workout (\d+)/g, 'Workout $1')
+    .replace(/ (\S+)$/, '\u00a0$1');
+  return `
+    <div class="notice abschluss">✓ ${esc(satz)}</div>`;
+}
+
+/**
+ * Die Einheiten, die die Zeile zum Tagesabschluss zeigt: aus der geprüften
+ * Zeile (store.tagesabschluss() – auch noch nicht abgelaufen), im Plan, und
+ * nur so, wie die Zeile sie nennt – auf ihrem Tag und abgeschlossen. Sonst
+ * stünde „ist abgeschlossen" über einer Einheit, die es nicht mehr ist (eine
+ * Sicherung aus fremder Hand, deren Protokoll etwas anderes sagt). Nach einer
+ * weitergerollten Runde liegt ihr Protokoll in der Ablage: Dann bleibt sie
+ * stehen – die Zeile sagt, warum die Startseite bei Workout 1 steht. (Nach
+ * „Von vorn beginnen" und einem Fokuswechsel ist die Zeile ganz weg, siehe
+ * case 'restart-plan' und store.wechsleFokus().)
+ *
+ * Und nicht, solange auf ihr eine Sitzung läuft. „Doch noch weitermachen"
+ * getippt, ohne Haken zurück: Oben stand „✓ Workout 12 vom Samstag ist
+ * abgeschlossen – 4 von 17 Sätzen.", direkt darunter „Gestern angefangen ·
+ * Workout 12" mit „✓ Training abschließen (4/17)" – am Nachmittag über
+ * „Workout 12 läuft noch.", und bei 360×740 schob sich die Seite. Bis v242 nahm
+ * „Rest heute machen" die Zeile beim Tipp weg. Jetzt tritt sie zurück, solange
+ * an der Einheit trainiert wird; der erste Haken nimmt sie ganz (abschlussOhne()
+ * in js/store.js), und endet die Sitzung ohne einen, steht sie wieder da – der
+ * Tipp allein hat nichts geändert.
+ */
+function abschlussListe() {
+  const a = store.tagesabschluss();
+  if (!a) return [];
+  const log = store.getState().log || {};
+  const sess = store.getState().session;
+  return a.einheiten.filter((e) => PLAN[e.n - 1]
+    && !(sess && String(sess.n) === String(e.n))
+    && (!log[e.n] || (store.startedOn(e.n) === e.tag && !!completedMode(e.n))));
+}
+
+/**
+ * Wohin geht, was in den abgeschlossenen Einheiten fehlt? { text, nach, zus }:
+ * der Satz (oder '') und welche Teile der Zeile am Ruhetag er übernimmt.
+ *
+ * Gefragt wird, was die App heute *tut*, an den Stellen, die es tun:
+ *
+ *   gebunden    der Zusatztag ihrer Woche steckt heute in einer Einheit
+ *               (zusatzBindung()): „Von den 13 offenen Sätzen kommen heute 3
+ *               in Workout 13 mit rein."
+ *   allein      er ist heute die nächste Einheit (naechsteEinheit(), ein
+ *               Ruhetag): „Zum Nachholen steht heute ein Zusatztag bereit."
+ *   Ruhetag     die Teile der Zeile am Ruhetag (ruhetagTeile()), soweit sie
+ *               diese Einheiten betreffen: der Zusatztag, der morgen kommt
+ *               (zusatzMorgen()) – „Von den 13 offenen Sätzen kommen morgen 3
+ *               in Workout 13 mit rein." –, und die Nacharbeit der restlichen
+ *               Woche. Die Zeile am Ruhetag lässt sie dann weg (`nach`,
+ *               `zus`), statt dieselbe Zahl ein zweites Mal zu nennen.
+ *   Nacharbeit  heute ist ein Trainingstag derselben Woche: die Verteilung aus
+ *               nacharbeitVorschau(), in Worten wie am Ruhetag (restZiele()) –
+ *               „Von den 12 offenen Sätzen kommen dazu: heute +1, morgen +3."
+ *   entfällt    die Woche ist zu Ende, und was fehlt, trägt keinen Zusatztag
+ *               (zusatzRueckstand(), dieselbe Schwelle wie er selbst)
+ *
+ * „Von den 13 offenen Sätzen", wo nicht alles nachgeholt wird: Ein Zusatztag
+ * in einer Einheit bringt höchstens ZUSATZ_IN_EINHEIT Übungen. Bis zur
+ * Nachbesserung stand dort „Davon" – hinter „4 von 17 Sätzen" las es sich wie
+ * „von den 4 gemachten", und die offenen nannte die Zeile nirgends. Die Zahl
+ * steht nur, wenn alles, was in der Woche offen ist, aus den Einheiten der
+ * Zeile stammt (offenImBlock(), dieselbe Herkunft, die der Zusatztag an seiner
+ * Übung nennt). Fehlt auch woanders etwas – bei Tobi zwei Sätze aus Workout 9 –,
+ * holt der Teil womöglich auch das nach; dann „Aus Woche 3 kommen morgen 3
+ * Sätze in Workout 13 mit rein." (beim Zusatztag) oder „Von dem, was in dieser
+ * Woche liegen blieb, kommt dazu: …" (bei der Nacharbeit). Sonst nichts –
+ * lieber kein Ziel als ein falsches. Gerechnet für die jüngste Einheit und ihre
+ * Woche.
+ */
+function abschlussWohin(liste) {
+  const leer = { text: '', nach: false, zus: false };
+  const e = liste[liste.length - 1];
+  if (store.startedOn(e.n) !== e.tag || !completedMode(e.n)) return leer;
+  const ns = liste.map((x) => x.n);
+  const heute = todayISO();
+  const woche = (n) => Math.floor((n - 1) / WEEK_SESSIONS) + 1;
+  const nr = woche(e.n);
+  // Der Zusatztag holt höchstens ZUSATZ_IN_EINHEIT Übungen nach, nie zwingend
+  // alles – mehr als den Teil, den er bringt, verspricht die Zeile nicht. Und
+  // sie sagt, wovon er ein Teil ist: von den offenen Sätzen der Zeile, wenn
+  // alles Offene der Woche aus ihr stammt, sonst von der Woche.
+  const offenZahl = liste.filter((x) => woche(x.n) === nr).reduce((a, x) => a + x.total - x.done, 0);
+  const eigen = (quellen) => offenZahl > 1 && quellen.length > 0 && quellen.every((n) => ns.includes(n));
+  const wochenQuellen = () => offenImBlock((nr - 1) * WEEK_SESSIONS, nr * WEEK_SESSIONS).herkunft.map((h) => h.n);
+  const kommt = (k) => (k === 1 ? 'kommt' : 'kommen');
+  // Stammt nicht alles aus der Zeile, sagt sie die Woche, im Wortlaut der
+  // Zeile am Ruhetag („Aus Woche 3 kommt dazu: morgen +3."). Hier stand „Von
+  // dem, was in Woche 3 liegen blieb, kommen morgen 3 Sätze in Workout 13 mit
+  // rein." – an Tobis Sonntag bei 360 px vier Zeilen, in der letzten nur
+  // „rein.".
+  const davon = (k, wann, n) => (eigen(wochenQuellen())
+    ? `Von den ${offenZahl} offenen Sätzen ${kommt(k)} ${wann} ${k} in Workout ${n} mit rein.`
+    : `Aus Woche ${nr} ${kommt(k)} ${wann} ${plural(k, 'Satz', 'Sätze')} in Workout ${n} mit rein.`);
+  const wer = (quellen) => (quellen.every((n) => ns.includes(n)) ? 'Was fehlt' : 'Was in dieser Woche liegen blieb');
+  // Die Nacharbeit der restlichen Einheiten, in den Worten der Zeile am
+  // Ruhetag (restZiele()) – bis auf „der Rest danach". Das hieße: ein
+  // Zusatztag nach der Woche. Ob er kommt, entscheidet sich erst an seinem
+  // Tag, an der Erholungsregel: Gemessen mit Workout 11 vom Freitag (3 von 12,
+  // Rücken, Bizeps, hintere Schulter offen) kam keiner – Sonntag ruhen die
+  // Gruppen von Samstag und Montag, am Montag trifft Workout 13 sie selbst.
+  // Die Zeile versprach ihn trotzdem. Hier steht deshalb nur, was sicher
+  // ist: die Sätze in den Einheiten der Woche – als Teil („Von den 12
+  // offenen Sätzen kommen dazu: …"), wenn danach noch etwas offen ist, sonst
+  // als ganzer Satz, mit „der Rest entfällt".
+  const ziele = (v, quellen) => {
+    const z = restZiele(v, heute);
+    if (!z.zielTage.length) return '';
+    if (z.danach) {
+      const teil = z.ziele.filter((t) => !t.startsWith('der Rest ')).join(', ');
+      return eigen(quellen) ? `Von den ${offenZahl} offenen Sätzen kommen dazu: ${teil}.`
+        : `Von dem, was in dieser Woche liegen blieb, kommt dazu: ${teil}.`;
+    }
+    return `${wer(quellen)}, kommt dazu: ${z.ziele.join(', ')}.`;
+  };
+  const b = zusatzBindung();
+  if (b && b.woche === nr) {
+    const mode = store.workoutMode(b.w.n);
+    const k = workoutByNo(b.w.n, mode).ex.filter((it) => it.zusatz && it.zusatz.woche === nr)
+      .reduce((a, it) => a + it.sets, 0);
+    if (k) return { ...leer, text: davon(k, 'heute', b.w.n) };
+  }
+  const naechste = naechsteEinheit();
+  if (istCustom(naechste)) {
+    const c = store.customById(naechste);
+    return c && c.name === `Zusatztag Woche ${nr}` ? { ...leer, text: 'Zum Nachholen steht heute ein Zusatztag bereit.' } : leer;
+  }
+  const w = PLAN.find((x) => x.n === naechste);
+  if (!w || completedMode(w.n)) return leer;
+  const t = ruhetagTeile(w);
+  if (t) {
+    const nach = t.quellen.some((n) => ns.includes(n)) ? ziele(t.v, t.quellen) : '';
+    const zus = t.zus && t.zus.woche === nr ? davon(t.zus.saetze, 'morgen', w.n) : '';
+    if (nach || zus) return { text: [nach, zus].filter(Boolean).join(' '), nach: !!nach, zus: !!zus };
+  }
+  if (woche(w.n) === nr) {
+    if (effDate(w) > heute) return leer;
+    const v = nacharbeitVorschau(w);
+    if (!v || !v.herkunft.some((h) => ns.includes(h.n))) return leer;
+    return { ...leer, text: ziele(v, v.herkunft.map((h) => h.n)) };
+  }
+  // Die Woche ist vorbei, und kein Zusatztag nimmt den Rest – reicht er nicht?
+  const ziel = zusatzZiel();
+  if (!ziel || ziel.nr !== nr || zusatzVergeben(nr)
+      || store.customs().some((c) => c.name === `Zusatztag Woche ${nr}`)) return leer;
+  const luecke = Object.fromEntries(Object.keys(MUSCLE_LABEL)
+    .map((m) => [m, (ziel.soll[m] || 0) - (ziel.acc[m] || 0)]));
+  if (zusatzRueckstand(luecke) || !Object.values(luecke).some((x) => x > 0.5)) return leer;
+  return { ...leer, text: 'Für einen Zusatztag reicht der Rest nicht – er entfällt.' };
+}
+
+/** Was die Zeile zum Tagesabschluss gerade von der Zeile am Ruhetag übernimmt. */
+function abschlussDeckt() {
+  const liste = abschlussListe();
+  return liste.length ? abschlussWohin(liste) : { text: '', nach: false, zus: false };
+}
+
+/**
+ * Der Zusatztag, der morgen in die Einheit `w` kommt: { woche, saetze } oder
+ * null – für die Zeile am Ruhetag.
+ *
+ * Fiel nach einer Woche mit Rückstand am Ruhetag danach und am ersten Tag der
+ * neuen Woche jeder Zusatz unter die Erholungsregel, entstand der Zusatztag
+ * erst am Tag der zweiten Einheit – in ihr, am Morgen. Am Ruhetag davor stand
+ * „Morgen · Workout 14 · 15 + 1 Sätze" und die Zeile „morgen +1", am Samstag
+ * dann „15 + 4". Und ohne Rückstand in der neuen Woche gar keine Zeile, obwohl
+ * morgen drei Sätze dazukamen.
+ *
+ * Gerechnet wird, was zusatztagRechnen() morgen rechnet, mit denselben
+ * Stücken: die zuletzt abgeschlossene Woche (zusatzZiel()), kein Zusatztag,
+ * wenn er schon vergeben oder sein Träger angefangen ist, die Einheit, die ihn
+ * morgen aufnimmt (zusatzEinheitFuer() mit dem Tag von morgen), und seine
+ * Übungen aus zusatztagEx() – dort gilt die Erholungsregel, die Beschwerde,
+ * das Gerät und der Termin des Tages, an dem die Einheit liegt. Nur für
+ * morgen: Liegt die Einheit später, steht morgen der Zusatztag womöglich
+ * allein da („Heute · Zusatztag"), und das zeigt die Startansicht dann selbst.
+ */
+function zusatzMorgen(w) {
+  const morgen = addDays(todayISO(), 1);
+  if (effDate(w) !== morgen) return null;
+  const ziel = zusatzZiel();
+  if (!ziel || zusatzVergeben(ziel.nr)) return null;
+  const traeger = store.customs().find((c) => c.name === `Zusatztag Woche ${ziel.nr}`);
+  if (traeger && store.isStarted(traeger.id)) return null;
+  const einheit = zusatzEinheitFuer(ziel.nr, morgen);
+  if (!einheit || einheit.n !== w.n) return null;
+  const z = zusatztagEx(ziel, store.workoutMode(w.n), einheit);
+  return z ? { woche: ziel.nr, saetze: z.ex.reduce((a, x) => a + x.sets, 0) } : null;
+}
+
 /**
  * Startansicht: was heute ansteht, welche Muskelgruppen drankommen, los.
  * Die einzelnen Übungen liegen eine Ebene tiefer – vor dem Training will man
@@ -1575,12 +3501,7 @@ function renderOverview() {
   const date = effDate(w);
   const diff = daysBetween(today, date);
 
-  let when;
-  if (diff === 0) when = 'Heute';
-  else if (diff === 1) when = 'Morgen';
-  else if (diff === -1) when = 'Gestern';
-  else if (diff > 1) when = `in ${diff} Tagen`;
-  else when = `vor ${-diff} Tagen`;
+  const when = wannWort(w, diff);
 
   const items = w.ex.map((item) => resolve(item, mode));
   const muscles = new Set(items.flatMap((it) => it.muscles));
@@ -1591,12 +3512,47 @@ function renderOverview() {
 
   // Eine Bildschirmseite, ohne Scrollen: Kopf, Körper, Start. Der Körper
   // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
+  //
+  // Die stille Zeile zum Ton hier kurz, und nicht neben der Zeile zum
+  // Tagesabschluss: Nach einer Nacht im Speicher klemmt auf dem iPhone der
+  // Tonkanal, und beide standen zugleich da – bei 360×740 lag der Fuß dann
+  // 78 px (Sonntag) bzw. 111 px (Montag) unter der Leiste, die Zeile zum Ton
+  // allein (vier Zeilen, 116 px) schob ihn 35 bzw. 45 px darunter. Die Zeile
+  // zum Abschluss hat Vorrang. Bis v242 war ihr „OK" ohnehin die nächste
+  // Berührung, und die weckte den Kanal. Seit v244 hat sie keinen Knopf mehr
+  // und steht womöglich zwei Tage; auch ohne Knöpfe (69 px) passen beide am
+  // Montag bei 360×740 nicht zusammen, die Seite schob sich 24 px. Gebraucht
+  // wird der Ton im Training: Klemmt er nach dem Tipp auf Start noch, zeigen
+  // die Fokusansicht und die Liste den ganzen Satz, Einzelheiten Mehr. Ist die
+  // Zeile zum Abschluss weg, steht die zum Ton auch hier.
+  //
+  // Nicht auf der Karte einer Einheit, von der die Zeile spricht: Am Sonntag
+  // zu Workout 12 zurückgeblättert, stand „4 von 17" dreimal da – in der Zeile,
+  // im Fortschritt und auf der Karte („✓ Abgeschlossen / 4 von 17 Sätzen · 20
+  // min."), und bei 360×740 schob sich die Seite 41 px, die Reihe „Übungen &
+  // Gewichte" halb unter der Leiste. Gerade diese Karte ist seit v244 der Weg
+  // zurück in die Einheit („Doch noch weitermachen"). Sie sagt selbst, was
+  // passiert ist; wohin der Rest geht, steht auf der Startseite. Der Vorrang
+  // vor der Zeile zum Ton bleibt auch dort (`hinweis`): Mit ihr allein schob
+  // sich diese Karte bei 360×740 um 8 px.
+  //
+  // Die Bitte um das Jahr im Kalender (kalenderJahrZeile()) eilt am wenigsten:
+  // nur, wenn oben sonst nichts steht – auch nicht die Zeile zum Abschluss
+  // auf der Karte ihrer Einheit (`hinweis`, wie bei der Zeile zum Ton) – und
+  // an der gezeigten Einheit noch nichts abgehakt ist. Mit Fortschritt und
+  // „Training fortsetzen" stand der Fuß mit ihr bei 360×740 13 px unter der
+  // Leiste (gemessen; die Seite stand dort schon ohne sie 12 px über, wie in
+  // v245). Steht nichts mehr da, kommt sie.
+  const hinweis = abschlussHinweis();
+  const abschluss = abschlussListe().some((e) => e.n === w.n) ? '' : hinweis;
+  const oben = [umzugHinweis(), umbauHinweis(), aufstiegHinweis(), abschluss, speicherWarnung(), hinweis ? '' : tonHinweis(true)];
+  const sicherung = sicherungsZeile(due);
+  const kalender = kalenderZeile();
+  const still = hinweis || ui.standAngebot || prog.done > 0 || [...oben, sicherung, kalender].some((x) => x.trim());
+  const jahr = still ? '' : kalenderJahrZeile();
   view.innerHTML = `
     <section class="ov">
-      ${umzugHinweis()}
-      ${umbauHinweis()}
-      ${aufstiegHinweis()}
-      ${speicherWarnung()}
+      ${oben.join('\n      ')}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
            Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
            auf Zuruf.
@@ -1615,12 +3571,8 @@ function renderOverview() {
           <button type="button" class="btn btn-primary" data-act="accept-stand">Zum Vergleich</button>
           <button type="button" class="btn btn-ghost" data-act="drop-stand">Verwerfen</button>
         </div></div>` : ''}
-      ${due ? `<div class="notice warn">💾 ${esc(plural(due, 'Einheit', 'Einheiten'))} seit der letzten
-        Sicherung. Alles liegt nur in diesem Browser.
-        <button type="button" class="btn btn-block btn-primary" data-act="backup-teilen"
-                style="margin-top:10px">Sicherung weitergeben</button>
-        <div class="small muted" style="margin-top:6px">Geht an Drive, an eine Mail an dich
-          selbst, an was du willst – Hauptsache nicht nur auf dieses Handy.</div></div>` : ''}
+      ${sicherung}
+      ${kalender}${jahr}
 
       <header class="ov-top">
         <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
@@ -1629,7 +3581,7 @@ function renderOverview() {
              laufende Nummer bleibt: Sie sagt, wo man ist, ohne zu behaupten,
              wohin es geht. -->
         <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${
-          w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n}`}</div>
+          esc(einheitAugenbraue(w, when))}</div>
         <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
         <!-- Kein "Plan +2 Tage" mehr: Der Plan rückt von selbst nach, wenn ein
              Termin verstreicht (catchUpPlan). Wie weit er dabei insgesamt vom
@@ -1638,6 +3590,7 @@ function renderOverview() {
              nicht gibt. Wer die Zahl wirklich sucht, findet sie unter
              Mehr → Termine. -->
         <div class="hero-sub">${tagKopf(w, mode, items)}</div>
+        ${ruhetagZeile(w)}
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
           <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.erledigt ? ' · abgeschlossen' : ''}</div>` : ''}
         <!-- Hier stand: "↩ 2 Sätze aus dieser Woche nachgeholt – diese Woche ist
@@ -1645,7 +3598,12 @@ function renderOverview() {
              jeder betroffenen Übung steht in der Liste weiterhin "+1
              nachgeholt", also dort, wo man sie auch macht. Drei Zeilen
              Buchhaltung vor dem Start waren dagegen genau das, was diese
-             Ansicht nicht sein soll. -->
+             Ansicht nicht sein soll.
+
+             Die Zeile darüber (ruhetagZeile()) ist keine Rückkehr dazu: Sie
+             steht nur an einem Tag ohne Einheit, ist eine Zeile und beantwortet
+             die Frage, die dort aufkommt – „Trotzdem soll ich heute nichts
+             nachholen?" An einem Trainingstag steht sie nie. -->
       </header>
 
       <div class="ov-body" id="bodyMap"></div>
@@ -1658,6 +3616,12 @@ function renderOverview() {
         ${startBlock(n, mode, prog)}
 `
       : leererTag(n)}
+      <!-- Hier stand die Zeile „↩︎ Als zweite Einheit heute: Zusatztag Woche 2,
+           2 Übungen. Öffnen". Raus, auf Ansage: „Was soll das mit zweite
+           Einheit. Wenn heute Übungen dazu kommen dann soll alles flüssig in
+           EINE Einheit". Seine Übungen stehen jetzt in dieser Einheit
+           (einheitEx() in js/plan.js) – im Kopf mitgezählt („6 Übungen"), an
+           der Übung mit ihrer Herkunft. Ein Start, keine Zeile darunter. -->
 
       <div class="ov-foot">
         ${w.custom ? `<button type="button" class="ov-nav" data-act="back-to-plan" aria-label="Zurück zum Plan">↩</button>`
@@ -1718,25 +3682,36 @@ function renderWelcome() {
     ${ui.standAngebot && schritt === 0 ? `<div class="notice">👋 <b>${esc(ui.standAngebot.n)}</b> hat dir
       den Link geschickt und seinen Stand mitgeschickt: ${esc(ui.standAngebot.w)} von
       ${esc(ui.standAngebot.p)} Einheiten. Sobald du fertig eingerichtet hast, steht er in deinem
-      Vergleich.</div>` : ''}`;
+      Vergleich.</div>` : ''}
+    ${schritt === 0 ? sicherungAngebotHtml() : ''}`;
 
+  // „Von allein geht nichts irgendwohin" stand hier, solange es keinen Server
+  // gab. Mit der automatischen Sicherung stimmt der Satz nicht mehr – und eine
+  // Zusage, die die App an anderer Stelle bricht, ist schlimmer als keine.
+  // Ohne Server in js/config.js bleibt er, denn dann stimmt er.
   const seiten = [`
     <div class="card">
       <p class="small">Ein fertiger Trainingsplan: Übungen, Sätze, Wiederholungen, Pausen –
         und zu jeder Übung eine vorgeführte Bewegung, die sich drehen lässt. Trainieren kannst
         du mit <strong>Hanteln</strong> oder als <strong>Bodyweight</strong>-Variante ganz ohne
-        Geräte; umgeschaltet wird über dem Startknopf, für jede Einheit neu.</p>
-      <p class="small">Die App läuft offline und braucht kein Konto. Was du einträgst, bleibt
+        Geräte. Gewählt wird unter <em>Mehr</em>, auch mitten im Training – die Wahl gilt
+        dann für die laufende und alle folgenden Einheiten, bis du sie wieder änderst.</p>
+      ${hatServer() ? `<p class="small">Die App läuft offline und braucht kein Konto. Was du
+        einträgst, liegt auf diesem Gerät und wird verschlüsselt gesichert (unten). Für den
+        Vergleich unter <em>Statistik</em> schickst du deinen Stand als Link, und wer ihn
+        bekommt, sieht die Zahlen darin.</p>`
+      : `<p class="small">Die App läuft offline und braucht kein Konto. Was du einträgst, bleibt
         auf diesem Gerät – bis du selbst etwas verschickst: Für den Vergleich unter
         <em>Statistik</em> schickst du deinen Stand als Link, und wer ihn bekommt, sieht die
-        Zahlen darin. Von allein geht nichts irgendwohin.</p>
+        Zahlen darin. Von allein geht nichts irgendwohin.</p>`}
     </div>
     <div class="card">
       <div class="lbl">Wie heißt du?</div>
       <div class="hint">Nur für die Anzeige und für den Vergleich mit Freunden.</div>
       <input type="text" id="nameInput" class="name-input" maxlength="24"
              autocomplete="name" placeholder="Dein Name" aria-label="Dein Name">
-    </div>`, `
+    </div>
+    ${sicherungEinstieg()}`, `
     <div class="card">
       <div class="small muted">Zwei Akzente: der wärmere gilt für die Hantel-Variante, der
         kühlere für Bodyweight. Sonst ändert sich nichts – dunkel bleibt dunkel.</div>
@@ -1816,6 +3791,22 @@ function willkommenFertig() {
   if (ui.standAngebot) {
     store.setFriend(freundId(ui.standAngebot.n), ui.standAngebot);
     ui.standAngebot = null;
+  }
+  // Im Einstieg gewählt, aber geladen ist noch der Plan, der beim Öffnen galt –
+  // js/data.js wählt ihn einmal, beim Laden. Wer hier „Cut" nahm, trainierte
+  // die erste Einheit nach dem Aufbau-Plan (sechs Übungen, Klimmzüge), und beim
+  // ersten Neuladen stand mitten in der Einheit der Cut da, mit den schon
+  // abgehakten Liegestützen als fremder Übung dazwischen. Neu geladen wird
+  // deshalb hier, einmal, wie bei jedem anderen Fokuswechsel – nicht schon
+  // beim Antippen: Dann finge der Einstieg wieder beim Namen an. Das Melden
+  // übernimmt der Start (meldeStand() unten), mitten im Neuladen ginge es
+  // verloren.
+  if ((PLANS[store.getState().focus] || PLANS.standard) !== FOCUS) {
+    store.flush();
+    sessionStorage.setItem('workout.nachEinstieg', name ? `Los geht’s, ${name} 💪` : 'Los geht’s 💪');
+    vorDemNeuladen('einstieg');
+    location.reload();
+    return;
   }
   render();
   // Jetzt erst: Der Satz mit dem Schalter stand im letzten Schritt, und der
@@ -1906,10 +3897,12 @@ function shareKarte(ausfuehrlich = false) {
             vorkamen, wie oft du den Link weitergeschickt hast und wie viele Stände von
             Freunden du übernommen hast. Dazu eine Zufallszahl, an der dein Gerät
             wiedererkannt wird. Er hat die App gebaut und sieht daran, ob sie benutzt wird
-            und was hakt. Sonst geht nichts raus: keine Uhrzeiten, keine Adressen, nichts
-            von außerhalb dieser App. Gespeichert wird bei Supabase, einem Datenbankdienst;
-            der sieht dabei technisch bedingt die IP-Adresse deines Geräts – in die Tabelle
-            geschrieben wird sie nicht.</div>
+            und was hakt. Sonst geht auf diesem Weg nichts raus: keine Uhrzeiten, keine
+            Adressen, nichts von außerhalb dieser App. Gespeichert wird bei Supabase, einem
+            Datenbankdienst; der sieht dabei technisch bedingt die IP-Adresse deines Geräts –
+            in die Tabelle geschrieben wird sie nicht. Die Sicherung deines Trainings ist
+            davon getrennt: verschlüsselt, lesbar nur mit deinem Schlüssel, eigener Schalter
+            unter <i>Mehr → Daten</i>.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-share"
                 aria-label="Nutzung teilen"></button>
@@ -1976,12 +3969,405 @@ function meldeStand(sofort = false) {
   // nächsten Tag nichts davon.
   if (!sofort && s.lastShare && s.lastShare.on === todayISO() && s.lastShare.ok) return;
   if (!s.deviceId) store.setSetting('deviceId', geraeteId(null));
-  melden(standZeile()).then(({ ok, msg }) => {
+  melden(standZeile()).then(({ ok, status, msg }) => {
+    notieren('rueckkanal', { ok, status, msg: ok ? undefined : msg });
     store.setSetting('lastShare', { on: todayISO(), ok, msg: ok ? '' : msg });
     // Nur neu zeichnen, wo das Ergebnis auch steht – mitten im Training wäre
     // ein Neuaufbau der Seite eine Zumutung.
     if (ui.tab === 'settings') render();
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * Automatische Sicherung – was davon zu sehen ist
+ *
+ * Die Technik steht in js/sicherung.js. Hier steht, wo man sie sieht:
+ *
+ *   Einstieg, Schritt 1  der Satz, was geschieht, mit dem Schalter daneben,
+ *                        und „Sicherung zurückholen" für den, der umzieht
+ *   Mehr → Daten         derselbe Satz, wann zuletzt gesichert wurde, wo der
+ *                        Schlüssel liegt, und Löschen
+ *   Dashboard            eine Zeile, und nur, wenn etwas zu tun ist
+ *
+ * Ohne Server in js/config.js gibt es nichts davon; dann bleibt die alte
+ * Erinnerung „N Einheiten seit der letzten Sicherung" mit dem Datei-Weg.
+ * ------------------------------------------------------------------ */
+
+function sicherungSatz() {
+  return `Dein Training wird automatisch verschlüsselt auf dem Server von ${esc(CONFIG.betreiber)}
+    gesichert. Lesen kann es nur, wer den Schlüssel hat – der liegt auf diesem Gerät und,
+    sobald du ihn dort ablegst, in deinem Passwortmanager.`;
+}
+
+/**
+ * Ein Satzende hinter vorWann(): „vor 3 Min." endet schon mit dem Punkt der
+ * Abkürzung, „am Mo, 26.10." mit dem des Datums – dann kein zweiter. Bis zur
+ * Prüfung von v247 stand unter Mehr → Daten „Zuletzt gesichert: vor 3 Min.."
+ * (und bis v247 unter Mehr → Kalender „nachgeschickt vor 1 Min..").
+ */
+function punkt(s) {
+  return /[.!?…]$/.test(s) ? s : `${s}.`;
+}
+
+/** „vor 3 Min." – für „Zuletzt gesichert". */
+function vorWann(iso) {
+  const t = Date.parse(iso || '');
+  if (!Number.isFinite(t)) return 'unbekannt';
+  const min = Math.floor((Date.now() - t) / 60000);
+  if (min < 1) return 'gerade eben';
+  if (min < 60) return `vor ${min} Min.`;
+  if (min < 24 * 60) return `vor ${Math.floor(min / 60)} Std.`;
+  const d = new Date(t);
+  const tag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `am ${fmtDate(tag)}`;
+}
+
+/** Ein Datum aus den Vermerken („2026-10-13") lesbar. */
+const sicherungTag = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)) : '');
+
+/**
+ * In welcher Lage ist die Sicherung – für das Dashboard, das nur dann etwas
+ * sagt, wenn es etwas zu tun gibt.
+ *
+ *   aus/fehlt/neu  es wird (noch) nicht automatisch gesichert – die alte
+ *                  Erinnerung gilt weiter
+ *   konflikt       angehalten, bis jemand entscheidet
+ *   klemmt         eine Woche lang nichts angekommen
+ *   schluessel     es läuft, aber der Schlüssel liegt nur auf diesem Gerät
+ *   still          alles gut: nichts anzeigen
+ */
+function sicherungLage() {
+  if (!sicherungAn()) return 'aus';
+  const m = sicherungMetaLesen();
+  if (m.fehlt) return 'fehlt';
+  if (m.konflikt) return 'konflikt';
+  if (!m.ok) return 'neu';
+  if (m.fehler && Date.now() - Date.parse(m.ok) > 7 * 24 * 3600 * 1000) return 'klemmt';
+  const a = m.aussen || {};
+  return a.passwort || a.geprueft || a.link ? 'still' : 'schluessel';
+}
+
+/** Der Wiederherstellungs-Link, der beim Öffnen einen Schlüssel mitbrachte. */
+function sicherungAngebotHtml() {
+  if (!ui.sicherungAngebot) return '';
+  return `<div class="notice">🔑 Dieser Link bringt den Schlüssel zu einer Sicherung mit. Zurückholen
+      ersetzt, was hier steht${needsWelcome() ? '' : ' (der jetzige Stand wird beiseitegelegt)'}.
+      Danach sichert dieses Gerät unter seinem eigenen Schlüssel weiter – wer den Link hat, liest
+      nicht mit.
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="sicherung-angebot-holen"
+                ${ui.sicherungLaeuft ? 'disabled' : ''}>Zurückholen</button>
+        <button type="button" class="btn btn-ghost" data-act="sicherung-angebot-weg">Verwerfen</button>
+      </div>
+      ${ui.sicherungMeldung ? `<div class="hint" id="sicherungMeldung" style="color:var(--accent);margin-top:8px">${esc(ui.sicherungMeldung)}</div>` : ''}
+    </div>`;
+}
+
+/** Die eine Zeile auf dem Dashboard – sie ersetzt die alte Erinnerung, wo gesichert wird. */
+function sicherungsZeile(due) {
+  const angebot = sicherungAngebotHtml();
+  if (angebot) return angebot;
+  const lage = sicherungLage();
+  const m = sicherungMetaLesen();
+  if (lage === 'konflikt' || lage === 'klemmt') {
+    const was = lage === 'klemmt'
+      ? `Zuletzt gesichert ${vorWann(m.ok)} – seitdem kommt nichts mehr an.`
+      : (m.konflikt.art === 'geloescht'
+        ? 'Sicherung angehalten: Auf dem Server ist sie weg.'
+        : 'Sicherung angehalten: Ein anderes Gerät sichert unter deinem Schlüssel.');
+    return `<div class="notice warn zeile">⚠️ <span>${esc(was)}</span>
+      <button type="button" class="btn" data-act="sicherung-ansehen">Ansehen</button></div>`;
+  }
+  if (lage === 'schluessel') {
+    return `<div class="notice zeile">🔑 <span>Wird automatisch gesichert – der Schlüssel liegt aber
+      nur auf diesem Gerät.</span>
+      <button type="button" class="btn btn-primary" data-act="schluessel-sichern">Schlüssel sichern</button></div>`;
+  }
+  if (lage === 'still') return '';
+  // aus, fehlt, neu: Es wird (noch) nicht automatisch gesichert. Dann die
+  // Erinnerung wie bisher, mit dem Datei-Weg.
+  return due ? `<div class="notice warn">💾 ${esc(plural(due, 'Einheit', 'Einheiten'))} seit der letzten
+        Sicherung. Alles liegt nur in diesem Browser.
+        <button type="button" class="btn btn-block btn-primary" data-act="backup-teilen"
+                style="margin-top:10px">Sicherung weitergeben</button>
+        <div class="small muted" style="margin-top:6px">Geht an Drive, an eine Mail an dich
+          selbst, an was du willst – Hauptsache nicht nur auf dieses Handy.</div></div>` : '';
+}
+
+/** Das Eingabefeld für Schlüssel oder Link – wo der Passwortmanager nichts hergibt. */
+function sicherungEingabeHtml() {
+  return `${ui.sicherungEingabe ? `
+      <input type="text" class="name-input" id="sicherungSchluessel" autocomplete="off"
+             autocapitalize="off" spellcheck="false" placeholder="Schlüssel oder Link"
+             aria-label="Schlüssel oder Wiederherstellungs-Link">
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary btn-block" data-act="sicherung-eingabe-laden"
+                ${ui.sicherungLaeuft ? 'disabled' : ''}>Laden</button>
+      </div>` : ''}
+      ${ui.sicherungMeldung && !ui.sicherungAngebot ? `<div class="hint" id="sicherungMeldung"
+        style="color:var(--accent);margin-top:8px">${esc(ui.sicherungMeldung)}</div>` : ''}`;
+}
+
+/**
+ * Ein Löschen, das noch nicht beim Server angekommen ist – etwa „Alle Daten
+ * löschen" ohne Netz. Steht im Einstieg (dort landet man danach) und unter
+ * Mehr, bis der Server es bestätigt: Nichts ändert sich unbemerkt, auch nicht
+ * etwas, das sich noch nicht geändert hat.
+ */
+function sicherungLoeschenZeile() {
+  return loeschenAusstehend() ? `<div class="small" id="sicherungLoeschenOffen" style="margin-top:8px">🗑️
+    Eine Sicherung auf dem Server wartet aufs Löschen – das geschieht, sobald er wieder erreichbar
+    ist.</div>` : '';
+}
+
+/** Einstieg, Schritt 1: der Satz, der Schalter, und der Weg zurück für den, der umzieht. */
+function sicherungEinstieg() {
+  if (!hatServer()) return '';
+  return `
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Automatisch sichern</div>
+          <div class="hint">${sicherungSatz()}</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${sicherungAn()}" data-act="toggle-sicherung"
+                aria-label="Automatisch sichern"></button>
+      </div>
+      ${sicherungLoeschenZeile()}
+      <div class="small muted" style="margin-top:10px">Schon auf einem anderen Gerät trainiert?
+        Dann holt dieser Knopf den Stand von dort – mit dem Schlüssel aus deinem
+        Passwortmanager oder dem Link, den du dir geschickt hast.</div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-block" data-act="sicherung-holen"
+                ${ui.sicherungLaeuft ? 'disabled' : ''}>Sicherung zurückholen</button>
+      </div>
+      ${sicherungEingabeHtml()}
+    </div>`;
+}
+
+/** Mehr → Daten: alles, was es über die Sicherung zu wissen und zu tun gibt. */
+function sicherungKarte() {
+  if (!hatServer()) return '';
+  const m = sicherungMetaLesen();
+  const an = sicherungAn();
+  const k = m.konflikt;
+  let lage;
+  if (!an) {
+    lage = 'Abgeschaltet – es geht nichts raus. Was schon auf dem Server liegt, bleibt dort, '
+      + 'bis du es löschst.';
+  } else if (m.fehlt) {
+    lage = `Der Server kennt die Sicherung noch nicht – ${CONFIG.betreiber} muss dort einmal den
+      SQL-Block aus der README ausführen (Abschnitt „Automatische Sicherung"). Bis dahin hilft
+      die Datei unten.`;
+  } else if (k && k.art === 'geloescht') {
+    lage = 'Auf dem Server ist die Sicherung weg – auf einem anderen Gerät gelöscht oder 400 Tage '
+      + 'nicht erneuert. Dieses Gerät sichert erst wieder, wenn du es sagst.';
+  } else if (k) {
+    lage = `Ein anderes Gerät hat unter demselben Schlüssel gesichert${m.ok
+      ? `, nach der letzten Sicherung von hier (${vorWann(m.ok)})` : ''}. Damit dieses Gerät den
+      neueren Stand nicht überschreibt, sichert es gerade nicht. Was soll gelten?`;
+  } else if (m.ok) {
+    lage = `Zuletzt gesichert: ${punkt(vorWann(m.ok))}${m.fehler
+      ? ` Der letzte Versuch ging nicht (${m.fehler}) – wird von selbst wiederholt.` : ''}`;
+  } else if (m.fehler) {
+    lage = `Noch nicht gesichert: ${m.fehler}. Wird von selbst wiederholt.`;
+  } else {
+    lage = 'Noch nichts gesichert – das passiert nach dem ersten Training von selbst.';
+  }
+  const a = m.aussen || {};
+  const wo = [];
+  if (a.geprueft) wo.push(`liegt in deinem Passwortmanager (nachgesehen ${sicherungTag(a.geprueft)})`);
+  else if (a.passwort) {
+    wo.push(`am ${sicherungTag(a.passwort)} an den Passwortmanager übergeben – ob Chrome ihn
+      gespeichert hat, erfährt die App nicht; „Nachsehen" prüft es`);
+  }
+  // „verschickt oder kopiert", nicht „abgelegt": Wohin der Link danach ging,
+  // weiß die App nicht.
+  if (a.link) wo.push(`am ${sicherungTag(a.link)} als Link verschickt oder kopiert`);
+  const schluessel = !m.key
+    ? 'Der Schlüssel entsteht mit der ersten Sicherung.'
+    : wo.length ? `🔑 Schlüssel: ${wo.join('; ')}.`
+      : `🔑 Schlüssel: nur auf diesem Gerät. Geht es verloren, ist die Sicherung nicht mehr zu
+        lesen – auch für ${CONFIG.betreiber} nicht. Leg ihn im Passwortmanager ab oder schick dir
+        den Link.`;
+  const pw = passwortManagerDa();
+  return `
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Automatisch sichern</div>
+          <div class="hint" id="sicherungOffen">${sicherungSatz()} Der Server – bei Supabase – sieht
+            eine Zufallskennung, wie groß die Sicherung ist und wann sie kam, sekundengenau: also
+            auch, wann du trainierst. Dazu, wie bei jeder Anfrage, die IP-Adresse deines Geräts;
+            gespeichert wird nicht sie, sondern gegen Missbrauch bis zum Tagesende ein Hash davon.
+            Was 400 Tage niemand erneuert, löscht der Server von selbst.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-sicherung"
+                aria-label="Automatisch sichern"></button>
+      </div>
+      <div class="small muted" id="sicherungStand" style="margin-top:8px">${esc(lage.replace(/\s+/g, ' '))}</div>
+      ${sicherungLoeschenZeile()}
+      ${an && k ? `<div class="btn-row">
+        <button type="button" class="btn btn-primary" data-act="sicherung-trotzdem">${k.art === 'geloescht'
+          ? 'Wieder sichern' : 'Diesen Stand sichern'}</button>
+        ${k.art === 'geloescht' ? '' : '<button type="button" class="btn" data-act="sicherung-von-dort">Den Stand von dort holen</button>'}
+      </div>` : ''}
+      <div class="small muted" id="schluesselStand" style="margin-top:8px">${esc(schluessel.replace(/\s+/g, ' '))}</div>
+      ${m.key ? `<div class="btn-row">
+        ${pw ? '<button type="button" class="btn" data-act="schluessel-passwort">Im Passwortmanager ablegen</button>' : ''}
+        ${pw && a.passwort ? '<button type="button" class="btn" data-act="schluessel-pruefen">Nachsehen</button>' : ''}
+        <button type="button" class="btn" data-act="schluessel-link">Link an dich schicken</button>
+      </div>
+      <div class="small muted" style="margin-top:6px">Wer den Link hat, kann deinen Verlauf lesen –
+        schick ihn nur an dich selbst.</div>` : ''}
+      ${ui.sicherungLinkText ? `<input type="text" class="name-input" id="sicherungLink" readonly
+        value="${esc(ui.sicherungLinkText)}" aria-label="Wiederherstellungs-Link">` : ''}
+      <div class="btn-row">
+        <button type="button" class="btn" data-act="sicherung-holen"
+                ${ui.sicherungLaeuft ? 'disabled' : ''}>Sicherung zurückholen</button>
+        ${m.id ? '<button type="button" class="btn btn-ghost" data-act="sicherung-loeschen">Sicherung auf dem Server löschen</button>' : ''}
+      </div>
+      ${sicherungEingabeHtml()}
+    </div>`;
+}
+
+/** Den Namen aus dem Einstieg festhalten, bevor neu gezeichnet wird – sonst wäre er weg. */
+function einstiegNameHalten() {
+  const feld = document.getElementById('nameInput');
+  if (feld) store.setSetting('name', feld.value.trim().slice(0, 24));
+}
+
+/**
+ * Eine geholte Sicherung einspielen: Rückfrage, einlesen, den Schlüssel
+ * übernehmen, neu starten – derselbe Weg wie beim Einlesen einer Datei.
+ */
+async function sicherungEinspielen(key, erg, weg) {
+  if (!ersetzenErlaubt()) return;
+  try {
+    store.importJSON(erg.text);
+  } catch (e) {
+    ui.sicherungMeldung = `Die Sicherung ließ sich nicht einlesen: ${e.message}`;
+    render();
+    return;
+  }
+  await sicherungUebernehmen(key, { stand: erg.stand, weg });
+  ui.setupStep = 0;
+  // Nichts ändert sich unbemerkt: Nach einem Link sichert das Gerät unter
+  // einem anderen Schlüssel weiter als dem, mit dem es eben geholt hat.
+  neuStarten(weg === 'link'
+    ? 'Sicherung zurückgeholt – gesichert wird ab jetzt unter dem eigenen Schlüssel dieses Geräts'
+    : 'Sicherung zurückgeholt');
+}
+
+/** Mit einem Schlüssel holen und einspielen; was schiefgeht, steht danach am Knopf. */
+async function sicherungHolenMit(key, weg) {
+  ui.sicherungLaeuft = true;
+  ui.sicherungMeldung = '';
+  render();
+  const erg = await sicherungHolen(key);
+  ui.sicherungLaeuft = false;
+  if (!erg.ok) {
+    ui.sicherungMeldung = erg.msg;
+    render();
+    return;
+  }
+  await sicherungEinspielen(key, erg, weg);
+}
+
+/**
+ * „Sicherung zurückholen": erst der Passwortmanager – dort liegt der
+ * Schlüssel, wenn er synchronisiert wurde, und ein Tipp in der Auswahl genügt.
+ * Gibt es ihn nicht, lehnt er ab oder liefert nichts, kommt das Eingabefeld
+ * für Schlüssel oder Link.
+ */
+async function sicherungHolenStarten() {
+  ui.sicherungMeldung = '';
+  // Wer jetzt selbst zurückholt, meint nicht mehr den Link, mit dem die App
+  // aufging – dessen Angebot (und seine Meldung) räumt das Feld.
+  ui.sicherungAngebot = null;
+  let key = null;
+  try {
+    key = await schluesselAusManager();
+  } catch { key = null; }
+  if (key) {
+    await sicherungHolenMit(key, 'passwort');
+    return;
+  }
+  ui.sicherungEingabe = true;
+  render();
+  const feld = document.getElementById('sicherungSchluessel');
+  if (feld) feld.focus();
+}
+
+/**
+ * Den Schlüssel außerhalb des Geräts ablegen – auf dem Dashboard ein Tipp:
+ * Passwortmanager, wo es ihn gibt, sonst der Link.
+ */
+async function schluesselImManager() {
+  try {
+    await schluesselAblegen();
+    toast('Chrome fragt jetzt, ob es das Passwort „Workout-Sicherung" speichern soll – „Speichern" tippen.');
+    render();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Den Wiederherstellungs-Link an sich selbst schicken – oder kopieren, wo es kein Teilen gibt. */
+async function sicherungsLinkSchicken() {
+  const link = await sicherungLink(appURL());
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Workout-Sicherung',
+        text: 'Schlüssel zu meiner Workout-Sicherung – nur für mich. Auf einem neuen Gerät öffnen, '
+          + 'dann ist das Training wieder da.',
+        url: link,
+      });
+      linkVermerken();
+      toast('Link verschickt – wer ihn hat, kann deinen Verlauf lesen');
+      render();
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+  // Kein Teilen: in die Zwischenablage, und zur Sicherheit sichtbar daneben.
+  ui.sicherungLinkText = link;
+  try {
+    await navigator.clipboard.writeText(link);
+    toast('Link kopiert – leg ihn außerhalb dieses Geräts ab, etwa als Mail an dich');
+  } catch {
+    toast('Link steht unter dem Knopf – kopieren und außerhalb dieses Geräts ablegen');
+  }
+  linkVermerken();
+  render();
+}
+
+/**
+ * Schlüssel aus der Adresse lesen – und den Anker aus der Adresszeile nehmen.
+ *
+ * Wie beim geschickten Stand (standAusAdresse()), nur mit mehr auf dem Spiel:
+ * Der Anker ist der Schlüssel. Er geht nie an einen Server – ein Anker gehört
+ * nicht zur Anfrage. Aus dem **Browserverlauf** bekommt replaceState ihn
+ * allerdings nicht heraus: Chrome hat die Adresse samt Anker beim Öffnen
+ * vermerkt, und dort bleibt sie (nachgesehen in der History-Datenbank eines
+ * Chromium mit Oberfläche). Bis v240 stand hier, er solle dort nicht stehen
+ * bleiben – das hielt die App nicht ein, und weil das Gerät danach unter genau
+ * diesem Schlüssel weitersicherte, öffnete der Verlaufseintrag jede künftige
+ * Sicherung.
+ *
+ * Deshalb übernimmt das Gerät einen Schlüssel aus einem Link nie als seinen
+ * eigenen (sicherungUebernehmen() in js/sicherung.js): Der Link öffnet nur den
+ * Stand, aus dem er stammt, und was danach kommt, geht unter dem eigenen
+ * Schlüssel des Geräts hinaus.
+ */
+function sicherungAusAdresse() {
+  const treffer = /[#&]sicherung=([A-Za-z0-9_-]+)/.exec(location.hash);
+  if (!treffer) return null;
+  history.replaceState(history.state, '', location.pathname + location.search);
+  return schluesselAus(`#sicherung=${treffer[1]}`);
 }
 
 /* ------------------------------------------------------------------ *
@@ -2121,6 +4507,23 @@ function appURL() {
 const SHARE_TEXT = 'Mein Trainingsplan als App: 84 Einheiten, mit Hanteln oder ohne, '
   + 'mit vorgeführten Bewegungen und Pausentimer. Läuft im Browser, offline, ohne Konto.';
 
+/**
+ * Die Knöpfe oben in der Übungsliste – dieselbe Weiche wie startBlock().
+ *
+ * Hier stand bei jeder nicht laufenden Einheit „▶︎ Workout starten", auch wenn
+ * gerade eine andere lief. start-session verlässt sich aber darauf, dass der
+ * Knopf vorher sagt, dass die andere endet (laufendWoandersBlock()) – und so
+ * beendete ein Tipp in der Liste von Workout 2 das laufende Workout 1 ohne ein
+ * Wort davor.
+ */
+function listeStartKnoepfe(n, mode, prog, sess, session) {
+  if (session) return sessionButtons(n, mode);
+  if (sess) return prog.erledigt ? zurLaufendenKnopf(sess.n) : laufendWoandersBlock(sess.n, prog);
+  return `<div class="btn-row">
+       <button type="button" class="btn btn-primary btn-block" data-act="start-session">▶︎ Workout starten</button>
+     </div>`;
+}
+
 function renderDashboard() {
   const n = ui.workoutNo;
   const w = workoutByNo(n);
@@ -2132,14 +4535,11 @@ function renderDashboard() {
   const sess = store.getState().session;
   const session = sess && sess.n === n ? sess : null;
 
-  let when;
-  if (diff === 0) when = 'Heute';
-  else if (diff === 1) when = 'Morgen';
-  else if (diff === -1) when = 'Gestern';
-  else if (diff > 1) when = `in ${diff} Tagen`;
-  else when = `vor ${-diff} Tagen`;
+  const when = wannWort(w, diff);
 
   const items = w.ex.map((item) => resolve(item, mode));
+  // Die Herkunft der Nacharbeit einmal für die ganze Liste, nicht je Karte.
+  const warumJe = !w.custom && items.some((it) => it.nach) ? nachWarumJe(PLAN[n - 1], mode) : null;
 
   const parts = [];
 
@@ -2148,10 +4548,11 @@ function renderDashboard() {
   parts.push(aufstiegHinweis());
 
   if (!store.canPersist()) parts.push(speicherWarnung());
+  parts.push(tonHinweis());
 
   parts.push(`
     <section class="card">
-      <div class="hero-eyebrow">${w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n}`}</div>
+      <div class="hero-eyebrow">${esc(einheitAugenbraue(w, when))}</div>
       <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
       <div class="hero-sub">${tagKopf(w, mode, items)}</div>
       <div class="hero-badges">
@@ -2165,11 +4566,7 @@ function renderDashboard() {
         ${session ? '<span class="badge accent" id="sessionBadge">⏱ läuft</span>' : ''}
       </div>
       <div class="progress"><i style="width:${prog.pct}%"></i></div>
-      ${session
-        ? sessionButtons(n, mode)
-        : `<div class="btn-row">
-             <button type="button" class="btn btn-primary btn-block" data-act="start-session">▶︎ Workout starten</button>
-           </div>`}
+      ${listeStartKnoepfe(n, mode, prog, sess, session)}
       <div class="btn-row nav">
         <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${w.custom || n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
         <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
@@ -2178,14 +4575,19 @@ function renderDashboard() {
     </section>
   `);
 
+  // Zurück in die Fokusansicht nur aus der Liste der *laufenden* Einheit. Aus
+  // der einer anderen führte „Zurück" bisher auf focus-back: Gezeigt wurde
+  // trotzdem die Übersicht dieser Einheit, aber `ui.focus` blieb hängen – das
+  // Wischen tat nichts mehr, und nach dem Neuladen fand die App die laufende
+  // Einheit nicht wieder.
   parts.push(`<div class="focus-top">
-      <button type="button" class="back-link" data-act="${store.getState().session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
-      <span class="focus-count">${w.ex.length} Übungen · ${prog.done}/${prog.total} Sätze</span>
+      <button type="button" class="back-link" data-act="${session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
+      <span class="focus-count">${plural(items.length, 'Übung', 'Übungen')} · ${prog.done}/${prog.total} Sätze</span>
     </div>
     ${tagNotiz(w, mode, items)}`);
 
   items.forEach((it, i) => {
-    const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
+    const sets = saetzeZeigen(n, mode, it).slice(0, it.sets);
     const doneCount = sets.filter((s) => s.done).length;
     const open = ui.openEx.has(it.id);
     // Sätze aus dem anderen Modus zählen mit (siehe saetzeErledigt) – und die
@@ -2196,11 +4598,7 @@ function renderDashboard() {
 
     // Satz-Knöpfe liegen bewusst außerhalb des aufklappbaren Bereichs: Abhaken
     // ist der eine Handgriff, der zwischen zwei Sätzen schnell gehen muss.
-    const setBtns = sets.map((s, idx) => `
-      <button type="button" class="set-btn ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
-              aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
-              data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>
-    `).join('');
+    const setBtns = satzKnoepfe(it, sets, 'set-btn');
 
     // Gewichtszeile: ein Arbeitsgewicht je Übung, nicht je Satz. Die Erhöhung
     // gilt ab dem nächsten Mal, sobald heute schon ein Satz steht. Wie groß
@@ -2209,13 +4607,13 @@ function renderDashboard() {
     const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
     const weightRow = kg === null ? bandRow(it) : `
       <div class="ex-weight">
-        ${kgKnopf(it, -1)}
+        ${kgKnopf(it, -1, mode)}
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(gewichtNotiz(it.id))}` : ''}</span>
         </div>
-        ${kgKnopf(it, 1)}
+        ${kgKnopf(it, 1, mode)}
       </div>
       ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}
       ${aufwaermZeile(it, mode, n)}`;
@@ -2226,11 +4624,12 @@ function renderDashboard() {
           <span class="ex-idx">${complete ? '✓' : i + 1}</span>
           <span class="ex-main">
             <span class="ex-name">${esc(it.name)}</span>
-            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}${
-              it.nach ? ` · <b>+${it.nach} nachgeholt</b>` : ''}</span>
+            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</span>
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
+        ${nachZeile(n, mode, it, warumJe)}
+        ${zusatzZeile(w, it)}
         ${anfaengerZeile(it)}
         ${weightRow}
         ${fassungRow(it, mode)}
@@ -2468,7 +4867,7 @@ function renderStats() {
     <div class="card">
       ${upcoming
         ? `<div class="plan-date">Workout ${upcoming.n} · ${esc(fmtDate(effDate(upcoming), true))}</div>
-           <div class="small muted" style="margin-top:4px">${esc(exOf(upcoming, store.workoutMode(upcoming.n)).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
+           <div class="small muted" style="margin-top:4px">${esc(einheitEx(upcoming, store.workoutMode(upcoming.n)).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
            <div class="btn-row"><button type="button" class="btn btn-primary" data-act="open-workout" data-n="${upcoming.n}">Öffnen</button></div>`
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
     </div>
@@ -2479,7 +4878,7 @@ function renderStats() {
     <div class="section-title">Gewicht je Übung</div>
     <div class="spark-grid" id="sparkEx"></div>
 
-    <div class="section-title">Volumen je Muskelgruppe</div>
+    <div class="section-title">Volumen je Muskelgruppe · Anteile eingerechnet</div>
     <div class="spark-grid" id="sparkMus"></div>
 
     <div class="section-title">Meist trainierte Übungen</div>
@@ -2601,10 +5000,11 @@ function superVorschau() {
   if (!gruppen.length) return '';
   const paarZahl = gruppen.filter((g) => g.length === 2).length;
   return `
-    <div class="scheiben-satz">
-      <div class="lbl">Workout ${n} liefe so</div>
+    <div class="scheiben-satz super-vorschau">
+      <div class="lbl">${esc(einheitTitel(n))} liefe so</div>
       ${gruppen.map((g) => (g.length === 2
-        ? `<div class="super-paar">↔ ${esc(g[0].name)} <span class="super-mit">im Wechsel mit</span> ${esc(g[1].name)}</div>`
+        ? `<div class="super-paar">↔ ${esc(g[0].name)} <span class="super-mit">im Wechsel mit</span> ${esc(g[1].name)}${
+          scheibenReichen(g[0], g[1], mode) ? '' : ' <span class="knapp">– Scheiben reichen nicht für beide, umstecken</span>'}</div>`
         : `<div class="super-paar allein">${esc(g[0].name)} <span class="super-mit">allein, mit normaler Pause</span></div>`)).join('')}
       <div class="hint">${paarZahl
         ? `${paarZahl} ${paarZahl === 1 ? 'Paar' : 'Paare'} – der Rest läuft wie bisher.`
@@ -2625,6 +5025,34 @@ function scheibenAendern(wie) {
   const satz = roherSatz();
   wie(satz);
   store.setSetting('scheiben', satz);
+}
+
+/**
+ * Nach einer Eingabe in ein Scheibenfeld: Zeilenhinweis, „Damit einstellbar"
+ * und die Supersatz-Vorschau nachziehen – aber nicht die Felder selbst.
+ *
+ * Gespeichert wurde schon immer bei jedem Tastendruck, neu gezeichnet bewusst
+ * nicht: Ein render() ersetzt das Feld und nimmt den Fokus mitten im Wort mit.
+ * Damit blieb aber auch stehen, was aus der Eingabe folgt. Nach „Scheibengröße
+ * hinzufügen" (0,5 kg × 4) und dem Eintippen von 10 × 2 stand neben der Zeile
+ * weiter „+1 kg je Paar · 2 Paare", und die Vorschau zeigte je Hand
+ * „0 · 1 · 2,5 · 3,5 …" – Gewichte aus 0,5er-Scheiben, die es gar nicht gibt.
+ * Ausgerechnet die Vorschau, die belegen soll, dass richtig eingetragen ist,
+ * ließ einen richtigen Vorrat vertippt aussehen (gefunden auf dem Weg durch die
+ * App). Wie bei der Terminsuche wird deshalb nur das ersetzt, was sich aus der
+ * Eingabe ergibt.
+ */
+function scheibenNachziehen(feld) {
+  const zeile = feld.closest('.scheiben-zeile');
+  if (zeile && feld.dataset.i !== undefined) {
+    const roh = roherSatz().scheiben[Number(feld.dataset.i)] || [];
+    zeile.querySelectorAll('.scheiben-hint, .scheiben-warn').forEach((x) => x.remove());
+    zeile.insertAdjacentHTML('beforeend', scheibenZeilenHinweis(roh[0], roh[1]));
+  }
+  const block = view.querySelector('.scheiben-einstellbar');
+  if (block) block.innerHTML = scheibenEinstellbar();
+  const paare = view.querySelector('.super-vorschau');
+  if (paare) paare.outerHTML = superVorschau() || '<div class="super-vorschau" hidden></div>';
 }
 
 /**
@@ -2660,9 +5088,15 @@ function anfaengerZeile(it) {
   const alt = EX_BY_ID.get(grund.statt);
   if (!alt) return '';
   if (grund.warum === 'vorrat') {
+    // Abgewählt oder Gerät weg – getauscht wird hier beides, gesagt wird, was
+    // es war. Vorher stand immer das Gerät da, auch beim Hip Thrust, der unter
+    // Mehr → Übungen aus war, weil die Stange am Sofa an die Wand schlug: „dafür
+    // fehlt gerade das Gerät" – und die Stange lag daneben.
+    const abgewaehlt = ausUebungen().includes(grund.statt);
     return `<div class="aufwaerm">Statt ${esc(alt.db.name)}
-        <span class="muted">– dafür fehlt gerade das Gerät. Unter Mehr → Was da ist
-        wieder anhaken.</span></div>`;
+        <span class="muted">– ${abgewaehlt
+    ? 'die Übung ist unter Mehr → Übungen ausgeschaltet. Dort wieder einschalten.'
+    : 'dafür fehlt gerade das Gerät. Unter Mehr → Was da ist wieder anhaken.'}</span></div>`;
   }
   // Bei Stufe und eigener Wahl zeigt es die Zeile mit − und + (fassungRow()).
   return '';
@@ -2694,8 +5128,16 @@ function fassungRow(it, mode) {
   if (!f) return '';
   const seite = mode === 'bw' ? 'bw' : 'db';
   const name = (id) => { const e = EX_BY_ID.get(id); return e ? e[seite].name : id; };
+  // Unter dem Zeichen steht, wohin es geht – die Übung selbst, nicht nur
+  // „schwerer":
+  //
+  //     „Bei schwerer kann ruhig die Übung stehen und so"
+  //
+  // „schwerer" sagte nur die Richtung; was dann kommt, stand erst nach dem
+  // Tippen da. Und es lief über den Knopf hinaus. Jetzt ist der Knopf so breit,
+  // wie der Name es braucht (höchstens ein gutes Drittel der Zeile), und der
+  // Name bricht um.
   const knopf = (id, plus) => {
-    const wie = plus ? 'schwerer' : 'leichter';
     if (!id) {
       return `<button type="button" class="kg-step${plus ? ' kg-plus' : ''}" disabled
               aria-label="${esc(plus ? 'Keine schwerere Ausführung' : 'Keine leichtere Ausführung')}">${plus ? '+' : '−'}</button>`;
@@ -2704,11 +5146,11 @@ function fassungRow(it, mode) {
     // kommt: Der Gerätefilter läuft danach und tauscht sie wieder weg.
     const moeglich = uebungGeht(id, mode);
     const ex = EX_BY_ID.get(id);
-    return `<button type="button" class="kg-step${plus ? ' kg-plus' : ''}"
+    return `<button type="button" class="kg-step fassung-knopf${plus ? ' kg-plus' : ''}"
               data-act="fassung-waehlen" data-ex="${esc(f.plan)}" data-v="${esc(id)}"
               ${moeglich ? '' : 'disabled'}
               aria-label="${esc(moeglich ? `${plus ? 'Schwerer' : 'Leichter'}: ${name(id)}`
-    : `${name(id)} geht gerade nicht – ${ex[seite].equip} fehlt`)}">${plus ? '+' : '−'}<span class="kg-step-d">${wie}</span></button>`;
+    : `${name(id)} geht gerade nicht – ${ex[seite].equip} fehlt`)}">${plus ? '+' : '−'}<span class="kg-step-d">${esc(name(id))}</span></button>`;
   };
   const stufe = f.leichter && f.schwerer ? 'mittel' : (f.leichter ? 'schwer' : 'leicht');
   return `
@@ -2717,6 +5159,8 @@ function fassungRow(it, mode) {
       <div class="kg-main">
         <span class="kg-val kg-fest">${stufe}</span>
         <span class="kg-unit">Ausführung${it.statt && it.statt !== it.id
+    // „statt X" nur, wenn X nicht ohnehin schon auf einem der Knöpfe steht.
+    && it.statt !== f.leichter && it.statt !== f.schwerer
     ? ` · statt ${esc(name(it.statt))}` : ''}</span>
       </div>
       ${knopf(f.schwerer, true)}
@@ -2753,9 +5197,9 @@ function aufwaermZeile(it, mode, n) {
  * Zeichen: Wer +5,5 liest, weiß vorher, dass dazwischen nichts liegt, und
  * warum – sein Scheibensatz gibt es nicht her.
  */
-function kgKnopf(it, richtung) {
+function kgKnopf(it, richtung, mode) {
   const jetzt = workingWeight(it.id);
-  const ziel = naechstesGewicht(it.id, richtung);
+  const ziel = naechstesGewicht(it.id, richtung, mode);
   const d = Math.abs(ziel - (jetzt || 0));
   const wort = richtung > 0 ? 'mehr' : 'weniger';
   const label = d < 0.01 ? `Kein weiterer Schritt nach ${richtung > 0 ? 'oben' : 'unten'}`
@@ -3054,11 +5498,13 @@ function tagesGroesse(w, mode, anzahl) {
  * tiefer, über die Übungsliste, wo sie mit Zahlen dasteht (tagNotiz).
  */
 function tagKopf(w, mode, items) {
-  return [
-    MODE_LABEL[mode],
-    `${items.length} Übungen`,
-    `${items.reduce((a, x) => a + x.sets, 0)} Sätze`,
-  ].join(' · ');
+  // Die Summe, Nachholsätze und eingefügter Zusatztag eingerechnet: „Hanteln ·
+  // 6 Übungen · 17 Sätze". In v238 stand hier „12 + 3 Sätze", in v239 „5 + 1
+  // Übungen · 15 + 2 Sätze" – raus auf Zuruf, siehe umfangText() in
+  // js/anzeige.js. Woher das Mehr kommt, steht an der Übung; eine eigene Zeile
+  // dafür gibt es auch hier nicht – siehe den Kommentar in der Startansicht,
+  // warum dort keine Buchhaltung mehr steht.
+  return `${MODE_LABEL[mode]} · ${umfangText(items)}`;
 }
 
 /**
@@ -3073,8 +5519,23 @@ function tagKopf(w, mode, items) {
  * tools/build-plan.py legt das Volumen je Muskelgruppe und Woche fest und
  * verteilt es erst danach auf die Einheiten (split(), Kriterium `imbalance`).
  * Ein kurzer Tag ist deshalb kein fehlender Tag.
+ *
+ * **Nicht an einem Tag mit eingefügten Übungen.** Seit v240 zählt der Kopf
+ * die Summe:
+ *
+ *     „Da soll einfach die normale Zahl dieses Trainings inkl der
+ *      nachholübungen stehen. Also einfach 6 in diesem Fall."
+ *
+ * An Workout 9 mit den Chin-ups aus Woche 2 stand dann „6 Übungen · 0/17
+ * Sätze" und direkt darunter „Einheiten in diesem Fokus: 4 bis 5 Übungen" –
+ * zwei Zahlen, die sich widersprechen, auf einem Bildschirm. Die Notiz
+ * vergleicht den Plan; warum dieser Tag länger ist, sagt an so einem Tag die
+ * Herkunftszeile an der eingefügten Übung („Nachgeholt aus Woche 2: …"). Dann
+ * ist die Summe im Kopf die einzige Übungszahl der Ansicht. Nacharbeit ändert
+ * die Übungszahl nicht und lässt die Notiz stehen.
  */
 function tagNotiz(w, mode, items) {
+  if (items.some((it) => it.zusatz)) return '';
   if (!tagesGroesse(w, mode, items.length)) return '';
   const tab = groessenTabelle(mode);
   const groessen = [...tab.keys()].sort((a, b) => a - b);
@@ -3096,10 +5557,13 @@ function tagNotiz(w, mode, items) {
  *
  * Das Ziel ist nicht überall dasselbe: es kommt als TARGET aus den erzeugten
  * Daten, damit hier keine zweite Zahl steht, die von der Rechnung abweichen
- * kann. Im Ziel heißt: keinen ganzen Satz darunter – genau die Grenze, die
- * tools/build-plan.py für die einzelne Woche garantiert. Enger wäre es keine
- * Aussage über das Training, sondern über den Rundungsspielraum des Plans:
- * dessen eigene Wochen weichen um bis zu 0,95 Sätze ab.
+ * kann. Im Ziel heißt: mindestens 90 % dessen, was der Plan für diese Woche
+ * vorsieht (inTarget() und plannedWeek() gleich darunter) – nicht das Ziel
+ * selbst. Eine Garantie „kein ganzer Satz unter dem Ziel" gibt
+ * tools/build-plan.py für die einzelne Woche nicht: Die erzeugten Pläne
+ * weichen in einzelnen Wochen um mehr als zwei Sätze ab (README, *2 bis 4
+ * Sätze – gemessen*); als grob gilt dort erst eine Woche, die die Hälfte
+ * des Ziels danebenliegt (MAX_REL).
  *
  * Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den
  * jeweiligen Anteilen. Eine Woche sind WEEK_SESSIONS aufeinanderfolgende
@@ -3116,269 +5580,17 @@ const targetOf = (mus) => (TARGET[mus] ?? 10) * satzFaktor();
  * Wochen*ziel*. Das war zweimal falsch. Erstens ist ein Satz bei den Waden
  * (Ziel 6) ein Sechstel und bei der Brust (12) ein Zwölftel – dieselbe Zahl,
  * ein ganz anderer Anteil. Zweitens ist das Ziel ein Schnitt über den ganzen
- * Plan; die einzelne Woche liegt zwangsläufig darüber oder darunter, seit
- * jede Übung mit drei Sätzen dasteht. Wer alles abgehakt hatte, sah dann
+ * Plan; die einzelne Woche liegt zwangsläufig darüber oder darunter, weil
+ * sich Sätze nur als Ganzes verteilen lassen – mit Hanteln stehen je nach Stufe
+ * drei oder vier je Übung da, ohne Hanteln auch zwei, fünf oder sechs
+ * (satzZahlIm() in js/stufen.js). (Der Erklärtext unter
+ * dem Wochenvolumen nannte bis hierher „drei Sätze" für alle; das stimmte nur
+ * für Geübte und Anfänger mit Hanteln.) Wer alles abgehakt hatte, sah dann
  * trotzdem "8 von 12 Gruppen im Ziel" – ein Vorwurf für die Arithmetik des
  * Plans, nicht für den Nutzer. Verglichen wird deshalb mit dem Pensum der
  * Woche, und das kennt die App aus dem Plan.
  */
 const inTarget = (got, soll) => got >= soll * 0.9;
-
-/** Was der Plan für diese Woche vorsieht, je Muskelgruppe – Verletzungen und
- *  Modus eingerechnet, also dieselbe Rechnung wie beim Abhaken. */
-function plannedWeek(block) {
-  const acc = {};
-  block.forEach((w) => {
-    const mode = completedMode(w.n) || store.workoutMode(w.n);
-    const soll = (store.getState().log[w.n] || {}).soll || {};
-    exOf(w, mode).forEach((item) => {
-      // Für eine schon angefangene Übung gilt die Zahl von *dem* Tag, nicht die
-      // von heute. Sonst erfand ein Aufstieg (drei auf vier Sätze) für jede
-      // längst trainierte Einheit einen Satz Rückstand je Übung, und aus der
-      // Summe wurde ein ganzer „Zusatztag" für eine vollständige Woche –
-      // gemessen, bei der Durchsicht der App. Eine Einstellung darf keine
-      // Arbeit erzeugen. Kleiner als heute darf die Tageszahl die Planung
-      // machen, größer nicht: Was darüber hinausgeht, ist Nacharbeit, und die
-      // gehört der Woche, nicht dieser Übung.
-      const sets = soll[item.id] === undefined ? item.sets : Math.min(soll[item.id], item.sets);
-      Object.entries(EX_BY_ID.get(item.id)[mode].shares).forEach(([mus, share]) => {
-        acc[mus] = (acc[mus] || 0) + sets * share;
-      });
-    });
-  });
-  return acc;
-}
-
-function weeklyDone() {
-  const log = store.getState().log;
-  const weeks = [];
-  for (let k = 0; k < PLAN.length; k += WEEK_SESSIONS) {
-    const block = PLAN.slice(k, k + WEEK_SESSIONS);
-    const acc = {};
-    let any = false;
-    block.forEach((w) => {
-      const entry = log[w.n];
-      if (!entry) return;
-      // Nur eine Variante zählen. Wer mit Hanteln anfängt und im
-      // Bodyweight-Modus fertig wird, hat die Sätze einmal gemacht, nicht
-      // zweimal – gezählt wird die abgeschlossene Variante, sonst die, in der
-      // das Workout gerade steht.
-      const m = completedMode(w.n) || store.workoutMode(w.n);
-      exOf(w, m).forEach((item) => {
-        // Beide Modi, jeder mit seinen eigenen Anteilen: Wer mitten in der
-        // Einheit umschaltet, hat die Sätze davor trotzdem gemacht.
-        // Aber nur zum Auffüllen: Wer dieselbe Übung in beiden Modi ganz
-        // abhakt, hat sie einmal gemacht, nicht zweimal.
-        const hier = ((entry[m] || {})[item.id] || []).filter((x) => x && x.done).length;
-        ['db', 'bw'].filter((mm) => mm !== m).forEach((mm) => {
-          const dort = ((entry[mm] || {})[item.id] || []).filter((x) => x && x.done).length;
-          const anders = Math.min(dort, Math.max(0, item.sets - hier));
-          if (!anders) return;
-          any = true;
-          Object.entries(EX_BY_ID.get(item.id)[mm].shares).forEach(([mus, share]) => {
-            acc[mus] = (acc[mus] || 0) + anders * share;
-          });
-        });
-        const arr = (entry[m] || {})[item.id];
-        if (!Array.isArray(arr)) return;
-        // Alle abgehakten Sätze, nicht nur die bis zur heutigen Satzzahl.
-        // Nachgeholte Sätze liegen über der Satzzahl der Übung – schnitt man
-        // sie hier ab, galt der Rückstand der Woche am Ende trotzdem als offen,
-        // und wer die Nacharbeit brav mitgemacht hatte, bekam für denselben
-        // Rückstand noch einen Zusatztag.
-        const done = arr.filter((x) => x.done).length;
-        if (!done) return;
-        any = true;
-        Object.entries(EX_BY_ID.get(item.id)[m].shares).forEach(([mus, share]) => {
-          acc[mus] = (acc[mus] || 0) + done * share;
-        });
-      });
-    });
-    weeks.push({ nr: weeks.length + 1, from: block[0], to: block[block.length - 1],
-                 acc, soll: plannedWeek(block), any });
-  }
-  return weeks;
-}
-
-/* ------------------------------------------------------------------ *
- * Der Zusatztag
- *
- * Die Nacharbeit hat einen Deckel, und der ist gewollt: Höchstens drei Sätze
- * kommen auf eine Einheit obendrauf. Wer aber eine *ganze* Einheit ausgelassen
- * hat, dem fehlen fünfzehn – die passen nirgendwo mehr hinein, ohne dass die
- * nächste Einheit zur Zumutung wird.
- *
- * Also nicht hineinstopfen, sondern danebenstellen. Eine zusätzliche Einheit
- * ist die sauberere Dosis: normale Satzzahl, normale Pausen, und die Übungen
- * sind genau die, die diese Woche zu kurz gekommen sind.
- *
- * Angeboten wird sie erst, wenn die Woche **durch** ist. Solange noch eine
- * Einheit offen steht, ist nichts versäumt – da erledigt die Nacharbeit den
- * Rest, und ein Vorschlag wäre bloß Drängeln.
- *
- * Sie geht als *eigenes* Workout in die Ablage, nicht in den Plan. Der Plan
- * rechnet sein Wochenvolumen aus festen Einheiten; eine dazwischengeschobene
- * würde diese Rechnung stillschweigend verschieben (siehe customs() in
- * js/store.js). Abgehakte Sätze zählen trotzdem mit – trainiert ist trainiert.
- * ------------------------------------------------------------------ */
-const ZUSATZ_UEBUNGEN = 5;      // so lang wie eine gewöhnliche Einheit
-const ZUSATZ_AB = 6;            // unter sechs Sätzen Rückstand lohnt es nicht
-
-/**
- * Muskelgruppen, die gerade Ruhe brauchen.
- *
- * Dieselbe Regel wie im Generator: Wer in den letzten `REST.days` Tagen direkt
- * dran war – oder es in der nächsten Einheit ist –, kommt nicht in den
- * Zusatztag. Sonst stünde die Erholungsregel, die den ganzen Plan trägt,
- * ausgerechnet für die Einheit nicht, die freiwillig dazukommt.
- *
- * Ausgefallene Einheiten sperren nichts: Was nicht stattgefunden hat, muss auch
- * nicht erholt werden.
- */
-function ruhendeGruppen() {
-  const heute = todayISO();
-  const sperre = new Set();
-  PLAN.forEach((w) => {
-    const d = effDate(w);
-    if (Math.abs(daysBetween(d, heute)) >= REST.days) return;
-    const fertig = completedMode(w.n);
-    if (!fertig && d < heute) return;
-    const m = fertig || store.workoutMode(w.n);
-    exBasis(w, m).forEach((it) => {
-      const ex = EX_BY_ID.get(it.id);
-      if (!ex) return;
-      Object.entries(ex[m].shares).forEach(([mus, share]) => {
-        if (share >= REST.direct) sperre.add(mus);
-      });
-    });
-  });
-  return sperre;
-}
-
-/**
- * Die Übungen für einen Zusatztag – oder null, wenn keiner nötig ist.
- *
- * Gierig zusammengestellt: immer die Übung, die vom Rückstand am meisten
- * wegnimmt. Eine Übung zählt dabei mit ihren Anteilen, ein Satz Kreuzheben
- * schließt etwas bei der Hüftstreckung *und* beim Gesäß.
- */
-function zusatztagEx(woche, mode) {
-  const rest = {};
-  let summe = 0;
-  Object.keys(MUSCLE_LABEL).forEach((m) => {
-    const luecke = (woche.soll[m] || 0) - (woche.acc[m] || 0);
-    if (luecke > 0.5) { rest[m] = luecke; summe += luecke; }
-  });
-  if (summe < ZUSATZ_AB) return null;
-
-  const ruht = ruhendeGruppen();
-  const gesperrt = blocked(store.getState().injuries || []);
-  const satz = satzZahl(3);
-  const kandidaten = EXERCISES.filter((ex) => {
-    if (gesperrt.has(ex.id)) return false;
-    const shares = ex[mode].shares;
-    // Keine Übung, die eine ruhende Gruppe direkt trifft.
-    return !Object.entries(shares).some(([m, s]) => s >= REST.direct && ruht.has(m));
-  });
-
-  const gewaehlt = [];
-  const uebrig = { ...rest };
-  for (let k = 0; k < ZUSATZ_UEBUNGEN; k++) {
-    let beste = null;
-    let bestWert = 0;
-    kandidaten.forEach((ex) => {
-      if (gewaehlt.some((g) => g.id === ex.id)) return;
-      const wert = Object.entries(ex[mode].shares)
-        .reduce((a, [m, s]) => a + Math.min(s * satz, uebrig[m] || 0), 0);
-      if (wert > bestWert) { bestWert = wert; beste = ex; }
-    });
-    if (!beste || bestWert < 0.5) break;
-    gewaehlt.push({ id: beste.id, sets: satz });
-    Object.entries(beste[mode].shares).forEach(([m, s]) => {
-      uebrig[m] = Math.max(0, (uebrig[m] || 0) - s * satz);
-    });
-  }
-  if (gewaehlt.length < 2) return null;
-  return { ex: gewaehlt, fehlt: Math.round(summe), gruppen: Object.keys(rest).length };
-}
-
-/**
- * Zusatztag anlegen, wenn eine Woche mit Rückstand zu Ende gegangen ist.
- *
- * Ungefragt – wie der Stufenaufstieg. Ein Knopf, den man erst suchen und dann
- * drücken muss, ist keine Anpassung, sondern eine Hausaufgabe. Wer ihn nicht
- * will, tippt ihn weg; das ist ein Griff statt zwei.
- *
- * Nur für die **zuletzt abgeschlossene** Woche. Eine Woche gilt als
- * abgeschlossen, wenn jede ihrer Einheiten abgehakt oder beendet ist – solange
- * eine offen steht, ist nichts versäumt, und der Plan rückt ohnehin nach.
- *
- * Und dabei fliegen ältere Zusatztage raus, die nie angefasst wurden. Das ist
- * dieselbe Überlegung wie beim Deckel der Nacharbeit: Volumen wirkt dann, wenn
- * es anfällt. Ein unberührter Zusatztag von vor drei Wochen holt nichts mehr
- * nach, er steht nur im Weg.
- */
-function pruefeZusatztag() {
-  const wochen = weeklyDone();
-  let ziel = null;
-  wochen.forEach((w) => {
-    if (!w.any) return;
-    const block = PLAN.slice(PLAN.indexOf(w.from), PLAN.indexOf(w.to) + 1);
-    if (block.some((x) => !completedMode(x.n))) return;
-    ziel = w;
-  });
-  const name = ziel ? `Zusatztag Woche ${ziel.nr}` : null;
-
-  // **Erst aufräumen.** Ein unberührter Zusatztag gehört zu der Runde, aus der
-  // er gerechnet wurde. Wandert die in die Ablage – Fokuswechsel, Neustart,
-  // geänderter Plan –, blieb er bisher stehen. Und weil naechsteEinheit() ihn
-  // dem Plan vorzieht, war er danach die *nächste Einheit*:
-  //
-  //   „Okay ist heute Zusatztag oder normaler übungstag?" – Das Dashboard bot
-  //   „Zusatztag Woche 1" an (2 Übungen, 4 Sätze, Bauch), der Kalender zeigte
-  //   für denselben Tag Workout 1 des Cut-Plans (5 Übungen, 10 Sätze). Beide
-  //   hatten recht, und genau deshalb war es falsch: Der Zusatztag war aus der
-  //   Aufbau-Runde übrig, die beim Fokuswechsel weggelegt worden war.
-  //
-  // Weg muss deshalb jeder unberührte, der nicht zu einer Woche gehört, die
-  // *jetzt* gerade zu wenig bekommen hat. Angefangene bleiben: Was abgehakt
-  // ist, wird nicht weggeräumt.
-  let weg = 0;
-  store.customs()
-    .filter((c) => /^Zusatztag Woche /.test(c.name) && c.name !== name
-      && !store.isStarted(c.id))
-    .forEach((c) => { store.removeCustom(c.id); weg += 1; });
-
-  if (!ziel) return weg > 0;
-  if (store.customs().some((c) => c.name === name)) return weg > 0;
-  // Die Merkliste `zusatzNein` ist mit dem Knopf „Brauch ich nicht" weggefallen.
-  // Sie wird nicht mehr gelesen: Wer den Tag nicht will, macht die nächste
-  // Planeinheit, und beim nächsten Wochenwechsel ersetzt ein neuer Zusatztag
-  // den unberührten alten.
-  const vorschlag = zusatztagEx(ziel, store.getState().mode);
-  if (!vorschlag) return weg > 0;
-
-  store.saveCustom({ name, ex: vorschlag.ex });
-  return true;
-}
-
-/**
- * Welche Einheit die App zeigt, wenn sie aufgeht.
- *
- * Normalerweise die nächste offene aus dem Plan. Liegt aber ein unberührter
- * Zusatztag da, ist **er** die nächste Einheit – dafür wurde er angelegt. Das
- * ist der Unterschied zwischen „angelegt" und „passiert": Eine eigene Einheit,
- * die man erst suchen muss, holt kein einziges Satzvolumen nach.
- *
- * Sobald er angefangen ist, tritt er zurück und der Plan läuft weiter. Wer ihn
- * gar nicht will, blättert mit „Zurück zum Plan" daran vorbei; beim nächsten
- * Wochenwechsel wird ein unberührter Zusatztag ohnehin ersetzt.
- */
-function naechsteEinheit() {
-  const offen = store.customs()
-    .find((c) => /^Zusatztag Woche /.test(c.name) && !store.isStarted(c.id));
-  return offen ? offen.id : defaultWorkoutNo();
-}
 
 /*
  * Hier stand der Kasten „Zusatztag angelegt" mit drei Knöpfen – Ansehen,
@@ -3394,6 +5606,72 @@ function naechsteEinheit() {
  * die nächste Planeinheit; beim nächsten Wochenwechsel wird ein unberührter
  * Zusatztag ohnehin durch den neuen ersetzt.
  */
+
+/** „A", „A und B", „A, B und C". */
+function undListe(namen) {
+  if (namen.length < 2) return namen.join('');
+  return `${namen.slice(0, -1).join(', ')} und ${namen[namen.length - 1]}`;
+}
+
+/**
+ * Wo ein unberührter Zusatztag heute steht – und wie er dort heißt.
+ *
+ *   gebunden  er steckt in der Einheit, die heute fällig ist (`n`)
+ *   leer      er gehört in diese Einheit, aber keine seiner Übungen geht dort
+ *   morgen    heute wurde schon trainiert; er kommt frühestens morgen dran
+ *   bereit    er ist heute die Einheit des Tages (ein Ruhetag)
+ *
+ * `namen` sind die Übungen, wie sie in der Einheit stehen – in einer Einheit
+ * die, die dort wirklich angekommen sind, und nie die des Trägers an ihrer
+ * Stelle: Ohne Klimmzugstange fielen die Chin-ups aus Workout 9, und die
+ * Wochenkarte sagte weiter „holt Workout 9 heute nach: Chin-ups". Seit jede
+ * solche Änderung den Träger neu rechnet (pruefeZusatztag()), kommt `leer`
+ * kaum noch vor – aber wenn, sagt die Karte, was ist.
+ */
+function zusatzLage(c) {
+  const b = zusatzBindung();
+  const zahlen = (liste, mode) => ({
+    namen: liste.map((it) => resolve(it, mode).name),
+    saetze: liste.reduce((a, it) => a + it.sets, 0),
+    anzahl: liste.length,
+  });
+  if (b && b.c.id === c.id) {
+    const mode = store.workoutMode(b.w.n);
+    const zus = workoutByNo(b.w.n, mode).ex.filter((it) => it.zusatz);
+    if (!zus.length) return { art: 'leer', n: b.w.n, ...zahlen(c.ex, mode) };
+    return { art: 'gebunden', n: b.w.n, ...zahlen(zus, mode) };
+  }
+  const art = PLAN.some((x) => store.trainiertAm(x.n, todayISO())) ? 'morgen' : 'bereit';
+  return { art, ...zahlen(c.ex, store.getState().mode) };
+}
+
+/**
+ * Der Hinweis unter der Wochenbilanz, solange der Zusatztag der Woche
+ * unberührt ist. Sagt, wo er steckt – nicht nur, dass es ihn gibt: Ein
+ * „Öffnen" auf einen Zusatztag, der längst in Workout 9 steht, führte im
+ * Kreis, und „Wann soll ich das machen?" beantwortete es auch nicht.
+ */
+function zusatzHinweis(c) {
+  const l = zusatzLage(c);
+  const stil = 'class="small muted zusatz-hinweis" style="margin-top:12px"';
+  if (l.art === 'gebunden') {
+    return `<div ${stil}>↩︎ Was hier fehlt, holt Workout ${l.n} heute nach: ${esc(undListe(l.namen))}.
+      <button type="button" class="btn btn-sm" data-act="open-workout" data-n="${l.n}"
+              style="margin-left:6px">Zu Workout ${l.n}</button></div>`;
+  }
+  if (l.art === 'morgen') {
+    return `<div ${stil}>↩︎ Für diese Woche ist ein Zusatztag vorgemerkt (${esc(undListe(l.namen))}).
+      Heute war schon Training – er kommt frühestens morgen dran.</div>`;
+  }
+  if (l.art === 'leer') {
+    return `<div ${stil}>↩︎ Für diese Woche ist ein Zusatztag vorgemerkt (${esc(undListe(l.namen))}).
+      In Workout ${l.n} geht davon heute nichts.</div>`;
+  }
+  return `<div ${stil}>↩︎ Für diese Woche steht
+    schon ein Zusatztag bereit: <b>${esc(c.name)}</b>, ${c.ex.length} Übungen.
+    <button type="button" class="btn btn-sm" data-act="custom-start"
+            data-id="${esc(c.id)}" style="margin-left:6px">Öffnen</button></div>`;
+}
 
 /** Balken für eine Muskelgruppe: erreicht gegen das Pensum dieser Woche.
  *
@@ -3447,7 +5725,10 @@ function renderWeeklyVolume() {
   // Angelegt wird der Zusatztag von selbst (pruefeZusatztag()). Hier steht nur
   // noch der Weg dorthin, damit er auffindbar bleibt, wenn der Hinweis auf der
   // Startseite längst weggetippt ist.
-  const schonDa = store.customs().find((c) => c.name === `Zusatztag Woche ${cur.nr}`);
+  // Nur, solange er unberührt ist: Nach 9 von 9 Sätzen stand hier weiter
+  // „steht schon ein Zusatztag bereit … Öffnen".
+  const schonDa = store.customs().find((c) => c.name === `Zusatztag Woche ${cur.nr}`
+    && !store.isStarted(c.id));
 
   // Solange die Woche läuft, kann keine Gruppe ihr Ziel erreichen – "0 von 12"
   // stünde dann als Vorwurf da, obwohl nichts versäumt ist. Bis zum Ende der
@@ -3470,15 +5751,12 @@ function renderWeeklyVolume() {
         <div class="vol-quote">${kopf.zahl}<span>/${kopf.von}</span></div>
       </div>
       ${groups.map((m) => volumeBar(m, cur.acc[m] || 0, cur.soll[m] || 0)).join('')}
-      ${schonDa ? `<div class="small muted" style="margin-top:12px">↩︎ Für diese Woche steht
-        schon ein Zusatztag bereit: <b>${esc(schonDa.name)}</b>, ${schonDa.ex.length} Übungen.
-        <button type="button" class="btn btn-sm" data-act="custom-start"
-                data-id="${esc(schonDa.id)}" style="margin-left:6px">Öffnen</button></div>` : ''}
+      ${schonDa ? zusatzHinweis(schonDa) : ''}
       <div class="small muted" style="margin-top:10px">
         Verglichen wird mit dem, was <b>diese Woche</b> auf dem Plan steht – nicht mit dem
         Wochenziel. Das Ziel ist ein Schnitt über den ganzen Plan (${esc(zielText())},
-        Anteile eingerechnet); die einzelne Woche liegt darüber oder darunter, weil jede
-        Übung mit drei Sätzen dasteht und sich Sätze nur als Ganzes verschieben lassen.
+        Anteile eingerechnet); die einzelne Woche liegt darüber oder darunter, weil sich
+        Sätze nur als Ganzes auf die Einheiten verteilen lassen.
         ${offen ? 'Bei noch offenen Einheiten ist die Woche naturgemäß unvollständig.' : ''}
         ${prev ? `Woche davor: ${groups.filter((m) => inTarget(prev.acc[m] || 0, prev.soll[m] || 0)).length}
           von ${groups.length} Gruppen im Ziel.` : ''}
@@ -3527,10 +5805,12 @@ function swapConflicts(act) {
 function vorratNote(w, mode) {
   if (nichtsAbgewaehlt()) return '';
   const { getauscht, weg } = vorratNotiz(w, mode);
-  if (!getauscht.length && !weg.length) return '';
+  const zus = zusatzWegGrund(w, mode, 'geraet');
+  if (!getauscht.length && !weg.length && !zus.length) return '';
   const nm = (id) => resolve({ id, sets: 0 }, mode).name;
   const zeilen = getauscht.map((s) => `${esc(nm(s.from))} → ${esc(nm(s.to))}`)
-    .concat(weg.map((d) => `${esc(nm(d.id))} fällt aus`));
+    .concat(weg.map((d) => `${esc(nm(d.id))} fällt aus`))
+    .concat(zus.map((d) => `${esc(zusatzWegName(d, mode))} fällt aus`));
   const namen = GERAETE.filter((g) => fehlt().includes(g.id)).map((g) => g.label);
   const aus = ausUebungen().length;
   // Zwei Gründe, ein Kasten: Fehlendes Gerät und abgewählte Übung wirken
@@ -3559,13 +5839,14 @@ function vorratNote(w, mode) {
 function terminNote(w, mode) {
   const { dropped, termin } = injuryNotes(w.n);
   const weg = dropped.filter((d) => d.reason === 'termin');
-  if (!termin.length || !weg.length) return '';
+  const zus = zusatzWegGrund(w, mode, 'termin');
+  if (!termin.length || (!weg.length && !zus.length)) return '';
   const nm = (id) => resolve({ id, sets: 0 }, mode).name;
   return `
     <div class="card injury-note">
       <div class="inj-note-head">📅 Rücksicht auf: ${esc(termin.join(', '))}</div>
       <div class="small muted">Heute fällt deshalb weg:
-        ${weg.map((d) => esc(nm(d.id))).join(' · ')}</div>
+        ${weg.map((d) => esc(nm(d.id))).concat(zus.map((d) => esc(zusatzWegName(d, mode)))).join(' · ')}</div>
       <div class="small muted" style="margin-top:6px">Die Woche liegt damit unter
         ihrem Ziel für diese Gruppen – das ist der Preis und keine Panne.</div>
       <button type="button" class="btn btn-ghost btn-sm" data-act="go-tab"
@@ -3740,6 +6021,21 @@ function terminListe() {
   }).join('')}</div>`;
 }
 
+/*
+ * Eine Übung aus dem festgehaltenen Zusatztag, die heute wegfällt, steht in
+ * derselben Notiz wie eine Planübung aus demselben Grund – mit dem Zusatz,
+ * woher sie kam: „Chin-ups (nachgeholt aus Woche 2) fällt aus". Vorher fiel
+ * sie wortlos weg (zusatzWeg() in js/plan.js): Tennisarm angehakt, und aus
+ * „5 + 1 Übungen" wurden „5 Übungen", ohne dass irgendwo „Chin-ups" stand.
+ * Kein eigener Kasten, kein Toast – die Zeile, die es schon gibt.
+ */
+function zusatzWegGrund(w, mode, grund) {
+  return w.custom ? [] : zusatzWeg(w, mode).filter((d) => d.grund === grund);
+}
+function zusatzWegName(d, mode) {
+  return `${resolve({ id: d.id, sets: 0 }, mode).name} (nachgeholt aus Woche ${d.woche})`;
+}
+
 /** Kurzfassung fürs Training: was heute anders ist. */
 function injuryNote(w, mode) {
   const act = activeInjuries();
@@ -3751,6 +6047,8 @@ function injuryNote(w, mode) {
   swapped.forEach((s) => lines.push(`${esc(nm(s.from))} → ${esc(nm(s.to))}`));
   dropped.forEach((d) => lines.push(`${esc(nm(d.id))} fällt aus${
     d.reason === 'rest' ? ' (Ersatz erst nach 48 h)' : ''}`));
+  zusatzWegGrund(w, mode, 'beschwerde')
+    .forEach((d) => lines.push(`${esc(zusatzWegName(d, mode))} fällt aus`));
   const pflege = careFor(act);
   return `
     <div class="card injury-note">
@@ -3842,6 +6140,10 @@ function renderCalendar() {
   const tage = monthGrid(month);
   const frueher = fruehereTage();
   const akt = aktivitaetTage();
+  const eigene = eigeneTage();
+  // Ausgefallene Trainingstage, aus dem Protokoll gerechnet – einmal je
+  // Zeichnung, nicht je Kachel (siehe ausfallTage() in js/plan.js).
+  const aus = ausfallTage(today);
 
   // Gezählt werden Einheiten, nicht Tage – an einem Tag können zwei stehen.
   const imMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7))
@@ -3866,8 +6168,28 @@ function renderCalendar() {
     .forEach((d) => { proModus[frueher.get(d).mode] += frueher.get(d).einheiten; });
   // Sport außerhalb des Plans zählt nicht als Einheit – er ist keine. Er steht
   // als eigener Nachsatz, mit den Namen, damit man ihn auch ohne Antippen sieht.
+  // Eigene Einheiten – der Zusatztag vor allem – sind trainiert wie jede andere.
+  const eigenImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7) && eigene.has(d))
+    .flatMap((d) => eigene.get(d));
+  eigenImMonat.forEach((x) => { proModus[x.mode] += 1; });
   const imMonatAkt = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7) && akt.has(d))
     .flatMap((d) => akt.get(d).map((t) => t.name || terminLabel(t)));
+  // Ausgefallen sind Tage, keine Einheiten – die Einheit, die dran war, steht
+  // offen oder trainiert an ihrem neuen Tag und ist dort schon gezählt; die
+  // Vereinigung mit dayState() fängt die Minuten nach Mitternacht ab, bevor
+  // catchUpPlan() läuft.
+  //
+  //     „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+  //      Trainings hab ausfallen lassen"
+  //
+  // Bis hierher stand an dieser Stelle zaehl.miss, und das war nach dem
+  // Nachrücken immer null. Mit „Tage" im Text, weil sich „5 trainiert · 2
+  // ausgefallen · 11 offen" bei 16 Einheiten sonst wie ein Rechenfehler liest.
+  const ausImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
+    && (aus.has(d) || (byDate.get(d) || []).some((w) => dayState(w, d, today).kind === 'miss'))).length;
+  // Zusammengehalten (geschützte Leerzeichen): Bei 414 px brach die Zeile
+  // sonst hinter „🤸 0) · 2", und die 2 las sich wie Teil der Moduszählung.
+  const ausgefallenText = (k) => `${plural(k, 'Tag', 'Tage')} ausgefallen`.replace(/ /g, '\u00a0');
 
   view.innerHTML = `
     <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
@@ -3880,7 +6202,7 @@ function renderCalendar() {
         <button type="button" class="cal-nav" data-act="cal-month" data-d="1" aria-label="Nächster Monat">›</button>
       </div>
       <div class="cal-grid cal-head">${WEEK_HEAD.map((d) => `<div>${d}</div>`).join('')}</div>
-      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt)).join('')}</div>
+      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt, eigene, aus)).join('')}</div>
       <div class="cal-legend">
         <span><i class="dot done"></i> trainiert</span>
         <span><i class="dot part"></i> angefangen</span>
@@ -3889,10 +6211,10 @@ function renderCalendar() {
         ${imMonatAkt.length ? `<span><i class="dot akt"></i> ${esc(AKT_ICON)} anderer Sport</span>` : ''}
       </div>
       <div class="small muted">
-        ${plural(imMonat.length + altImMonat, 'Einheit', 'Einheiten')} in diesem Monat ·
-        ${zaehl.done + altImMonat} trainiert${zaehl.done + altImMonat
+        ${plural(imMonat.length + altImMonat + eigenImMonat.length, 'Einheit', 'Einheiten')} in diesem Monat ·
+        ${zaehl.done + altImMonat + eigenImMonat.length} trainiert${zaehl.done + altImMonat + eigenImMonat.length
           ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
-          zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
+          ausImMonat ? ` · ${ausgefallenText(ausImMonat)}` : ''}${
           zaehl.plan ? ` · ${zaehl.plan} offen` : ''}${
           imMonatAkt.length ? ` · ${plural(imMonatAkt.length, 'Tag', 'Tage')} anderer Sport (${
             esc(aktNamen(imMonatAkt))})` : ''}
@@ -3901,12 +6223,14 @@ function renderCalendar() {
         <button type="button" class="btn btn-sm" data-act="cal-today">Zu heute</button>`}
     </div>
 
-    ${calendarDetail(sel, byDate, today, frueher, akt)}
+    ${calendarDetail(sel, byDate, today, frueher, akt, eigene, aus)}
 
     <div class="small muted">
       Die Termine sind die tatsächlichen: verpasste Tage rücken den Restplan
       nach hinten, abgeschlossene Einheiten bleiben auf dem Tag, an dem du
-      trainiert hast.
+      trainiert hast. Ausgefallen steht an einem Trainingstag im Rhythmus des
+      Plans, an dem nicht trainiert und bis zum nächsten Trainingstag nicht
+      nachgeholt wurde.
     </div>`;
 }
 
@@ -3924,7 +6248,12 @@ function renderInjuries() {
   const swapCount = new Map();
   let wegenPause = 0;
   PLAN.forEach((w) => {
-    const r = injuryNotes(w.n);
+    // Mit dem Modus, wie die Wochenrechnung darunter (exOf(w, mode)) – ohne
+    // ihn zählte die Übersicht im Hantel-Modus den Goblet Squat beim
+    // Handgelenkbruch als „→ Hip Thrust getauscht", obwohl der Hip Thrust mit
+    // Hanteln selbst gesperrt ist und beide wegfallen (modusNotiz() in
+    // js/plan.js).
+    const r = injuryNotes(w.n, mode);
     r.dropped.forEach((d) => {
       gone.push(d);
       if (d.reason === 'rest') wegenPause += d.sets;
@@ -4111,6 +6440,9 @@ function showVersion() {
   caches.keys().then((keys) => {
     const mine = keys.filter((k) => k.startsWith('workout-'));
     host.textContent = `${plan} · Zwischenspeicher: ${mine.join(', ') || 'keiner'}`;
+    // Was hier steht, soll auch der Kopf des Protokolls sagen – außer in der
+    // Einzeldatei, die gar keinen Zwischenspeicher hat (dort sagt er „Einzeldatei").
+    if (!EINZELDATEI) diagnoseFassung(keys);
   }).catch(() => { host.textContent = plan; });
 }
 
@@ -4147,12 +6479,37 @@ function renderCustom() {
         </div>
       </div>
       ${liste.map((c) => {
-        const sets = c.ex.reduce((a, x) => a + x.sets, 0);
+        // Der Umfang wie im Kopf der Einheit und im Kalender, mit umfangText()
+        // in js/anzeige.js – hier stand er selbst zusammengesetzt, und ein
+        // Workout mit einer Übung hieß „1 Übungen · 3 Sätze", während der Kopf
+        // nach „Öffnen" „1 Übung · 3 Sätze" sagte.
         const prog = progressOf(c.id, store.workoutMode(c.id));
+        // Ein Zusatztag, der heute in einer Einheit steckt oder erst morgen
+        // dran ist, ist hier nur zum Nachsehen da: Öffnen führte am Plan
+        // vorbei in eine zweite Einheit, Bearbeiten und Löschen änderten etwas,
+        // das gerade Teil einer anderen Einheit ist. Er sagt, wo er steckt.
+        if (ZUSATZ_NAME.test(c.name) && !store.isStarted(c.id)) {
+          const l = zusatzLage(c);
+          if (l.art !== 'bereit') {
+            const wo = {
+              gebunden: `steckt heute in Workout ${l.n}`,
+              leer: `geht heute in Workout ${l.n} nicht`,
+            }[l.art] || 'frühestens morgen – heute war schon Training';
+            return `
+        <div class="card zusatz-karte">
+          <div class="lbl">${esc(c.name)}</div>
+          <div class="hint">${esc(wo)} · ${plural(l.anzahl, 'Übung', 'Übungen')} · ${plural(l.saetze, 'Satz', 'Sätze')}</div>
+          <div class="small muted" style="margin-top:6px">${esc(l.namen.join(' · '))}</div>
+          ${l.art === 'gebunden' ? `<div class="btn-row nav">
+            <button type="button" class="btn btn-primary" data-act="open-workout" data-n="${l.n}">Zu Workout ${l.n}</button>
+          </div>` : ''}
+        </div>`;
+          }
+        }
         return `
         <div class="card">
           <div class="lbl">${esc(c.name)}</div>
-          <div class="hint">${c.ex.length} Übungen · ${sets} Sätze${
+          <div class="hint">${umfangText(c.ex)}${
             prog.done ? ` · ${prog.done}/${prog.total} abgehakt` : ''}</div>
           <div class="small muted" style="margin-top:6px">${esc(c.ex.map((x) => resolve(x, 'db').name).join(' · ')) || 'Noch keine Übung'}</div>
           <div class="btn-row nav">
@@ -4303,9 +6660,21 @@ function dauerLautFormel(items, mode) {
     const ex = EX_BY_ID.get(id);
     return (ex && ex[mode] && ex[mode].rest) || 120;
   };
-  const summe = items.reduce((a, it) => a + it.sets * (ARBEIT_JE_SATZ + pause(it.id)), 0);
+  const summe = items.reduce((a, it) => a + it.sets * (ARBEIT_JE_SATZ + pause(it.id)
+    + seitenZuschlag(it.id, mode, pause(it.id))), 0);
   // Die letzte Pause der Einheit fällt weg – danach ist man fertig.
   return summe - pause(items[items.length - 1].id);
+}
+
+/**
+ * Was ein Satz einer einseitigen Übung („je Bein") mehr kostet: die zweite
+ * Seite und die Pause zwischen beiden (seitenPause()). Bis v254 rechnete die
+ * Formel ihn wie einen beidseitigen – die zweite Seite war darin gar nicht
+ * vorgekommen.
+ */
+function seitenZuschlag(id, mode, pause) {
+  const ex = EX_BY_ID.get(id);
+  return ex && einseitig(ex[mode]) ? ARBEIT_JE_SATZ + seitenPause(pause) : 0;
 }
 
 /**
@@ -4331,7 +6700,8 @@ function zeitEichung() {
     const m = completedMode(w.n);
     if (!e || !m || !(e.secs > 0) || e.super) return;
     if (!progressOf(w.n, m).complete) return;
-    const soll = dauerLautFormel(exOf(w, m), m);
+    // Die ganze Einheit, samt eingefügtem Zusatztag: Die Uhr lief auch für ihn.
+    const soll = dauerLautFormel(einheitEx(w, m), m);
     if (soll <= 0) return;
     echt += e.secs;
     formel += soll;
@@ -4367,7 +6737,7 @@ function fokusZeile(v) {
   // bw_saetze() in tools/build-plan.py.
   const modus = store.getState().mode;
   const roh = (x) => (modus === 'bw' && x.bwSets ? x.bwSets : x.sets);
-  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + satzZahl(roh(x)), 0), 0);
+  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + satzZahlIm(v.plan, w.n, x.id, roh(x), modus), 0), 0);
   const proEinheit = saetze / v.plan.length;
   // Mit den echten Pausen rechnen, nicht mit einem Mittelwert für alle: Ein Satz
   // Chin-ups kostet 180 s Pause, einer Wadenheben 90. Pauschal zweieinhalb
@@ -4377,7 +6747,8 @@ function fokusZeile(v) {
     const ex = EX_BY_ID.get(x.id);
     const pause = (ex && ex[modus] && ex[modus].rest) || 120;
     // Arbeit plus Pause nach jedem Satz; die letzte Pause der Einheit fällt weg.
-    return b + satzZahl(roh(x)) * (ARBEIT_JE_SATZ + pause);
+    return b + satzZahlIm(v.plan, w.n, x.id, roh(x), modus)
+      * (ARBEIT_JE_SATZ + pause + seitenZuschlag(x.id, modus, pause));
   }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id)[modus].rest) || 0), 0);
   // Wer schon gemessen hat, bekommt seine eigene Zahl statt der Formel.
   const eich = zeitEichung();
@@ -4800,8 +7171,9 @@ function renderSettings() {
         <div>
           <div class="lbl">Supersätze</div>
           <div class="hint">Zwei verträgliche Übungen im Wechsel, statt die Pause abzusitzen:
-            A, B, A, B. Gepaart wird nur, was keinen Muskel teilt und nicht dasselbe Gerät
-            braucht – dann bleiben beide Aufbauten stehen und es wird nichts umgebaut.
+            A, B, A, B. Gepaart wird nur, was keinen Hauptmuskel teilt und nicht dasselbe Gerät
+            braucht (zwei Übungen mit je einer Kurzhantel nehmen jede ihre eigene) – dann
+            bleiben beide Aufbauten stehen und es wird nichts umgebaut.
             Die Pause wird dabei nicht kürzer, sondern gefüllt: Wenn eine Übung wieder dran
             ist, wartest du nur noch die Zeit, die seit ihrem letzten Satz fehlt. Unterm
             Strich rund 40 % kürzer bei gleicher Erholung.</div>
@@ -4813,10 +7185,11 @@ function renderSettings() {
         <div>
           <div class="lbl">Aufwärmsätze anzeigen</div>
           <div class="hint">Über den schweren Übungen steht, womit aufzuwärmen ist – die
-            Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf deine Scheiben.
-            Nur bei Grund- und schweren Nebenübungen; ein Seitheben mit 5 kg braucht das
-            nicht. Abgehakt wird nichts davon: Aufwärmsätze zählen nicht in die Statistik
-            und nicht für den Stufenaufstieg.</div>
+            Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf deine Scheiben
+            oder, ohne eingetragene, auf die Schrittweite der Übung. Nur bei Grund- und
+            schweren Nebenübungen; ein Seitheben mit 5 kg braucht das nicht. Abgehakt wird
+            nichts davon: Aufwärmsätze zählen nicht in die Statistik und nicht für den
+            Stufenaufstieg.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${!!s.aufwaermen}"
                 data-act="toggle-aufwaermen" aria-label="Aufwärmsätze anzeigen"></button>
@@ -4860,13 +7233,9 @@ function renderSettings() {
       <div class="btn-row">
         <button type="button" class="btn btn-block" data-act="test-sound">Töne anhören</button>
       </div>
-      <div class="small muted" id="tonStand"></div>
-      <div class="small muted" style="margin-top:6px">Hörst du nichts, obwohl oben
-        <b>läuft</b> steht und die Zahl steigt: Dann hat die App den Ton losgeschickt und
-        das Handy gibt ihn nicht aus. Der übliche Grund ist die
-        <b>Medien-Lautstärke</b> – die Wippe stellt am Handy die Klingel, solange nichts
-        spielt. Tipp auf „Töne anhören" und drück <i>währenddessen</i> die Wippe nach
-        oben; dann regelst du den richtigen Kanal.</div>` : ''}
+      <!-- Die Auswertung schreibt tonStandZeigen() hinein – und zieht sie mit
+           jedem Ton nach, der kommt oder ausfällt (onTonStand). -->
+      <div class="ton-stand" id="tonStand"></div>` : ''}
     </div>
 
     <div class="section-title">Sport außerhalb des Plans</div>
@@ -4930,19 +7299,16 @@ function renderSettings() {
         nicht auf den Plan.</div>` : '')}
     </div>
 
-    <div class="section-title">Kalender</div>
+    <div class="section-title" id="kalender">Kalender</div>
+    ${kalenderKarte()}
     <div class="card">
       <div class="small muted">Alle Trainingstermine als Kalenderdatei, jeweils um 18 Uhr,
         mit den Übungen des Tages in der Beschreibung.
         <b>Die Google-Kalender-App kann keine Dateien einlesen</b> – das geht nur über die
         Weboberfläche. Am Handy: in Chrome <i>calendar.google.com</i> öffnen, im
-        Drei-Punkte-Menü <i>Desktopseite</i> anhaken, dann
+        Drei-Punkte-Menü <i>Desktopwebsite</i> anhaken, dann
         <i>Einstellungen → Importieren und exportieren</i>.</div>
-      ${icsStale() ? `<div class="hint" style="color:var(--accent);margin-top:8px">
-        Der Plan hat sich seit dem letzten Export um
-        ${esc(plural(Math.abs(store.getState().shift - store.getState().lastIcs.shift), 'Tag', 'Tage'))}
-        verschoben – Datei neu erzeugen und noch einmal importieren, dann wandern
-        die Termine mit.</div>` : ''}
+      ${icsHinweis()}
       <div class="btn-row">
         <button type="button" class="btn" data-act="download-ics">Kalenderdatei (.ics)</button>
         <button type="button" class="btn btn-ghost" data-act="ics-aus">Termine austragen</button>
@@ -4961,13 +7327,17 @@ function renderSettings() {
       </div>
     </div>
 
-    <div class="section-title">Daten</div>
+    <div class="section-title" id="daten">Daten</div>
+    ${sicherungKarte()}
     <div class="card">
+      ${ui.teilenFehler ? `<div class="notice warn" id="teilenFehler">Teilen hat dein Browser
+        abgelehnt (${esc(ui.teilenFehler)}). Die Sicherung wurde stattdessen heruntergeladen – kam
+        kein Download, steht sie unten im Textfeld zum Kopieren.</div>` : ''}
       <div class="small muted">Alles liegt lokal im Browser – Android räumt den bei Platzmangel weg.
         ${(() => {
           const b = store.getState().lastBackup;
-          if (!b) return 'Noch nie gesichert.';
-          return `Zuletzt gesichert am ${esc(fmtDate(b.on))}, nach ${esc(plural(b.done, 'Einheit', 'Einheiten'))}.`;
+          if (!b) return hatServer() ? 'Als Datei noch nie gesichert.' : 'Noch nie gesichert.';
+          return `${hatServer() ? 'Als Datei zuletzt' : 'Zuletzt'} gesichert am ${esc(fmtDate(b.on))}, nach ${esc(plural(b.done, 'Einheit', 'Einheiten'))}.`;
         })()}</div>
       <div class="small muted" style="margin-top:6px">${store.getState().dauerhaft
         ? 'Der Browser hat zugesagt, diesen Speicher nicht von selbst freizugeben.'
@@ -4979,7 +7349,7 @@ function renderSettings() {
         <button type="button" class="btn" data-act="download">Als Datei sichern</button>
         <button type="button" class="btn" data-act="export">Export anzeigen</button>
       </div>
-      <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren“ tippen…" style="margin-top:10px"></textarea>
+      <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren&quot; tippen…" style="margin-top:10px"></textarea>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" data-act="import-file">Datei laden</button>
         <button type="button" class="btn" data-act="import">Eingefügten Text laden</button>
@@ -4996,6 +7366,7 @@ function renderSettings() {
         <button type="button" class="btn btn-danger" data-act="reset-all">Alle Daten löschen</button>
       </div>
     </div>
+    ${diagnoseKarte()}
 
     <div class="section-title">Fassung</div>
     <div class="card">
@@ -5010,8 +7381,8 @@ function renderSettings() {
     <div class="section-title">Über den Plan</div>
     <div class="card small muted">
       ${PLAN.length} Einheiten, ursprünglich vom ${esc(fmtDate(PLAN[0].date, true))} bis ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))},
-      aufgebaut auf ${EXERCISES.length} Grundübungen. Zu jeder Hantelübung gehört ein
-      Bodyweight-Äquivalent mit gleicher Satzzahl und angepasstem Wiederholungsbereich.
+      aufgebaut auf ${EXERCISES.length} Übungen. Zu jeder Hantelübung gehört ein
+      Bodyweight-Äquivalent mit eigener Satzzahl und angepasstem Wiederholungsbereich.
       ${EINZELDATEI ? '' : `
       <div style="margin-top:10px">
         <a class="btn btn-block" href="./figuren.html">Alle Bewegungsbilder ansehen</a>
@@ -5024,6 +7395,235 @@ function renderSettings() {
 
   showVersion();
   tonStandZeigen();
+  diagnoseZeigen();
+  // Hat der Browser das Teilen abgelehnt, steht die Sicherung schon im
+  // Textfeld – der Weg, der auch ohne Download und ohne Teilen geht.
+  if (ui.teilenFehler) {
+    const io = document.getElementById('io');
+    if (io && !io.value) io.value = store.exportJSON();
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Diagnoseprotokoll – was davon zu sehen ist
+ *
+ *     „Können wir nicht allgemein alles mögliche im Hintergrund loggen damit du
+ *      siehst was funktioniert und was nicht oder so?"
+ *
+ * Mitgeschrieben wird in js/diagnose.js. Hier steht, wo man es sieht und wie es
+ * weggeht: eine Karte unter Mehr → Daten, mit dem Schalter, der Lage zum
+ * Abfotografieren, Teilen als .txt, Kopieren, Ansehen und Löschen. Einen Weg
+ * nach draußen gibt es nur über diese Knöpfe – kein Server, keine Sicherung,
+ * kein Rückkanal.
+ * ------------------------------------------------------------------ */
+
+/** Ein Stempel aus dem Protokoll („2026-10-22 19:02:…") kurz: „22.10. 19:02". */
+function stempelKurz(stempel) {
+  if (!stempel) return '';
+  return `${stempel.slice(8, 10)}.${stempel.slice(5, 7)}. ${stempel.slice(11, 16)}`;
+}
+
+/** Ein Zeitpunkt (ms oder ISO) in Ortszeit, ebenso kurz. */
+function zeitpunktKurz(wann) {
+  const d = new Date(wann);
+  if (Number.isNaN(d.getTime())) return '?';
+  const zwei = (n) => String(n).padStart(2, '0');
+  return `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}. ${zwei(d.getHours())}:${zwei(d.getMinutes())}`;
+}
+
+/** Millisekunden mit Komma, wie überall in der App. */
+const msKurz = (ms) => `${komma1(ms)} ms`;
+
+/**
+ * Der Kopf über dem Protokoll – die Lage in acht Zeilen, frisch gebaut beim
+ * Ansehen, Teilen und Kopieren, nie gespeichert. Hier und nicht in
+ * js/diagnose.js, weil nur diese Datei Store, Ton und Sicherung kennt.
+ *
+ * Was hier steht, ist dieselbe Sorte Angabe wie im Protokoll: Zustände, Zahlen,
+ * Zeiten. Kein Name, keine Kennung des Geräts, kein Schlüssel, keine Meldung des
+ * Servers ungefiltert (diagnoseSauber()).
+ */
+function diagnoseKopf() {
+  const s = store.getState();
+  const st = diagnoseStand();
+  const t = tonStand();
+  const jetzt = new Date();
+  const zwei = (n) => String(n).padStart(2, '0');
+  const tag = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][jetzt.getDay()];
+  const anzeige = (() => {
+    try {
+      if (navigator.standalone === true) return 'installiert (iOS)';
+      return window.matchMedia('(display-mode: standalone)').matches ? 'installiert (standalone)' : 'im Browser';
+    } catch { return 'Anzeige unbekannt'; }
+  })();
+  const fassung = EINZELDATEI ? 'Einzeldatei' : (st.fassung ? `Fassung ${st.fassung}` : 'Fassung unbekannt');
+  const speicher = store.canPersist() ? 'ok' : (store.speicherGrund() || 'gestört');
+  const ton = { laeuft: 'läuft', schlaeft: 'schläft', aus: 'aus' }[t.zustand] || t.zustand;
+  const erlaubnis = !('Notification' in window) ? 'keine Hinweise im Browser'
+    : ({ granted: 'erlaubt', denied: 'blockiert', default: 'nicht gefragt' }[Notification.permission] || Notification.permission);
+  const sm = sicherungMetaLesen();
+  const sicherung = !hatServer() ? 'Sicherung: kein Server'
+    : !sicherungAn() ? 'Sicherung aus'
+      : `Sicherung ${sm.ok ? `zuletzt ${zeitpunktKurz(sm.ok)} ok` : 'noch nie'}${
+        sm.fehler ? ` · zuletzt gescheitert: ${diagnoseSauber(sm.fehler).slice(0, 80)}` : ''}${
+        sm.konflikt ? ` · Konflikt ${sm.konflikt.art}` : ''}${sm.fehlt ? ' · Server kennt sie nicht' : ''}`;
+  const rueck = !hatServer() ? 'Rückkanal: kein Server'
+    : `Rückkanal ${meldetMit() ? 'an' : 'aus'}${s.lastShare ? `, zuletzt ${s.lastShare.on} ${s.lastShare.ok ? 'ok' : 'gescheitert'}` : ''}`;
+  const pause = s.rest ? `Pause läuft, noch ${Math.max(0, Math.round((s.rest.endsAt - Date.now()) / 1000))} s` : 'Pause keine';
+  return [
+    `Workout-Diagnose · ${tag} ${zwei(jetzt.getDate())}.${zwei(jetzt.getMonth() + 1)}.${jetzt.getFullYear()} `
+      + `${zwei(jetzt.getHours())}:${zwei(jetzt.getMinutes())} · Zeitzone ${diagnoseZone(jetzt)} · bleibt auf dem Gerät, geteilt nur auf Tipp`,
+    `${fassung} · ${anzeige} · ${uaKurz()} · ${window.innerWidth}x${window.innerHeight} · ${navigator.onLine ? 'online' : 'offline'}`,
+    `Speicher ${speicher}, ${s.dauerhaft ? 'dauerhaft zugesagt' : 'nichts zugesagt'} · Stand ${kb('workout.state.v1')} KB`
+      + ` · Ablage ${kb('workout.rounds.v1')} KB · Protokoll ${plural(st.zeilen, 'Zeile', 'Zeilen')} / ${Math.round(st.bytes / 1024)} KB`
+      + `${st.von ? ` seit ${stempelKurz(st.von)}` : ''}${st.nurRam ? ` · nur im Arbeitsspeicher (${st.warum})` : ''}`,
+    `Ton ${ton} · ${t.gespielt} gespielt, ${t.verpasst} verpasst (${t.gesperrt} vor der ersten Berührung), `
+      + `${t.verspaetet} verspätet · frei ${t.frei ? 'ja' : 'nein'} · klemmt ${t.klemmt ? 'ja' : 'nein'}`
+      + `${t.wartet ? ` · wartet auf ${t.wartet}` : ''} · Töne ${s.sound ? 'an' : 'aus'}, `
+      + `Satz-Tupfer ${s.soundSets ? 'an' : 'aus'}, Hinweise ${s.notify ? 'an' : 'aus'} (${erlaubnis})`,
+    `${s.session ? `Einheit ${s.session.n} läuft` : 'keine Einheit läuft'} · ${pause} · Plan ${s.focus || 'standard'}, `
+      + `shift ${s.shift || 0} · Service Worker ${navigator.serviceWorker && navigator.serviceWorker.controller ? 'aktiv' : 'keiner'}`,
+    `${sicherung} · ${rueck} · ${kalenderKurz()}`,
+    `Fehler im Protokoll ${st.fehler} · Einträge heute ${st.heute} · Schreibungen diese Sitzung ${st.schreibungen}`
+      + `${st.schreibungen ? `, längste ${msKurz(st.schreibMsMax)}, Mittel ${msKurz(st.schreibMsMittel)}` : ''}`,
+    `UA: ${navigator.userAgent || '?'}`,
+  ];
+}
+
+/** Die Karte unter Mehr → Daten. Gefüllt wird sie danach (diagnoseZeigen()). */
+function diagnoseKarte() {
+  const st = diagnoseStand();
+  const knoepfe = st.zeilen || st.an;
+  return `
+    <div class="card" id="diagnose">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Diagnoseprotokoll</div>
+          <div class="hint">Die App schreibt für sich mit, was sie technisch tut: Start und Fassung,
+            Töne, Pausen, abgehakte Sätze (nur Einheit, Übung und Satznummer – keine Gewichte, keine
+            Wiederholungen, kein Name), Fehler, Speicher, Sicherungsversuche. Mit Uhrzeiten, also
+            auch, wann du trainierst. Es bleibt auf diesem Gerät – höchstens 64 KB und 14 Tage, dann
+            fallen die ältesten Zeilen weg – und geht nirgendwohin, auch nicht mit der Sicherung oder
+            an den Betreiber, außer du tippst unten auf „Teilen" oder „Kopieren". Wer die App
+            weiterbaut, sieht daran, was auf deinem Gerät funktioniert und was nicht.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${st.an}" data-act="toggle-diagnose"
+          aria-label="Diagnoseprotokoll"></button>
+      </div>
+      <div class="small muted" id="diagnoseStand" style="margin-top:8px"></div>
+      ${st.zeilen ? '<pre class="io diagnose-lage" id="diagnoseLage"></pre>' : ''}
+      ${ui.diagnoseFehler ? `<div class="notice warn" id="diagnoseFehler">Teilen hat dein Browser
+        abgelehnt (${esc(ui.diagnoseFehler)}). Das Protokoll wurde stattdessen heruntergeladen – kam
+        kein Download, steht es unten zum Kopieren.</div>` : ''}
+      ${knoepfe ? `<div class="btn-row">
+        <button type="button" class="btn btn-primary" data-act="diagnose-teilen">Protokoll teilen</button>
+        <button type="button" class="btn" data-act="diagnose-kopieren">Kopieren</button>
+        <button type="button" class="btn" data-act="diagnose-ansehen">${ui.diagnoseOffen ? 'Zuklappen' : 'Alles ansehen'}</button>
+        <button type="button" class="btn btn-ghost" data-act="diagnose-loeschen">Protokoll löschen</button>
+      </div>` : ''}
+      ${ui.diagnoseOffen ? `<textarea class="io diagnose-text" id="diagnoseText" readonly
+        aria-label="Diagnoseprotokoll" style="margin-top:10px"></textarea>` : ''}
+      <div class="small muted" style="margin-top:8px">${st.zeilen ? `Zum Abfotografieren reicht der
+        Kasten: oben die Lage, darunter die letzten acht Einträge. ` : ''}<i>Alle Daten löschen</i>
+        räumt das Protokoll mit; der Schalter bleibt, wie er ist.</div>
+    </div>`;
+}
+
+/**
+ * Die Karte füllen – nach dem Zeichnen, als Text: Nichts von den 64 KB läuft
+ * durch esc() und innerHTML.
+ */
+function diagnoseZeigen() {
+  const stand = document.getElementById('diagnoseStand');
+  if (!stand) return;
+  const st = diagnoseStand();
+  // „1 Einträge" stand nach jedem Löschen da (die eine Zeile, die sagt, warum)
+  // – gefunden beim Gegenlesen.
+  const eintraege = plural(st.zeilen, 'Eintrag', 'Einträge');
+  if (!st.an) {
+    stand.textContent = `Abgeschaltet – es wird nichts mehr mitgeschrieben.${st.zeilen
+      ? ` Was da ist (${eintraege}), bleibt bis zum Löschen.` : ''}`;
+  } else if (!st.zeilen) {
+    stand.textContent = 'Noch nichts mitgeschrieben – kommt mit dem nächsten Start.';
+  } else if (st.nurRam) {
+    stand.textContent = st.speicherDa
+      ? `${eintraege}. Der Speicher ist knapp – das Protokoll läuft bis zum nächsten Start nur im Arbeitsspeicher und gibt seinen Platz dem Training. Teilen geht trotzdem.`
+      : `${eintraege}. Dieser Browser lässt nichts speichern – das Protokoll lebt nur, bis die Seite zugeht. Teilen geht trotzdem.`;
+  } else {
+    stand.textContent = `${eintraege} seit ${stempelKurz(st.von)} · ${Math.max(1, Math.round(st.bytes / 1024))} KB`
+      + ` · ${st.fehler} Fehler`
+      + `${st.schreibungen ? ` · zuletzt geschrieben ${new Date(st.zuletzt).toTimeString().slice(0, 8)}`
+        + ` (längste Schreibung ${msKurz(st.schreibMsMax)})` : ' · in dieser Sitzung noch nicht geschrieben'}.`;
+  }
+  const kopf = diagnoseKopf();
+  const lage = document.getElementById('diagnoseLage');
+  // Der Kasten ohne die Zeile „UA: …": Am Handy sind das vier umbrochene
+  // Zeilen, und Browser und System stehen kurz schon in der zweiten. Ganz steht
+  // sie im geteilten Text. Gefunden beim Gegenlesen: Mit ihr und einer festen
+  // Höhe zeigte der Kasten bei 414 px keinen der letzten acht Einträge.
+  if (lage) {
+    lage.textContent = `${kopf.filter((z) => !z.startsWith('UA: ')).join('\n')}\n---\n${diagnoseZeilen().slice(-8).join('\n')}`;
+  }
+  const ta = document.getElementById('diagnoseText');
+  if (ta) {
+    ta.value = diagnoseText(kopf);
+    ta.scrollTop = ta.scrollHeight;   // das Neueste steht unten
+  }
+}
+
+/**
+ * Teilen – gebaut wie teileBackup(), weil genau der Weg auf Chrome Android
+ * repariert ist: .txt mit genau 'text/plain', kein await vor share() (sonst ist
+ * die Berührung verbraucht), Abbruch still, jede Ablehnung endet im Download
+ * und im Textfeld.
+ */
+async function diagnoseTeilen() {
+  const text = diagnoseText(diagnoseKopf());
+  const name = `workout-diagnose-${todayISO()}.txt`;
+  const datei = new File([text], name, { type: 'text/plain' });
+  ui.diagnoseFehler = '';
+  if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+    try {
+      await navigator.share({ files: [datei], title: 'Workout-Diagnose' });
+      notieren('diagnose', { was: 'geteilt', bytes: text.length });
+      toast('Protokoll weitergegeben');
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;   // abgebrochen: eine Entscheidung, keine Meldung
+      ui.diagnoseFehler = e && e.name ? `${e.name}${e.message ? ` – ${e.message}` : ''}` : 'ohne Angabe';
+    }
+  }
+  herunterladen(text, name, 'text/plain');
+  notieren('diagnose', { was: 'download', bytes: text.length, fehler: ui.diagnoseFehler ? ui.diagnoseFehler.split(' ')[0] : undefined });
+  ui.diagnoseOffen = true;   // der Weg, der überall geht
+  if (ui.tab === 'settings') render();
+  toast(ui.diagnoseFehler
+    ? 'Teilen hat der Browser abgelehnt – als Datei gespeichert. Der Text steht unten zum Kopieren.'
+    : 'Als Datei gespeichert');
+}
+
+/**
+ * Kopieren – in die Zwischenablage, wo es sie gibt (sicherer Kontext, aus der
+ * Berührung heraus, kein await davor); sonst steht der Text markiert im Feld.
+ * Kein execCommand('copy'): veraltet, und die App benutzt es nirgends.
+ */
+function diagnoseKopieren() {
+  const text = diagnoseText(diagnoseKopf());
+  const zeigen = () => {
+    ui.diagnoseOffen = true;
+    render();
+    const ta = document.getElementById('diagnoseText');
+    if (ta) { ta.focus(); ta.select(); }
+    toast('Kopieren ging nicht – der Text steht unten markiert.');
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      notieren('diagnose', { was: 'kopiert', bytes: text.length });
+      toast('Protokoll kopiert');
+    }, zeigen);
+    return;
+  }
+  zeigen();
 }
 
 /**
@@ -5034,16 +7634,145 @@ function renderSettings() {
  * Ton los, oder sie schickt ihn los und das Gerät gibt ihn nicht aus. Ob eine
  * Seite hörbar ist, kann sie selbst nicht wissen – was sie weiß, ist, ob der
  * Tonkanal offen war und wie viele Töne hinausgingen. Genau das steht hier.
+ *
+ * Das Urteil zuerst, in Textfarbe und in einem Satz: Ist die App stumm oder
+ * das Handy? Erst darunter, grau und als Liste, was ein Handy stumm machen
+ * kann. Vorher stand die Antwort im dritten Satz von 65 Wörtern kleinem Grau,
+ * und die Zahl der Töne stand zweimal hintereinander.
  */
+const TON_URSACHEN = [
+  'Medien-Lautstärke: Die Wippe regelt sie nur, während etwas spielt – also während „Töne anhören" hochdrücken.',
+  'Bluetooth-Kopfhörer oder Auto verbunden? Dann kommt der Ton dort.',
+  'Bitte nicht stören',
+  'Chrome: Einstellungen → Website-Einstellungen → Ton',
+  'iPhone: der Stummschalter – die App folgt ihm, damit Musik aus anderen Apps weiterläuft',
+];
+
 function tonStandZeigen() {
   const host = document.getElementById('tonStand');
   if (!host) return;
   const t = tonStand();
-  if (!t.moeglich) { host.textContent = 'Dieser Browser kann keine Töne erzeugen.'; return; }
-  const wort = { aus: 'noch nicht angefordert', laeuft: 'läuft', schlaeft: 'angehalten' };
-  host.textContent = `Tonkanal: ${wort[t.zustand]} · ${t.gespielt === 1
-    ? '1 Ton losgeschickt' : `${t.gespielt} Töne losgeschickt`}, seit die App offen ist.`;
+  const toene = (n) => (n === 1 ? '1 Ton' : `${n} Töne`);
+  const kam = (n) => (n === 1 ? 'kam' : 'kamen');
+  /*
+   * Die Auswertung in einfachen Worten. *„Irgendwie gibt's überhaupt keine
+   * soundeffekte mehr in der app"* – die Zeile soll genau die eine Frage
+   * beantworten, die die App beantworten kann: Liegt es an ihr, am Browser
+   * oder am Gerät?
+   *
+   *   läuft, Töne durch    → am Gerät. Alles, was ein Handy stumm macht, steht
+   *                          darunter – jeder Punkt ist auf Android oder iPhone
+   *                          schon einmal die Ursache gewesen.
+   *   „Töne anhören" läuft → noch kein Urteil, aber auch keine Aufforderung,
+   *                          auf den Knopf zu tippen, auf den man eben tippte.
+   *   angehalten           → am Browser: ohne Berührung keine Freigabe – oder,
+   *                          nach einer Berührung, ein Kontext, den ein Anruf
+   *                          oder App-Wechsel unterbrochen hat (klemmt).
+   *   noch nichts          → die App wollte noch keinen Ton. Nur dann – zuerst
+   *                          stand das auch, wenn nach dem Neuladen schon zwei
+   *                          Töne verpasst waren und einer auf den ersten Tipp
+   *                          wartete. Dann jetzt: woran es liegt, was deshalb
+   *                          fehlte, was ein Tipp noch bringt.
+   *
+   * Was nicht pünktlich kam, steht dahinter – mit seiner Ursache, und davon
+   * gibt es zwei: noch keine Berührung seit dem Öffnen (dann lässt der Browser
+   * keinen Ton zu), oder ein Kanal, den der Browser angehalten hatte (im
+   * Hintergrund, nach einem Anruf). Zuerst hieß jeder verpasste Ton
+   * „angehalten" – auch die, die nur auf den ersten Tipp gewartet hatten. Dann
+   * standen für zwei Töne aus derselben Ursache zwei verschiedene Gründe da,
+   * und der zweite deutete auf ein Problem im Hintergrund, das es nie gab. Ein
+   * nachgeholter Gong kam verspätet, nicht „nicht": So erlebt man es auch.
+   */
+  const SPERRE = 'vor deiner ersten Berührung nach dem Öffnen lässt der Browser keinen Ton zu';
+  const ANGEHALTEN = 'der Browser hatte den Ton angehalten, etwa im Hintergrund';
+  const folgen = (spaet, weg, warumSpaet, warumWeg, warum) => {
+    if (spaet && weg) {
+      return ` ${warum[0].toUpperCase()}${warum.slice(1)} – deshalb ${kam(spaet)} ${toene(spaet)} verspätet, ${toene(weg)} ${kam(weg)} gar nicht.`;
+    }
+    if (spaet) return ` ${toene(spaet)} ${kam(spaet)} verspätet – ${warumSpaet}.`;
+    if (weg) return ` ${toene(weg)} ${kam(weg)} nicht – ${warumWeg}.`;
+    return '';
+  };
+  const angehaltenWeg = t.verpasst - t.gesperrt;
+  const sperre = folgen(t.nachgeholt, t.gesperrt,
+    'erst mit deiner ersten Berührung, vorher lässt der Browser keinen Ton zu', SPERRE, SPERRE);
+  const angehalten = folgen(t.verspaetet - t.nachgeholt, angehaltenWeg,
+    ANGEHALTEN, 'der Browser hatte den Ton in dem Moment angehalten', ANGEHALTEN);
+  let urteil;
+  let darunter = '';
+  if (!t.moeglich) {
+    urteil = '✗ Dieser Browser kann keine Töne erzeugen.';
+  } else if (t.zustand === 'laeuft' && t.gespielt > 0) {
+    urteil = `✓ Die App schickt Töne los (${t.gespielt} seit dem Öffnen).${sperre}${angehalten}`;
+    darunter = `<div class="muted">Hörst du nichts, liegt es am Handy:</div>
+      <ul>${TON_URSACHEN.map((u) => `<li>${esc(u)}</li>`).join('')}</ul>`;
+  } else if (t.zustand === 'laeuft' && t.laufend) {
+    urteil = '♪ Töne laufen gerade …';
+  } else if (t.zustand === 'laeuft') {
+    urteil = `Der Ton ist frei, aber noch kam keiner durch – tipp auf „Töne anhören".${sperre}${angehalten}`;
+  } else if (t.klemmt) {
+    urteil = `✗ Der Browser hält den Ton an, obwohl du schon getippt hast.${angehaltenWeg
+      ? ` Deshalb ${kam(angehaltenWeg)} ${toene(angehaltenWeg)} nicht.` : ''}${sperre}`;
+    darunter = `<div class="muted">Das passiert nach einem Anruf oder einem Wechsel zu einer
+      anderen App. Tipp noch einmal; bleibt es stumm, die App schließen und neu öffnen.</div>`;
+  } else if (!t.verpasst && !t.offen && t.zustand === 'schlaeft') {
+    urteil = 'Der Browser lässt Ton erst nach einer Berührung zu – tipp auf „Töne anhören", das ist eine.';
+  } else if (!t.verpasst && !t.offen) {
+    urteil = 'Noch kein Ton angefordert. Tipp auf „Töne anhören": Dann steht hier, ob die App Töne losschickt.';
+  } else {
+    // Noch keine Berührung seit dem Öffnen, und die App wollte schon etwas
+    // hören lassen: eine Pause, die das Neuladen überdauert hat, ein Gong.
+    // Dann zuerst, woran es liegt, dann, was deshalb ausfiel, dann, was ein
+    // Tipp jetzt noch bringt.
+    const tipp = {
+      pause: 'dann kommt das Pausensignal pünktlich',
+      rest: 'dann kommt „Pause vorbei" noch nach',
+    }[t.wartet] || (t.wartet ? 'dann kommt der Ton noch nach' : 'dann ist der Ton frei');
+    urteil = `✗ Noch kein Ton frei – vor der ersten Berührung nach dem Öffnen lässt der Browser keinen zu.${t.gesperrt
+      ? ` Deshalb ${kam(t.gesperrt)} ${toene(t.gesperrt)} nicht.` : ''}${angehalten} Tipp einmal irgendwohin, ${tipp}.`;
+  }
+  host.innerHTML = `<div class="ton-urteil">${esc(urteil)}</div>${darunter}`;
 }
+
+/*
+ * Die stille Zeile im Dashboard – nur, wenn der Ton klemmt.
+ *
+ * Kein Popup, kein Toast: Wer trainiert, soll nicht wegtippen müssen. Sie
+ * erscheint, wenn der Tonkanal nach einer Berührung weiter schläft
+ * (tonStand().klemmt – iOS nach Anruf oder App-Wechsel, ein Browser, der nicht
+ * weckt), und verschwindet von selbst, sobald er läuft. In allen drei Ansichten
+ * des Dashboards, weil die Fokusansicht die ist, in der man trainiert.
+ *
+ * Das Urteil vorn, und kein Versprechen, dass der nächste Tipp weckt: Sie
+ * erscheint ja gerade, weil einer es nicht getan hat. Der Abschnitt heißt so,
+ * wie er unter Mehr heißt.
+ *
+ * `kurz`: auf der Startseite, die eine Bildschirmseite bleiben soll (siehe
+ * renderOverview()) – zwei Zeilen statt vier.
+ */
+function tonHinweis(kurz = false) {
+  if (!ui.tonHinweis) return '';
+  if (kurz) {
+    return `<div class="notice zeile small kurz" id="tonHinweis"><span>🔇 Töne kommen gerade nicht. Bleibt es
+      stumm, App neu öffnen – <i>Mehr → Töne und Hinweise</i>.</span></div>`;
+  }
+  return `<div class="notice zeile small" id="tonHinweis"><span>🔇 Töne kommen gerade nicht – der
+    Browser hält den Ton an, obwohl du getippt hast. Tipp noch einmal; bleibt es stumm, App
+    schließen und neu öffnen. Einzelheiten unter <i>Mehr → Töne und Hinweise</i>.</span></div>`;
+}
+
+/** Nach jeder Änderung am Tonkanal: die Zeile unter Mehr, und die stille Zeile im Dashboard. */
+onTonStand(() => {
+  tonStandZeigen();
+  const zeigen = tonStand().klemmt;
+  if (zeigen === ui.tonHinweis) return;
+  ui.tonHinweis = zeigen;
+  // Neu zeichnen nur, wo die Zeile steht, und nie, während jemand tippt – der
+  // Neuaufbau nähme ihm das Feld weg. Das passiert höchstens zweimal je
+  // Sitzung: wenn sie kommt und wenn sie geht.
+  const tippt = !!document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+  if (ui.tab === 'dashboard' && !tippt) render();
+});
 
 /* ------------------------------------------------------------------ *
  * Rendering / Routing
@@ -5129,6 +7858,17 @@ function restoreFocus(key) {
 }
 
 function render() {
+  // Ein Zusatztag, der vorn stand, kann inzwischen weg sein (verbraucht,
+  // neu gerechnet, gelöscht) oder in der Einheit des Tages stecken – über
+  // Mitternacht bei offener App etwa, oder nach dem Verwerfen einer Einheit.
+  // Dann steht die Einheit vorn, in der er steckt, statt einer, die es so
+  // nicht mehr gibt.
+  if (istCustom(ui.workoutNo)) {
+    const c = store.customById(ui.workoutNo);
+    const b = zusatzBindung();
+    if (!c) ui.workoutNo = naechsteEinheit();
+    else if (b && b.c.id === c.id) ui.workoutNo = b.w.n;
+  }
   const mode = ui.tab === 'dashboard' ? store.workoutMode(ui.workoutNo) : store.getState().mode;
   document.body.classList.toggle('mode-bw', mode === 'bw');
   document.documentElement.dataset.theme = store.getState().theme || 'orange';
@@ -5139,16 +7879,48 @@ function render() {
   view.setAttribute('aria-labelledby', `tab-${reiter}`);
   const hatte = focusKey(document.activeElement);
   clearFigures(); // alte Animationen abmelden, bevor das DOM ersetzt wird
+  ui.gezeigt = null;   // setzt renderFocus(), wenn es eine Übung zeigt
   (RENDERERS[ui.tab] || renderDashboard)();
   restoreFocus(hatte);
   syncHistory();
+  // Die Leiste unten nach jedem Zeichnen zur gezeigten Übung passend machen –
+  // hier einmal statt an jeder Stelle, die ui.focusIdx setzt.
+  tickRest();
+  // Welche Einheit gerade in der Fokusansicht offen ist, und bei welcher Übung
+  // – damit sie nach dem Neuladen genau dort wieder aufgeht (siehe `fokusOffen`
+  // beim Start). Die Übung muss mit: Weder den Sprung zum Supersatz-Partner
+  // noch einen bewussten Tipp auf eine spätere Übung kann man hinterher aus den
+  // Haken ablesen. Nur beim Wechsel geschrieben – der Einheit oder der Übung –,
+  // nicht bei jedem Satz.
+  let offen = null;
+  if (ui.tab === 'dashboard' && ui.focus) {
+    const ex = workoutByNo(ui.workoutNo).ex;
+    const x = ex[Math.min(Math.max(0, ui.focusIdx), ex.length - 1)];
+    offen = { n: ui.workoutNo, id: x ? x.id : null };
+  }
+  // Als 'ansicht' gemeldet, wie der Reiter in go(): Die Vorschau für den
+  // Kalender liest beides nicht (kalenderGeaendert() in js/kalender-sync.js).
+  const war = store.getState().fokusOffen ?? null;
+  if ((war === null) !== (offen === null) || (offen && (war.n !== offen.n || war.id !== offen.id))) {
+    store.setSetting('fokusOffen', offen, 'ansicht');
+  }
 }
 
+/**
+ * Zu einem Reiter. Der Store meldet den Wechsel als 'ansicht': Die Vorschau
+ * für den Kalender liest weder den Reiter noch die offene Einheit, und bis
+ * v247 rechnete sie trotzdem bei jedem Wechsel das Jahr im Worker neu – am
+ * Handy an Tobis Stand geschätzt eine knappe Sekunde, mit vielen Terminen
+ * mehrere –, geschickt wurde nie etwas (gleicher Fingerabdruck).
+ */
 function go(tab) {
   ui.tab = tab;
-  store.setSetting('tab', tab);
+  store.setSetting('tab', tab, 'ansicht');
   render();
   window.scrollTo({ top: 0 });
+  // Unter Mehr steht, wie es um die Sicherung steht – fehlten dem Server die
+  // Funktionen, sieht sie dort noch einmal nach (höchstens alle zehn Minuten).
+  if (tab === 'settings') sicherungNachsehen();
 }
 
 /* ------------------------------------------------------------------ *
@@ -5161,9 +7933,14 @@ function go(tab) {
  * und legt deshalb auch nichts ab.
  * ------------------------------------------------------------------ */
 
-const levelOf = () => `${ui.tab}|${ui.listView ? 1 : 0}|${ui.focus ? 1 : 0}`;
+/** Die Ebene eines Verlaufseintrags – oder, mit `ui`, die gerade sichtbare. */
+const ebeneVon = (st) => `${st.tab || 'dashboard'}|${st.listView ? 1 : 0}|${st.focus ? 1 : 0}`;
+const levelOf = () => ebeneVon(ui);
 let lastLevel = levelOf();
 let goingBack = false;
+// Beim Start: Einträge über dem Dashboard, die nicht mehr gelten, werden
+// zurückgegangen (siehe ganz unten beim Start, `abbauen`).
+let abbauen = false;
 
 function syncHistory() {
   const now = levelOf();
@@ -5182,6 +7959,17 @@ window.addEventListener('hashchange', () => {
 });
 
 window.addEventListener('popstate', (e) => {
+  if (abbauen) {
+    // Noch eine Fokusansicht oder Liste darunter? Weiter zurück, bis die
+    // Ebene erreicht ist, aus der man hineingegangen war. Die zeigt jetzt, was
+    // der Start entschieden hat – angezeigt wird nichts Neues.
+    if (e.state && (e.state.focus || e.state.listView)) { history.back(); return; }
+    abbauen = false;
+    history.replaceState({ tab: ui.tab, listView: ui.listView, focus: ui.focus }, '');
+    lastLevel = levelOf();
+    goingBack = false;
+    return;
+  }
   const st = e.state || { tab: 'dashboard', listView: false, focus: false };
   goingBack = true;
   ui.tab = st.tab || 'dashboard';
@@ -5200,6 +7988,376 @@ tabbar.addEventListener('click', (e) => {
   const btn = e.target.closest('.tab');
   if (btn) go(btn.dataset.tab);
 });
+
+/** Abgehakte Sätze einer Einheit, in beiden Varianten – so viele verschwinden beim Verwerfen. */
+function abgehaktInEinheit(n) {
+  const e = store.getState().log[n] || {};
+  return ['db', 'bw'].reduce((a, m) => a + Object.values(e[m] || {})
+    .reduce((b, arr) => b + (Array.isArray(arr) ? arr.filter((x) => x && x.done).length : 0), 0), 0);
+}
+
+/**
+ * Was jedes Ende einer Einheit auslöst – der Knopf „Abschließen" genauso wie
+ * der letzte Haken. Gibt zurück, ob die Stufe gestiegen ist.
+ *
+ * Eine Stelle für beide, weil sie schon einmal auseinandergelaufen sind: Der
+ * letzte Haken – Tobis gewöhnlicher Weg („soll das training automatisch zuende
+ * sein") – beendete die Einheit, sicherte sie aber nicht sofort. Wer das Handy
+ * gleich weglegte, schickte den Stand von vor dem letzten Satz mit: laufende
+ * Einheit, letzter Satz offen, nicht als erledigt vermerkt.
+ *
+ * `bis` nur vom Tagesabschluss: Eine liegen gebliebene Sitzung bucht ihre Zeit
+ * bis zu ihrem letzten Lebenszeichen, nicht bis jetzt (store.clockStop()).
+ */
+function einheitBeenden(bis) {
+  const lief = store.getState().session;
+  const uhrVorher = store.getState().clock;
+  store.endSession(bis);
+  uhrGedeckelt(uhrVorher, bis ? 'liegen geblieben' : 'ende');
+  meldeStand(true);
+  ui.focus = false;
+  ui.listView = false;
+  if (store.getState().rest) endRest(false);
+  // Erst nach markDone (das erledigen beide Aufrufer vorher): Die Einheit, die
+  // gerade fertig geworden ist, soll mitzählen. Sonst käme der Aufstieg immer
+  // eine Einheit zu spät.
+  const gestiegen = pruefeAufstieg();
+  if (gestiegen) aufstiegMelden(store.getState().level);
+  // Nach der letzten Einheit einer Woche entscheidet sich, ob etwas
+  // liegen geblieben ist – also hier und nicht erst beim nächsten Start.
+  //
+  // Bis v238 sprang die Startansicht danach auf den frisch angelegten
+  // Zusatztag, und der Abschluss blieb ohne Meldung. Heute ist aber schon
+  // trainiert: Der Zusatztag kommt frühestens morgen dran (naechsteEinheit()),
+  // die Startansicht bleibt auf der Einheit, die eben fertig wurde („Für heute
+  // durch"), und der Abschluss sagt, was er ist.
+  pruefeZusatztag();
+  {
+    const n = lief ? lief.n : null;
+    const e = n !== null ? store.getState().log[n] : null;
+    notieren('einheit', {
+      was: 'ende', n, liegen: bis ? true : undefined, secs: e ? e.secs : undefined,
+      fertig: e && e.done ? e.done : undefined, gestiegen: gestiegen ? store.getState().level : undefined,
+    }, true);
+  }
+  // Zuletzt, damit Aufstieg und Zusatztag schon drinstehen: sofort sichern, an
+  // der Drossel vorbei. Das ist der Stand, der am meisten wert ist, und das
+  // Handy liegt danach oft für Stunden.
+  sicherungJetzt();
+  // Und der Kalender „Workout": Die Einheit steht dort ab jetzt mit „✓".
+  kalenderJetzt('abschluss');
+  return gestiegen;
+}
+
+/**
+ * Das Training abschließen: „✓ Abschließen" und „Alle Sätze abhaken" bei
+ * laufender Einheit.
+ *
+ * Eine Stelle für beides. „Alle Sätze abhaken" hakte bisher nur ab und ließ
+ * die Uhr laufen: Die fertige Einheit hieß weiter „läuft", jede andere zeigte
+ * „Workout 1 läuft noch", und ein Wechsel unter Mehr stellte sie – als
+ * laufende – auf Bodyweight um, 17/18 statt fertig. Wer alles abhakt, ist
+ * fertig; dann passiert, was der letzte Haken auch auslöst.
+ */
+function trainingBeenden(n, mode) {
+  const prog = progressOf(n, mode);
+  notieren('einheit', { was: 'abschliessen', n, mode, done: prog.done, total: prog.total });
+  // Abgehakt ist abgehakt: Wer hier tippt, ist fertig – der Tag zählt als
+  // trainiert, auch wenn nicht jeder Satz steht. Ohne einen einzigen Satz
+  // wäre das allerdings gelogen.
+  if (prog.done) store.markDone(n, mode);
+  const gestiegen = einheitBeenden();
+  sound(prog.complete ? 'done' : 'stop');
+  render();
+  if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
+  else {
+    toast(prog.complete
+      ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
+      : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
+  }
+}
+
+/**
+ * Eine Einheit starten oder fortsetzen – der Knopf „Start", „Training
+ * fortsetzen" und „Doch noch weitermachen" (auch auf einer Einheit, die der
+ * Tagesabschluss abgeschlossen hat). `wahl` ist die Variante, wenn der Knopf
+ * eine mitbringt.
+ */
+function einheitStarten(n, wahl) {
+  const mode = store.workoutMode(n);
+  if (!workoutByNo(n).ex.length) {
+    toast('Heute fällt alles weg – nichts zu starten');
+    return;
+  }
+  // Die Variante wird vor dem Starten gewählt, nicht während des Trainings:
+  // ein Umschalter zwischen zwei Sätzen ist nur eine Falle.
+  if (wahl) store.setWorkoutMode(n, wahl);
+  // Liegt der Termin dieser Einheit noch in der Zukunft, rückt der Plan
+  // jetzt vor – ungefragt und ohne Anzeige. Dafür gab es früher einen
+  // Knopf ("Heute anfangen – Plan 3 Tage vorziehen"); der ist raus, weil
+  // niemand eine Verschiebung einstellen will, die sich von selbst ergibt.
+  // Nach hinten macht catchUpPlan() dasselbe, wenn ein Termin verstreicht.
+  // Wie viele Übungen aus einem Zusatztag schon in der Einheit stehen –
+  // nach dem Vorziehen wird es womöglich einer mehr (siehe unten).
+  const zusVorher = workoutByNo(n, mode).ex.filter((x) => x.zusatz).length;
+  if (firstOpen().n === n && daysBetween(todayISO(), effDate(workoutByNo(n))) > 0) {
+    store.setShift(shiftToToday());
+  }
+  // Mit dem Vorziehen ist diese Einheit heute fällig, und ein Zusatztag, der
+  // bereitsteht oder jetzt erst entsteht, gehört in sie hinein
+  // (zusatzEinheit() in js/plan.js) – gerechnet für heute. Auch ohne
+  // Vorziehen: Eine verworfene oder umgestellte Einheit soll mit dem Stand
+  // von jetzt anfangen. (Nicht beim allein stehenden Zusatztag selbst: Der
+  // würde sonst womöglich unter dem Startknopf neu gerechnet.)
+  if (!istCustom(n)) pruefeZusatztag();
+  const zusNeu = workoutByNo(n, store.workoutMode(n)).ex.filter((x) => x.zusatz);
+  initAudio('start'); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
+  sound('start');
+  // Läuft noch eine andere Einheit, wird sie zuerst beendet – mit ihrer
+  // Zeit. startSession() ersetzt die Uhr, und gebucht wird nur beim
+  // Anhalten; ohne diese Zeile war alles seit dem letzten Wegschalten der
+  // App verloren. Gefragt ist vorher schon: Der Knopf dafür sagt, dass die
+  // andere endet (laufendWoandersBlock()).
+  const lief = store.getState().session;
+  const vorige = lief && lief.n !== n ? lief.n : null;
+  if (vorige !== null) {
+    if (store.getState().rest) endRest(false);
+    store.endSession();
+  }
+  store.startSession(n);
+  notieren('einheit', {
+    was: 'start', n, mode: store.workoutMode(n), vorige: vorige ?? undefined,
+    zusatz: zusNeu.length > zusVorher ? zusNeu.map((x) => x.id).join('+') : undefined,
+  });
+  ui.focus = true;
+  ui.listView = false;
+  ui.focusIdx = firstOpenExercise(n, store.workoutMode(n));
+  render();
+  // Kam beim Vorziehen etwas dazu, sagt der Start es – nichts ändert sich
+  // unbemerkt. Woher es kommt, steht an der Übung.
+  {
+    const dazu = zusNeu.length > zusVorher
+      ? ` · dazu ${undListe(zusNeu.map((x) => resolve(x, store.workoutMode(n)).name))} aus Woche ${zusNeu[0].zusatz.woche}`
+      : '';
+    toast(vorige !== null ? `${einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪${dazu}`
+      : `Los geht’s 💪${dazu}`);
+  }
+}
+
+/**
+ * Einen Satz abhaken oder zurücknehmen – der Haken auf einem Satzknopf.
+ *
+ * Stand bis v254 direkt im Klick-Handler (toggle-set). Seit einseitige
+ * Übungen zwei Haken je Satz haben, kommt die zweite Seite hier an: Sie macht
+ * aus dem halben Satz einen ganzen, mit allem, was dazugehört – Pause,
+ * Supersatz, Weiterrücken, Abschluss. `extra` geht mit in den Eintrag (etwa
+ * `seite: null`, oder die Seite, die beim Zurücknehmen stehen bleibt).
+ */
+function satzUmschalten(n, mode, id, i, extra = null) {
+  // Vor dem Haken: Ab hier steht fest, was nachgeholt wird – erst der
+  // eingefügte Zusatztag, dann die Nacharbeit. Danach ist die Einheit
+  // angefangen, und der Zusatz hinge an nichts mehr (zusatzFesthalten()).
+  // Und vorher noch der Plan, falls früher trainiert wird (planVorziehen()).
+  // Was dabei vorher galt, bleibt gemerkt: Ein Fehltipp – Satz an und
+  // gleich wieder ab – soll den Plan nicht für immer um einen Tag
+  // vorziehen. Die Einheit ist danach ja auch nicht mehr angefangen.
+  const shiftVorher = store.getState().shift;
+  if (planVorziehen(n)) ui.vorgezogen = { n, shift: shiftVorher };
+  zusatzFesthalten(n);
+  nachFesthalten(n);
+  const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
+  if (!item) { render(); return; }
+  const cur = store.getSets(n, mode, id, item.sets, item.nach || 0)[i].done;
+  const variant = resolve(item, mode);
+  // Eine Übung, die über beide Modi fertig ist, bekommt keinen Satz mehr
+  // dazu. Nach dem Umschalten stehen ihre Knöpfe in diesem Modus leer da,
+  // und ein Tipp darauf buchte bis hierher einen Satz, der nie gemacht
+  // wurde: 3 Hantelsätze + 1 in der Statistik, und die App sprang mit
+  // „Weiter: …" davon. Zurücknehmen geht weiter – das ist ein Haken in
+  // diesem Modus, der wirklich dasteht.
+  if (!cur && saetzeErledigt(n, id, item.sets) >= item.sets) {
+    notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, abgelehnt: 'fertig' });
+    toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
+    return;
+  }
+  initAudio('satz'); // Berührung nutzen, solange der Browser Ton noch erlaubt
+  // Ein Haken überholt das „Pause vorbei", das seit dem Neuladen auf die
+  // erste Berührung wartet – auch einer, der stumm bleibt („Ton bei jedem
+  // Satz" aus, im Supersatz ohne Wartezeit weiter; tonUeberholt() in
+  // js/audio.js). Nur ein gesetzter: Wer als Erstes einen Haken
+  // zurücknimmt, ist mit dem nächsten Satz noch nicht weiter – der Gong
+  // kommt nach, wie bis v241.
+  if (!cur) tonUeberholt();
+
+  // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
+  // später der Vergleich "Zuletzt" und die Volumenrechnung.
+  const patch = { done: !cur, ...(extra || {}) };
+  if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
+  // Bleibt beim Zurücknehmen eine Seite stehen, bleibt ihr Gewicht mit.
+  else if (cur && !patch.seite) patch.w = '';
+  // Der Eintrag selbst kann die Uhr deckeln (store.eingetragen(): ein Satz
+  // nach drei Stunden Stille) – das soll das Protokoll so sehen wie jedes
+  // andere Anhalten.
+  const uhrVorSatz = store.getState().clock;
+  store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
+  uhrGedeckelt(uhrVorSatz, 'satz');
+  if (cur && ui.vorgezogen && ui.vorgezogen.n === n && !store.isStarted(n)) {
+    store.setShift(ui.vorgezogen.shift);
+    ui.vorgezogen = null;
+    pruefeZusatztag();
+  }
+
+  const done = !cur;
+  const workoutComplete = done && progressOf(n, mode).complete;
+  // Festhalten, dass dieser Tag trainiert wurde – nicht nur, dass alle
+  // Häkchen stehen. Der Unterschied fällt erst später auf: „Alle Häkchen"
+  // wird gegen die *heutige* Satzzahl gerechnet, und die hängt an der
+  // Erfahrungsstufe. Wer von Anfänger auf Geübt wechselt, hätte sonst
+  // rückwirkend aus 10/10 ein 10/15 gemacht und eine fertige Einheit in
+  // eine halbe verwandelt – samt Serie, Statistik und Rundenzählung.
+  if (workoutComplete) store.markDone(n, mode);
+
+  // Der letzte Satz beendet das Training. „Wenn man den letzten Satz
+  // abgehakt hat soll das training automatisch zuende sein ohne dass man
+  // das nochmal extra drücken muss." Stimmt: Der Knopf „Abschließen"
+  // trägt, wenn ohnehin alles steht, keine Entscheidung mehr – er ist eine
+  // Quittung für etwas, das man gerade selbst getan hat.
+  //
+  // Was er sonst noch auslöst, passiert deshalb hier mit: Uhr anhalten,
+  // Stand melden, Aufstieg und Zusatztag prüfen, sofort sichern – alles in
+  // einheitBeenden(), derselben Stelle wie beim Knopf. Sonst wäre
+  // „automatisch beendet" nur halb beendet.
+  if (workoutComplete && store.getState().session) {
+    notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, fertig: true });
+    const gestiegen = einheitBeenden();
+    sound('done');
+    render();
+    toast(gestiegen ? 'Neue Stufe – siehe oben ⬆️'
+      : `Training abgeschlossen – alle ${progressOf(n, mode).total} Sätze 🎉`);
+    return;
+  }
+  // Fertig ist eine Übung, wenn ihre Sätze stehen – gezählt über beide
+  // Modi, so wie die Karte und satzSteht() es tun. Bis v219 zählte hier
+  // nur der Eimer des aktuellen Modus, und nur der Haken auf dem letzten
+  // Satz: Wer mitten in der Einheit von Hanteln auf Körpergewicht
+  // umschaltete, stand mit Supersätzen nach dem letzten fehlenden Satz
+  // weiter bei der fertigen Übung, und es lief eine Pause „1/3“, statt
+  // dass es zum nächsten Paar ging.
+  const exDone = done && saetzeErledigt(n, id, item.sets) >= item.sets;
+
+  // Wann diese Übung zuletzt dran war – daraus rechnet der Supersatz die
+  // Wartezeit. Nur beim Setzen, nicht beim Wegnehmen: Ein zurückgenommener
+  // Haken macht die verstrichene Zeit nicht ungeschehen.
+  if (done) { satzUhr.set(id, Date.now()); satzPlus.delete(id); uhrMerken(); }
+
+  // Ab dem ersten Satz steht die Paarung für diese Einheit (superGruppen()).
+  if (done) paarungFesthalten(n, mode);
+
+  // Im Supersatz entscheidet der Wechsel, wohin es geht und wie lange
+  // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
+  const imWechsel = done && !workoutComplete && superWeiter(n, mode, id);
+  // Ein Haken fürs Diagnoseprotokoll: was danach kommt – nie das Gewicht.
+  // Der Satz ab 1 und „von", wie in der Pausen-Zeile daneben; die Einheit
+  // heißt `einheit`, nicht `n` – gefunden beim Gegenlesen: „satz n=1 … i=0"
+  // und gleich darauf „pause … satz=1" las sich wie zwei Sätze.
+  notieren('satz', {
+    einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, exFertig: exDone, fertig: workoutComplete,
+    super: !!imWechsel,
+    pause: !imWechsel && done && !workoutComplete && !exDone && i < item.sets - 1 ? restFor(variant) : 0,
+  });
+
+  if (!imWechsel) {
+    // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
+    // hierher wartete der Sprung auf die Antwort zu "Wie war das?" – die
+    // Frage gibt es nicht mehr, also gibt es auch nichts mehr abzuwarten.
+    if (ui.focus && exDone && !workoutComplete) weiterZurNaechsten(n, mode);
+  }
+  render();
+  // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
+  // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
+  if (imWechsel) {
+    // schon erledigt
+  } else if (done && !workoutComplete && !exDone && i < item.sets - 1) {
+    startRest(variant.name, i, item.sets, restFor(variant), id);
+  } else if (store.getState().rest) {
+    endRest(false);
+  }
+  // Der größte Anlass gewinnt: Workout fertig schlägt Übung fertig schlägt
+  // einzelnen Satz. Ein Haken, der wieder weggeht, bleibt still.
+  if (done) sound(workoutComplete ? 'done' : (exDone ? 'exercise' : 'set'));
+  if (workoutComplete) toast('Workout abgeschlossen 🎉');
+}
+
+/**
+ * Eine Seite eines einseitigen Satzes antippen („8–12 je Bein").
+ *
+ *     „Vllt sollten bei Übungen bei denen man mit beiden Körperteilen
+ *      unabhängig voneinander macht jedesmal abhaken oder? Also hier zb 6?"
+ *     „jede Seite brauch ihre eigenen Pausen"
+ *
+ * Vier Fälle, je nachdem, was am Satz schon steht:
+ *
+ *   nichts         diese Seite steht, und die Seitenpause läuft (seitenPause())
+ *   die andere     der Satz steht – weiter wie bei jedem Satz (satzUmschalten()):
+ *                  volle Pause, im Supersatz der Partner, nach dem letzten die
+ *                  nächste Übung
+ *   beide          diese Seite geht weg, der Satz ist wieder offen, die andere
+ *                  bleibt
+ *   nur diese      sie geht weg, der Satz ist wieder leer
+ *
+ * Welche Seite zuerst kommt, entscheidet, wer trainiert. Ein halber Satz zählt
+ * nirgends als Satz – nicht im Kopf, nicht in der Statistik, nicht in der
+ * Nacharbeit. Angefangen ist die Einheit mit ihm trotzdem, wie mit dem ersten
+ * Haken: Plan, Zusatztag und Nacharbeit stehen ab da fest.
+ */
+function seiteAntippen(n, mode, id, i, seite) {
+  const andere = seite === 'l' ? 'r' : 'l';
+  const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
+  if (!item) { render(); return; }
+  const s = store.getSets(n, mode, id, item.sets, item.nach || 0)[i];
+  if (!s) { render(); return; }
+  if (s.done) { satzUmschalten(n, mode, id, i, { seite: andere }); return; }
+  if (s.seite === andere) { satzUmschalten(n, mode, id, i, { seite: null }); return; }
+  const setzen = s.seite !== seite;
+  const variant = resolve(item, mode);
+  if (setzen) {
+    // Wie vor jedem Haken (satzUmschalten()): erst der Plan, dann der
+    // Zusatztag, dann die Nacharbeit.
+    const shiftVorher = store.getState().shift;
+    if (planVorziehen(n)) ui.vorgezogen = { n, shift: shiftVorher };
+    zusatzFesthalten(n);
+    nachFesthalten(n);
+    if (saetzeErledigt(n, id, item.sets) >= item.sets) {
+      notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, seite, abgelehnt: 'fertig' });
+      toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
+      return;
+    }
+    initAudio('satz');
+    tonUeberholt();
+  }
+  const patch = { seite: setzen ? seite : null };
+  if (setzen && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
+  else if (!setzen) patch.w = '';
+  const uhrVorSatz = store.getState().clock;
+  store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
+  uhrGedeckelt(uhrVorSatz, 'satz');
+  if (!setzen && ui.vorgezogen && ui.vorgezogen.n === n && !store.isStarted(n)) {
+    store.setShift(ui.vorgezogen.shift);
+    ui.vorgezogen = null;
+    pruefeZusatztag();
+  }
+  // Ab dem ersten Eintrag steht die Paarung – auch wenn er eine halbe ist.
+  if (setzen) paarungFesthalten(n, mode);
+  const pause = setzen ? seitenPause(restFor(variant)) : 0;
+  notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, seite, done: setzen, halb: true, pause });
+  render();
+  if (setzen) {
+    startRest(variant.name, i, item.sets, pause, id, { seite: andere });
+    sound('set');
+  } else if (store.getState().rest && store.getState().rest.ex === id) {
+    endRest(false);
+  }
+}
 
 view.addEventListener('click', (e) => {
   const t = e.target.closest('[data-act]');
@@ -5223,6 +8381,20 @@ view.addEventListener('click', (e) => {
       const inj = injuryById(id);
       if (!inj) break;
       store.toggleInjury(id, true);
+      // Ein noch unberührter Zusatztag wird für die neue Lage gerechnet: Eine
+      // Übung, die die Beschwerde sperrt, soll nicht bloß aus der Einheit
+      // fallen, sondern durch eine ersetzt werden, die geht.
+      pruefeZusatztag();
+      // Danach weiter bei einer offenen Übung. Mit Hanteln steht an der Stelle
+      // meist der Ersatz; ohne Hanteln fällt die Übung oft ersatzlos weg, die
+      // Liste wird kürzer, und auf derselben Position stand bisher die nächste
+      // – auch wenn die längst fertig war (Knieheben 4/4 statt Band-Seitheben).
+      if (ui.focus) {
+        const da = workoutByNo(n, store.workoutMode(n)).ex[ui.focusIdx];
+        if (!da || saetzeErledigt(n, da.id, da.sets) >= da.sets) {
+          ui.focusIdx = firstOpenExercise(n, store.workoutMode(n));
+        }
+      }
       render();
       toast(`🩹 ${inj.name} angehakt – der Plan ist angepasst`);
       break;
@@ -5231,6 +8403,7 @@ view.addEventListener('click', (e) => {
       const id = t.dataset.inj;
       const on = t.getAttribute('aria-pressed') !== 'true';
       store.toggleInjury(id, on);
+      pruefeZusatztag();   // wie bei 'schmerz-anhaken'
       render();
       toast(on ? `🩹 ${injuryById(id).name} angehakt` : `✓ ${injuryById(id).name} entfernt`);
       break;
@@ -5243,6 +8416,7 @@ view.addEventListener('click', (e) => {
     }
     case 'clear-injuries': {
       store.clearInjuries();
+      pruefeZusatztag();   // wie bei 'schmerz-anhaken'
       render();
       toast('Alle Haken entfernt');
       break;
@@ -5257,6 +8431,8 @@ view.addEventListener('click', (e) => {
       // ruestCache leeren: Die Reihenfolge einer Einheit hängt an ihren Übungen,
       // und die ändern sich hier.
       ruestCache.clear();
+      // Und ein unberührter Zusatztag rechnet ohne die abgewählte Übung neu.
+      pruefeZusatztag();
       render();
       break;
     }
@@ -5290,87 +8466,11 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'toggle-set': {
-      const id = t.dataset.ex;
-      const i = Number(t.dataset.i);
-      const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
-      const cur = store.getSets(n, mode, id, item.sets)[i].done;
-      const variant = resolve(item, mode);
-      initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
-
-      // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
-      // später der Vergleich "Zuletzt" und die Volumenrechnung.
-      const patch = { done: !cur };
-      if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
-      else if (cur) patch.w = '';
-      store.updateSet(n, mode, id, item.sets, i, patch);
-
-      const done = !cur;
-      const workoutComplete = done && progressOf(n, mode).complete;
-      // Festhalten, dass dieser Tag trainiert wurde – nicht nur, dass alle
-      // Häkchen stehen. Der Unterschied fällt erst später auf: „Alle Häkchen"
-      // wird gegen die *heutige* Satzzahl gerechnet, und die hängt an der
-      // Erfahrungsstufe. Wer von Anfänger auf Geübt wechselt, hätte sonst
-      // rückwirkend aus 10/10 ein 10/15 gemacht und eine fertige Einheit in
-      // eine halbe verwandelt – samt Serie, Statistik und Rundenzählung.
-      if (workoutComplete) store.markDone(n, mode);
-
-      // Der letzte Satz beendet das Training. „Wenn man den letzten Satz
-      // abgehakt hat soll das training automatisch zuende sein ohne dass man
-      // das nochmal extra drücken muss." Stimmt: Der Knopf „Abschließen"
-      // trägt, wenn ohnehin alles steht, keine Entscheidung mehr – er ist eine
-      // Quittung für etwas, das man gerade selbst getan hat.
-      //
-      // Was er sonst noch auslöst, passiert deshalb hier mit: Uhr anhalten,
-      // Stand melden, Aufstieg und Zusatztag prüfen. Sonst wäre „automatisch
-      // beendet" nur halb beendet.
-      if (workoutComplete && store.getState().session) {
-        store.endSession();
-        meldeStand(true);
-        ui.focus = false;
-        ui.listView = false;
-        if (store.getState().rest) endRest(false);
-        const gestiegen = pruefeAufstieg();
-        if (gestiegen) aufstiegMelden(store.getState().level);
-        const zusatz = pruefeZusatztag();
-        if (zusatz) ui.workoutNo = naechsteEinheit();
-        sound('done');
-        render();
-        toast(gestiegen ? 'Neue Stufe – siehe oben ⬆️'
-          : `Training abgeschlossen – alle ${progressOf(n, mode).total} Sätze 🎉`);
-        break;
-      }
-      const exDone = done && i === item.sets - 1
-        && store.getSets(n, mode, id, item.sets).slice(0, item.sets).every((s) => s.done);
-
-      // Wann diese Übung zuletzt dran war – daraus rechnet der Supersatz die
-      // Wartezeit. Nur beim Setzen, nicht beim Wegnehmen: Ein zurückgenommener
-      // Haken macht die verstrichene Zeit nicht ungeschehen.
-      if (done) satzUhr.set(id, Date.now());
-
-      // Im Supersatz entscheidet der Wechsel, wohin es geht und wie lange
-      // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
-      const imWechsel = done && !workoutComplete && superWeiter(n, mode, id);
-
-      if (!imWechsel) {
-        // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
-        // hierher wartete der Sprung auf die Antwort zu "Wie war das?" – die
-        // Frage gibt es nicht mehr, also gibt es auch nichts mehr abzuwarten.
-        if (ui.focus && exDone && !workoutComplete) weiterZurNaechsten(n, mode);
-      }
-      render();
-      // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
-      // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
-      if (imWechsel) {
-        // schon erledigt
-      } else if (done && !workoutComplete && i < item.sets - 1) {
-        startRest(variant.name, i, item.sets, restFor(variant));
-      } else if (store.getState().rest) {
-        endRest(false);
-      }
-      // Der größte Anlass gewinnt: Workout fertig schlägt Übung fertig schlägt
-      // einzelnen Satz. Ein Haken, der wieder weggeht, bleibt still.
-      if (done) sound(workoutComplete ? 'done' : (exDone ? 'exercise' : 'set'));
-      if (workoutComplete) toast('Workout abgeschlossen 🎉');
+      satzUmschalten(n, mode, t.dataset.ex, Number(t.dataset.i));
+      break;
+    }
+    case 'toggle-side': {
+      seiteAntippen(n, mode, t.dataset.ex, Number(t.dataset.i), t.dataset.seite === 'r' ? 'r' : 'l');
       break;
     }
     case 'reps-step': {
@@ -5394,7 +8494,7 @@ view.addEventListener('click', (e) => {
     }
     case 'weight-step': {
       const id = t.dataset.ex;
-      const kg = store.setWeight(id, naechstesGewicht(id, Number(t.dataset.dir)));
+      const kg = store.setWeight(id, naechstesGewicht(id, Number(t.dataset.dir), mode));
       render();
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
       const started = (store.peekSets(n, mode, id) || []).some((s) => s.done);
@@ -5408,11 +8508,24 @@ view.addEventListener('click', (e) => {
       // Auch nach vorn: Liegt der Excel-Termin in der Zukunft, fängt die neue
       // Runde trotzdem heute an und nicht irgendwann.
       const target = daysBetween(PLAN[0].date, todayISO());
-      if (!store.restartPlan(target, rundenBilanz())) {
+      const neu = store.restartPlan(target, rundenBilanz());
+      notieren('plan', { was: 'neustart', ok: neu });
+      if (!neu) {
         toast('Speicher voll – die Runde ließ sich nicht ablegen. Erst sichern und aufräumen.');
         render();
         break;
       }
+      // Die Zeile zum Tagesabschluss gehörte zur alten Runde: Über „Heute ·
+      // Workout 1" stand sonst „✓ Workout 12 vom Samstag ist abgeschlossen",
+      // und Workout 12 der neuen Runde liegt in 19 Tagen. Hier, nicht in
+      // store.restartPlan(): Rollt die Runde von selbst weiter (rundeWeiter()),
+      // weil die liegen gebliebene Einheit die letzte war, bleibt sie – dort
+      // sagt sie, warum die Startseite bei Workout 1 steht.
+      store.setzeTagesabschluss(null);
+      // Der Zusatztag der alten Runde gehört zu ihrem Protokoll, und das liegt
+      // jetzt in der Ablage. Aufgeräumt wurde er bisher erst beim nächsten
+      // Start – bis dahin hing er sich an Workout 1 der neuen Runde.
+      pruefeZusatztag();
       ui.workoutNo = PLAN[0].n;
       ui.focus = false;
       ui.listView = false;
@@ -5423,6 +8536,10 @@ view.addEventListener('click', (e) => {
     }
     case 'restore-round': {
       const ok = store.restoreRound();
+      notieren('plan', { was: 'runde zurueck', ok });
+      // Mit dem Verlauf ändert sich, welche Woche fertig ist und was ihr fehlt –
+      // der Zusatztag rechnet sofort neu, wie nach „Von vorn beginnen".
+      if (ok) pruefeZusatztag();
       // Der Verlauf steht wieder auf dem Plan; die Termine richten sich danach,
       // also gleich zur Startansicht zurück.
       ui.focus = false;
@@ -5439,69 +8556,48 @@ view.addEventListener('click', (e) => {
     case 'backup-teilen':
       teileBackup();
       break;
-    case 'start-session':
-      if (!workoutByNo(n).ex.length) {
-        toast('Heute fällt alles weg – nichts zu starten');
-        break;
-      }
-      // Die Variante wird vor dem Starten gewählt, nicht während des Trainings:
-      // ein Umschalter zwischen zwei Sätzen ist nur eine Falle.
-      if (t.dataset.mode) store.setWorkoutMode(n, t.dataset.mode);
-      // Liegt der Termin dieser Einheit noch in der Zukunft, rückt der Plan
-      // jetzt vor – ungefragt und ohne Anzeige. Dafür gab es früher einen
-      // Knopf ("Heute anfangen – Plan 3 Tage vorziehen"); der ist raus, weil
-      // niemand eine Verschiebung einstellen will, die sich von selbst ergibt.
-      // Nach hinten macht catchUpPlan() dasselbe, wenn ein Termin verstreicht.
-      if (firstOpen().n === n && daysBetween(todayISO(), effDate(workoutByNo(n))) > 0) {
-        store.setShift(shiftToToday());
-      }
-      initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
-      sound('start');
-      store.startSession(n);
-      ui.focus = true;
-      ui.listView = false;
-      ui.focusIdx = firstOpenExercise(n, mode);
-      render();
-      toast('Los geht’s 💪');
-      break;
-    case 'finish-session': {
-      const prog = progressOf(n, mode);
-      // Abgehakt ist abgehakt: Wer hier tippt, ist fertig – der Tag zählt als
-      // trainiert, auch wenn nicht jeder Satz steht. Ohne einen einzigen Satz
-      // wäre das allerdings gelogen.
-      if (prog.done) store.markDone(n, mode);
-      store.endSession();
-      meldeStand(true);
-      ui.focus = false;
-      ui.listView = false;
-      if (store.getState().rest) endRest(false);
-      sound(prog.complete ? 'done' : 'stop');
-      // Erst nach markDone: Die Einheit, die gerade fertig geworden ist, soll
-      // mitzählen. Sonst käme der Aufstieg immer eine Einheit zu spät.
-      const gestiegen = pruefeAufstieg();
-      if (gestiegen) aufstiegMelden(store.getState().level);
-      // Nach der letzten Einheit einer Woche entscheidet sich, ob etwas
-      // liegen geblieben ist – also hier und nicht erst beim nächsten Start.
-      const zusatz = pruefeZusatztag();
-      render();
-      if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
-      // Der Zusatztag meldet sich nicht mehr: Er *ist* die nächste Einheit,
-      // und die steht nach diesem render() ohnehin auf dem Bildschirm.
-      else if (zusatz) ui.workoutNo = naechsteEinheit();
-      else toast(prog.complete
-        ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
-        : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
+    case 'start-session': {
+      einheitStarten(n, t.dataset.mode);
       break;
     }
+    case 'zur-laufenden': {
+      const lief = store.getState().session;
+      if (!lief) { render(); break; }
+      ui.workoutNo = lief.n;
+      ui.openEx.clear();
+      ui.focus = true;
+      ui.listView = false;
+      ui.focusIdx = firstOpenExercise(lief.n, store.workoutMode(lief.n));
+      render();
+      break;
+    }
+    case 'finish-session':
+      trainingBeenden(n, mode);
+      break;
     case 'discard-session': {
-      const prog = progressOf(n, mode);
-      // Verwerfen löscht alles zu diesem Workout in dieser Variante, nicht nur
-      // die Sätze von heute – deshalb steht die Zahl in der Rückfrage.
-      const ok = !prog.done || confirm(
-        `Training abbrechen und ${prog.done === 1 ? 'den abgehakten Satz' : `${prog.done} abgehakte Sätze`} verwerfen?`,
+      // Eine an einem früheren Tag abgeschlossene Einheit wird nicht verworfen
+      // (siehe sessionButtons()) – auch nicht über einen Knopf, der noch von
+      // vorher dasteht. Die Sitzung endet, und die Einheit bleibt, wie sie ist.
+      if (frueherFertig(n)) {
+        einheitBeenden();
+        sound('stop');
+        render();
+        toast(`Weitermachen beendet – ${einheitTitel(n)} bleibt abgeschlossen`);
+        break;
+      }
+      // Verwerfen löscht alles zu diesem Workout, in beiden Varianten – auch
+      // die Sätze von vor einem Wechsel unter Mehr (verwirfEinheit() in
+      // js/store.js). Die Zahl in der Rückfrage ist genau das, was verschwindet.
+      const weg = abgehaktInEinheit(n);
+      const ok = !weg || confirm(
+        `Training abbrechen und ${weg === 1 ? 'den abgehakten Satz' : `${weg} abgehakte Sätze`} verwerfen?`,
       );
       if (!ok) break;
-      store.resetWorkout(n, mode);
+      notieren('einheit', { was: 'verworfen', n, weg });
+      store.verwirfEinheit(n);
+      // Mit der Einheit ist auch ihr festgehaltener Zusatz weg; ein neuer Träger
+      // entsteht, und die Einheit zeigt ihn wieder, gerechnet für jetzt.
+      pruefeZusatztag();
       store.endSession();
       ui.focus = false;
       ui.listView = false;
@@ -5558,33 +8654,63 @@ view.addEventListener('click', (e) => {
       ui.focusIdx = Math.max(0, Math.min(workoutByNo(n).ex.length - 1, ui.focusIdx + Number(t.dataset.d)));
       render();
       break;
-    case 'complete-workout':
+    case 'complete-workout': {
+      // Wie beim einzelnen Haken: erst der Plan, dann der Zusatztag, dann die
+      // Nacharbeit.
+      planVorziehen(n);
+      zusatzFesthalten(n);
+      nachFesthalten(n);
       // Das benutzte Gewicht muss mit: Ohne es fehlen die Sätze in der
       // Verlaufskurve, und die Steigerungsserie bricht ab, weil sie das
       // Gewicht der letzten Einheit nicht wiederfindet. Beim einzelnen
       // Abhaken schreibt toggle-set es längst mit.
+      notieren('einheit', { was: 'alles abgehakt', n, mode });
       store.completeWorkout(n, mode, workoutByNo(n, mode).ex.map((x) => {
         const v = resolve(x, mode);
         return { ...x, w: v.weight === null ? '' : fmtNum(workingWeight(x.id)) };
       }));
+      // Läuft diese Einheit, ist sie damit fertig – wie mit dem letzten Haken
+      // (siehe trainingBeenden()).
+      const lief = store.getState().session;
+      if (lief && lief.n === n) { trainingBeenden(n, mode); break; }
       if (store.getState().rest) endRest(false);
       sound('done');
       render();
       toast('Alle Sätze abgehakt 🎉');
       break;
-    case 'reset-workout':
-      if (!hasAnyEntry(n, mode) || confirm(`Workout ${n} (${MODE_LABEL[mode]}) wirklich zurücksetzen?`)) {
-        store.resetWorkout(n, mode);
+    }
+    case 'reset-workout': {
+      // Bei der laufenden Einheit beide Varianten, aus demselben Grund wie
+      // beim Abbrechen: Nach einem Wechsel unter Mehr stehen Sätze in beiden,
+      // und „zurückgesetzt" hieß sonst, dass die Hälfte stehen blieb. Eine
+      // nicht laufende Einheit setzt nur die gezeigte Variante zurück – das
+      // sagt die Rückfrage dann auch.
+      const lief = store.getState().session;
+      const beide = !!lief && lief.n === n;
+      const frage = beide
+        ? `${einheitTitel(n)} wirklich zurücksetzen? Alle ${abgehaktInEinheit(n)} abgehakten Sätze gehen weg, in beiden Varianten.`
+        : `${einheitTitel(n)} (${MODE_LABEL[mode]}) wirklich zurücksetzen?`;
+      const etwas = beide ? store.isStarted(n) : hasAnyEntry(n, mode);
+      if (!etwas || confirm(frage)) {
+        notieren('einheit', { was: 'zurueckgesetzt', n, mode, beide });
+        if (beide) store.verwirfEinheit(n); else store.resetWorkout(n, mode);
+        // Steht danach nichts mehr, ist auch der festgehaltene Zusatz weg – wie
+        // beim Abbrechen kommt er neu gerechnet wieder.
+        pruefeZusatztag();
         if (store.getState().rest) endRest(false);
         render();
-        toast('Zurückgesetzt');
+        toast(beide ? 'Zurückgesetzt – beide Varianten' : `Zurückgesetzt (${MODE_LABEL[mode]})`);
       }
       break;
+    }
     case 'custom-new':
       ui.customDraft = { id: null, name: '', ex: [] };
       render();
       break;
     case 'custom-edit': {
+      // Ein Zusatztag, der gerade in einer Einheit steckt, wird dort nicht
+      // unter der Hand umgebaut (die Karte bietet es auch nicht an).
+      if (traegerGebunden(t.dataset.id)) break;
       const c = store.customById(t.dataset.id);
       if (c) ui.customDraft = { id: c.id, name: c.name, ex: c.ex.map((x) => ({ ...x })) };
       render();
@@ -5632,13 +8758,18 @@ view.addEventListener('click', (e) => {
       toast('Gespeichert – los geht’s');
       break;
     }
-    case 'custom-start':
-      ui.workoutNo = t.dataset.id;
+    case 'custom-start': {
+      // Steckt der Zusatztag heute in einer Einheit, öffnet sich die – er ist
+      // dort, nicht daneben.
+      const b = zusatzBindung();
+      ui.workoutNo = b && b.c.id === t.dataset.id ? b.w.n : t.dataset.id;
       ui.listView = false;
       ui.focus = false;
       go('dashboard');
       break;
+    }
     case 'custom-del': {
+      if (traegerGebunden(t.dataset.id)) break;
       const c = store.customById(t.dataset.id);
       if (!c || !confirm(`„${c.name}" löschen? Die abgehakten Sätze gehen mit.`)) break;
       store.removeCustom(c.id);
@@ -5655,6 +8786,7 @@ view.addEventListener('click', (e) => {
         break;
       }
       store.markDone(n, mode);
+      notieren('einheit', { was: 'markiert', n, mode });
       sound('done');
       render();
       toast('Als trainiert eingetragen – steht jetzt so im Kalender');
@@ -5711,18 +8843,39 @@ view.addEventListener('click', (e) => {
        * weiter.
        */
       const neu = t.dataset.v === 'bw' ? 'bw' : 'db';
+      // Jede unberührte Einheit folgt der Wahl – die vorn stehende ebenso wie
+      // eine, deren Liste man vorab angesehen hat (setMode() in js/store.js).
+      // Dazu die laufende, solange sie nicht fertig ist. `ui.workoutNo` ist,
+      // was zuletzt auf dem Dashboard stand, auch eine längst trainierte
+      // Einheit, zu der man geblättert hat. Deren Modus kippte bis hierher mit:
+      // Die fertige Hantel-Einheit von heute hieß nach „ab jetzt Bodyweight"
+      // plötzlich Bodyweight-Einheit, mit anderen Übungen und Haken nur noch
+      // über „schon mit Hanteln gemacht". Was trainiert ist, bleibt in der
+      // Variante, in der es trainiert wurde – auch die laufende, wenn alles
+      // abgehakt ist und nur der Abschluss fehlt: Sonst stand die fertige
+      // Einheit nach dem Wechsel bei 17/18.
       store.setMode(neu);
-      store.setWorkoutMode(ui.workoutNo, neu);
+      // Ein noch unberührter Zusatztag rechnet im Modus der Einheit neu, in die
+      // er eingefügt wird – mit den Übungen, die es dort gibt.
+      pruefeZusatztag();
+      const lief = store.getState().session;
+      const vorn = ui.workoutNo;
+      const vornEintrag = store.getState().log[vorn];
+      const unberuehrt = !store.isStarted(vorn) && !(vornEintrag && vornEintrag.done);
+      const laufendOffen = lief && !progressOf(lief.n, store.workoutMode(lief.n)).erledigt;
+      if (laufendOffen) store.setWorkoutMode(lief.n, neu);
       // Die Fokusansicht zeigt eine Übung an ihrer Position; die andere
       // Variante hat dieselbe Zahl Übungen, aber wer gerade bei Nummer 5 stand,
       // soll dort auch wieder landen. Das tut sie von selbst – ui.focusIdx
       // bleibt stehen und wird beim Zeichnen begrenzt.
       render();
-      toast(`${MODE_LABEL[neu]} – Abgehaktes bleibt gespeichert`);
+      toast(unberuehrt || (laufendOffen && lief.n === vorn)
+        ? `${MODE_LABEL[neu]} – Abgehaktes bleibt gespeichert`
+        : `${MODE_LABEL[neu]} – ${einheitTitel(vorn)} bleibt, wie du sie trainiert hast`);
       break;
     }
     case 'set-rest':
-      initAudio();
+      initAudio('pause-wahl');
       store.setSetting('restSeconds', Number(t.dataset.sec));
       render();
       break;
@@ -5752,14 +8905,17 @@ view.addEventListener('click', (e) => {
       // Keine Rückfrage mehr: Der Wechsel nimmt nichts weg. Der Verlauf des
       // alten Fokus wartet, der des neuen kommt zurück – siehe wechsleFokus().
       if (!store.wechsleFokus(key, laeuft ? rundenBilanz() : null, frischerStart())) {
+        notieren('plan', { was: 'fokus', nach: key, ok: false });
         toast('Speicher voll – der Verlauf ließ sich nicht ablegen. Erst sichern und aufräumen.');
         render();
         break;
       }
       // Der Plan steckt beim Laden in Hunderten von Zeilen; ein Wechsel mitten
       // im Betrieb hieße, dass die halbe App noch mit dem alten rechnet.
-      if (store.getState().greeted) location.reload();
-      else render();
+      if (store.getState().greeted) {
+        vorDemNeuladen('fokus');
+        location.reload();
+      } else render();
       break;
     }
     case 'accept-stand': {
@@ -5827,6 +8983,36 @@ view.addEventListener('click', (e) => {
       ui.adminFehler = '';
       render();
       break;
+    case 'toggle-diagnose': {
+      const an = diagnoseSchalten(!diagnoseAn());
+      if (!an) ui.diagnoseOffen = false;
+      render();
+      // Bei vollem Speicher gilt „aus" sofort, gemerkt wird es aber erst, wenn
+      // wieder Platz ist (diagAusMerken() in js/diagnose.js) – das steht dabei.
+      toast(an ? 'Wird ab jetzt mitgeschrieben – nur auf diesem Gerät'
+        : diagnoseStand().ausOffen
+          ? 'Abgeschaltet – der Speicher ist voll, gemerkt wird es, sobald wieder Platz ist'
+          : 'Abgeschaltet – es wird nichts mehr mitgeschrieben');
+      break;
+    }
+    case 'diagnose-teilen':
+      diagnoseTeilen();
+      break;
+    case 'diagnose-kopieren':
+      diagnoseKopieren();
+      break;
+    case 'diagnose-ansehen':
+      ui.diagnoseOffen = !ui.diagnoseOffen;
+      render();
+      break;
+    case 'diagnose-loeschen':
+      if (confirm('Diagnoseprotokoll löschen? Es gibt keine Kopie – außer du hast es geteilt.')) {
+        diagnoseLeeren('tipp');
+        ui.diagnoseFehler = '';
+        render();
+        toast('Protokoll gelöscht');
+      }
+      break;
     case 'toggle-share': {
       const an = store.getState().share === false;
       store.setSetting('share', an);
@@ -5862,6 +9048,121 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
+    // --- Automatische Sicherung (js/sicherung.js) ---
+    case 'toggle-sicherung': {
+      einstiegNameHalten();
+      const an = !sicherungAn();
+      sicherungSchalten(an);
+      render();
+      toast(an ? 'Wird ab jetzt automatisch gesichert'
+        : 'Abgeschaltet – es geht nichts mehr raus. Was schon dort liegt, löscht der Knopf unter Mehr.');
+      break;
+    }
+    case 'sicherung-holen':
+      einstiegNameHalten();
+      sicherungHolenStarten();
+      break;
+    case 'sicherung-eingabe-laden': {
+      const feld = document.getElementById('sicherungSchluessel');
+      const key = schluesselAus(feld ? feld.value : '');
+      if (!key) {
+        ui.sicherungMeldung = 'Das ist kein gültiger Schlüssel – gemeint ist der Link, den du dir '
+          + 'geschickt hast, oder die 43 Zeichen hinter „#sicherung=".';
+        render();
+        break;
+      }
+      sicherungHolenMit(key, 'link');
+      break;
+    }
+    case 'sicherung-angebot-holen':
+      if (ui.sicherungAngebot) sicherungHolenMit(ui.sicherungAngebot, 'link');
+      break;
+    case 'sicherung-angebot-weg':
+      ui.sicherungAngebot = null;
+      ui.sicherungMeldung = '';
+      render();
+      break;
+    case 'sicherung-ansehen':
+      go('settings');
+      { const ziel = document.getElementById('daten'); if (ziel) ziel.scrollIntoView(); }
+      break;
+    case 'kalender-jahr-ansehen':
+      // Angesehen: Die Bitte um neuen Code steht danach nur noch auf der Karte.
+      kalenderJahrGesehen();
+      go('settings');
+      { const ziel = document.getElementById('kalenderJahr') || document.getElementById('kalender'); if (ziel) ziel.scrollIntoView(); }
+      break;
+    case 'kalender-ansehen':
+      go('settings');
+      { const ziel = document.getElementById('kalender'); if (ziel) ziel.scrollIntoView(); }
+      break;
+    case 'kalender-code':
+      kalenderCodeKopieren();
+      break;
+    case 'kalender-mehr':
+    case 'kalender-neu': {
+      // Ohne render(): Eine eben eingefügte URL im Feld bliebe sonst nicht stehen.
+      const offen = t.dataset.act === 'kalender-mehr' ? (ui.kalenderMehr = !ui.kalenderMehr) : (ui.kalenderNeu = !ui.kalenderNeu);
+      const box = document.getElementById(t.dataset.act === 'kalender-mehr' ? 'kalenderMehr' : 'kalenderNeu');
+      if (box) box.hidden = !offen;
+      t.classList.toggle('on', offen);
+      t.setAttribute('aria-expanded', String(offen));
+      break;
+    }
+    case 'kalender-verbinden':
+      if (!ui.kalenderLaeuft) kalenderVerbindenTipp();
+      break;
+    case 'kalender-trennen':
+      if (!ui.kalenderLaeuft && confirm('Kalender trennen? Die Termine ab heute verschwinden aus „Workout", und das '
+        + 'Skript schiebt nichts mehr. Was vorbei ist, bleibt stehen.')) kalenderTrennenTipp();
+      break;
+    case 'schluessel-sichern':
+      // Ein Tipp: Passwortmanager, wo es ihn gibt – sonst, oder wenn der
+      // Browser ablehnt (Chrome ohne Oberfläche tut das), der Link.
+      (async () => {
+        if (passwortManagerDa() && await schluesselImManager()) return;
+        await sicherungsLinkSchicken();
+      })();
+      break;
+    case 'schluessel-passwort':
+      schluesselImManager().then((ok) => {
+        if (!ok) toast('Der Browser nimmt den Schlüssel nicht an – nimm den Link');
+      });
+      break;
+    case 'schluessel-pruefen':
+      schluesselPruefen().then((da) => {
+        toast(da ? 'Liegt im Passwortmanager ✓'
+          : 'Im Passwortmanager liegt er nicht – leg ihn ab oder schick dir den Link');
+        render();
+      }).catch(() => toast('Der Passwortmanager hat nicht geantwortet'));
+      break;
+    case 'schluessel-link':
+      sicherungsLinkSchicken();
+      break;
+    case 'sicherung-trotzdem':
+      if (!confirm('Diesen Stand auf den Server legen? Was ein anderes Gerät dort zuletzt gesichert '
+        + 'hat, wird damit ersetzt.')) break;
+      sicherungTrotzdem().then(({ ok, gleich, msg }) => {
+        toast(!ok ? (msg || 'Hat nicht geklappt – später noch einmal')
+          : gleich ? 'Wird in wenigen Sekunden gesichert' : 'Gesichert');
+        render();
+      });
+      break;
+    case 'sicherung-von-dort': {
+      const key = sicherungMetaLesen().key;
+      if (key) sicherungHolenMit(key, 'eigen');
+      break;
+    }
+    case 'sicherung-loeschen':
+      if (!confirm('Die Sicherung auf dem Server löschen? Danach ist auch die automatische Sicherung '
+        + 'abgeschaltet – sonst käme sie mit der nächsten Änderung wieder. Auf diesem Gerät bleibt alles.')) break;
+      sicherungLoeschen().then(({ ok, zeilen, msg }) => {
+        if (!ok) toast(msg || 'Hat nicht geklappt – später noch einmal');
+        else toast(zeilen === 0 ? 'Da lag nichts – jetzt ist es auch abgeschaltet' : 'Gelöscht – und abgeschaltet');
+        render();
+      });
+      render();
+      break;
     case 'toggle-tab': {
       const key = t.dataset.v;
       const drin = new Set(store.getState().tabs || ['stats']);
@@ -5902,6 +9203,10 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufstieg', null);
       render();
       break;
+    // Hier standen bis v242 'abschluss-ok' und 'abschluss-rest', die Knöpfe der
+    // Zeile zum Tagesabschluss. Die Zeile ist eine Auskunft ohne Knopf
+    // (abschlussHinweis()); zurück in die Einheit geht es über
+    // „Doch noch weitermachen" auf ihr (startBlock(), 'start-session').
     case 'umzug-ok':
       store.setSetting('fokusUmzug', null);
       render();
@@ -5924,16 +9229,19 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'toggle-sound': {
-      initAudio();
+      initAudio('schalter');
       const on = !store.getState().sound;
       store.setSetting('sound', on);
+      // Aus heißt aus – auch für einen Gong, der auf die erste Berührung
+      // wartet und sonst genau jetzt käme (tonUeberholt() in js/audio.js).
+      if (!on) tonUeberholt();
       armRest(); // eine laufende Pause folgt der neuen Einstellung
       render();
       if (on) playSound('rest');
       break;
     }
     case 'toggle-sound-sets': {
-      initAudio();
+      initAudio('schalter');
       const on = !store.getState().soundSets;
       store.setSetting('soundSets', on);
       render();
@@ -5970,6 +9278,9 @@ view.addEventListener('click', (e) => {
       ui.terminAkt = '';
       ui.terminMin = 0;
       ui.terminSuche = '';
+      // Ein unberührter Zusatztag rechnet mit dem, was der Termin jetzt schont
+      // – wie bei einer Beschwerde (ruhendeGruppen()).
+      pruefeZusatztag();
       render();
       toast(`${akt.name} am ${fmtDate(datum)} eingetragen`);
       break;
@@ -5979,6 +9290,7 @@ view.addEventListener('click', (e) => {
       const weg = liste[Number(t.dataset.i)];
       if (!weg) break;
       store.setSetting('termine', liste.filter((x) => x !== weg));
+      pruefeZusatztag();   // wie bei 'termin-neu'
       render();
       toast('Termin entfernt');
       break;
@@ -6010,6 +9322,12 @@ view.addEventListener('click', (e) => {
       // sich hier gerade. Wie beim Verletzungsfilter also verwerfen, sonst
       // stünde die Reihenfolge einer Einheit da, die es so nicht mehr gibt.
       ruestCache.clear();
+      // Und ein unberührter Zusatztag rechnet mit dem Gerät, das jetzt da ist –
+      // wie bei einer abgewählten Übung (toggle-uebung). Ohne das blieb er
+      // auf Chin-ups stehen, während die Einheit sie ohne Stange gar nicht
+      // mehr zeigte, und die Wochenkarte sagte trotzdem „holt Workout 9 heute
+      // nach: Chin-ups".
+      pruefeZusatztag();
       render();
       toast(da ? 'Wieder dabei' : 'Fällt aus dem Plan');
       break;
@@ -6054,13 +9372,12 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'test-sound': {
-      // Der Reihe nach, damit man hört, was wofür steht.
-      initAudio();
-      ['start', 'set', 'exercise', 'ready', 'rest', 'done']
-        .forEach((name, i) => setTimeout(() => playSound(name), i * 900));
-      // Die Zahl darunter nachziehen, sonst steht dort der Stand von vorhin und
-      // sieht aus, als sei nichts passiert.
-      setTimeout(tonStandZeigen, 6 * 900);
+      // Der Reihe nach, damit man hört, was wofür steht – auf der Audio-Uhr,
+      // nicht per setTimeout (siehe probeSpielen in js/audio.js). Die Zeile
+      // darunter zieht sich über onTonStand() mit jedem Ton nach, der kommt.
+      initAudio('test');
+      probeSpielen();
+      tonStandZeigen();
       toast('Start · Satz · Übung fertig · fertig machen · Pause vorbei · Workout komplett');
       break;
     }
@@ -6079,6 +9396,7 @@ view.addEventListener('click', (e) => {
     case 'export': {
       const io = document.getElementById('io');
       io.value = store.exportJSON();
+      notieren('datei', { was: 'export', bytes: io.value.length });
       io.select();
       toast('Export erzeugt – kopieren und sicher ablegen.');
       break;
@@ -6098,22 +9416,21 @@ view.addEventListener('click', (e) => {
       try {
         einlesen(io.value, 'Import erfolgreich');
       } catch (err) {
+        // Nur der Name, wie bei der Datei: Die Meldung zitiert den Text.
+        notieren('datei', { was: 'import', quelle: 'text', ok: false, name: err && err.name });
         toast(`Import fehlgeschlagen: ${err.message}`);
       }
       break;
     }
     case 'vor-import-zurueck':
       if (confirm('Den Stand von vor dem letzten Import zurückholen? Der eingelesene Stand wird damit ersetzt.')) {
-        const f0 = store.getState().focus;
+        // Die Sicherung kehrt mit zurück: zum Schlüssel von vorher. Sonst
+        // schriebe die nächste Sicherung den alten Stand über die eben geholte
+        // – die vom alten Handy, und das ist dann oft schon weg.
+        if (store.vorImport()) sicherungRueckweg();
+        notieren('datei', { was: 'import zurueck' });
         store.vorImportZurueck();
-        if (store.getState().focus !== f0) {
-          store.flush();
-          sessionStorage.setItem('workout.nachImport', 'Stand von vor dem Import ist zurück');
-          location.reload();
-        } else {
-          render();
-          toast('Stand von vor dem Import ist zurück');
-        }
+        neuStarten('Stand von vor dem Import ist zurück');
       }
       break;
     case 'force-update': {
@@ -6130,29 +9447,53 @@ view.addEventListener('click', (e) => {
           const probe = await fetch(`./index.html?probe=${Date.now()}`, { cache: 'no-store' });
           if (!probe.ok) throw new Error(String(probe.status));
         } catch {
+          notieren('sw', { was: 'notausgang', probe: 'kein netz' });
           toast('Gerade keine Verbindung – ohne Netz würde das die App bis zum nächsten Empfang abschalten. Später noch einmal.');
           return;
         }
+        const geraeumt = { regs: 0, caches: 0 };
         try {
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             await Promise.all(regs.map((r) => r.unregister()));
+            geraeumt.regs = regs.length;
           }
           if (window.caches) {
             const keys = await caches.keys();
             await Promise.all(keys.map((k) => caches.delete(k)));
+            geraeumt.caches = keys.length;
           }
           sessionStorage.removeItem('workout.reloaded');
-        } catch {
+        } catch (e) {
           // Auch ohne Aufräumen ist ein Neuladen besser als nichts.
+          geraeumt.fehler = e && e.name;
         }
+        notieren('sw', { was: 'notausgang', probe: 'ok', ...geraeumt });
         store.flush();
+        vorDemNeuladen('update');
         location.reload();
       })();
       break;
     }
-    case 'reset-all':
-      if (confirm('Wirklich alle protokollierten Sätze und Einstellungen löschen?')) {
+    case 'reset-all': {
+      // Gilt beim Skript der Plan eines anderen Geräts, geht von hier kein „aus"
+      // hinaus (kalenderVergessen() in js/kalender-sync.js), und dort
+      // verschwinden auch keine Termine. Bis zur Prüfung von v247 kündigte der
+      // Dialog es trotzdem an.
+      const kalSatz = !kalenderVerbunden() ? ''
+        : kalenderLage().fremd ? ' Dieses Gerät wird vom Kalender „Workout" getrennt; die Termine des anderen Geräts bleiben dort stehen.'
+          : ' Der Kalender „Workout" wird getrennt: Die Termine ab heute verschwinden dort.';
+      if (confirm(`Wirklich alle protokollierten Sätze und Einstellungen löschen?${
+        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${kalSatz}`)) {
+        // Die Sicherung auf dem Server gehört dazu: Bliebe sie stehen, schriebe
+        // das erste Training danach einen fast leeren Stand darüber – oder sie
+        // läge für immer dort, ohne Schlüssel auf diesem Gerät, der an sie
+        // herankommt. Beides wäre eine Änderung, die niemand bemerkt.
+        //
+        // Ohne Netz blieb sie bis v240 genau so liegen, und die Meldung sagte
+        // trotzdem „gelöscht". Jetzt bleibt der Löschauftrag stehen, bis der
+        // Server ihn bestätigt, und die Meldung sagt, was wirklich ist.
+        const serverWeg = sicherungVergessen();
         // Erst die Zeile auf dem Server, dann den Speicher: Danach ist die
         // Kennung weg, mit der sie zu finden wäre – sie bliebe für immer
         // stehen, obwohl hier gerade alles gelöscht wird.
@@ -6164,12 +9505,26 @@ view.addEventListener('click', (e) => {
         const s0 = store.getState();
         const id = s0.deviceId && (meldetMit() || s0.lastShare) ? s0.deviceId : null;
         if (id) loeschen(id);
+        // Der Kalender ebenso: Ohne Verbindung hier schöbe das Skript sechs
+        // Wochen lang nach der alten Vorschau weiter. Das „aus" geht nach,
+        // wenn gerade kein Netz ist (js/kalender-sync.js).
+        kalenderVergessen();
         store.resetAll();
+        // Das Diagnoseprotokoll räumt mit; sein Schalter bleibt, wie er war –
+        // ein Löschen soll nie dazu führen, dass mehr mitgeschrieben wird
+        // (diagnoseLeeren()). Ist es an, sagt die erste Zeile danach, warum es
+        // leer ist.
+        diagnoseLeeren('reset');
         ui.workoutNo = naechsteEinheit();
         render();
-        toast('Alle Daten gelöscht');
+        serverWeg.then((weg) => {
+          toast(weg ? 'Alle Daten gelöscht'
+            : 'Alle Daten gelöscht – die Sicherung auf dem Server wird gelöscht, sobald wieder Netz da ist.');
+          if (ui.tab === 'settings') render();
+        });
       }
       break;
+    }
     default:
       break;
   }
@@ -6267,13 +9622,17 @@ view.addEventListener('input', (e) => {
   } else if (t.dataset.act === 'set-input') {
     const n = ui.workoutNo;
     const mode = store.workoutMode(n);
+    zusatzFesthalten(n);
+    nachFesthalten(n);
     const item = workoutByNo(n, mode).ex.find((x) => x.id === t.dataset.ex);
-    store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value });
+    if (!item) return;
+    store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value }, item.nach || 0);
   } else if (t.dataset.act === 'scheiben-stange') {
     // Beim Tippen still speichern, ohne neu zu rendern: Ein render() würde das
     // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
     const kg = parseFloat(t.value.replace(',', '.'));
     scheibenAendern((s) => { s.stange[t.dataset.satz] = Number.isNaN(kg) ? null : kg; });
+    scheibenNachziehen(t);
   } else if (t.dataset.act === 'termin-suche') {
     // Nur die Trefferliste neu zeichnen, nicht die ganze Ansicht: Ein render()
     // ersetzt das Suchfeld und nimmt den Fokus mitten im Wort mit – derselbe
@@ -6295,6 +9654,34 @@ view.addEventListener('input', (e) => {
       const zeile = s.scheiben[Number(t.dataset.i)];
       if (zeile) zeile[feld] = zahl;
     });
+    scheibenNachziehen(t);
+  }
+});
+
+// Uhrzeit und Erinnerung des Kalenders: erst beim Übernehmen (change), nicht
+// bei jedem Zwischenstand der Uhrzeitwahl – und gleich hinaus, damit der
+// Kalender es in Minuten zeigt, nicht erst nach der Drossel.
+view.addEventListener('change', (e) => {
+  const t = e.target.closest('[data-act]');
+  if (!t) return;
+  if (t.dataset.act === 'kalender-uhrzeit') {
+    const m = /^(\d{2}):(\d{2})/.exec(t.value || '');
+    if (!m) return;
+    const minuten = Number(m[1]) * 60 + Number(m[2]);
+    if (minuten === (store.kalender() || {}).minuten) return;
+    store.setzeKalender({ minuten });
+    notieren('kalender', { was: 'einstellung', minuten });
+    kalenderJetzt('einstellung');
+    render();
+    toast(`Ab jetzt um ${kalenderUhr(minuten)} – geht gleich an den Kalender`);
+  } else if (t.dataset.act === 'kalender-erinnerung') {
+    const erinnerung = Number(t.value);
+    if (!Number.isInteger(erinnerung) || erinnerung === (store.kalender() || {}).erinnerung) return;
+    store.setzeKalender({ erinnerung });
+    notieren('kalender', { was: 'einstellung', erinnerung });
+    kalenderJetzt('einstellung');
+    render();
+    toast(erinnerung ? 'Erinnerung geändert – geht gleich an den Kalender' : 'Ohne Erinnerung – geht gleich an den Kalender');
   }
 });
 
@@ -6327,17 +9714,41 @@ document.addEventListener('visibilitychange', () => {
     const r = store.getState().rest;
     wegSeit = Date.now();
     pauseOffen = r ? Math.max(0, r.endsAt - wegSeit) : 0;
+    const uhrVorher = store.getState().clock;
     store.clockStop();
+    uhrGedeckelt(uhrVorher, 'weg');
     // Ab hier zaehlt der Worker sichtbar mit – die Seite friert gleich ein.
     swSichtbar(false);
     store.flush();
+    // Und das Diagnoseprotokoll im selben Takt: Was danach kommt, weiß niemand.
+    notieren('sicht', {
+      zu: 'weg', pause: pauseOffen ? Math.round(pauseOffen / 1000) : undefined,
+      einheit: store.getState().session ? store.getState().session.n : undefined,
+    });
+    diagnoseSchreiben();
+    // Was fertig verschlüsselt bereitliegt, geht mit keepalive hinterher –
+    // nur unter 64 KB, sonst beim nächsten Start (js/sicherung.js).
+    sicherungVerstecken();
+    // Dasselbe für den Kalender – nach der Sicherung: Die ist mehr wert, und
+    // beide teilen sich die 64 KiB für keepalive. Passt der Kalender nicht
+    // mehr hinein, geht er über den Service Worker nach (js/kalender-sync.js).
+    kalenderVerstecken();
     return;
   }
+  notieren('sicht', {
+    zu: 'da', weg: wegSeit ? Math.round((Date.now() - wegSeit) / 1000) : undefined,
+    gutschrift: wegSeit && pauseOffen ? Math.round(Math.min(Date.now() - wegSeit, pauseOffen) / 1000) : undefined,
+  });
   if (wegSeit) {
     if (pauseOffen) store.clockCredit(Math.min(Date.now() - wegSeit, pauseOffen));
     wegSeit = 0;
     pauseOffen = 0;
   }
+  // Vor dem Weiterlaufen der Uhr: Lag die Einheit seit einem früheren Tag
+  // drei Stunden und mehr, schließt sie sich hier ab (tagAbschliessen()), und
+  // ihre Sitzung endet mit der Zeit bis zum Wegschalten. Wer nur kurz weg war –
+  // auch über Mitternacht –, trainiert einfach weiter.
+  const abgeschlossen = tagAbschliessen();
   store.clockStart();
   // Wer wieder davorsitzt, sieht die Leiste in der App – die Meldung in der
   // Statusleiste wäre jetzt nur noch ein Duplikat.
@@ -6346,23 +9757,60 @@ document.addEventListener('visibilitychange', () => {
   // Läuft sie noch, das Signal neu auflegen: Ein im Hintergrund angehaltener
   // AudioContext verliert seine vorgemerkten Töne.
   if (store.getState().rest) armRest();
-  const day = todayISO();
-  // Erst die Runde weiterrollen, dann nachrücken: Sonst schöbe catchUpPlan()
-  // den alten, längst fertigen Plan durch die Gegend.
-  const neueRunde = rundeWeiter();
-  const shifted = catchUpPlan() || neueRunde;
-  if (shifted || day !== lastSeenDay) {
-    lastSeenDay = day;
-    render();
-  }
+  // Fehlten dem Server die Funktionen, kann inzwischen jemand den SQL-Block
+  // ausgeführt haben – die App bleibt dafür oft tagelang im Speicher.
+  sicherungNachsehen();
+  // Hat der Service Worker im Hintergrund eine Kalender-Sendung nachgeschickt?
+  kalenderSichtbar();
+  tagNachziehenZeigen(abgeschlossen);
+  tagesUhrStellen();
 });
+
+/**
+ * Den Tag nachziehen – beim Zurückkommen in die App und bei offener App von
+ * der Uhr (tagesUhrStellen()): liegen Gebliebenes abschließen, die Runde
+ * weiterrollen, nachrücken, den Zusatztag für heute rechnen. Gerechnet wird
+ * in js/tagstart.js (tagNachziehen(), 'wechsel'); hier steht, was die Anzeige
+ * daraus macht. `abgeschlossen` hat das Zurückkommen schon ermittelt – ohne
+ * schließt tagNachziehen() selbst ab.
+ */
+function tagNachziehenZeigen(abgeschlossen) {
+  const day = todayISO();
+  const r = tagNachziehen({ art: 'wechsel', abgeschlossen, neuerTag: day !== lastSeenDay });
+  if (!r.geaendert) return;
+  lastSeenDay = day;
+  // Steckt ein Zusatztag danach in der Einheit des Tages, lenkt render() einen
+  // Bildschirm, der noch auf ihm stand, dorthin um.
+  if ((r.zusatz || (r.abschluss && r.abschluss.umgelenkt)) && !store.getState().session) {
+    ui.workoutNo = naechsteEinheit();
+  }
+  render();
+}
 
 window.addEventListener('pagehide', () => {
   // Hier ohne Gutschrift: Die Seite verschwindet, und beim nächsten Laden
   // rechnet clockResync() die Lücke ohnehin heraus.
+  const uhrVorher = store.getState().clock;
   store.clockStop();
+  uhrGedeckelt(uhrVorher, 'seite zu');
   store.flush();
+  notieren('sicht', { zu: 'seite zu' });
+  diagnoseSchreiben();
 });
+
+/**
+ * Hat das Anhalten der Uhr eben gedeckelt? (store.clockStop(): nie über drei
+ * Stunden Stille hinaus.) Dann steht die Uhr jetzt an einem Zeitpunkt in der
+ * Vergangenheit – fürs Diagnoseprotokoll, wie weit. Nur, wenn dieses Anhalten
+ * etwas getan hat; eine schon stehende Uhr behält ihren alten Halt.
+ */
+function uhrGedeckelt(vorher, wo) {
+  try {
+    const c = store.getState().clock;
+    if (!c || c === vorher || !c.halt || Date.now() - c.halt < 60000) return;
+    notieren('einheit', { was: 'uhr gedeckelt', n: c.n, wo, vorMin: Math.round((Date.now() - c.halt) / 60000) });
+  } catch { /* nur fürs Protokoll */ }
+}
 
 // Offline-Betrieb. Nur über http(s) – unter file:// gibt es keine Service
 // Worker, und die gebündelte Einzeldatei braucht sie ohnehin nicht.
@@ -6381,31 +9829,63 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // dort unnötig. Und nur einmal je Sitzung, damit ein kaputter Service
   // Worker die Seite nicht in eine Schleife schickt.
   const hadController = !!navigator.serviceWorker.controller;
+  // Die Fassung fürs Diagnoseprotokoll nachziehen, sobald ein Worker aktiviert
+  // ist oder die Seite übernimmt: Dann steht sein Zwischenspeicher. Nach „App
+  // aktualisieren" (der Notausgang räumt alle) und bei der ersten Installation
+  // hatte die Startzeile noch keinen gesehen – siehe diagnoseFassung().
+  const fassungNachziehen = () => {
+    if (window.caches) caches.keys().then(diagnoseFassung).catch(() => {});
+  };
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController) return;
+    fassungNachziehen();
+    if (!hadController) {
+      notieren('sw', { was: 'controllerchange', erster: true, reload: false });
+      return;
+    }
     try {
-      if (sessionStorage.getItem('workout.reloaded')) return;
+      if (sessionStorage.getItem('workout.reloaded')) {
+        notieren('sw', { was: 'controllerchange', reload: false, grund: 'schon einmal' }, true);
+        return;
+      }
       sessionStorage.setItem('workout.reloaded', '1');
     } catch {
+      notieren('sw', { was: 'controllerchange', reload: false, grund: 'kein speicher' }, true);
       return;   // ohne Speicher lieber gar nicht neu laden als endlos
     }
+    notieren('sw', { was: 'controllerchange', reload: true });
+    vorDemNeuladen('update');
     location.reload();
   });
+  // Heute schickt sw.js der Seite nichts; der Lauscher ist der Anschluss, falls
+  // er einmal sagen soll, dass die Meldung „Pause vorbei" kam.
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    notieren('sw', { was: 'nachricht', typ: e.data && e.data.typ });
+  });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      // Ohne Registrierung zurück – ein Browser, der Worker sperrt, ohne es zu sagen.
+      if (!reg) {
+        notieren('sw', { was: 'registriert', reg: false });
+        return;
+      }
+      notieren('sw', { was: 'registriert', aktiv: !!reg.active, wartet: !!reg.waiting });
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing;
+        notieren('sw', { was: 'update' });
+        if (w) {
+          w.addEventListener('statechange', () => {
+            notieren('sw', { was: 'zustand', zustand: w.state });
+            if (w.state === 'activated') fassungNachziehen();
+          });
+        }
+      });
+    }).catch((e) => {
       // Kein Offline-Betrieb, aber die App läuft normal weiter.
+      notieren('sw', { was: 'fehler', name: e && e.name, msg: e && e.message }, true);
     });
   });
 }
 
-// Nachrücken passiert still: Ist der Termin der nächsten offenen Einheit
-// verstrichen, wandert der Restplan nach hinten. Der Rückgabewert – wie viele
-// Tage das waren – wird nicht mehr gebraucht, seit der Hinweis dazu weg ist.
-// Erst nachstempeln, dann die Runde prüfen: rundeWeiter() fragt genau die
-// Vollständigkeit ab, die hier festgeschrieben wird.
-stempleFertige();
-rundeWeiter();
-catchUpPlan();
 // Hat jemand einen Stand geschickt? Steht im Anker der Adresse und wird dort
 // sofort entfernt. Die Frage danach stellt die Startansicht – also muss sie
 // auch die sichtbare sein, sonst öffnet der Link bei jemandem, der zuletzt in
@@ -6415,6 +9895,14 @@ ui.standAngebot = standAusAdresse();
 // braucht keine eigene Ansicht, weil er nichts zeigt, was man vergleichen
 // müsste: Er trägt ein, was man ohnehin gerade eintippen wollte.
 eisenAusAdresse();
+// Ein Wiederherstellungs-Link: Der Schlüssel steht im Anker. Zurückgeholt wird
+// erst auf Tipp – der Einstieg oder das Dashboard bietet es an.
+ui.sicherungAngebot = sicherungAusAdresse();
+if (ui.sicherungAngebot) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
+  ui.listView = false;
+}
 
 // Einmal beim Start den Browser bitten, diesen Speicher nicht von selbst
 // freizugeben. Ohne await: Das Ergebnis interessiert erst, wenn jemand unter
@@ -6424,15 +9912,22 @@ speicherFestnageln();
 // das ein Sprung innerhalb derselben Seite, sie lädt nicht neu, und ohne diesen
 // Horcher passierte schlicht nichts.
 window.addEventListener('hashchange', eisenAusAdresse);
-// Nach einem Import mit anderem Fokus wurde neu geladen – die Meldung dazu
-// kommt erst jetzt, sonst ginge sie mit dem Neuladen verloren.
-{
-  const nachImport = sessionStorage.getItem('workout.nachImport');
-  if (nachImport) {
-    sessionStorage.removeItem('workout.nachImport');
-    setTimeout(() => toast(nachImport), 400);
+window.addEventListener('hashchange', () => {
+  const key = sicherungAusAdresse();
+  if (!key) return;
+  ui.sicherungAngebot = key;
+  ui.sicherungMeldung = '';
+  go('dashboard');
+});
+// Nach einem Import oder dem Einstieg mit anderem Fokus wurde neu geladen – die
+// Meldung dazu kommt erst jetzt, sonst ginge sie mit dem Neuladen verloren.
+['workout.nachImport', 'workout.nachEinstieg'].forEach((schluessel) => {
+  const meldung = sessionStorage.getItem(schluessel);
+  if (meldung) {
+    sessionStorage.removeItem(schluessel);
+    setTimeout(() => toast(meldung), 400);
   }
-}
+});
 /*
  * Zwei offene Fenster derselben App – installiert und als Browser-Tab, oder
  * zweimal installiert – teilten sich den Speicher, aber nicht den Zustand:
@@ -6452,58 +9947,74 @@ if (ui.standAngebot) {
   ui.focus = false;
   ui.listView = false;
 }
-// Stand dieses Gerät auf einem Fokus, den es nicht mehr gibt? Dann jetzt
-// umschreiben – js/data.js hat den Nachfolger schon geladen, hier zieht der
-// gespeicherte Wert nach.
-let neuAngefangen = false;
-if (fokusUmzug()) {
+// Die Oberfläche an die Rechnung des Tages anschließen (js/tagstart.js): ins
+// Diagnoseprotokoll schreiben, eine liegen gebliebene Sitzung wie mit dem
+// Knopf beenden, die Startansicht mitnehmen. Ohne diese Zeilen rechnete der
+// Start dasselbe – nur still, wie in der Kalender-Vorschau.
+tagstartAnschliessen({
+  notieren,
+  beenden: einheitBeenden,
+  // Stand die Startseite auf einer eben abgeschlossenen Einheit (oder der
+  // Sitzung, die liegen blieb)? Dann geht sie zur nächsten – sonst stünde dort
+  // „Für heute durch" über dem Samstag.
+  umlenken(einheiten, sitzung) {
+    if (!(einheiten.includes(ui.workoutNo) || (!!sitzung && sitzung.n === ui.workoutNo))) return false;
+    ui.workoutNo = naechsteEinheit();
+    ui.focus = false;
+    ui.listView = false;
+    return true;
+  },
+  neueRunde() {
+    ui.workoutNo = PLAN[0].n;
+    ui.focus = false;
+    ui.listView = false;
+    ui.openEx.clear();
+  },
+});
+// Hat der Start etwas zu sagen (Umzug, Planwechsel, Aufstieg …), bleibt die
+// App auf dem Dashboard, wo der Hinweis steht – siehe unten bei `session`.
+let startHinweis = false;
+const startAufsDashboard = () => {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
-  neuAngefangen = true;
-}
-// Und danach: Hat sich der *Inhalt* des Plans geändert, ohne dass der Fokus ein
-// anderer wäre? Dann werden die angefangenen Einheiten festgeschrieben, und die
-// Runde läuft weiter – kein Neuanfang, also auch kein Verschieben auf heute.
-// Nach fokusUmzug(), nicht davor – der stellt erst fest, welcher Plan gilt.
-if (planWechsel()) {
-  ui.tab = 'dashboard';
-  ui.focus = false;
-  ui.listView = false;
-}
+  startHinweis = true;
+};
 /*
- * Eine neu begonnene Runde fängt heute an – nicht am Plandatum.
+ * Der Tag wird nachgezogen: Umzug eines abgeschafften Fokus, Planwechsel und
+ * Reparaturen, nachstempeln, Tagesabschluss, Runde weiter, nachrücken,
+ * Aufstieg, Zusatztag – in js/tagstart.js, weil die Kalender-Vorschau genau
+ * dieselbe Folge für jeden kommenden Tag rechnet. Warum die Reihenfolge so
+ * ist, steht dort bei tagStarten(). Hier bleibt, was die Startansicht daraus
+ * macht.
  *
- *     „Workout liegt in der Vergangenheit? Das weiteste in der Vergangenheit
- *      was ein Workout bei dashboard ja liegen kann ist heute"
+ * `ui.workoutNo` steht seit dem Laden des Moduls, also seit *vor*
+ * Planwechsel und Reparatur. Bis v219 blieb es dabei: Die Einheit, deren
+ * festes Paar ganz abgehakt war, galt in diesem Moment als fertig und wurde
+ * übersprungen – nach der Reparatur stand auf der Startkarte „Heute ·
+ * Workout 5" und daneben „Deine angefangene Einheit ist wieder vollständig".
+ * Wer auf Start tippte, fing Workout 5 an, und die reparierte 4 blieb halb
+ * liegen. Deshalb wird die Einheit fürs Dashboard nach dem Nachstempeln neu
+ * bestimmt (`gestempelt`) – vor rundeWeiter(), das beim Weiterrollen selbst
+ * auf Workout 1 springt.
  *
- * Genau so ist es gedacht, und genau das war kaputt. Beide Umzüge oben setzen
- * die Verschiebung auf null zurück (restartPlan), und die Plandaten stehen fest
- * in js/data.js – die erste Einheit trägt den 24. August. Das Nachrücken, das
- * daraus sonst „heute" macht, war zu diesem Zeitpunkt längst gelaufen:
- * catchUpPlan() steht dreißig Zeilen weiter oben. Auf dem Dashboard stand
- * danach „vor 25 Tagen · Workout 1".
- *
- * Deshalb hier und nicht in restartPlan(): Der Speicher kennt keine Plandaten,
- * und er soll sie auch nicht kennen – die Rechnung dazu steht in js/plan.js.
- *
- * shiftToToday() statt catchUpPlan(), weil es in beide Richtungen zieht: Ein
- * Plan, dessen Termine in der Zukunft liegen, würde sonst dort stehen bleiben.
+ * Nach einem Tagesabschluss stand die Startseite noch auf der eben
+ * abgeschlossenen Einheit – nach dem Nachrücken (`nachgerueckt`) die nächste.
  */
-if (neuAngefangen) store.setShift(shiftToToday());
-// Auch beim Start prüfen, nicht nur nach einer Einheit: Eine eingelesene
-// Sicherung bringt womöglich ein halbes Jahr Training mit, und das soll sofort
-// in der richtigen Stufe landen statt erst nach dem nächsten Training.
-//
-// **Nach dem Fokus-Umzug**, und das war einmal andersherum: Solange der
-// Aufstieg nur `state.log` zählte, musste er vor dem Umzug laufen, weil der das
-// Protokoll wegräumt. Seit die abgelegte Runde ihre eigene Bilanz mitbringt und
-// gesamtStats() sie mitzählt, gilt das Gegenteil – und zwar zwingend: Während
-// des Umzugs steht das Protokoll des *alten* Plans einem bereits geladenen
-// *neuen* gegenüber, und dagegen gerechnet findet sammleStats() so gut wie
-// nichts. Erst nachdem der Umzug die Runde samt Bilanz abgelegt hat, steht dem
-// Aufstieg die richtige Zahl gegenüber.
-if (pruefeAufstieg() || pruefeZusatztag()) {
+const startLauf = tagNachziehen({
+  art: 'start',
+  bei: {
+    gestempelt({ umzug, umgebaut }) {
+      if (umzug || umgebaut) startAufsDashboard();
+      if (umgebaut) ui.workoutNo = naechsteEinheit();
+    },
+    nachgerueckt({ abschluss }) {
+      if (abschluss) ui.workoutNo = naechsteEinheit();
+    },
+  },
+});
+if (startLauf.abschluss && startLauf.abschluss.einheiten.length) startAufsDashboard();
+if (startLauf.gestiegen || startLauf.zusatz) {
   ui.tab = 'dashboard';
   ui.focus = false;
   // Der Zusatztag entsteht erst hier, also nach der Wahl der Startansicht ganz
@@ -6511,6 +10022,93 @@ if (pruefeAufstieg() || pruefeZusatztag()) {
   // weiter die nächste Planeinheit – angelegt und unsichtbar, also praktisch
   // nicht vorhanden.
   ui.workoutNo = naechsteEinheit();
+  startHinweis = true;
+}
+/*
+ * Läuft eine Einheit, geht es beim Öffnen mit ihr weiter.
+ *
+ *     „Immer wenn ich kurz aus der app rausgeh und wieder rein komm dann kommt
+ *      das. Aber eigentlich sollte ja einfach die Übung kommen die jetzt als
+ *      nächstes ansteht"
+ *
+ * Das Handy beendet eine Web-App im Hintergrund gern ganz, und beim
+ * Zurückkommen lädt sie neu – nach einer neuen Fassung ohnehin. Bis v216
+ * landete man dann auf dem Dashboard vor „Training fortsetzen", mitten im
+ * Satz. Jetzt direkt in der Fokusansicht, und zwar bei der Übung, die zuletzt
+ * zu sehen war – solange dort noch ein Satz offen ist. Sonst bei der, die als
+ * Nächstes dran ist (firstOpenExercise(), mit Supersätzen also beim Partner),
+ * so wie der Knopf es getan hätte.
+ *
+ * Nur, wenn beim Verlassen die Fokusansicht dieser Einheit offen war
+ * (`fokusOffen`, siehe render()) – wer mitten im Training bewusst zurück aufs
+ * Dashboard oder in die Übungsliste gegangen ist, landet dort wieder. Und
+ * nicht, wenn der Start etwas zu sagen hat (`startHinweis`).
+ *
+ * Bis v241 auch nicht, wenn die Uhr der Einheit an einem früheren Tag
+ * gestartet war: „Eine von gestern wartet auf dem Dashboard, wo man sie
+ * abschließt oder bewusst weitermacht." Seit dem Tagesabschluss gibt es die
+ * nicht mehr – eine Sitzung, die seit gestern liegt, hat tagAbschliessen() oben
+ * schon beendet. Was hier noch läuft, lebt: ein Training über Mitternacht, bei
+ * dem das Handy die App kurz beendet hat. Das geht weiter wie jedes andere.
+ */
+{
+  const s = store.getState();
+  const laeuft = s.session;
+  const heute = laeuft && s.clock && s.clock.n === laeuft.n;
+  // In v217 und v218 stand in `fokusOffen` nur die Nummer der Einheit.
+  const offen = s.fokusOffen && typeof s.fokusOffen === 'object'
+    ? s.fokusOffen : { n: s.fokusOffen ?? null, id: null };
+  if (heute && offen.n === laeuft.n && !startHinweis && !ui.standAngebot
+      && ui.tab === 'dashboard' && workoutByNo(laeuft.n).ex.length) {
+    const mode = store.workoutMode(laeuft.n);
+    const ex = workoutByNo(laeuft.n, mode).ex;
+    const da = ex.findIndex((x) => x.id === offen.id);
+    ui.workoutNo = laeuft.n;
+    ui.focus = true;
+    ui.listView = false;
+    ui.focusIdx = da >= 0 && saetzeErledigt(laeuft.n, ex[da].id, ex[da].sets) < ex[da].sets
+      ? da : firstOpenExercise(laeuft.n, mode);
+  }
+}
+/*
+ * Den Verlauf an das anpassen, was der Start zeigt.
+ *
+ * Ein Neuladen behält den Verlauf (location.reload() nach einer neuen Fassung
+ * ebenso wie ein wiederhergestellter Tab), samt dem Eintrag, auf dem man
+ * stand. Zwei Fälle:
+ *
+ * **Er passt** – die App geht in der Fokusansicht weiter, und der Eintrag der
+ * Fokusansicht steht schon da. Dann keinen weiteren dazu. render() legte
+ * früher trotzdem einen an, weil `lastLevel` noch vom Dashboard stammt: Nach
+ * zweimal Neuladen zeigte Zurück zweimal unverändert dieselbe Übung, erst der
+ * dritte Druck kam aufs Dashboard.
+ *
+ * **Er gilt nicht mehr** – er gehört zur Fokusansicht oder zur Liste, aber die
+ * App bleibt auf dem Dashboard: Der Start hat etwas zu sagen (`startHinweis`),
+ * die Einheit ist von gestern oder schon vorbei. Bis v219 blieb der Eintrag
+ * stehen, das Dashboard saß obendrauf, und der erste Druck auf Zurück führte
+ * zum Eintrag darunter – wieder das Dashboard. Es sah aus, als täte Zurück
+ * nichts. Jetzt geht der Start selbst so weit zurück, bis die Ebene erreicht
+ * ist, aus der man hineingegangen war, und schreibt dort hin, was zu sehen
+ * ist. `goingBack` hält render() so lange davon ab, einen neuen Eintrag
+ * anzulegen. Nach vorn bleiben die alten Einträge liegen, bis der nächste
+ * Eintrag sie ersetzt – auf Android gibt es kein Vorwärts.
+ *
+ * Kalt gestartet ist der Verlauf leer (`history.state` null): Dann bleibt es
+ * beim einen neuen Eintrag, den render() für die Fokusansicht anlegt, und
+ * Zurück führt aufs Dashboard statt aus der App. Andere Abweichungen (ein
+ * anderer Reiter) bleiben, wie sie waren.
+ */
+{
+  const st = history.state;
+  if (st && ebeneVon(st) === levelOf()) {
+    lastLevel = levelOf();
+  } else if (st && (st.focus || st.listView) && !ui.focus && !ui.listView && history.length > 1) {
+    abbauen = true;
+    goingBack = true;
+    lastLevel = levelOf();
+    history.back();
+  }
 }
 /*
  * Wenn das Speichern kippt, muss der Bildschirm es sagen – sofort.
@@ -6522,11 +10120,50 @@ if (pruefeAufstieg() || pruefeZusatztag()) {
  * Sonst zöge jeder abgehakte Satz einen zweiten Neuaufbau nach sich.
  */
 let speicherStand = store.canPersist();
+// Kann der Store schon jetzt, am Ende des Starts, nicht schreiben, kommt der
+// Wechsel unten nie – und das Protokoll behielte seinen Platz. Gefunden beim
+// Gegenlesen (Speicher zwischen zwei Sitzungen von außen gefüllt): Kein Satz
+// kam an, bis die App wegschaltete. Meist hat js/diagnose.js schon beim Laden
+// geräumt (DIAGNOSE_PLATZ); das hier ist der zweite Riegel.
+if (!speicherStand) diagnosePlatzMachen();
 store.subscribe(() => {
   if (store.canPersist() === speicherStand) return;
   speicherStand = store.canPersist();
+  // Das Diagnoseprotokoll gibt seinen Platz sofort frei – der nächste
+  // Schreibvorgang gehört dem Training (diagnosePlatzMachen() in js/diagnose.js).
+  if (!speicherStand) diagnosePlatzMachen();
+  notieren('speicher', {
+    kann: speicherStand, grund: store.speicherGrund() || undefined, klemmt: store.ablageKlemmt() || undefined,
+    haupt: kb('workout.state.v1'), ablage: kb('workout.rounds.v1'),
+  }, true);
   render();
 });
+
+/*
+ * Schalter fürs Diagnoseprotokoll: an einer Stelle statt in jedem Handler.
+ *
+ * Ein Vergleich je Meldung des Stores über ein paar Felder, die alle einfache
+ * Werte sind – ob „Töne" über den Schalter, den Einstieg oder eine eingelesene
+ * Sicherung umgelegt wurde, hier kommt es an. Fokus und Modus gehören dazu:
+ * Beides ändert, welche Übungen dastehen.
+ */
+{
+  const FELDER = ['sound', 'soundSets', 'notify', 'supersatz', 'share', 'level', 'restSeconds',
+    'useExerciseRest', 'mode', 'focus', 'aufwaermen'];
+  const bild = (s) => FELDER.map((k) => s[k]);
+  let vorher = bild(store.getState());
+  store.subscribe((s) => {
+    try {
+      let anders = false;
+      FELDER.forEach((k, i) => {
+        if (s[k] === vorher[i]) return;
+        anders = true;
+        notieren('schalter', { feld: k, von: vorher[i] ?? '-', nach: s[k] ?? '-' });
+      });
+      if (anders) vorher = bild(s);
+    } catch { /* nur fürs Protokoll */ }
+  });
+}
 
 /*
  * Den Punkt am App-Symbol nachziehen, sobald sich etwas ändert.
@@ -6537,10 +10174,90 @@ store.subscribe(() => {
 store.subscribe(() => { erinnerungPflegen(); });
 erinnerungPflegen();
 
+/*
+ * Die automatische Sicherung anschließen (js/sicherung.js).
+ *
+ * Gesichert wird der Stand, den auch die Sicherungsdatei hat – ohne das
+ * Betreiber-Passwort, das exportJSON() ebenfalls weglässt. Und erst, wenn der
+ * Einstieg den Satz dazu gezeigt hat und es etwas zu sichern gibt: Ein frisches
+ * Gerät, das nur seinen Namen kennt, hat nichts, was einen Server braucht – und
+ * es soll erst die Gelegenheit haben, eine vorhandene Sicherung zurückzuholen.
+ */
+sicherungEinrichten({
+  stand: () => {
+    const { adminPass, ...rest } = store.getState();
+    void adminPass;
+    return rest;
+  },
+  darf: () => {
+    if (needsWelcome()) return false;
+    const s = store.getState();
+    return Object.keys(s.log || {}).length > 0 || (s.rounds || []).length > 0
+      || (s.customs || []).length > 0 || Object.keys(s.weights || {}).length > 0;
+  },
+  nachher: (() => {
+    // Neu zeichnen nur, wo sich dadurch etwas ändert: unter Mehr, und auf dem
+    // Dashboard, wenn die eine Zeile kommt oder geht. Mitten im Training nie.
+    // Und nie, während jemand tippt – der Neuaufbau nähme ihm das Feld weg.
+    let lage = sicherungLage();
+    let loeschen = loeschenAusstehend();
+    return () => {
+      const neu = sicherungLage();
+      const dash = ui.tab === 'dashboard' && !ui.focus && !ui.listView && neu !== lage;
+      lage = neu;
+      // Ein erledigter Löschauftrag nimmt seine Zeile mit – auch im Einstieg.
+      const jetzt = loeschenAusstehend();
+      const erledigt = loeschen && !jetzt;
+      loeschen = jetzt;
+      const tippt = !!document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+      if ((ui.tab === 'settings' || dash || (erledigt && !ui.focus)) && !tippt) render();
+    };
+  })(),
+});
+store.subscribe(() => { sicherungGeaendert(); });
+
+/*
+ * Google Kalender automatisch anschließen (js/kalender-sync.js): Nach jeder
+ * Änderung sieht es nach, ob sich die Vorschau geändert hat – sofort, wenn eine
+ * Einheit anfängt oder fertig wird, sonst gedrosselt. Neu gezeichnet wird wie
+ * bei der Sicherung nur, wo sich dadurch etwas ändert, und nie, während jemand
+ * tippt (das URL-Feld!).
+ */
+kalenderEinrichten({
+  nachher: (() => {
+    let zeile = kalenderZeile() + kalenderJahrZeile();
+    return () => {
+      const neu = kalenderZeile() + kalenderJahrZeile();
+      const dash = ui.tab === 'dashboard' && !ui.focus && !ui.listView && neu !== zeile;
+      zeile = neu;
+      const tippt = !!document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+      if ((ui.tab === 'settings' || dash) && !tippt) render();
+    };
+  })(),
+  // Unter Mehr steht die Karte (renderSettings()): Solange sie aufgeschlagen
+  // ist und das Skript noch einträgt, fragt die App von selbst nach dem Stand.
+  karte: () => ui.tab === 'settings',
+});
+// `was` 'pause' (nur die Pause geändert) und 'ansicht' (Reiter, offene
+// Einheit): die rechnen die Vorschau nicht neu.
+store.subscribe((s, was) => { kalenderGeaendert(was); });
+
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist
+sicherungStart();    // wenn seit der letzten Sicherung etwas dazukam
+kalenderStart();     // die Vorschau für heute, wenn der Kalender verbunden ist
 store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
 // Neu geladen und sichtbar: Die Uhr eines laufenden Trainings muss wieder
 // anlaufen. Ohne diese Zeile stünde sie bis zum nächsten Wegschalten still.
 if (!document.hidden) store.clockStart();
 tickRest(); // eine Pause, die einen Neustart der Seite überdauert hat
+// Läuft sie noch, ihr Signal wieder auflegen. Bis v240 fehlte diese Zeile:
+// Nach einem Neuladen mitten in der Pause (Aktualisierung, Neustart vom
+// Startbildschirm) stand die Leiste, aber auf der Audio-Uhr lag nichts, und am
+// Ende entstand der Ton auf einem Kontext ohne Berührung – stumm. Jetzt merkt
+// sich der Tonkanal den Wunsch und legt das Signal bei der ersten Berührung auf
+// (scheduleSound mit Rückruf); ist die Pause bis dahin vorbei, kommt einmal
+// „Pause vorbei" (endRest).
+if (store.getState().rest) armRest();
+// Bleibt die App offen, sieht sie um Mitternacht selbst nach (tagesUhrStellen()).
+tagesUhrStellen();

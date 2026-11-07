@@ -70,7 +70,9 @@ await page.evaluate(async () => {
   const store = await import('./js/store.js');
   const { PLAN } = await import('./js/data.js');
   store.completeWorkout(PLAN[0].n, 'db', PLAN[0].ex.map((x) => ({ id: x.id, sets: x.sets })));
-  store.completeWorkout(PLAN[1].n, 'bw', PLAN[1].ex.map((x) => ({ id: x.id, sets: x.sets })));
+  // Ohne Hanteln die Satzzahl dieses Modus: Steht dort eine Vier, sind drei
+  // abgehakte Sätze keine fertige Einheit (so bei Einheit 2 seit dem 03.10.).
+  store.completeWorkout(PLAN[1].n, 'bw', PLAN[1].ex.map((x) => ({ id: x.id, sets: x.bwSets ?? x.sets })));
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
@@ -84,7 +86,13 @@ await page.waitForTimeout(300);
 // einzigen trainierten Tag. Also hinblättern statt hoffen.
 // Die trainierten Einheiten sind die ersten des Plans, liegen also nie *nach*
 // dem gezeigten Monat – zurückblättern genügt, und zwei Schritte reichen immer.
-for (let i = 0; i < 3 && !(await page.locator('.cal-cell.done').count()); i++) {
+//
+// Gezählt werden nur Tage *des* Monats (ohne .out): Das Raster zeigt die
+// Randtage des Vormonats mit. Am 29.09. lagen die beiden trainierten
+// Einheiten genau dort – der Kalender stand im Oktober, das Blättern hörte beim
+// Randtag 29.09. auf, und die Zusammenfassung des Oktobers meldete richtig
+// „0 trainiert". Der Test war falsch, nicht die App.
+for (let i = 0; i < 3 && !(await page.locator('.cal-cell.done:not(.out)').count()); i++) {
   await page.locator('[data-act="cal-month"][data-d="-1"]').click();
   await page.waitForTimeout(150);
 }
@@ -129,6 +137,13 @@ await page.waitForTimeout(200);
 check(await page.locator('.cal-detail').count() === 0, 'nochmal antippen schließt die Auswahl');
 
 // --- Sprung ins Dashboard ---
+// Am Monatsende liegt die nächste geplante Einheit schon im Folgemonat – dann
+// dorthin blättern (gefunden mit dem Datum 31.10.: kein .cal-cell.plan im
+// Oktober, der Klick wartete 30 Sekunden ins Leere).
+for (let i = 0; i < 2 && !(await page.locator('.cal-cell.plan:not(.out)').count()); i++) {
+  await page.locator('[data-act="cal-month"][data-d="1"]').click();
+  await page.waitForTimeout(150);
+}
 await page.locator('.cal-cell.plan').first().click();
 await page.waitForTimeout(200);
 const nr = await page.locator('.cal-detail .lbl').first().textContent();
@@ -203,6 +218,12 @@ await page.evaluate(() => {
     log[i + 1] = { startedOn: tag(n), done: 'db',
                    db: { 'chin-ups': [{ done: true }, { done: true }, { done: true }] }, bw: {} };
   });
+  // Am 3. mit Gewicht, und ein Satz nicht gemacht – die Detailkarte soll
+  // zeigen, was im Protokoll steht, nicht, was vorgesehen war.
+  log[1].db = {
+    'goblet-squat': [{ w: '20', done: true }, { w: '20', done: true }, { w: '20', done: true }],
+    'floor-press': [{ w: '30', done: true }, { w: '32,5', done: true }, { w: '', done: false }],
+  };
   localStorage.setItem('workout.rounds.v1', JSON.stringify([{ log }]));
   localStorage.setItem('workout.state.v1', JSON.stringify(
     { greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {} }));
@@ -255,6 +276,25 @@ check(/3 trainiert/.test(zusammenAlt),
   `die Zusammenfassung zählt sie als trainiert (${(zusammenAlt.match(/\d+ Einheiten[^·]*·[^·]*/) || ['?'])[0]})`);
 check(!/früherer Plan|früheren Plan/.test(zusammenAlt),
   'und macht keinen Nachsatz daraus – weder in der Legende noch in der Zeile darunter');
+
+// Antippen zeigt die Übungen des Tages, mit Sätzen und Kilo – wie bei jedem
+// anderen trainierten Tag. Bis hierher stand dort nur „Die Übungen dazu
+// stehen in dem Plan, der damals galt", obwohl das Protokoll sie nach Übung
+// kennt und die Namen im Katalog stehen.
+const namen = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const n = (id) => EXERCISES.find((e) => e.id === id).db.name;
+  return { goblet: n('goblet-squat'), floor: n('floor-press') };
+});
+await page.locator('.cal-cell.frueher').first().click();
+await page.waitForTimeout(250);
+const altDetail = (await page.locator('.cal-detail').first().textContent()).replace(/\s+/g, ' ');
+console.log('     Detail früherer Tag:', altDetail.trim().slice(0, 140));
+check(altDetail.includes(namen.goblet) && /3 Sätze · 20 kg/.test(altDetail),
+  `nennt ${namen.goblet} mit 3 Sätzen à 20 kg`);
+check(altDetail.includes(namen.floor) && /2 Sätze · 30–32,5 kg/.test(altDetail),
+  `und ${namen.floor} mit den 2 gemachten Sätzen, 30 bis 32,5 kg`);
+check(!/Die Übungen dazu stehen/.test(altDetail), 'statt auf einen Plan zu verweisen, den es nicht mehr gibt');
 
 
 // --- Sport außerhalb des Plans im Kalender ------------------------------

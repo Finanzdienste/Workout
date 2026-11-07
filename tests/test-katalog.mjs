@@ -142,6 +142,72 @@ console.log(`     ohne Ersatz: ${ohneErsatz.length ? ohneErsatz.join(', ') : 'ke
 check(ohneErsatz.length === 0,
   `jede Übung des Plans hat einen Ersatz${ohneErsatz.length ? ': ' + ohneErsatz.join(', ') : ''}`);
 
+// --- Startgewicht auf dem eigenen Schritt, eine Schreibweise für „ohne" ---
+//
+// Die Kurzhantel-Bodenpresse stand auf 12 kg bei 2,5er-Schritten: Der Knopf
+// lief 12 → 14,5 → 17, der Anfänger bekam 5 statt 6. Und „ohne Gerät" stand in
+// vier Schreibweisen im Katalog, die die Übungskarte roh anzeigt.
+const form = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const daneben = EXERCISES.filter((e) => e.weight > 0 && e.step
+    && Math.abs(e.weight / e.step - Math.round(e.weight / e.step)) > 1e-9)
+    .map((e) => `${e.id} ${e.weight}/${e.step}`);
+  const ohne = new Set();
+  EXERCISES.forEach((e) => ['db', 'bw'].forEach((m) => {
+    if (/^ohne/i.test(e[m].equip || '')) ohne.add(e[m].equip.replace(/ \(.*\)$/, ''));
+  }));
+  return { daneben, ohne: [...ohne] };
+});
+check(form.daneben.length === 0,
+  `jedes Startgewicht liegt auf dem Schritt seiner Übung${form.daneben.length ? ': ' + form.daneben.join(', ') : ''}`);
+check(form.ohne.length === 1 && form.ohne[0] === 'Ohne Gerät',
+  `„ohne Gerät" in einer Schreibweise (${form.ohne.join(' | ')})`);
+
+// --- Pausen nach der Regel aus dem README (Abschnitt Pausenlängen) -------
+//
+// Stufe 1 unter 8 Wdh. 3:00, Stufe 1 ab 8 Wdh. 2:30, Stufe 2 und 3 2:00,
+// Stufe 4 1:30. Die Ausnahmen stehen dort mit Grund; jede andere Abweichung
+// ist ein Versehen – wie das Band-Schulterdrücken, das mit 3:00 länger
+// pausierte als die Hantelfassung.
+const AUSNAHMEN = {
+  'sitzendes-schulterdruecken.db': 150,   // „Und sicher 3 min Pause?" – nein
+  'pike-liegestuetze.db': 150, 'pike-liegestuetze.bw': 150,
+  'reverse-snow-angel.db': 90, 'reverse-snow-angel.bw': 90,
+};
+const pausen = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  return EXERCISES.flatMap((e) => ['db', 'bw'].map((m) => ({
+    k: `${e.id}.${m}`, tier: e.tier, lo: Number((/\d+/.exec(e[m].reps) || [0])[0]), rest: e[m].rest })));
+});
+const regel = (p) => (p.tier === 1 ? (p.lo < 8 ? 180 : 150) : (p.tier === 4 ? 90 : 120));
+const abweichend = pausen.filter((p) => p.rest !== (AUSNAHMEN[p.k] ?? regel(p)))
+  .map((p) => `${p.k} ${p.rest} statt ${AUSNAHMEN[p.k] ?? regel(p)}`);
+check(abweichend.length === 0,
+  `jede Pause folgt der Regel oder einer benannten Ausnahme${abweichend.length ? ': ' + abweichend.join(', ') : ''}`);
+
+// --- Beide zugleich oder je Bein -------------------------------------------
+//
+// „Vllt sollten bei Übungen bei denen man mit beiden Körperteilen unabhängig
+// voneinander macht jedesmal abhaken oder? Also hier zb 6?" – gefragt beim
+// Sliding Leg Curl. Dort arbeiten beide Beine zugleich, aber „Fersen auf je
+// einem Handtuch" las sich wie ein Bein nach dem anderen, und drei Haken sahen
+// dann nach drei Sätzen für ein Bein aus. Ein Haken ist ein Satz: Wo „je Bein"
+// steht, kommt er nach beiden Seiten; sonst arbeiten beide Seiten zugleich, und
+// wo jede Seite ihr eigenes Handtuch hat, sagt der Hinweis das ausdrücklich.
+const seiten = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  return EXERCISES.flatMap((e) => ['db', 'bw'].map((m) => ({
+    k: `${e.id}.${m}`, name: e[m].name, reps: e[m].reps || '', cue: e[m].cue || '' })));
+});
+const jeSeite = (s) => /je (Bein|Arm|Seite)/.test(s.reps);
+const ohneJe = seiten.filter((s) => /^einbeinig|^einarmig/i.test(s.name) && !jeSeite(s)).map((s) => s.k);
+check(ohneJe.length === 0,
+  `einseitig im Namen heißt „je Bein" bei den Wiederholungen${ohneJe.length ? ': ' + ohneJe.join(', ') : ''}`);
+const handtuch = seiten.filter((s) => !jeSeite(s) && /auf je einem Handtuch/.test(s.cue));
+const unklar = handtuch.filter((s) => !/beide \S+ zugleich/.test(s.cue)).map((s) => s.k);
+check(handtuch.some((s) => s.k === 'sliding-leg-curl.db') && unklar.length === 0,
+  `ein Handtuch je Ferse, aber beide zugleich – so steht es im Hinweis${unklar.length ? ': fehlt bei ' + unklar.join(', ') : ''}`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs[0] : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

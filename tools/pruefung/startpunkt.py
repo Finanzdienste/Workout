@@ -2,6 +2,7 @@
 """Ein ausgewogener Startpunkt für tools/build-plan.py, ganzzahlig gelöst.
 
     python3 tools/pruefung/startpunkt.py cut          # schreibt tools/pruefung/cut-start.json
+    python3 tools/pruefung/startpunkt.py cut --ohne-bw-kappe   # wie vor dem 29.09., siehe unten
     WK_START=tools/pruefung/cut-start.json python3 tools/build-plan.py cut
 
 Braucht numpy und scipy (pip install scipy). Kein Tor, kein Schritt der CI –
@@ -21,20 +22,19 @@ und sucht unter allen Lösungen die ausgewogenste:
   * jede Übung entweder draußen oder mit PER_EX_WEEK Sätzen je Woche,
   * die Pflichtübungen mit ihrem Minimum (PFLICHT aus build-plan.py),
   * und als Maß: möglichst viele Übungen drin, jede möglichst nah an drei
-    Sätzen je Woche. Band, Rucksack (außer an der Klimmzugstange) und reine
-    Körpergewichtsübungen zählen dabei als zweite Wahl, weil Hanteln und
-    Stange im Haus sind:
+    Sätzen je Woche. Übungen mit Rucksack zählen dabei als zweite Wahl, weil
+    Hanteln und Stange im Haus sind (siehe zweite_wahl()):
 
         „Ists normal dass ich so viele Übungen mit Rucksack und Flaschen usw
          machen soll obwohl ich ja ne komplette hantelausrüstung usw hab?"
 
-    Ausgenommen sind die Übungen, für die es keine Hantelfassung gibt.
+    Bänder und Körpergewicht nicht – sie kosten keinen Umbau.
 
 Das Ergebnis ist kein Plan, sondern ein Startpunkt: {Übung: Sätze über den
 ganzen Plan}. Von ihm aus läuft wandern() in build-plan.py (WK_START) und
-verteilt danach auf Wochen und Tage wie immer. Der Startpunkt des Cut vom
-25.09. liegt als cut-start.json daneben – damit der Lauf nachvollziehbar
-bleibt, nicht nur sein Ergebnis.
+verteilt danach auf Wochen und Tage wie immer. Die Startpunkte der vier
+Pläne liegen als <variante>-start.json daneben – damit ein Lauf
+nachvollziehbar bleibt, nicht nur sein Ergebnis.
 """
 import importlib.util
 import json
@@ -57,20 +57,38 @@ def lade_generator(variante):
 
 
 def zweite_wahl(meta, ids):
-    """Übungen, die mit Hanteln im Haus nur die zweite Wahl sind."""
-    raus = set()
-    for i in ids:
-        equip = meta[i].get('equip')
-        if equip in ('band', None):
-            raus.add(i)
-        elif equip == 'backpack' and 'Klimmzugstange' not in meta[i].get('dbEquip', ''):
-            raus.add(i)
-    # Dafür gibt es keine Hantelfassung – sie sind nicht zweite Wahl, sondern die einzige.
-    return raus - {'haengendes-knieheben', 'sliding-leg-curl', 'einbeiniger-sliding-leg-curl'}
+    """Übungen, die mit Hanteln im Haus nur die zweite Wahl sind: die mit Rucksack.
+
+    Gemeint war die Frage zu genau diesen:
+
+        „Ists normal dass ich so viele Übungen mit Rucksack und Flaschen usw
+         machen soll obwohl ich ja ne komplette hantelausrüstung usw hab?"
+
+    Ein Rucksack will gepackt werden wie eine Hantel – gegen eine Kurzhantel-
+    oder Langhantelübung spart er keinen Umbau und ist die schlechtere Last.
+
+    **Bänder und Körpergewicht zählen nicht dazu**, und das ist gemessen, nicht
+    geschätzt: Am 29.09. standen sie probeweise mit auf der Liste. Die Pläne
+    bekamen dafür mehr Kurzhantelübungen mit je eigenem Gewicht, und der
+    Umbau stieg je Einheit – Cut 3,00 → 3,65, Oberkörper 3,08 → 3,82, Bauch-
+    Beine-Po 3,31 → 4,00, Aufbau 3,55 → 4,32. Ein Band braucht keinen Umbau,
+    und wenig Umbau ist die härtere Vorgabe („ultra wichtig").
+    """
+    raus = {i for i in ids
+            if meta[i].get('equip') == 'backpack' and 'Klimmzugstange' not in meta[i].get('dbEquip', '')}
+    # Das Inverted Row hängt zwar an der Klimmzugstange, ist aber ein Rudern mit
+    # Rucksack – und Rudern gibt es mit der Langhantel. Genau diese Übung stand
+    # auf dem Bildschirmfoto zur Frage oben.
+    raus.add('inverted-row')
+    return raus
+
+
+OHNE_BW_KAPPE = '--ohne-bw-kappe' in sys.argv
 
 
 def main():
-    variante = sys.argv[1] if len(sys.argv) > 1 else 'cut'
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    variante = args[0] if args else 'cut'
     bp = lade_generator(variante)
     meta = json.loads(bp.META.read_text(encoding='utf-8'))
     shares = {k: v['dbShares'] for k, v in meta.items()}
@@ -90,6 +108,25 @@ def main():
         A.append(row)
         lb.append(ziel * weeks if ziel is not None else 0)
         ub.append(ziel * weeks if ziel is not None else bp.CAP_U * weeks)
+    # Die Gruppen ohne Ziel auch *ohne Hanteln* unter der Kappe, bei drei
+    # Sätzen je Auftritt. Ohne diese Zeilen rechnete der Startpunkt nur mit den
+    # Hantel-Anteilen, und im Oberkörperplan vom 29.09. lag die vordere
+    # Schulter ohne Hanteln bei 13,4 (Kappe 13): Pike-Liegestütze und die
+    # Körpergewicht-Fassung des Schulterdrückens treffen sie viel stärker.
+    # Mit zwei bis vier Sätzen je Auftritt ließ sich das hinterher nicht mehr
+    # ausgleichen, nicht einmal auf die 0,05 Sätze, die die Planprüfung erlaubt
+    # (nachgerechnet mit demselben Löser).
+    #
+    # `--ohne-bw-kappe` lässt sie weg – so sind die Startpunkte von Cut und
+    # „Bauch, Beine, Po" vom 29.09. entstanden, vor dieser Änderung. Ihre Pläne
+    # halten die Kappe ohne Hanteln trotzdem (die Planprüfung sagt es), und
+    # mit dem Schalter kommen sie Wert für Wert wieder heraus.
+    bw = {k: v.get('bwShares', {}) for k, v in meta.items()}
+    for m in groups:
+        if bp.GOAL.get(m) is None and not OHNE_BW_KAPPE:
+            A.append([round(bw[i].get(m, 0) * bp.UNIT) * g for i in ids] + [0] * (2 * n))
+            lb.append(0)
+            ub.append(bp.CAP_U * weeks)
     for k in range(n):
         r = [0] * N; r[k] = 1; r[n + k] = -lo
         A.append(r); lb.append(0); ub.append(np.inf)            # drin → mindestens lo
@@ -108,8 +145,14 @@ def main():
     zweite = zweite_wahl(meta, ids)
     print('zweite Wahl:', ', '.join(sorted(zweite)))
     # Jede Übung drin ist einen halben Wochen-Sollwert wert, die zweite Wahl nur
-    # ein Zehntel; jeder Satz Abstand vom Soll kostet eins.
-    c = np.array([0] * n + [(-0.5 + (0.4 if i in zweite else 0)) * soll for i in ids] + [1] * n, float)
+    # ein Zehntel; jeder Satz Abstand vom Soll kostet eins. Dazu kostet bei der
+    # zweiten Wahl jeder Satz selbst anderthalb: Ohne das war es dem Löser
+    # gleich, ob der Überschuss einer Gruppe bei der Hantel- oder bei der
+    # Rucksackübung landete. Mehr als eins muss es sein, sonst ist eine neue
+    # Rucksackübung mit drei Sätzen billiger als drei Sätze mehr auf einer
+    # Hantelübung, die schon im Plan steht.
+    c = np.array([1.5 if i in zweite else 0 for i in ids]
+                 + [(-0.5 + (0.4 if i in zweite else 0)) * soll for i in ids] + [1] * n, float)
     r = milp(c=c, constraints=LinearConstraint(np.array(A, float), lb, ub),
              integrality=np.array([1] * (2 * n) + [0] * n), bounds=Bounds(lower, upper),
              options={'time_limit': 240})

@@ -1,0 +1,1007 @@
+{
+ "mode": "db",
+ "shift": 31,
+ "useExerciseRest": true,
+ "restSeconds": 90,
+ "shareCount": 0,
+ "share": true,
+ "deviceId": null,
+ "lastShare": null,
+ "tabs": [
+  "stats"
+ ],
+ "level": "geuebt",
+ "fassung": {},
+ "focus": "cut",
+ "theme": "orange",
+ "name": "Tobi",
+ "greeted": true,
+ "sound": true,
+ "soundSets": true,
+ "notify": false,
+ "erinnerung": {
+  "an": false,
+  "werktags": "16:00",
+  "wochenende": "06:30"
+ },
+ "termine": [],
+ "scheiben": null,
+ "aufwaermen": true,
+ "planStand": {
+  "cut": "345241a49404"
+ },
+ "planSaetze": {
+  "cut": "577d2f7aeeb1"
+ },
+ "vorne": [],
+ "supersatz": true,
+ "rest": null,
+ "weights": {},
+ "bands": {},
+ "ausUebungen": [],
+ "fehlt": [],
+ "friends": {},
+ "customs": [
+  {
+   "id": "cmuxsf5c0",
+   "name": "Zusatztag Woche 2",
+   "ex": [
+    {
+     "id": "pull-ups",
+     "sets": 3
+    },
+    {
+     "id": "chin-ups",
+     "sets": 3
+    }
+   ]
+  }
+ ],
+ "session": null,
+ "clock": {
+  "n": 8,
+  "on": "2026-10-06",
+  "spent": 0,
+  "since": null,
+  "gebucht": 0
+ },
+ "lastBackup": {
+  "done": 8,
+  "on": "2026-10-06"
+ },
+ "dauerhaft": false,
+ "lastIcs": null,
+ "injuries": [],
+ "tab": "dashboard",
+ "bwPlus": {},
+ "aufstiege": [],
+ "aufstieg": null,
+ "zusatzNein": [],
+ "zusatztag": null,
+ "fokusUmzug": null,
+ "planUmbau": null,
+ "log": {
+  "1": {
+   "mode": "db",
+   "done": "db",
+   "soll": {
+    "goblet-squat": 3,
+    "chin-ups": 3,
+    "sliding-leg-curl": 3,
+    "pike-liegestuetze": 3,
+    "wadenheben-gebeugtes-knie": 3
+   },
+   "nach": {
+    "goblet-squat": 0,
+    "chin-ups": 0,
+    "sliding-leg-curl": 0,
+    "pike-liegestuetze": 0,
+    "wadenheben-gebeugtes-knie": 0
+   },
+   "nachFest": {
+    "db": {},
+    "bw": {}
+   },
+   "db": {
+    "goblet-squat": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "chin-ups": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "sliding-leg-curl": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "pike-liegestuetze": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "wadenheben-gebeugtes-knie": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ]
+   },
+   "bw": {},
+   "startedOn": "2026-09-24"
+  },
+  "2": {
+   "mode": "db",
+   "done": "db",
+   "soll": {
+    "hip-thrust": 3,
+    "floor-press": 3,
+    "haengendes-knieheben": 3,
+    "band-seitheben": 3,
+    "reverse-fly": 3
+   },
+   "nach": {
+    "hip-thrust": 0,
+    "floor-press": 0,
+    "haengendes-knieheben": 0,
+    "band-seitheben": 0,
+    "reverse-fly": 0
+   },
+   "nachFest": {
+    "db": {},
+    "bw": {}
+   },
+   "db": {
+    "hip-thrust": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "floor-press": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "haengendes-knieheben": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "band-seitheben": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "reverse-fly": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ]
+   },
+   "bw": {},
+   "startedOn": "2026-09-26"
+  },
+  "3": {
+   "mode": "db",
+   "done": "db",
+   "soll": {
+    "rumaenisches-kreuzheben": 3,
+    "einarmiges-kh-rudern": 3,
+    "fersenerhoehter-goblet-squat": 3,
+    "face-pull": 3,
+    "sz-curls": 3
+   },
+   "nach": {
+    "rumaenisches-kreuzheben": 0,
+    "einarmiges-kh-rudern": 0,
+    "fersenerhoehter-goblet-squat": 0,
+    "face-pull": 0,
+    "sz-curls": 0
+   },
+   "nachFest": {
+    "db": {},
+    "bw": {}
+   },
+   "db": {
+    "rumaenisches-kreuzheben": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "einarmiges-kh-rudern": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "fersenerhoehter-goblet-squat": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "face-pull": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "sz-curls": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ]
+   },
+   "bw": {},
+   "startedOn": "2026-09-28"
+  },
+  "4": {
+   "mode": "db",
+   "done": "db",
+   "soll": {
+    "sitzendes-schulterdruecken": 3,
+    "fuesse-erhoehte-liegestuetze": 3,
+    "sitzendes-seitheben": 3,
+    "einbeiniges-stehendes-wadenheben": 3,
+    "gewichtete-crunches": 3
+   },
+   "nach": {
+    "sitzendes-schulterdruecken": 0,
+    "fuesse-erhoehte-liegestuetze": 0,
+    "sitzendes-seitheben": 0,
+    "einbeiniges-stehendes-wadenheben": 0,
+    "gewichtete-crunches": 0
+   },
+   "nachFest": {
+    "db": {},
+    "bw": {}
+   },
+   "db": {
+    "sitzendes-schulterdruecken": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "fuesse-erhoehte-liegestuetze": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "sitzendes-seitheben": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "einbeiniges-stehendes-wadenheben": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "gewichtete-crunches": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ]
+   },
+   "bw": {},
+   "startedOn": "2026-09-29"
+  },
+  "5": {
+   "db": {
+    "rumaenisches-kreuzheben": [
+     {
+      "w": "40",
+      "done": true
+     },
+     {
+      "w": "40",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": false
+     }
+    ],
+    "floor-press": [
+     {
+      "w": "40",
+      "done": true
+     },
+     {
+      "w": "40",
+      "done": true
+     },
+     {
+      "w": "40",
+      "done": true
+     }
+    ],
+    "sliding-leg-curl": [
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": true
+     }
+    ],
+    "band-seitheben": [
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": true
+     }
+    ],
+    "einbeiniges-stehendes-wadenheben": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ]
+   },
+   "bw": {},
+   "soll": {
+    "rumaenisches-kreuzheben": 3,
+    "floor-press": 3,
+    "sliding-leg-curl": 3,
+    "band-seitheben": 3,
+    "einbeiniges-stehendes-wadenheben": 3
+   },
+   "nach": {
+    "rumaenisches-kreuzheben": 0,
+    "floor-press": 0,
+    "sliding-leg-curl": 0,
+    "band-seitheben": 0,
+    "einbeiniges-stehendes-wadenheben": 0
+   },
+   "nachFest": {
+    "db": {},
+    "bw": {}
+   },
+   "nachWarum": {
+    "db": {},
+    "bw": {}
+   },
+   "mode": "db",
+   "startedOn": "2026-10-01",
+   "paare": {
+    "db": {
+     "key": "band-seitheben,einbeiniges-stehendes-wadenheben,floor-press,rumaenisches-kreuzheben,sliding-leg-curl",
+     "gruppen": [
+      [
+       "rumaenisches-kreuzheben",
+       "band-seitheben"
+      ],
+      [
+       "floor-press",
+       "sliding-leg-curl"
+      ],
+      [
+       "einbeiniges-stehendes-wadenheben"
+      ]
+     ]
+    }
+   },
+   "done": "db",
+   "super": true
+  },
+  "6": {
+   "db": {
+    "goblet-squat": [
+     {
+      "w": "20",
+      "done": true
+     },
+     {
+      "w": "20",
+      "done": true
+     },
+     {
+      "w": "20",
+      "done": true
+     },
+     {
+      "w": "20",
+      "done": true
+     }
+    ],
+    "fuesse-erhoehte-liegestuetze": [
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": true
+     }
+    ],
+    "chin-ups": [
+     {
+      "w": "0",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": false
+     },
+     {
+      "w": "",
+      "done": false
+     }
+    ],
+    "haengendes-knieheben": [
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": false
+     },
+     {
+      "w": "",
+      "done": false
+     }
+    ],
+    "reverse-fly": [
+     {
+      "w": "",
+      "done": false
+     },
+     {
+      "w": "",
+      "done": false
+     },
+     {
+      "w": "",
+      "done": false
+     }
+    ]
+   },
+   "bw": {},
+   "soll": {
+    "goblet-squat": 4,
+    "fuesse-erhoehte-liegestuetze": 3,
+    "chin-ups": 3,
+    "haengendes-knieheben": 3,
+    "reverse-fly": 3
+   },
+   "nach": {
+    "goblet-squat": 1,
+    "fuesse-erhoehte-liegestuetze": 0,
+    "chin-ups": 0,
+    "haengendes-knieheben": 0,
+    "reverse-fly": 0
+   },
+   "nachFest": {
+    "db": {
+     "goblet-squat": 1
+    },
+    "bw": {
+     "goblet-squat": 1
+    }
+   },
+   "nachWarum": {
+    "db": {
+     "goblet-squat": {
+      "g": [
+       "glutes"
+      ],
+      "q": [
+       [
+        5,
+        "rumaenisches-kreuzheben",
+        2,
+        3,
+        "db"
+       ]
+      ]
+     }
+    },
+    "bw": {
+     "goblet-squat": {
+      "g": [
+       "glutes"
+      ],
+      "q": [
+       [
+        5,
+        "rumaenisches-kreuzheben",
+        2,
+        3,
+        "db"
+       ]
+      ]
+     }
+    }
+   },
+   "mode": "db",
+   "startedOn": "2026-10-03",
+   "paare": {
+    "db": {
+     "key": "chin-ups,fuesse-erhoehte-liegestuetze,goblet-squat,haengendes-knieheben,reverse-fly",
+     "gruppen": [
+      [
+       "goblet-squat",
+       "fuesse-erhoehte-liegestuetze"
+      ],
+      [
+       "chin-ups",
+       "haengendes-knieheben"
+      ],
+      [
+       "reverse-fly"
+      ]
+     ]
+    }
+   },
+   "done": "db",
+   "super": true
+  },
+  "7": {
+   "mode": "db",
+   "done": "db",
+   "soll": {
+    "goblet-squat": 3,
+    "einarmiges-kh-rudern": 4,
+    "face-pull": 4,
+    "sz-curls": 4
+   },
+   "nach": {
+    "goblet-squat": 0,
+    "einarmiges-kh-rudern": 1,
+    "face-pull": 1,
+    "sz-curls": 1
+   },
+   "nachFest": {
+    "db": {
+     "einarmiges-kh-rudern": 1,
+     "face-pull": 1,
+     "sz-curls": 1
+    },
+    "bw": {
+     "einarmiges-kh-rudern": 1,
+     "face-pull": 1,
+     "sz-curls": 1
+    }
+   },
+   "db": {
+    "goblet-squat": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "einarmiges-kh-rudern": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": false
+     }
+    ],
+    "face-pull": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": false
+     }
+    ],
+    "sz-curls": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": false
+     }
+    ]
+   },
+   "bw": {},
+   "startedOn": "2026-10-05",
+   "super": true
+  },
+  "8": {
+   "db": {
+    "kurzhantel-bodenpresse": [
+     {
+      "w": "12,5",
+      "done": true
+     },
+     {
+      "w": "12,5",
+      "done": true
+     },
+     {
+      "w": "12,5",
+      "done": true
+     }
+    ],
+    "pike-liegestuetze": [
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": true
+     },
+     {
+      "w": "",
+      "done": true
+     }
+    ],
+    "sitzendes-seitheben": [
+     {
+      "w": "6",
+      "done": true
+     },
+     {
+      "w": "6",
+      "done": true
+     },
+     {
+      "w": "6",
+      "done": true
+     }
+    ],
+    "wadenheben-gebeugtes-knie": [
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     },
+     {
+      "w": "12",
+      "done": true
+     }
+    ],
+    "gewichtete-crunches": [
+     {
+      "w": "5",
+      "done": true
+     },
+     {
+      "w": "5",
+      "done": true
+     },
+     {
+      "w": "5",
+      "done": true
+     },
+     {
+      "w": "5",
+      "done": true
+     }
+    ]
+   },
+   "bw": {},
+   "soll": {
+    "kurzhantel-bodenpresse": 3,
+    "pike-liegestuetze": 3,
+    "sitzendes-seitheben": 3,
+    "wadenheben-gebeugtes-knie": 3,
+    "gewichtete-crunches": 4
+   },
+   "nach": {
+    "kurzhantel-bodenpresse": 0,
+    "pike-liegestuetze": 0,
+    "sitzendes-seitheben": 0,
+    "wadenheben-gebeugtes-knie": 0,
+    "gewichtete-crunches": 1
+   },
+   "nachFest": {
+    "db": {
+     "gewichtete-crunches": 1
+    },
+    "bw": {
+     "gewichtete-crunches": 1
+    }
+   },
+   "nachWarum": {
+    "db": {
+     "gewichtete-crunches": {
+      "g": [
+       "abs"
+      ],
+      "q": [
+       [
+        6,
+        "haengendes-knieheben",
+        1,
+        3,
+        "db"
+       ]
+      ]
+     }
+    },
+    "bw": {
+     "gewichtete-crunches": {
+      "g": [
+       "abs"
+      ],
+      "q": [
+       [
+        6,
+        "haengendes-knieheben",
+        1,
+        3,
+        "db"
+       ]
+      ]
+     }
+    }
+   },
+   "mode": "db",
+   "startedOn": "2026-10-06",
+   "paare": {
+    "db": {
+     "key": "gewichtete-crunches,kurzhantel-bodenpresse,pike-liegestuetze,sitzendes-seitheben,wadenheben-gebeugtes-knie",
+     "gruppen": [
+      [
+       "kurzhantel-bodenpresse"
+      ],
+      [
+       "pike-liegestuetze",
+       "sitzendes-seitheben"
+      ],
+      [
+       "wadenheben-gebeugtes-knie"
+      ],
+      [
+       "gewichtete-crunches"
+      ]
+     ]
+    }
+   },
+   "done": "db",
+   "super": true
+  }
+ },
+ "setupDone": true,
+ "fokusOffen": null
+}

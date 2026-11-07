@@ -1,12 +1,19 @@
 # Workout
 
 Trainings-App zum Plan aus `Workoutplan_mit_Bodyweight_Equivalent.xlsx` – mit
-Umschalter zwischen **Hantel-Variante** und der **Fassung für unterwegs**
+Wahl zwischen **Hantel-Variante** und der **Fassung für unterwegs**
 (Körpergewicht, Loop-Band und Klimmzugstange).
 
-Statische Web-App: kein Build, keine Abhängigkeiten, keine Server-Anbindung.
-`index.html` im Browser öffnen oder über GitHub Pages ausliefern. Alle
-protokollierten Sätze liegen lokal im `localStorage` des Geräts.
+Statische Web-App: kein Build, keine Abhängigkeiten, kein Server, den sie zum
+Laufen braucht. `index.html` im Browser öffnen oder über GitHub Pages
+ausliefern. Alle protokollierten Sätze liegen lokal im `localStorage` des
+Geräts; ist in `js/config.js` ein Server eingetragen, gehen ein paar Zahlen an
+den Betreiber ([Rückkanal](#rückkanal-und-betreiber-übersicht)) und das
+Training verschlüsselt in die [Sicherung](#automatische-sicherung) – beides
+offengelegt und abschaltbar. Daneben führt die App ein
+[Diagnoseprotokoll](#diagnoseprotokoll) über sich selbst – was sie wann
+technisch getan hat, ohne Gewichte und Namen. Es bleibt auf dem Gerät und geht
+nur auf Tipp unter *Mehr → Daten* als Textdatei weiter.
 
 > **Daneben, im selben Repository:** [`schilddruese/`](schilddruese/README.md)
 > – eine zweite, eigenständige App für den Alltag mit
@@ -14,6 +21,15 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 > für den Arzttermin). Eigener Ordner, eigener Service Worker, eigene Tests
 > (`tests/test-sd-*.mjs`); sie teilt mit dieser App nur die Grundsätze und
 > die Testumgebung.
+>
+> **Umgezogen:** Die Freizeit-App (was in Hamburg los ist, Konzerte,
+> Merkliste) hat ein eigenes Repository,
+> [Finanzdienste/Freizeit](https://github.com/Finanzdienste/Freizeit), und
+> läuft unter <https://finanzdienste.github.io/Freizeit/>. Als Ordner hier
+> rechnete Android sie der installierten Workout-App zu und installierte sie
+> nicht als eigene App. `freizeit/index.html` leitet nur noch weiter; die
+> Ausnahme für `/freizeit` in `sw.js` sorgt dafür, dass der Workout-Worker
+> diese Weiterleitung nicht überdeckt.
 
 ## Tabs
 
@@ -34,7 +50,7 @@ wäre eine App ohne Navigation.
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
 | **Statistik** | Kennzahlen, **Vergleich mit Freunden**, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
-| **Mehr** | Einstiege zu **Kalender**, **Verletzt** und **eigenen Workouts**; Farbdesign, Teilen, Töne, Trainingsfokus, Standardmodus, „Modus je Workout merken“, Plan-Verschiebung, **Kalenderdatei für Google Kalender**, Export/Import als JSON, Backup-Datei, Alles löschen. |
+| **Mehr** | Einstiege zu **Kalender**, **Eigenes Workout**, **Übungen** und **Verletzt**; **Womit trainierst du** (Hanteln oder Bodyweight), Pause zwischen den Sätzen, Leiste unten, Erfahrung, Trainingsfokus, Farbe, Teilen, Ablauf (Supersätze, Aufwärmsätze), Übungsvorrat, Töne und Hinweise, Sport außerhalb des Plans, Plan neu starten, **Kalenderdatei für Google Kalender**, Daten (Sicherung, Export/Import als JSON, Alles löschen), Fassung. |
 
 Unter *Mehr* erreichbar:
 
@@ -43,6 +59,7 @@ Unter *Mehr* erreichbar:
 | **Kalender** | Monatsraster mit den tatsächlichen Terminen: was trainiert ist, was ansteht, was ausgefallen ist – je Tag mit Modus. Tippen zeigt die Übungen der Einheit. |
 | **Verletzt** | Verletzungen und Beschwerden anhaken. Betroffene Übungen fallen aus dem Plan oder werden getauscht – dauerhaft, bis der Haken weg ist. |
 | **Eigenes Workout** | Eine Einheit selbst zusammenstellen – neben dem Plan, nicht darin. |
+| **Übungen** | Alle Übungen nach Muskelgruppen – einzeln an- und abwählbar. |
 
 ## Drei Ebenen
 
@@ -68,19 +85,21 @@ heutige tag mit 4 Übungen optimal ist?"*, *„heute wieder nur fünf übungen �
 optimal?"*. Ob fünf viel oder wenig ist, weiß nur, wer die anderen 83 Einheiten
 daneben legen kann. Die kennt die App, der Nutzer nicht.
 
-Jetzt legt sie sie daneben. Jeder Fokus hat wenige Größen von Einheit – Aufbau
-und Oberkörper zwei, „Bauch, Beine, Po" drei, der Cut vier –, und die häufigste
-ist der Normalfall:
+Jetzt legt sie sie daneben. Jeder Fokus hat wenige Größen von Einheit – seit
+dem Neulauf vom 03.10. jeder genau zwei –, und die häufigste ist der Normalfall
+(gezählt am 05.10. in `tools/plan*.json`; die App zählt zur Laufzeit selbst, mit
+`groessenTabelle()`, und `python3 tools/pruefung/ruestaufwand.py
+tools/plan*.json` zeigt die Spanne in der Spalte „min–max"):
 
 | Fokus | Übungen je Einheit | häufigste Größe |
 |---|---|---|
 | Aufbau | 5 oder 6 | 6 (61 von 84) |
-| Oberkörper | 5 oder 6 | 6 (57 von 84) |
-| Bauch, Beine, Po | 5, 6 oder 7 | 6 (55 von 84) |
-| Cut | 4 bis 6 | 5 (48 von 84) |
+| Oberkörper | 5 oder 6 | 6 (55 von 84) |
+| Bauch, Beine, Po | 5 oder 6 | 6 (63 von 84) |
+| Cut | 4 oder 5 | 5 (68 von 84) |
 
-Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 33 Tage haben
-vier Übungen, drei haben sechs (Stand des Cut vom 26.09., siehe [Der Cut vom
+Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 16 Tage haben
+vier Übungen, keiner mehr sechs (zum Cut siehe [Der Cut vom
 25.09.](#der-cut-vom-2509-fünf-feste-grundübungen)).
 
 In der Kopfzeile stand dafür kurz ein Wort – „kurzer Tag", „normaler Tag". Raus
@@ -97,20 +116,26 @@ gelassen hat, hat andere Einheiten, und dann ist auch die Vergleichsgruppe eine
 andere.
 
 Über der Übungsliste – nicht in der Startansicht, die auf eine Bildschirmseite
-passen soll – steht der Satz dazu: *„Einheiten in diesem Fokus: 4 bis 5 Übungen,
-62 von 84 mit 5. Das Pensum je Muskelgruppe steht für die Woche fest; der Plan
+passen soll – steht der Satz dazu, im Cut etwa: *„Einheiten in diesem Fokus: 4
+bis 5 Übungen, 68 von 84 mit 5. Das Pensum je Muskelgruppe steht für die Woche fest; der Plan
 verteilt es auf die Einheiten."* Der zweite Halbsatz ist keine Trainingslehre,
 sondern die Bauweise des Generators: `tools/build-plan.py` legt das Volumen je
 Gruppe und Woche zuerst fest und verteilt es erst danach auf die Termine
 (`split()`, Kriterium `imbalance`). Ein kurzer Tag ist deshalb kein fehlender Tag.
+An einem Tag, in den ein Zusatztag Übungen eingefügt hat, steht der Satz nicht:
+Unter „6 Übungen" widerspräche „4 bis 5 Übungen" dem Kopf (siehe *Summen statt
+Aufschlüsselung* beim Zusatztag).
 
 Die Satzzahl steht weiterhin in der Kopfzeile. Sie war mit der Einordnung daneben
 kurz weggefallen, weil sie im Plan meist Rechnerei ist – `15 Sätze` ist dann nur
 `5 Übungen` mal drei. Ohne das Wort daneben wäre die Zeile aber schlicht um eine
-Angabe kürzer, und in der Bodyweight-Fassung (die je Übung abweicht: 17 von 84
-Cut-Einheiten, 66 von 84 bei „Bauch, Beine, Po") und bei Nacharbeit ist die Summe
-ohnehin eine eigene Auskunft. *(17 von 84 war der Stand vor dem Cut vom 25.09.;
-seither sind es 19.)*
+Angabe kürzer, und in der Bodyweight-Fassung (die je Übung abweicht) und bei
+Nacharbeit ist die Summe ohnehin eine eigene Auskunft. Ohne Hanteln hat im Cut
+in 35 von 84 Einheiten mindestens eine Übung eine andere Satzzahl als mit, in
+„Bauch, Beine, Po" in 40; die Summe der Einheit weicht in 12 bzw. 14 ab (Stand
+05.10., gezählt in `tools/plan*.json`; die Auftritte je Plan zählt
+`tools/pruefung/vorher-nachher.py`). *(Hier standen 17 und später 19 Cut- und
+66 Bauch-Beine-Po-Einheiten – Stände vor den Neuläufen vom 25.09. und 03.10.)*
 
 ### Körperkarte
 
@@ -154,10 +179,13 @@ jede Fläche zeichnet das Muster von selbst.
 
 Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 
-* **Zwei Startknöpfe, kein Umschalten mittendrin.** *Hanteln starten* oder
-  *Bodyweight starten* – die Variante wird beim Start gewählt und steht dann
-  fest. Der Umschalter oben verschwindet während des Trainings: Zwischen zwei
-  Sätzen ist er keine Wahl mehr, sondern eine Möglichkeit, sich zu verklicken.
+* **Ein Startknopf, die Variante unter *Mehr*.** Im Knopf steht, ob mit
+  Hanteln oder als Bodyweight trainiert wird; gewählt wird unter *Mehr →
+  Womit trainierst du*, auch mitten im Training. Die Wahl gilt für die
+  laufende Einheit und alle folgenden, bis sie wieder geändert wird – so sagt
+  es auch die Willkommensseite. Dort stand bis zuletzt noch „umgeschaltet wird
+  über dem Startknopf, für jede Einheit neu", aus der Zeit, als es zwei
+  Startknöpfe gab.
 * **Workout starten.** Der Knopf beginnt die Einheit und wechselt in die
   Fokus-Ansicht: eine Übung groß, mit vorgeführter Bewegung, Gewicht und
   Satz-Knöpfen. Sind alle Sätze abgehakt, rückt die App von selbst zur
@@ -175,6 +203,31 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   zwischendurch das Handy weglegt, bekommt sonst zwei Stunden angezeigt, in
   denen vierzig Minuten trainiert wurde. *Fortsetzen* zählt weiter statt neu
   anzufangen, über Nacht fängt sie von vorn an, *Abbrechen* setzt sie zurück.
+* **Eine Einheit läuft, die nächste wartet.** Wer mitten im Training zur
+  nächsten Einheit blättert, sieht dort nicht *Start*, sondern *Zurück zu
+  Workout 1* – fast immer will man nur vorausschauen. Darunter steht, leiser,
+  *Diese starten – Workout 1 wird beendet*. Vorher stand dort der gewöhnliche
+  Startknopf, und ein Tipp ersetzte die Uhr der laufenden Einheit: Die Zeit seit
+  dem letzten Wegschalten der App war weg, ohne ein Wort. Jetzt wird die
+  laufende beim Wechsel erst beendet und ihre Zeit gebucht; ihre Sätze bleiben,
+  sie ist danach angefangen wie jede unterbrochene Einheit. Dieselbe Weiche
+  steht in der Übungsliste der anderen Einheit (*Übungen & Gewichte*): Dort
+  stand noch der schlichte Knopf *Workout starten*, und ein Tipp beendete die
+  laufende ohne ein Wort davor. Ihr *‹ Zurück* führt zur Übersicht dieser
+  Einheit, nicht in die Fokusansicht der laufenden.
+* **Abbrechen verwirft alles, Zurücksetzen bei der laufenden Einheit auch.**
+  Seit das Umschalten mitten im Training geht, stehen Sätze womöglich in beiden
+  Varianten. *Abbrechen* löschte aber nur die gerade eingestellte: Zwei Sätze
+  mit Hanteln, dann Bodyweight, dann *Abbrechen* – die Rückfrage nannte die
+  zwei Sätze, gelöscht wurde der leere Bodyweight-Eimer, und der Toast meldete
+  „nichts gespeichert". Jetzt gehen beide Varianten samt Supersatz-Paarung, und
+  die Zahl in der Rückfrage ist genau das, was verschwindet. *Zurücksetzen* in
+  der Liste tut bei der laufenden Einheit dasselbe und sagt es; bei einer
+  anderen setzt es weiter nur die gezeigte Variante zurück.
+* **„Alle Sätze abhaken" beendet die laufende Einheit.** Wie der letzte Haken:
+  Uhr anhalten, Stand melden, Aufstieg und Zusatztag prüfen. Vorher hakte der
+  Knopf nur ab, die Einheit hieß weiter „läuft", und ein Wechsel unter *Mehr*
+  stellte die fertige Hantel-Einheit als laufende auf Bodyweight um – 17/18.
 * **Keine Wiederholungen eintragen.** Die stehen im Plan.
 * **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
   Änderbar durch Antippen der Zahl oder über **−** und **+**, die je Übung
@@ -237,6 +290,16 @@ aus, für Figuren, die gerade niemand sah. Alle Figuren teilen sich eine einzige
 `requestAnimationFrame`-Schleife, die pausiert, sobald der Tab in den
 Hintergrund geht oder das System reduzierte Bewegung verlangt.
 
+**Ein Bild beim Stütz kostet auch gedrosselt unter 4 ms.** Liegestütz, Füße erhöht und
+Pike suchen je Bild die Stellung, in der Hände und Füße stehen bleiben – und
+lösten dafür über 400-mal das Skelett, mit vierfach gedrosselter CPU 12–13 ms
+je Bild. Jetzt stehen Start und Griffweite je Muster fest, jede Auswertung löst
+einmal und nur Hände und Zehen, die Suche tastet von 0 nach außen statt das
+ganze Raster ab, und draw() zieht die Teile des Bildes davor nach, statt alles
+neu zu bauen. Das Ergebnis ist Punkt für Punkt dasselbe; `tests/test-figur.mjs`
+vergleicht mit Werten der alten Rechnung, `tests/test-rotate.mjs` misst die
+Zeit (gedrosselt, Median unter 4 ms).
+
 Für Screenreader ist die Figur `aria-hidden`: zwei Dutzend namenlose Formen,
 deren Inhalt als Text direkt daneben steht.
 
@@ -253,6 +316,107 @@ verdeckt ist, nicht, was weiter weg ist. Und eine **Trennlinie** in
 Hintergrundfarbe um jede Gliedmaße; ohne sie lag in der tiefen Hocke alles als
 ein einziger Klumpen übereinander. Der Rumpf bleibt ohne, seine Flächen gehören
 zusammen.
+
+#### Die Arme
+
+> „Die Arme sehen echt immer komisch aus"
+
+Dazu kam ein Bildschirmfoto: der Face Pull in der Übungsliste, fast von oben –
+zwei Arme mit Ringen an jedem Gelenk, dazwischen ein orangefarbener Keil,
+darunter ein Kreis, der sich als Kopf herausstellte. Vorher schon: „Die Hände
+sehen nicht so richtig händig aus", „Sieht schon sehr unordentlich aus".
+Nachgesehen wurde mit drei Prototypen und drei Gutachten; die Ursachen, nach
+Gewicht:
+
+- **Ein Steg von der Brust bis zur Hand** (`fig-gusset`, 4,2 → 2,4 breit). Er
+  sollte bei starker Hüftbeuge die Lücke zwischen Arm und Rumpf schließen
+  („Sieht iwie komisch aus" beim Rumänischen Kreuzheben), malte aber bei jedem
+  abgespreizten Arm eine Flughaut und bei Überkopf-Haltungen einen Keil – im
+  Foto genau der Keil zwischen den Armen. Er ist weg, ersatzlos: Bei
+  Kreuzheben und einbeinigem Kreuzheben (t = 1) bleibt höchstens ein schmaler
+  Spalt, keine dreieckige Lücke, denn die schmaleren Arme liegen jetzt am Rumpf
+  an statt an ihm vorbei.
+- **Scrollen kippte die Figur.** `touch-action: none` gab jeden Wisch über die
+  Figur ihr, und das Kippen war ausdrücklich ohne Grenze (0,6° je Pixel): Ein
+  150-px-Wisch beim Scrollen der Liste stellte sie auf −98° bzw. +82°, also in
+  die Draufsicht des Fotos, und zurück ging es nicht. Jetzt gehört senkrecht
+  der Liste (`touch-action: pan-y`), gedreht wird erst, wenn eine Geste nach
+  8 px klar waagerecht ist, gekippt nur von −35° bis 45° (liegende Figuren bis
+  −65°), 0,3° je Pixel. Ein Doppeltipp holt den Vorgabeblick zurück; von selbst
+  federt nichts zurück, wer eine Seite sucht, behält sie. Der Hinweis heißt
+  „↔ ziehen zum Drehen" und geht erst beim echten Drehen weg, nicht schon, wenn
+  ein Finger zum Scrollen auf der Figur landet.
+- **Jedes Glied hatte seinen eigenen Rand** – am Ellenbogen ein Ring oder ein U,
+  an der Schulter eine Naht: eine Gliederpuppe. Jetzt wie bei der Hand: Die
+  Armflächen haben keinen Strich, der Rand liegt eigens dahinter. Das hintere
+  Glied (meist der Oberarm) bekommt ihn ringsum, nur an der Schulter nach innen
+  gewölbt, denn dort geht der Arm in den Rumpf über; das vordere nur als offene
+  Kante, ohne das Stück im Ellenbogen. So zeigt ein gebeugter Arm die Kante des
+  Unterarms über dem Oberarm, aber keinen Ring. Ein Zwischenstand mit Rand
+  ringsum auch fürs vordere Glied franste aus, sobald der Arm flach auf dem
+  Rumpf lag (Bridge, Snow Angel): Rumpfflächen fast gleicher Tiefe schoben sich
+  stückweise zwischen Rand und Arm.
+- **Der Rand war fest 0,9 breit**, auch in kleinen Figuren. Jetzt wächst er mit
+  (`--rand` = 0,9 · min(1, gearScale / 0,85), der Arm- und Handrand doppelt so
+  breit): Face Pull in der Karte 0,72. Der Anteil dunkler Linie an der
+  Figurfläche fiel dort von 26 auf 23 %, die Spanne über alle Muster von
+  20–42 % auf 19–30 % (der Ausreißer war der Snow Angel).
+- **Die Arme waren zu dick für ihre Länge.** Gerade Kegel 3,4 → 2,5 → 1,8: Der
+  Oberarm war 1,6-mal so lang wie an der Schulter dick (echt gut dreimal), im
+  Mittel 1,83-mal – ein Würstchen, das bei jeder Verkürzung zur Scheibe wurde.
+  Jetzt hat jedes Glied einen Breitenverlauf (`RIG.armOben`, `RIG.armUnten`):
+  der Oberarm mit seiner Masse im oberen Drittel, zum Ellenbogen schmal, der
+  Unterarm mit dem Bauch kurz unter dem Ellenbogen und dünnem Handgelenk (1,4;
+  unter 1,35 verliert die Hand in der Karte ihren Ansatz). Länge zu mittlerer
+  Dicke jetzt 2,34 und 2,84 statt 1,83 und 2,33. Die Hand ist passend um 12 %
+  kleiner, außer beim Goblet-Griff, dessen Finger gegen die Hantel gesucht
+  sind.
+- **Die Schulter stand hoch wie ein Kleiderbügel**: Die Kappe des Oberarms
+  ragte über die Linie vom Hals. Ein randloses Stück Trapezmuskel vom Hals zur
+  Schulter lässt die Linie jetzt fallen, wie beim Menschen.
+- **Der Weg dazwischen.** Gemischt wurden die Gelenkwinkel der beiden
+  Endstellungen, und deren Mittel ist nicht die Mitte der Bewegung: Beim Face
+  Pull sackte der Ellenbogen mitten im Zug 0,10 unter die Schulter (genau der
+  Fehler, vor dem der Übungstext warnt), beim Pull-Apart fielen die Hände auf
+  Bauchhöhe. Jetzt schwenkt der Oberarm auf dem kürzesten Weg
+  (`armeRichtung()`); der Unterarm bleibt, wie die Winkel ihn zum Oberarm
+  stellen, und wird nur mitgedreht. Ein Zwischenstand mischte auch ihn als
+  Richtung – beim Trizeps über Kopf stand er dann mitten im Weg waagerecht zur
+  Seite (seitlich −0,48 statt −0,22), beim Curl ging er nach außen. Die
+  Endstellungen bleiben bitgenau. Beim Face Pull führt die Hand
+  (`armweg: 'hand'`), und der Vorgabeblick ist schräger ([25, −6] statt
+  [20, −8]): Fast von vorn war vom Zug in die Tiefe nur ein verkürzter Unterarm
+  zu sehen. Nicht [40, −6] (ein Zwischenstand): Dort lag der nahe Oberarm am
+  Start vor dem Gesicht, die Figur war kopflos.
+- **Hängende Arme verschwanden im Rumpf.** Ohne Steg und ohne Rand ringsum lag
+  die Innenseite eines hängenden Oberarms unter der Vorderfläche des Rumpfs
+  (der Kasten ist 0,19 breit, der Arm sitzt bei 0,215 und ist 0,065 dick).
+  Curl, Hammer-Curl, Wadenheben von vorn: ein breiter Block mit Händen. Jetzt
+  zieht `fig-arm-innen` die Trennlinie – die Innenkante des Oberarms über dem
+  Rumpf, ab gut einem Fünftel seiner Länge (die Schulter bleibt ohne Naht),
+  oder, wenn der Arm hinter dem Rumpf liegt (der ferne Arm, von hinten, der
+  Ellenbogen beim Rudern), die Kante des Rumpfs über dem Arm.
+- **Haarlinien und Flecken.** Die Rumpfflächen stießen Kante an Kante, und die
+  Kantenglättung ließ an jeder Fuge durch, was darunter lag (die Wirbelsäule
+  mit ihrem Rand); der Steg hatte das zugedeckt. Und wo zwei abgedunkelte
+  Flächen sich überlappten – das runde Ende des Unterarms auf dem Oberarm –,
+  dunkelte es doppelt: ein Fleck am Ellenbogen wie ein Rest des alten Rings.
+  Rumpf und Arme tragen ihre Abdunklung jetzt in der Füllung (`--tief`,
+  `color-mix`), der Rumpf mit einem Strich in seiner Farbe, ein Arm in einem
+  Ton. Die Wirbelsäule sortiert hinter den Rumpf, sobald er sich zur Kamera
+  neigt: Beim Rudern von vorn stand ihr unteres Ende sonst als Bogen auf
+  Brusthöhe.
+
+Nicht übernommen: eine eigene Kappe für den Deltamuskel (sie stand mit Bogen
+als Buckel auf der Schulter) und ein fünfter Rumpfring für den Trapez; ebenso
+Schatten, die bei fast gleicher Tiefe gestaffelt werden – ohne Staffel wirkte
+die Figur wie ein Scherenschnitt, die Beine verschmolzen. `tests/test-figur.mjs`
+hält das Verhältnis Länge zu Dicke (Oberarm mindestens 2,3, Unterarm 2,8) und
+den Unterarm in seiner Ebene, `tests/test-rotate.mjs` prüft, dass beim Face
+Pull mindestens der halbe Kopf frei bleibt, hängende Oberarme ihre Trennlinie
+haben, es keinen Steg mehr gibt, die Armflächen
+keinen Strich haben, der Rand mitwächst, die Kippgrenze hält, ein senkrechter
+Wisch weder dreht noch den Hinweis nimmt und nichts zurückfedert.
 
 **Frei drehbar in alle Richtungen:** waagerechtes Ziehen um die Hochachse,
 senkrechtes um die Querachse, beides unbegrenzt und über volle Umdrehungen
@@ -290,12 +454,44 @@ das fällt sofort als Fehler auf. Damit dabei die Füße stehen bleiben, ändern
 diese Muster ihre Neigung zwischen den Stellungen: der Körper dreht sich um die
 Fersen, statt sich als Ganzes zu verschieben.
 
+Die beiden Endstellungen allein reichten dafür nicht: Bei der Inverted Row
+steckten die Fersen auf halbem Weg 0,01 im Boden und schwebten oben 0,045
+darüber, beim Trizeps an der Stange hoben sie 0,04 ab und rutschten 0,28 nach
+hinten. `skelett()` rechnet deshalb für jedes Muster mit Stange und Boden je
+Einzelbild nach – wie beim Liegestütz: den ganzen Körper starr drehen und den
+Schulterwinkel nachstellen, bis der Fuß, der am Start unten war, so tief und so
+weit von der Stange steht wie dort. `tests/test-figur.mjs` misst Höhe und Weg
+der Fersen über die ganze Bewegung.
+
+Auch liegende Figuren ohne festen Punkt müssen liegen bleiben. Beim Reverse Snow
+Angel liefen die Arme über die Beugung nach vorn – in Bauchlage ist das der
+Boden –, die Hand wurde zum tiefsten Punkt, und die ganze Figur hob bis 0,10 ab.
+Jetzt geht der Bogen über die Abspreizung, mit leicht angehobenen Armen, von
+über dem Kopf an die Hüfte. Und wer mit aufgestellten Füßen auf dem Rücken
+liegt (Bodenpresse, Trizeps im Liegen, Crunch, Knieheben im Liegen), hat die
+Ferse auf dem Boden statt 0,07 darüber (`AUFGESTELLT`).
+
+**Der Kopf ist eine Kugel.** Er wurde mit seinem Mittelpunkt einsortiert, die
+Halskapsel mit ihrer Mitte; schaute die Kamera leicht von unten – so stehen
+zehn Muster im Standardblick –, lag der Hals davor, und sein runder Abschluss
+stand mitten im Gesicht, ein Ring hinter einem Stummel. Jetzt liegt der Kopf
+immer vor Hals und Schulterdeckel, der Hals vor dem Deckel; gegen Hände und
+Geräte zählt weiter der Mittelpunkt.
+
 **Der Ausschnitt passt sich der Bewegung an**, einmal je Muster aus beiden
 Endstellungen gerechnet. Eine feste Größe ließ liegende Übungen klein in einem
 halbleeren Kasten stehen; ein Maß je Einzelbild würde die Figur beim Abspielen
 atmen lassen. Gemessen wird ein Radius, kein Rechteck – sonst änderte schon das
 Drehen die Größe. Das Sichtfeld übernimmt zudem die Form des Kastens; bei festem
-Quadrat blieb links und rechts breiter Rand ungenutzt.
+Quadrat blieb links und rechts breiter Rand ungenutzt. Was fest im Raum steht
+und zur Übung gehört, zählt mit: Beim Face Pull ragte die Stange, an der das
+Band hängt, aus dem Bild. Die Bodenscheibe reicht in der Tiefe so weit wie die
+Figur – beim Trizeps an der Stange, den die Figur wie den Pike von der Seite
+zeigt (`view`; von schräg vorn verdeckte der Rumpf beide Beine), standen die
+Füße sonst neben ihr. Auch Finger und Gerät zählen mit ihrer Dicke, über die
+ganze Bewegung: Gezählt wurden nur Gelenke, und im hochkantigen Kasten – in der
+Fokus-Ansicht auf dem Handy der Normalfall – schnitt der Rand beim Reverse Snow
+Angel die Fingerspitzen ab und beim sitzenden Seitheben ein Stück Scheibe.
 
 Beim Wadenheben steigt der Körper, die **Zehen bleiben liegen**. Wird alles
 zusammen angehoben, wandert bloß die ganze Figur nach oben und die Bewegung ist
@@ -323,6 +519,7 @@ Bewegung als die mit Hanteln:
 | Goblet Squat (`squat`) | Kniebeuge mit vorgestreckten Armen (`squatbw`) |
 | Hip Thrust beidbeinig (`thrust`) | einbeinig (`thrust1`) |
 | Floor Press (`press`) | Liegestütze (`pushup`) |
+| Sitzendes Wadenheben (`calfseated`) | Wadenheben mit gebeugtem Knie, stehend (`calfbent`) |
 
 Umgekehrt gilt genauso: Wo die Fassung für unterwegs **dieselbe** Bewegung mit
 dem Band ist – Rudern, Reverse Fly, Trizepsdrücken, Schulterdrücken, Curls –,
@@ -334,10 +531,59 @@ Der Goblet Squat ist das feinste Beispiel: ohne Hantel greifen die Hände nichts
 und mit der geerbten Goblet-Haltung sah es aus, als hielte die Figur eine
 unsichtbare Hantel vor der Brust.
 
+**Goblet-Griff.** *„Findest du seine handpositionen sehen gesund aus?"* – nein:
+Die Unterarme kreuzten sich vor der Brust, und die Hände standen hochkant vor
+dem Kinn. Jetzt zeigen die Ellenbogen nach unten, die Unterarme stehen fast
+senkrecht, und beide Hände liegen als Schale unter der oberen Scheibe
+(`GOBLET_ARM`, `finger: 'schale'`). Die Winkel sind nachgerechnet, nicht
+geschätzt, und `tests/test-figur.mjs` prüft in jeder Stellung, dass jede Hand
+auf ihrer Seite bleibt.
+
+Die Schale war damit aber nur behauptet. Nachgerechnet saßen die Hände 0,061
+neben der Achse einer Scheibe mit Radius 0,10, also in ihr; die Finger zeigten
+nach innen oben, steckten in beiden oberen Scheiben und kreuzten sich jenseits
+der Mitte; die Handflächen zeigten nach unten, das Handgelenk war gebeugt; die
+untere Scheibe lief durch die Unterarme, und unten in der Hocke steckte die
+obere Scheibe im Kinn. Von vorn sah man von den Händen nur Schlitze. Jetzt
+steht der Griff als Maße da (`GOBLET_SCHALE`): Die Hantel steht vor dem
+Brustbein und liegt an, die Handflächen zeigen nach oben und etwas zueinander,
+das Handgelenk ist gestreckt (55–68°), die Finger laufen außen um die Scheibe,
+die Daumen hinten um den Griff, und die Unterarme gehen steil und leicht im V
+außen an der unteren Scheibe vorbei. Arme und Maße sind zusammen gesucht, gegen
+dieselben Ziele, die `tests/test-figur.mjs` über die ganze Bewegung an den
+gezeichneten Punkten prüft (`handForm()`, `hanteln()`): keine Hand, kein Finger
+in Scheibe oder Griff, Hände an der Scheibe, Handflächen oben, keine
+Fingerspitze über der Mitte, kein Arm in der Hantel, die obere Scheibe einen
+Kopfradius vom Kopf weg. Dafür ist die Goblet-Hantel etwas schlanker geworden
+(Scheibe 0,075 statt 0,10): Mit der dicken fand die Suche keine steilen
+Unterarme, die an ihr vorbeigehen.
+
+**Eine längs gehaltene Kurzhantel liegt quer in der Faust.** Beim neutralen
+Griff (`hantelLaengs`: Hammercurl, Reverse Fly, einbeiniges Kreuzheben,
+Seitheben, Wadenheben) stand die Hantel fest in Blickrichtung des Rumpfs. Beim
+Hammercurl lag sie mitten in der Wiederholung in Verlängerung des Unterarms,
+beim Reverse Fly und beim Kreuzheben hing sie am Arm entlang. Jetzt liegt sie
+je Hand quer zum Unterarm, in der Ebene von vorn nach hinten (`laengsAchse()`),
+beim Reverse Fly zum Kopf hin; quer gehaltene Hanteln ebenso quer zum Unterarm.
+Geprüft wird jede gehaltene Hantel, Stange und Flasche des Katalogs: mindestens
+60° zum Unterarm, in jeder Stellung.
+
+Die Hanteln selbst sind **Scheibenhanteln**: je Ende eine große und eine
+kleinere Scheibe als flacher Zylinder mit dunklerer Kante, dahinter ein gerade
+abgeschnittener Stummel (`scheibe()` in `js/figure.js`). Vorher saß an jedem
+Ende ein flacher Kreis – und ein Kreis ist aus jedem Blickwinkel rund:
+
+> *„Hab übrigens so hantelscheiben, nicht diese kugeln"*
+
+Von der Seite ist eine Scheibe ein schmaler Streifen, nur von vorn ein Kreis.
+Beim Goblet Squat liegen die Hände unter der oberen Scheibe, die Hantel hängt
+darunter; mit der Mitte zwischen den Fäusten verschwand sie halb in ihnen.
+
 Auch innerhalb einer Variante zählt der Unterschied: einbeinige Übungen haben
 eigene Muster (`legcurl1`, `calf1`), das Wadenheben mit gebeugtem Knie ebenso
-(`calfbent`), und bei den Füße-erhöhten Liegestützen (`pushupfeet`) steht ein
-Kasten unter den Füßen – sonst wäre nicht zu sehen, dass sie erhöht sind.
+(`calfbent`, mit Hantel im Sitzen `calfseated`), und bei den Füße-erhöhten
+Liegestützen (`pushupfeet`) steht ein Kasten unter den Füßen – sonst wäre nicht
+zu sehen, dass sie erhöht sind.
 
 Wo eine Übung im Sitzen ausgeführt wird, setzt `seat: true` eine Bank unter die
 Figur – Sitzfläche mit Vorderkante und vier Beinen, damit sie beim Drehen von
@@ -349,7 +595,8 @@ Beine ohne Bank sähen aus, als säße die Figur in der Luft.
 `goblet` eine senkrecht vor der Brust, `barbell` eine Stange über beide Hände,
 `hipbar` eine quer über dem Becken, `plate` eine Scheibe vor der Brust,
 `backpack` ein Rucksack auf dem Rücken, `band` ein Band zwischen den Händen,
-`null` kein Gerät.
+`null` kein Gerät. Dazu kommt `bottles`, je eine Flasche pro Hand – das steht
+nur im Gerätetext und wird daraus abgeleitet (siehe unten).
 
 **Der Rucksack ist seit v206 einer.** Vorher stand er als aufrechtes Rechteck
 im Bild, egal wie der Körper lag – bei der Inverted Row quer zum Rumpf und auf
@@ -363,6 +610,32 @@ Jetzt ist er eine Fläche im Raum, die dem Rumpf folgt, mit Vordertasche und
 zwei Trägern über die Schultern; bei der Inverted Row liegt er auf der Brust
 (`packAt: 'chest'`), bei Liegestützen und Klimmzügen auf dem Rücken, bei
 Rucksack-Curls und -Rudern in den Händen (`packAt: 'hand'`).
+
+Eine Fläche war aber noch kein Rucksack. Liegend schaut der Standardblick fast
+parallel auf die Rumpfebene, und vom Rucksack blieb ein weißer Strich; in den
+Händen stand eine Karte ohne Verbindung mitten vor dem Becken, 0,24 von jeder
+Hand entfernt. Jetzt ist er ein Kasten mit Tiefe – nur die Flächen, die zur
+Kamera zeigen, jede nach ihrer Tiefe einsortiert, die Außenseite hell mit
+Vordertasche. Gehalten hängt er lotrecht unter den Händen, gut zwei Drittel so
+breit wie der Griff, mit je einer Schlaufe zur Hand. Und er ist auch in der
+Bodyweight-Fassung da: Rucksack-Curls und Rucksack-Rudern heißen dort genauso
+und sagen „beide Hände in die Trageschlaufen", abgeleitet wurde aber nur das
+Band. Die Ableitung steht jetzt einmal, als `bwGeraet()` in `js/figure.js`, und
+`resolve()` wie `figuren.html` benutzen sie.
+
+Dasselbe galt für die **Flaschen** beim Seitheben, stehend und sitzend („je eine
+gefüllte Flasche in die Hand"): In beiden Fassungen hob die Figur leere Fäuste,
+im Hantel-Modus schon deshalb, weil die Übung dort gar kein Gerät nennt. `bottles` gibt
+jetzt jeder Faust eine Flasche – Körper, Hals und Deckel als Zylinder, gehalten
+wie eine Kurzhantel im neutralen Griff, der Hals beim Daumen. Wo die Übung im
+Hantel-Modus kein Gerät nennt, gilt der Gerätetext wie im Bodyweight-Modus
+(`figurGeraet()`).
+
+**Die Hip-Thrust-Stange liegt auf der Hüftbeuge**, 0,11 vor der Hüftmitte, wie
+die Scheibe beim Beckenheben. In der Mitte des Beckenrings war sie aus keinem
+Blick zwischen den Scheiben zu sehen. Ihr Griff ist dazu in Stücke geteilt, jedes
+mit eigener Tiefe – als ein Strich deckte jede nähere Fläche von Rumpf und
+Oberschenkel auch das Stück, das frei vor dem Körper liegt.
 
 **Und die Hände greifen.** Sie waren Ballen, und ein Ballen greift nicht:
 
@@ -379,6 +652,58 @@ Pull-ups unterscheiden sich damit im Bild, vorher taten sie es nicht.
 Griff liegt – beim Seitheben lag sie vorher entlang des Arms, was keine Hantel
 je tut. `tests/test-figur.mjs` prüft, dass kein greifendes Muster ohne `daumen`
 ist.
+
+**Seit v214 ist die Hand eine Hand.** Die drei Striche vor dem Ballen hielten
+nur, solange man von vorn schaute. Bei den Liegestützen blickt man fast
+waagerecht auf den Boden, die Finger zeigen dort zum Kopf, also halb auf den
+Betrachter zu – die Striche lagen hintereinander, jeder mit seinem dunklen
+Rand, und am Ende des Arms stand ein Kringel:
+
+> „Die Hände sehen nicht so richtig händig aus"
+
+Jetzt hat jede Hand eine Handfläche (als Fläche, damit man von oben ihre
+Breite sieht, und als Glied, damit sie von der Seite eine Dicke hat), vier
+Finger und einen Daumen, alles im Raum wie Arm und Bein und mit ihnen gedreht.
+Sie ist eine Form mit *einem* Umriss, nicht fünf Glieder mit fünf Rändern – von
+der Seite gesehen liegen die Finger dann einfach hintereinander wie bei einer
+echten Hand. Zwei Haltungen: **aufliegend** – flach, Finger leicht gespreizt,
+am Boden (`finger: 'boden'`), unter der Goblet-Hantel und bei freien Händen –
+und **greifend**: eine Faust um Stange, Hantel oder Band. Bei der Faust werden
+die eingerollten Finger noch einmal einzeln gezeichnet, in ihrer eigenen Tiefe.
+Schaut man in die Handfläche, liegen sie vorn, quer über dem Griff; schaut man
+auf den Handrücken, verdeckt ihn die Hand. So bleibt der Griff sichtbar: Von
+vorn zeigt der Klimmzug im Obergriff die Finger, der Chin-up den Handrücken.
+Die Hand ist gut doppelt so groß wie echt, wie die Glieder der Figur auch –
+in echter Größe wäre sie am Handy ein Punkt.
+
+**Und seit v219 klappt keine Hand mehr um.** Liegt die gewünschte
+Daumenrichtung fast längs des Unterarms – die Arme vorn bei der Kniebeuge ohne
+Gewicht, der waagerechte Unterarm beim Hammercurl, die seitlich gestreckten
+Arme am Ende des Pull-Aparts, die hängenden beim Reverse Fly –, bleibt von ihr
+quer zum Arm nur ein kurzer Rest, und wohin der zeigt, entscheiden ein paar
+Grad Armstellung. Bis v218 griff dann unter 0,2 hart eine Ersatzachse, und
+zwar für beide Hände dieselbe (`sideAxis`): links zeigte sie nach innen, rechts
+nach außen. Die rechte Hand klappte dadurch mitten in der Wiederholung von
+einem Bild zum nächsten um 180° um, mit ihr die Handfläche und bei der Faust
+die sichtbaren Finger – also genau das, woran man laut dem Wunsch oben den
+Griff erkennen soll. Bei reduzierter Bewegung steht die Figur fest bei
+t = 0,55, und das lag bei der Kniebeuge ohne Gewicht mitten in diesem Bereich:
+Dort hatte sie dauerhaft zwei verschiedene Hände. Jetzt kommt die
+Ersatzrichtung weich dazu, umso stärker, je kürzer der Rest – keine Schwelle,
+an der etwas springt. Sie ist gespiegelt wie die Hand (`innen` ist links und
+rechts eine andere Achse) und kehrt sich mit dem Arm um, je nachdem, ob er in
+Wunschrichtung zeigt oder ihr entgegen. Damit zeigt sie dorthin, wohin der
+Rest bei leicht abgespreiztem, leicht vorgestrecktem Arm ohnehin zeigt.
+Umklappen könnte die Hand nur noch bei Armhaltungen, die keine Übung hat: der
+Unterarm nach vorn oder hinten und dabei zur Körpermitte hin, oder quer zum
+Körper, nach außen oder nach innen, und dabei etwas hinter der Schulterlinie.
+Nachgemessen über alle Muster × Geräte in Schritten von Δt = 0,005: Der größte
+Sprung der Daumenrichtung von einem Bild zum nächsten (1 − cos) fiel von 2,0 –
+volle 180° – auf 0,001. `tests/test-rotate.mjs` prüft es am gezeichneten Pfad:
+Von vorn gesehen ist bei Kniebeuge ohne Gewicht, Hammercurl, Pull-Apart und
+Reverse Fly die eine Hand das Spiegelbild der anderen (vorher 1,5 bis 2,7
+Einheiten daneben, jetzt 0), und keine Hand ändert von einem Bild zum nächsten
+sprunghaft ihre Form (vorher 1,6 bis 2,9, jetzt 0,15 bis 0,31).
 
 **Aus `backplate` wurde `backpack`**, und das war kein Schönheitsfehler: Die
 Figur trug eine Scheibe auf dem Rücken, die Gewichtsangabe hieß
@@ -453,16 +778,23 @@ App, wo `stepOf()` die einzige Stelle ist, die ihn kennt – die Knöpfe und ihr
 | Schritt | Übungen | warum |
 | --- | --- | --- |
 | 5 kg | Rumänisches Kreuzheben, Hip Thrust, Floor Press, Langhantelrudern | Langhantel: eine 2,5-kg-Scheibe je Seite |
-| 2,5 kg | Goblet Squats, SZ-Curls, Kurzhantel-Bodenpresse | schwer, oder je Hand mit gröberen Scheiben |
+| 2,5 kg | Goblet Squats, SZ-Curls, Kurzhantel-Bodenpresse, Inverted Row (Rucksack) | schwer, oder je Hand mit gröberen Scheiben |
 | 2 kg | Wadenheben, einbeiniges Kreuzheben, Schulterdrücken, Split Squat, Beckenheben | eine 1-kg-Scheibe je Seite |
 | 1,25 kg | Crunches | Scheibe auf der Brust |
-| 1 kg | gewichtete Liegestütze, Reverse Fly, Seitheben, Trizepsstrecker, Hammercurls, Rucksack-Übungen | kleine Muskeln, kleine Hanteln, ein Liter im Rucksack |
+| 1 kg | gewichtete Liegestütze, Reverse Fly, Seitheben, Trizepsstrecker, Hammercurls, die übrigen Rucksack-Übungen | kleine Muskeln, kleine Hanteln, ein Liter im Rucksack |
 
-Maßstab: kein Schritt über einem Viertel des Arbeitsgewichts. Der größte liegt
-bei 25 % (Crunches, 1,25 von 5 kg), danach 20 % (Reverse Fly, 1 von 5 kg), die
-meisten deutlich darunter. Bei den vier Langhantelübungen sind es 12,5 bis
-14 % – wer 1,25-kg-Scheiben hat, setzt `dbStep` dort auf 2,5. (Stand v201; die
-Zahlen stehen je Übung in `tools/exercise-meta.json`.)
+Maßstab: kein Schritt über einem Viertel des Startgewichts. Der größte liegt
+bei 25 % (Crunches, 1,25 von 5 kg), danach 20 % (Reverse Fly und Rucksack-Curls
+1 von 5 kg, Schulterdrücken und Split Squat 2 von 10, Kurzhantel-Bodenpresse 2,5
+von 12,5), die übrigen bei 12,5 bis 17 %. Bei den vier Langhantelübungen sind
+es 12,5 bis 14 % – wer 1,25-kg-Scheiben hat, setzt `dbStep` dort auf 2,5. Die
+Zahlen stehen je Übung in `tools/exercise-meta.json`.
+
+Das Startgewicht liegt auf dem eigenen Schritt – `tests/test-katalog.mjs` prüft
+das. Die Kurzhantel-Bodenpresse stand auf 12 kg bei 2,5er-Schritten: Der Knopf
+lief 12 → 14,5 → 17, und der Anfänger bekam 5 statt 6 kg. Jetzt startet sie bei
+12,5. Wer schon ein eigenes Gewicht eingetragen hat, behält es; das
+Startgewicht gilt nur, solange keins gespeichert ist.
 
 Gespeichert wird auf **Viertelkilo** gerundet, nicht auf halbe: sonst würde aus
 einem Schritt auf 21,25 kg still 21,5. Aus demselben Grund zeigt die App zwei
@@ -504,10 +836,30 @@ Satz zu sechs Wiederholungen kostet mehr Erholung als einer zu fünfzehn.
 
 | Art | Pause | Beispiel |
 | --- | --- | --- |
-| Stufe 1, unter 8 Wdh. | 3:00 | Chin-ups (5–10), Floor Press (6–12), Schulterdrücken (6–12) |
-| Stufe 1, ab 8 Wdh. | 2:30 | Goblet Squat, Rudern, Hip Thrust, Kreuzheben |
+| Stufe 1, unter 8 Wdh. | 3:00 | Chin-ups (5–10), Pull-ups (4–10), Floor Press (6–12) |
+| Stufe 1, ab 8 Wdh. | 2:30 | Goblet Squat, Rudern, Hip Thrust, Kreuzheben, Band-Schulterdrücken |
 | Stufe 2 und 3 | 2:00 | Leg Curls, Seitheben, Curls, Reverse Fly, Pull-Apart |
 | Stufe 4 (Bauch, Waden) | 1:30 | Crunches, Wadenheben |
+
+Drei Ausnahmen, jede mit Grund – `tests/test-katalog.mjs` prüft alle übrigen
+gegen die Regel:
+
+| Übung | Pause | statt | Warum |
+| --- | --- | --- | --- |
+| Sitzendes Schulterdrücken (Hanteln, 6–12) | 2:30 | 3:00 | Auf Nachfrage: *„Und sicher 3 min Pause?"* – nein, siehe *Drei Minuten waren zu viel*. Leichte Kurzhanteln, keine Last nahe am Limit. |
+| Pike-Liegestütze (Stufe 2, 6–15) | 2:30 | 2:00 | Die Regel kennt die untere Grenze nur bei Stufe 1. Mit 6 Wiederholungen unten ist das schwerste Drücken ohne Gerät so fordernd wie eine Grundübung, und leichter stellen lässt sich das Körpergewicht nicht. |
+| Reverse Snow Angel (Stufe 3, 10–20) | 1:30 | 2:00 | Ohne jede Last – die Arme sind das ganze Gewicht. Erholt sich wie Bauch und Waden. |
+
+Das Band-Schulterdrücken stand auf 3:00 und damit als einzige Übung länger als
+seine Hantelfassung, ohne dass irgendwo ein Grund dafür stand. Ein Loop-Band über 8–15 Wiederholungen ist die leichteste Fassung; es
+folgt jetzt der Regel (2:30). Ebenso das Rucksack-Rudern (Stufe 1, 10–20), das
+ohne erkennbaren Grund bei 2:00 stand, während das Band-Rudern mit demselben
+Bereich 2:30 hatte.
+
+Die Spanne, die unter *Mehr* bei „Je Übung" steht, rechnet die App aus dem
+laufenden Plan aus, mit der Übung, die die kürzeste und die längste Pause am
+häufigsten hat. Fest hingeschrieben stand dort noch „0:45 – 2:30 min, 0:45 bei
+Crunches", drei Wochen nach der Anhebung unten.
 
 **Vorher war die Isolation zu kurz.** Reverse Fly und Seitheben standen bei
 1:00, Crunches bei 0:45 – das kam aus älteren ACSM/NSCA-Richtwerten, in denen
@@ -521,17 +873,229 @@ es inzwischen 47. Das ist der Tausch, und er ist bewusst so herum gemacht.
 Über *Mehr* lässt sich stattdessen eine feste Länge wählen oder die Pause ganz
 abschalten.
 
+### Je Bein: zwei Haken, zwei Pausen (v255)
+
+> *„Vllt sollten bei Übungen bei denen man mit beiden Körperteilen unabhängig
+> voneinander macht jedesmal abhaken oder? Also hier zb 6?"* – und auf die
+> Rückfrage, ob die Pause dann erst nach beiden Seiten kommen soll: *„jede
+> Seite brauch ihre eigenen Pausen"*
+
+Bis v254 hatte jeder Satz einen Knopf, auch bei „8–12 je Bein". Der Haken kam
+nach beiden Seiten und mit ihm die Pause; zwischen den Seiten lief keine Uhr.
+Jetzt hat ein einseitiger Satz zwei Haken, **L** und **R**, als ein geteilter
+Knopf:
+
+| Tipp auf | was passiert |
+| --- | --- |
+| die erste Seite | Haken auf dieser Hälfte, die **Seitenpause** läuft; gezählt wird noch nichts |
+| die zweite Seite | der Satz steht – volle Pause, im Supersatz der Partner, nach dem letzten Satz die nächste Übung |
+| eine Seite eines fertigen Satzes | der Satz ist wieder offen, die andere Seite bleibt |
+| die einzige Seite | der Satz ist wieder leer |
+
+Welche Seite zuerst kommt, ist egal. Einseitig ist eine Übung, wenn bei den
+Wiederholungen „je Bein" steht (`einseitig()` in `js/uebung.js`) – das steht
+bei jeder einseitigen Fassung, und `tests/test-katalog.mjs` hält es fest. Eine
+zweite Liste wäre die nächste Stelle zum Auseinanderlaufen. Gefragt wird die
+Fassung, die trainiert wird: Das Rumänische Kreuzheben ist mit Hanteln
+beidbeinig und ohne einbeinig.
+
+**Die Seitenpause ist die halbe Satzpause**, auf 15 s gerundet, mindestens 30
+(`seitenPause()`): 45 s beim Wadenheben, 60 beim einbeinigen Leg Curl, 75 beim
+Split Squat. Nicht die ganze, weil das Bein, das gerade dran war, weiter ruht,
+während das andere arbeitet – und danach kommt noch die volle Pause. Bis zu
+seinem nächsten Satz hat jedes Bein so anderthalb Satzpausen und die Arbeit der
+anderen Seite, mehr als die Pause, für die der Plan gerechnet ist. Die
+Seitenpause ist für den Atem, nicht für den Muskel. Wem sie nicht reicht:
+„+30 s". Die Leiste sagt die Seite zuerst („Satz 1 von 3, rechts · …"), weil
+sie hinten abkürzt.
+
+**Ein Satz bleibt ein Satz.** Gezählt wird er erst mit der zweiten Seite – im
+Kopf („0/18 Sätze"), in der Statistik, in der Nacharbeit, im Kalender. Im
+Protokoll steht die erste Seite als `seite: 'l'` oder `'r'` am Satz; mit der
+zweiten wird er `done`, und `seite` geht weg (`updateSet()` in `js/store.js`).
+Angefangen ist die Einheit aber schon mit der ersten Seite: Sie steht damit auf
+heute, und Plan, Zusatztag und Nacharbeit stehen fest wie mit dem ersten Haken.
+An allen sieben Stellen, die nachsehen, ob an einem Satz schon etwas steht,
+zählt `seite` deshalb mit. Oben in der Leiste ist ein halber Satz ein halbes
+Feld.
+
+**Im Supersatz** bleibt die Seitenpause beim Satz: erste Seite, Seitenpause,
+zweite Seite – dann erst der Partner. Dessen Wartezeit rechnet wie immer ab dem
+fertigen Satz. Einseitige Übungen stehen oft in einem Paar: im Normalplan in
+93 von 168 Einheiten, mit und ohne Hanteln zusammengezählt.
+
+**Die Dauer rechnet beides mit.** Die Formeln für den Kalendertermin
+(`duration()` in `js/ics.js`) und für die Schätzung an den Fokus-Karten samt
+ihrer Eichung (`dauerLautFormel()`, `fokusZeile()`) zählten einen einseitigen
+Satz wie einen beidseitigen – die zweite Seite kam darin gar nicht vor. Jetzt
+kommen je Satz die zweite Seite und die Seitenpause dazu. Sechs Übungen à drei
+Sätze und 90 s: 40 min beidseitig, 65 min einseitig. Termine mit einseitigen
+Übungen werden dadurch meist fünf Minuten länger, und der Kalender gleicht sie
+einmal an. Wer schon gemessen hat (Eichung ab fünf Einheiten), bei dem sinkt
+der Faktor zunächst etwas – die gemessenen Einheiten liefen ohne Seitenpausen –
+und kommt mit den nächsten Einheiten wieder auf Stand. `js/ics.js` steht dafür
+im Bündel jetzt hinter `js/uebung.js`.
+
+Geprüft in `tests/test-seiten.mjs`: welche Fassungen einseitig sind und wie
+lang die Seitenpause ist; zwei Haken je Satz nur dort; die erste Seite mit
+Seitenpause, ohne gezählten Satz, aber angefangen, auch nach dem Neuladen; die
+zweite mit voller Pause; Zurücknehmen je Seite, rechts zuerst; der letzte Satz;
+„Alle Sätze abhaken" ohne halben Rest; die Dauer; der Supersatz.
+
 ### Töne
 
 `js/audio.js` erzeugt alle Töne per Web Audio, keiner wird geladen – das hält
 die App offline-tauglich und spart eine Datei, die veralten könnte. Ein Ton ist
-eine Folge von Sinus-Tönen; sieben gibt es: Training gestartet, Satz abgehakt,
-Übung fertig, Pause vorbei, Workout komplett, Training beendet, Gewicht erhöht.
+eine Folge kurzer Stimmen – Sinus, Dreieck und Rechteck, mit Tiefpass, leichter
+Verstimmung und einem Rauschanschlag davor; sieben gibt es: Training gestartet,
+Satz abgehakt, Übung fertig, Fertig machen, Pause vorbei, Workout komplett,
+Training beendet.
 Der Tupfer beim Abhaken hat einen eigenen Schalter, weil er zwanzigmal pro
 Training kommt; die übrigen ein- bis zweimal.
 
-Weil mobile Browser Ton nur nach einer Berührung zulassen, entsteht der
-AudioContext beim Start des Trainings oder beim ersten Abhaken.
+**Laut genug – auch aus dem Handylautsprecher (v256).** *„Teilweise sind die
+sounds n bisschen leise"*. Gemessen offline, jeder Ton im lautesten
+150-ms-Fenster, einmal flach und einmal durch ein Modell eines
+Handylautsprechers (Hochpass vierter Ordnung bei 600 Hz, Tiefpass bei 8 kHz –
+darunter gibt so ein Lautsprecher kaum etwas her, und dort lagen die meisten
+Töne):
+
+| Ton | bis v255, gegen den Gong | seit v256 |
+| --- | ---: | ---: |
+| Satz abgehakt | −24 dB | −10 dB |
+| Training beendet | −20 dB | −8 dB |
+| Fertig machen | −20 dB | −7 dB |
+| Training gestartet | −14 dB | −6 dB |
+| Übung fertig | −9 dB | −5 dB |
+| Workout komplett | −6 dB | −3 dB |
+| Pause vorbei (der Gong) | 0 | 0, selbst 1,3 dB lauter |
+
+Mehr kam auf zwei Wegen. Erstens lauter, so weit die Spitze es zulässt – jeder
+Ton für sich bleibt unter 0,9. Zweitens, wo das nicht reichte, Energie dorthin,
+wo das Handy sie wiedergibt: Start und Ende tragen ihre tiefen Töne jetzt mit
+einem Sinus eine Oktave höher, der Tupfer gleitet mit einer Oktave darüber und
+ist zwei Hundertstel länger, „Fertig machen" ist ein offeneres Rechteck. Im
+Kopfhörer klingen die Töne wie vorher, nur lauter. Der Gong bleibt der lauteste:
+Er muss quer durch den Raum kommen, der Tupfer nur bis zur Hand, die ihn
+ausgelöst hat.
+
+Zwei Töne auf einmal – ein Haken während des Gongs, zwei Seiten eines Satzes
+schnell hintereinander – addieren sich, und bei diesen Pegeln ginge das über 1
+(gemessen: 1,30 für Gong und zwei Tupfer). Deshalb laufen alle Stimmen über
+einen gemeinsamen Ausgang mit weicher Grenze (`ausgang()` in `js/audio.js`):
+bis 0,85 eine Gerade, darüber sanft gegen 0,98. Ein einzelner Ton erreicht das
+Knie nicht und läuft unverändert hindurch.
+
+`tests/test-sound.mjs` („Laut genug") rendert alle sieben offline und misst
+genauso: keiner mehr als 11 dB unter dem Gong, der Gong der lauteste, jede
+Spitze unter 0,9; die Tupfer- und „Fertig machen"-Fassung von v255 läuft als
+Gegenprobe mit und fällt durch. Gong und zwei Tupfer zusammen bleiben unter 1,
+ohne die Grenze (der WaveShaper durch einen Durchgang ersetzt) nicht, und
+einzeln ändert die Grenze an einem Ton nichts.
+
+**Freischalten: mit der ersten Berührung – ohne eine nur, wo der Browser keine
+verlangt (v241).**
+
+> „Irgendwie gibt's überhaupt keine soundeffekte mehr in der app"
+>
+> „Jetzt fehlt iwie die Pause" – „Und es gibt iwie überhaupt keine sounds"
+> (mitten im Training, v236 gerade live)
+
+Mobile Browser lassen Ton nur zu, wenn der AudioContext auf eine Berührung
+zurückgeht. Chrome auf Android (im Tab und als bloße „Zum Startbildschirm"-
+Verknüpfung, die im Browser öffnet) merkt sich *eine* Aktivierung für die
+Lebensdauer des Dokuments: pointerup, touchend, mousedown oder keydown – nicht
+touchstart, nicht pointerdown, nicht ein senkrechter Wisch. Danach startet ein
+neuer Kontext `running`, und `resume()` klappt auch Minuten später aus einem
+Zeitgeber. Ein Neuladen (Aktualisierung, Neustart vom Startbildschirm) ist ein
+neues Dokument und wieder gesperrt. Die installierte App im eigenen Fenster
+(WebAPK) hat laut Chromes Autoplay-Regeln gar keine Sperre – siehe unten, wie
+die App damit umgeht. iOS gibt einen Kontext frei, wenn `resume()` oder ein
+`start()` innerhalb von fünf Sekunden nach der Berührung kommt – dann dauerhaft.
+
+Bis v240 entstand der Kontext erst in den Klick-Handlern von „Training starten"
+und dem Satzknopf, und an zwei Stellen auch *ohne* Berührung: in `armRest()`,
+wenn man während einer Pause weg- und zurückschaltete, und in `endRest()`, wenn
+eine Pause ablief, ohne dass seit dem Laden jemand getippt hatte. So ein Kontext
+ist `suspended`, sein `resume()` antwortet nie, und alles, was auf seine
+stehende Uhr gelegt wurde, klingelte beim nächsten Tipp auf einmal nach – ein
+„Pause vorbei" zum nächsten Satz. Genau das war Tobis Lage am 06.10.: Seite
+mitten in der Pause neu geladen, keine Leiste mit Signal, kein Ton bis zum
+nächsten Tipp. Seit v241:
+
+* **Ein Lauscher auf dem Dokument** (`beruehrung()` in `js/audio.js`, capture,
+  pointerup/touchend/mousedown/keydown) legt den Kontext in der *ersten*
+  aktivierenden Berührung an und weckt ihn – noch im selben Ereignis, bevor ein
+  Klick-Handler läuft, und auch dann, wenn die Berührung selbst keinen Ton
+  auslöst (die Figur drehen, ein Reiter). Wo es `navigator.userActivation`
+  gibt, zählt dessen `hasBeenActive`; ein touchend nach dem Scrollen schaltet
+  nichts frei. Jede weitere Berührung weckt einen Kontext, der nicht läuft.
+* **Ohne Berührung kein schlafender Kontext.** `scheduleSound()` und
+  `playSound()` merken sich stattdessen den Wunsch: die Pause wird nach dem
+  Freischalten mit frisch gerechneter Restzeit neu aufgelegt (`armRest()` als
+  Rückruf – auch beim Start der Seite, wenn eine Pause den Neustart überdauert
+  hat; diese Zeile fehlte bis v240); ein Ton, der sofort hätte kommen sollen,
+  kommt mit der ersten Berührung einmal nach. Nur eine Pause, die gerade eben
+  zu Ende ging, bekommt den Gong nach – und nur, solange die erste Berührung
+  innerhalb einer Minute nach ihrem Ende kommt (`bis` je Wunsch); danach
+  verfällt er und bleibt als *verpasst* gezählt. Die Frist allein reicht aber
+  nicht: Ein Satz dauert 20 bis 60 s, und die erste Berührung nach dem
+  Pausenende ist meist der nächste Haken. Gemessen 30 s nach dem Ende kam
+  „Pause vorbei" dann zusammen mit dessen Tupfer – genau in dem Moment, in dem
+  die neue Pause begann –, weil der Lauscher ihn spielte, bevor der
+  Klick-Handler lief. Deshalb entscheidet `nachholen()` erst nach dem Klick
+  derselben Berührung (ohne Klick eine halbe Sekunde nach dem Loslassen): Hat
+  sie selbst einen Ton angestoßen – Haken, neue Pause, Training beenden, „Töne
+  anhören" –, ist der alte überholt und verfällt.
+
+  Aus dem Gegenlesen von v241, seit v242: **Überholt ist er auch von einem
+  stummen Haken und von „Töne" aus** (`tonUeberholt()`). Supersatz, „Ton bei
+  jedem Satz" aus, die Seite mitten in der Pause neu geladen: Die erste
+  Berührung war der Haken auf A2, B war ohne Wartezeit dran – kein Tupfer,
+  keine neue Pause, also kein Ton, an dem `nachholen()` den Haken erkannt hätte,
+  und „Pause vorbei" kam direkt danach. Wer unter *Mehr* als Erstes „Töne"
+  ausschaltete, wo eben noch stand, ein Tipp hole den Gong nach, bekam ihn in
+  genau dem Moment. Nur ein *gesetzter* Haken überholt ihn: Wer als Erstes
+  einen Haken zurücknimmt, ist mit dem nächsten Satz noch nicht weiter, und
+  der Gong kommt nach wie bis v241 (der erste Stand von v242 verwarf ihn auch
+  dabei, ohne dass es irgendwo stand). **Die halbe Sekunde läuft ab dem
+  Loslassen.** Mit Maus und
+  Tastatur ist schon `mousedown` bzw. `keydown` die erste Berührung, der Klick
+  kommt erst beim Loslassen, auch nach langem Druck: Wer am Rechner die
+  Maustaste oder die Leertaste 0,8 s auf dem nächsten Satz hielt, bekam erst
+  den Gong und dann den Haken mit Tupfer und neuer Pause. Jetzt stellt jedes
+  Loslassen den Zeitgeber, solange kein Klick kam. Am Handy ist die erste
+  Berührung ohnehin das Loslassen.
+* **Die installierte App misst, statt anzunehmen.** Chrome hat laut seinen
+  Autoplay-Regeln für eine zum Startbildschirm hinzugefügte App keine
+  Tonsperre. Dort hätte „nie ohne Berührung" einen Rückschritt bedeutet: Ein
+  Pausenende nach dem Neuladen, das in v240 klang, bliebe bis zum nächsten Tipp
+  stumm. `initAudio()` legt deshalb in der installierten App
+  (`display-mode: standalone`, `navigator.standalone`) einmal je Dokument
+  ohne Berührung einen Kontext an und behält ihn nur, wenn er sofort `running`
+  ist. Ein schlafender wird gleich wieder geschlossen und nie als bereit
+  gewertet – es bleibt beim Vormerken. Im Browser-Tab wird nicht probiert:
+  Dort sperrt Chrome auf dem Handy immer, und ein Versuch hinterließe nur die
+  Meldung „not allowed to start".
+* **`wecken()` weckt alles, was nicht läuft**, nicht nur `suspended`: iOS
+  setzt den Kontext nach einem Anruf oder App-Wechsel auf `interrupted`. Geweckt
+  wird bei jeder aktivierenden Berührung und beim Zurückkommen
+  (`visibilitychange`).
+* **`navigator.audioSession.type = 'ambient'`**, wo es die API gibt (Audio
+  Session API, W3C-Entwurf; MDN; Safari ab 16.4) – mischbar: Musik aus Spotify
+  & Co. läuft weiter. Naheliegend wäre `'playback'`, damit das Signal den
+  Stummschalter des iPhones übertönt; nur ist das die *nicht* mischbare
+  Sitzung, und sie gilt, solange der Kontext rendert – hier das ganze Training
+  (Trägerton in jeder Pause). Die Musik wäre ab dem ersten Ton weg gewesen,
+  nicht „kurz". `'playback'` nur rund um ein Signal hilft nicht: Auch dann hält
+  iOS die Musik bei jedem Gong an, und ob sie weiterläuft, entscheidet die
+  andere App. Mischbar und am Stummschalter vorbei gibt es in WebKit nicht; der
+  Preis steht deshalb unter *Mehr → Töne und Hinweise*: Ist der Stummschalter
+  an, bleibt die App stumm. Aus den Quellen, nicht am Gerät gemessen.
+* **„Töne anhören" liegt auf der Audio-Uhr**, nicht mehr auf sechs
+  `setTimeout`s (`probeSpielen()`): Auf iOS hätte ein Zeitgeber, der später als
+  fünf Sekunden nach dem Tipp feuert, einen schlafenden Kontext nicht mehr
+  wecken dürfen. Eine eigene Liste, die das Vorausplanen der Pause nicht stört.
 
 **Das Pausensignal wird vorausgeplant, nicht per `setTimeout` ausgelöst.** Der
 Unterschied zählt genau dann, wenn man während der Pause das Handy weglegt oder
@@ -543,7 +1107,181 @@ schlafen legt, läuft bis zum Signal ein Trägerton mit: 30 Hz bei einem
 Tausendstel Lautstärke, den kein Handylautsprecher wiedergibt – im Signalweg ist
 er aber vorhanden, und damit gilt die Seite als aktiv. Wird die Pause
 übersprungen oder um 30 s verlängert, wird der vorgemerkte Ton verworfen und neu
-gelegt.
+gelegt – auch in den letzten 0,3 s davor. Stehen bleibt nur, was schon
+begonnen hat. Kommt man kurz vor dem Signal in die App zurück, legt `armRest()`
+neu auf; liegt der neue Ton in denselben 0,3 s wie ein schon klingender, wird
+der übernommen statt ein zweiter danebengelegt. Gemessen: Galt die Toleranz
+von 0,3 s (siehe unten) für jeden, der aufräumt, gab „zurück in die App 0,15 s
+vor dem Ende" zwei Gongs, und „+30 s" oder „Pause weg" 0,15 s davor ließen den
+alten trotzdem spielen; so ist es einer, keiner, keiner.
+
+**Pausenende: Hat es gespielt?** Bis v240 beendete `tickRest()` die Pause bei
+`Math.round(rest) <= 0`, also bis zu eine halbe Sekunde *vor* dem Endzeitpunkt
+– und `endRest()` → `cancelSound()` verwarf das vorausgelegte Signal, das eine
+Viertel- bis halbe Sekunde später auf der Uhr lag, vor seinem Start. Ein
+Oszillator, der vor seiner Startzeit gestoppt wird, klingt nie. Gemessen: in
+jeder Runde, 0,499 s und 0,511 s zu früh; das lauteste Signal der App kam im
+Vordergrund *nie*, nur die leise Vorwarnung und der Satz-Tupfer. Seit v241 endet
+die Pause erst nach dem Endzeitpunkt (die Anzeige rundet weiter und zeigt in der
+letzten halben Sekunde 0:01), und `endRest()` fragt `signalStand('rest')`:
+*erklungen* oder *läuft* (begonnen, oder fällig in den nächsten 0,3 s – die
+Audio-Uhr zeigt das zuletzt gerenderte Quantum, nicht die Wanduhr) → ausklingen
+lassen, kein zweiter Ton; *offen* (noch vor uns, weil der Kontext im Hintergrund
+angehalten war und seine Uhr hinter der Wanduhr zurückliegt) oder *keins* →
+verwerfen und jetzt den Ton geben. Kein Doppelton, kein stummes Ende. Diese
+0,3 s Toleranz gilt nur hier, am echten Ende (`cancelSound({ ausklingen })`).
+
+**Ehrlich zählen.** `tonStand()` zählt seit v241 nicht mehr, was angefordert
+wurde, sondern was der Kontext *wiedergegeben* hat: Jeder Klang trägt am
+Grundton einen `ended`-Lauscher, und gezählt wird, wenn die Uhr beim Ende über
+seiner Startzeit steht (ein vor dem Start verworfener Ton meldet `ended` mit
+einer Uhr, die noch davor steht). Jeder gewollte Ton landet in genau einem Topf:
+
+* *gespielt* – wiedergegeben; davon *verspätet*, wenn er mehr als zwei Sekunden
+  nach seiner Zeit begann (Wanduhr beim `ended`, zurückgerechnet um seine
+  Dauer), und davon wiederum *nachgeholt*, wenn er bis zur ersten Berührung
+  vorgemerkt war.
+* *verpasst* – fällig gewesen und nie gekommen: vorgemerkt und verfallen (oder
+  noch wartend); gut eine Sekunde nach der Anforderung noch nicht begonnen, weil der
+  Kontext stand – verworfen statt später nachzuklingeln (`bewachen()`); oder
+  beim Aufräumen schon fällig gewesen – ein Pausensignal auf einer angehaltenen
+  Uhr, dessen Pause beim Aufwachen über eine Minute vorbei war. Ohne diesen
+  dritten Fall stünde unter *Mehr* kein verpasster Ton, obwohl das lauteste
+  Signal ausgefallen ist. Gibt `endRest()` einen Ersatz, zählt der
+  liegengebliebene nicht doppelt – der Ersatz zählt. Das galt in v241 nicht für
+  eine Berührung in der Viertelsekunde zwischen dem Pausenende und dem Takt,
+  der es bemerkt (aus dem Gegenlesen): `nachholen()` löste den vorgemerkten
+  Plan auf und zählte Vorwarnung *und* Gong als verpasst, gleich danach gab
+  `endRest()` den Gong als Ersatz, gespielt – unter *Mehr* „1 seit dem Öffnen.
+  2 Töne kamen nicht", obwohl nur die Vorwarnung fehlte. Seit v242 bleibt ein
+  Plan, von dem schon alles fällig ist, liegen, bis die Pause endet; aufgelöst
+  wird er dort, mit dem Ersatz.
+* Bei jedem verpassten Ton steht die Ursache dabei, und davon gibt es zwei:
+  *gesperrt* – es gab noch gar keinen Kontext, vor der ersten Berührung nach
+  dem Öffnen lässt der Browser keinen Ton zu (eine Vorwarnung oder ein Gong
+  nach dem Neuladen ohne Tipp, ein verfallener Wunsch) –, oder ein Kontext,
+  den der Browser *angehalten* hatte (im Hintergrund, nach einem Anruf).
+  Anfangs hieß jeder verpasste Ton „angehalten"; dann standen für zwei Töne
+  aus derselben Ursache – noch nicht getippt – zwei verschiedene Gründe da,
+  und der zweite deutete auf ein Problem im Hintergrund, das es nie gab.
+
+Ein nachgeholter Gong heißt deshalb *verspätet*, nicht „kam nicht" – so erlebt
+man ihn auch. Unter *Mehr → Töne und Hinweise* steht die Auswertung, und sie
+zieht sich mit jedem Ton nach, der kommt oder ausfällt (`onTonStand()`), und
+wenn die Frist eines wartenden Gongs abläuft. Das Urteil zuerst, in Textfarbe
+und in einem Satz – *✓ Die App schickt Töne los (6 seit dem Öffnen).* –,
+danach, was verspätet oder gar nicht kam, mit seiner Ursache, eine Ursache in
+einem Satz (*Vor deiner ersten Berührung nach dem Öffnen lässt der Browser
+keinen Ton zu – deshalb kam 1 Ton verspätet, 1 Ton kam gar nicht.*); darunter
+grau als Liste, woran es am Handy liegt, wenn trotzdem nichts zu hören
+ist: Medien-Lautstärke (die Wippe regelt sie nur, während etwas spielt),
+Bluetooth-Kopfhörer oder Auto, Bitte nicht stören, in Chrome die
+Website-Einstellung Ton, am iPhone der Stummschalter. Solange „Töne anhören"
+läuft, steht *Töne laufen gerade* da statt der Aufforderung, auf den Knopf zu
+tippen, auf den man eben getippt hat. Vor der ersten Berührung steht *Noch
+kein Ton angefordert* nur, wenn die App auch wirklich noch nichts wollte. Wurde
+sie mitten in der Pause neu geladen – Android beendet sie, und sie öffnet
+wieder direkt unter *Mehr* –, steht dort *✗ Noch kein Ton frei – vor der
+ersten Berührung nach dem Öffnen lässt der Browser keinen zu*, wie viele Töne
+deshalb fehlten, und was ein Tipp jetzt noch bringt: das Pausensignal
+pünktlich, „Pause vorbei" verspätet, oder nur noch freien Ton. Hält der
+Browser den Kanal trotz Berührung an (Anruf, App-Wechsel), steht das als
+Urteil da. Schläft der Kanal
+gut anderthalb Sekunden nach einer Berührung weiter, zeigt das Dashboard eine
+stille Zeile (kein Popup) – *Töne kommen gerade nicht …; tipp noch einmal,
+bleibt es stumm, App schließen und neu öffnen* –, die von selbst verschwindet,
+sobald er läuft. Auf der Startseite steht sie kurz (zwei statt vier Zeilen),
+die Körperkarte gibt für sie Höhe ab, damit die eine Bildschirmseite bleibt,
+und sie steht nicht neben der Zeile zum Tagesabschluss (unten, *Liegen
+geblieben*).
+
+**Wiedergegeben ist nicht gehört (v250).**
+
+> *„Ich hab bei tönen was gehört aber nur n raschliges klopfen so. Hat sich
+> iwie komisch angehört."*
+
+In `stimme()` fehlte die eine Zeile, die den Oszillator an seine Hüllkurve
+hängt (`osc.connect(gain)`). Jede Stimme lief ins Leere; zu hören war nur, was
+`knacks()` davorsetzt – zwölf bis zwanzig Millisekunden gefiltertes Rauschen,
+gedacht als Anschlag. Training gestartet, Übung fertig, Fertig machen und
+Training beendet haben keinen Anschlag und waren ganz stumm; Satz abgehakt,
+Pause vorbei und Workout komplett waren ein raschelnder Klick. „Töne anhören",
+offline gerendert mit dem echten `js/audio.js`: vorher lauteste Stelle
+−23 dBFS, und die war Rauschen; jetzt −3 dBFS (Pause vorbei), und jeder Ton
+hat seine Stimmen.
+
+Aufgefallen ist es nirgends, und das ist der eigentliche Befund. Gezählt wird,
+wenn der Grundton `ended` meldet – das tut ein Oszillator auch, wenn er
+nirgends angeschlossen ist. Unter *Mehr* stand deshalb *✓ Die App schickt Töne
+los*, und darunter der Rat zur Medien-Lautstärke. `tests/test-sound.mjs`
+zählte Oszillatoren, und die eine Prüfung, die „wirklich Klang" prüfen sollte
+(`tests/test-pause-worker.mjs`), baute eine Hüllkurve derselben Bauart von Hand
+nach – mit eigenem `connect()`. Sie klang, die App nicht. Die Prüfung an der
+Kopie ist raus.
+
+Seit v250 rendert `tests/test-sound.mjs` „Töne anhören" offline, mit dem
+echten Modul: Der AudioContext der Seite ist dort ein OfflineAudioContext.
+Jeder der sechs Töne muss Pegel haben, nichts darf übersteuern, und jede
+Stimme, die nicht gleitet, muss sich im Spektrum abheben – Goertzel an ihrer
+Frequenz gegen den Median über 60 Frequenzen von 150 Hz bis 6 kHz, mindestens
+das Zehnfache. Dazu die Gegenprobe mit abgeklemmten Oszillatoren, also dem
+alten Fehler: Sie muss durchfallen, sonst prüfte die Prüfung nichts. In zwölf
+Läufen lag die schwächste Stimme angeschlossen bei 17- bis 27-fach,
+abgeklemmt die stärkste bei 2- bis 5-fach – das Rauschen des Anschlags ist
+zufällig, deshalb die Spanne.
+
+*Grenzen, ehrlich:* Ob es am Handy gut klingt, prüft das nicht, nur dass die
+Stimmen herauskommen. Und `tonStand()` hört weiter nicht hin: *gespielt*
+heißt, dass der Kontext den Ton wiedergegeben hat, nicht, dass er am
+Lautsprecher ankam.
+
+**Gemessen, aus Quellen, nicht belegbar.** Gemessen in Chromium 153 mit
+Standard-Autoplay-Policy (keine Flagge) und Touch über eine rohe CDP-Sitzung
+(`tests/test-ton-freischalten.mjs`): ohne Berührung kein Kontext, auch nicht
+nach weg und zurück; die erste Berührung – ein Reiter, die Figur – legt ihn an
+und er läuft sofort; eine Pause, die den Neustart überdauert, wird mit der
+ersten Berührung nachgeholt und spielt genau einmal, ohne vorzeitigen Stopp; ein
+Pausenende ohne Tipp erzeugt keinen Kontext und keine Konsolenmeldung „not
+allowed to start", der Gong kommt mit der ersten Berührung, die selbst keinen
+Ton auslöst (die Figur, eine Überschrift unter *Mehr*), einmal nach (als
+verspätet gezählt) – mit dem nächsten Haken 30 s danach nicht, 70 s danach gar
+nicht mehr, und unter *Mehr* steht dann „vor deiner ersten Berührung", nie
+„angehalten"; „Töne anhören" legt sechs Töne im
+Abstand von 0,9 s sofort auf die Uhr; zurück in die App, „+30 s" und „Pause
+weg" je 0,15 s vor dem Ende geben einen, keinen und keinen Gong; ein Signal auf
+einer angehaltenen Uhr, dessen Pause beim Aufwachen 70 s vorbei ist, klingt
+nicht nach und zählt als verpasst, 20 s danach kommt ein Ersatz und zählt als
+verspätet. Ohne Sperre (`--autoplay-policy=no-user-gesture-required`) und als
+installierte App ausgegeben (`display-mode: standalone` über eine Attrappe von
+`matchMedia` – Chromium emuliert das per CDP nicht) klingt das Pausenende nach
+dem Neuladen ohne jede Berührung; mit Sperre wird der Mess-Kontext geschlossen,
+nichts landet auf ihm, und die erste Berührung holt den Gong nach. Neu geladen
+direkt unter *Mehr* steht vor der ersten Berührung, woran es liegt, wie viele
+Töne fehlten und was ein Tipp noch bringt – und das zieht sich nach, wenn die
+Frist des Gongs abläuft. Seit v242 außerdem (Szene K): kein Gong nach dem
+stummen Haken im Supersatz und keiner nach „Töne" aus; am Rechner, Maus oder
+Leertaste 0,8 s auf dem nächsten Satz gehalten, kein Gong vor dem Loslassen
+und keiner danach, auf dem Namen der Übung kommt er nach dem Loslassen; eine
+Berührung in der Viertelsekunde nach dem Pausenende (der Takt dafür
+angehalten) gibt den Gong einmal und zählt ihn einmal – gespielt –, die
+Vorwarnung als verpasst. Jede dieser Szenen ist gegen den Stand davor
+gegengeprüft und war dort rot. Aus der Prüfung danach: Nimmt die erste
+Berührung einen Haken zurück, kommt der Gong nach und zählt als verspätet
+und nachgeholt, nicht als verpasst (K5 – rot gegen den ersten Stand von
+v242, grün gegen v241).
+Wichtig für jede weitere Messung: In Playwright zählt jedes `page.evaluate()`
+und jede Locator-Hilfe als Nutzergeste (`Runtime.callFunctionOn` mit
+`userGesture: true`) – ein Test, der vor der ersten Berührung eines davon
+aufruft, sieht die Sperre nicht; die erste Prüfung jeder Szene ist deshalb
+`navigator.userActivation.hasBeenActive === false`. Aus Quellen (Chromium- und
+WebKit-Quelltext, MDN, W3C, Chromes Autoplay-Regeln): die Aktivierungsregeln
+oben, die iOS-Fünf-Sekunden-Regel, `interrupted`, die Audio Session API, keine
+Sperre für die installierte App. Nicht belegbar ohne Gerät: ob Tobis
+installierte App eine echte WebAPK ist und Chrome dort wirklich nicht sperrt
+(sperrt es doch, misst die App das und merkt vor wie im Tab – höchstens eine
+Konsolenmeldung je Start); ob iOS sich wie beschrieben verhält, auch ob
+Spotify mit `'ambient'` wirklich weiterläuft; und ob das Gerät den erzeugten
+Ton ausgibt – genau dafür steht die Zeile unter *Mehr → Töne und Hinweise*.
 
 Zusätzlich hält die App während der Pause das Display wach
 (`navigator.wakeLock`).
@@ -554,8 +1292,9 @@ Erlaubnis des Browsers). Sie kommt nur, wenn die App gerade nicht zu sehen ist �
 davor sitzend reichen Ton und Leiste. Der Wecker dafür ist ein gewöhnliches
 `setTimeout`; der Trägerton hält die Seite wach genug, dass es auch läuft.
 `endRest()` bestellt ihn nur bei einer *abgebrochenen* Pause ab, nicht bei einer
-abgelaufenen: Diese Zeile läuft bis zu eine halbe Sekunde vor dem Ende, weil der
-Timer im Vierteltakt prüft und rundet.
+abgelaufenen – der Wecker soll noch losgehen, falls die App im Hintergrund ist.
+(Bis v240 lief diese Zeile bis zu eine halbe Sekunde vor dem Ende, weil der
+Timer im Vierteltakt prüfte und rundete; seit v241 erst danach, siehe oben.)
 
 Was auch das nicht kann: klingeln, wenn die App ganz geschlossen ist. Dafür
 bräuchte es einen Server, der eine Push-Nachricht schickt – die App hat keinen
@@ -624,15 +1363,40 @@ dieselben.
 
 Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den jeweiligen
 Anteilen; eine Woche sind vier aufeinanderfolgende Einheiten – dieselbe
-Einteilung, mit der `tools/build-plan.py` rechnet.
+Einteilung, mit der `tools/build-plan.py` rechnet. Ein gemachter Zusatztag
+zählt in der Woche, für die er angelegt wurde (siehe *Der Zusatztag*) – auch
+dann, wenn seine Übungen in einer Planeinheit der Woche danach stecken: Die
+Wochenbilanz liest den Plan der Einheit (`exOf()`), der Zusatz geht über
+`zusatzBeitrag()` an seine eigene Woche.
+
+**Warum die Woche vom Schnitt abweicht**, sagt der Text unter der Karte ohne
+feste Zahl: Sätze lassen sich nur als Ganzes auf die Einheiten verteilen. Dort
+stand „weil jede Übung mit drei Sätzen dasteht" – für Fortgeschrittene (vier je
+Übung) und ohne Hanteln (zwei bis sechs je Auftritt) stimmte das nicht.
+
+**Serie in Folge.** Gezählt wird rückwärts über die fälligen Einheiten, bis zur
+ersten nicht abgeschlossenen. Die von heute bricht sie nicht, solange sie offen
+ist – der Tag ist ja nicht vorbei. Vorher stand an jedem Trainingstag vor dem
+Training „0": Der Plan rückt Verpasstes nach, die nächste offene Einheit liegt
+also immer auf heute, und genau an ihr brach die Zählung ab (gemessen 4 → 0 → 5
+über Ruhetag, Trainingstag vorher, Trainingstag nachher). Der geteilte Stand
+schickte dieselbe 0 mit.
 
 **Kein Prozentwert.** Eine Woche mit 9,5 und 10,5 wären 99 %, obwohl alles
-stimmt: der Plan selbst schwankt um bis zu einen Satz. Angezeigt wird deshalb,
-wie viele Gruppen ihr Ziel erreicht haben („12/12"). Die Grenze ist genau das,
-was der Generator für die einzelne Woche garantiert – **kein ganzer Satz
-darunter**. Enger wäre keine Aussage über das Training, sondern über den
-Rundungsspielraum des Plans. Sind noch Einheiten der Woche offen, steht das
-dabei – sonst sähe eine halb trainierte Woche wie ein Rückstand aus.
+stimmt: der Plan selbst schwankt von Woche zu Woche. Angezeigt wird deshalb,
+wie viele Gruppen ihr Ziel erreicht haben („12/12"). **Im Ziel heißt: mindestens
+90 % dessen, was der Plan für diese Woche vorsieht** (`inTarget()` und
+`plannedWeek()` in `js/app.js`, Verletzungen und Modus eingerechnet) – nicht
+das Wochenziel selbst. Früher stand hier „kein ganzer Satz unter dem Ziel, genau
+das, was der Generator für die einzelne Woche garantiert". Beides stimmte nicht:
+Ein Satz ist bei den Waden (Ziel 6) ein Sechstel, bei der Brust (12) ein
+Zwölftel, und eine Garantie für die einzelne Woche gibt der Generator nicht –
+das Ziel ist ein Schnitt über den ganzen Plan, einzelne Wochen liegen über zwei
+Sätze daneben (siehe [2 bis 4 Sätze – gemessen](#2-bis-4-sätze--gemessen)). Wer
+alles abgehakt hatte, sah dann trotzdem „8 von 12 Gruppen im Ziel". Gemessen am
+Pensum der Woche ist eine vollständig trainierte Woche immer im Ziel. Sind noch
+Einheiten der Woche offen, steht das dabei – sonst sähe eine halb trainierte
+Woche wie ein Rückstand aus.
 
 ### Verlaufskarten
 
@@ -647,9 +1411,18 @@ Untergrundfarbe. Beschriftet wird nur der Endwert – eine Zahl an jedem Punkt
 liest niemand. Ziehen über die Karte zeigt den Wert des jeweiligen Tages, die
 vollständige Reihe steht im `aria-label`.
 
-Volumen = Gewicht × geplante Wiederholungen × abgehakte Sätze. Nur
-Hantel-Einheiten tragen Kilo bei; Bodyweight-Einheiten haben kein Gewicht, das
-sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
+Volumen = Summe über die abgehakten Sätze, jeder mit seinem **eigenen** Gewicht
+mal den gezählten Wiederholungen (`satzKilo()` in `js/uebung.js`) – dieselbe
+Rechnung wie die Kachel „Volumen kg" darüber. Die Karte nahm vorher das Gewicht
+des ersten Satzes für alle: 40 kg, dann auf 35 gesenkt, ergab in der Kachel 870
+und in der Karte 720 für dieselbe Einheit. Auf die Muskelgruppen verteilt wird
+**nach Anteilen**, wie beim Wochenvolumen: Ein Goblet Squat mit 480 kg geht mit
+480 auf die Oberschenkel, aber nur mit 72 auf den Beinbeuger an der Hüfte
+(Anteil 0,15). Vorher bekam jede Gruppe das volle Volumen, und ein Tag ohne
+Kreuzheben sah auf der Beinbeuger-Kurve fast so aus wie einer mit. Die
+Überschrift sagt deshalb „Anteile eingerechnet". Nur Hantel-Einheiten tragen
+Kilo bei; Bodyweight-Einheiten haben kein Gewicht, das sich sinnvoll summieren
+ließe, und erscheinen deshalb nicht in dieser Rechnung.
 
 ## Wochenvolumen je Muskelgruppe
 
@@ -797,8 +1570,16 @@ einer eigenen Wertemenge je Übung und den Werten nahe der Dreierzahl zuerst;
 findet sie nichts, ein Abstieg von der Dreierzahl aus, ±1 Satz je Schritt.
 Unter den exakten Lösungen wird die genommen, die dem Hantel-Plan am nächsten
 kommt – je weniger Auftritte abweichen, desto weniger merkt man, dass da zwei
-Pläne liegen. Danach verteilt `bw_verteilen()` die Plansumme gleichmäßig über
-die Auftritte, damit die Ausreißer nicht am Anfang stapeln.
+Pläne liegen. Danach verteilt `bw_verteilen()` die Plansumme auf die Auftritte –
+bis zum 03.10. gleichmäßig je Übung, ohne Blick auf die Einheit. Im Aufbau
+hatten die Einheiten ohne Hanteln damit 14 bis 21 Sätze, mit Hanteln 15 oder
+18. Jetzt sucht ein ganzzahliges Programm die Verteilung, bei der jede Einheit
+in der Spanne ihrer Woche mit Hanteln bleibt, keine Woche einer Gruppe stärker
+oder schwächer wird als bei der gleichmäßigen und keine Gruppe öfter über ihrer
+Grenze liegt; darunter die mit den wenigsten Übungen, die mal mit zwei und mal
+mit vier Sätzen dastehen, dann die mit den wenigsten Abweichungen von der
+Hantel-Satzzahl, dann die mit den wenigsten Gruppenwochen über der Grenze.
+Zahlen unter *Neu gerechnet am 03.10.* und dem Nachtrag dort.
 
 Das Ganze hängt allein am fertigen Plan, nicht am Generatorlauf –
 `tools/pruefung/bw-satzzahl.py` rechnet es in acht Sekunden für alle sechs
@@ -954,7 +1735,9 @@ Wochenzahl sucht sich der Lauf jetzt selbst.
 Was das bringt: **5,7 Übungen je Einheit statt 7,7**, 15 bis 18 Sätze je
 Einheit statt 15 bis 21. Was es kostet: ein paar Sätze Wochenvolumen weniger
 und größere Ausschläge in den gemischten Gruppen – bis 25 % statt bis 10 %.
-Der Schnitt über den ganzen Plan bleibt in beiden Fällen exakt.
+Der Schnitt über den ganzen Plan bleibt in beiden Fällen exakt. Ob zwei bis
+vier Sätze je Auftritt die einzelne Woche genauer machen, ist nachgerechnet –
+unter *2 bis 4 Sätze – gemessen*: ein wenig, nicht genug.
 
 **Gewichtet wird im Verhältnis zum Ziel**, nicht in Sätzen. Ein Satz zu wenig
 ist bei den Waden (Ziel 6) ein Sechstel des Wochenpensums, bei der Brust (10)
@@ -1086,12 +1869,18 @@ schob Sätze auf ohnehin volle Tage – die Einheiten gingen auf 37 bis 57 Minut
 auseinander und nur noch 67 von 80 waren verschieden. So kommt jede Gruppe in
 jeder Woche an mindestens zwei Tagen dran, ohne dass es woanders weh tut.
 
-**Ein ganzer Satz Abweichung wird nicht hingenommen.** Bleibt nach dem ersten
-Verteilungslauf eine Woche stehen, in der eine Gruppe einen ganzen Satz
-danebenliegt, sucht der Generator weiter – bis zu dreimal mit anderem Zufall.
-Die Verteilung ist eine Suche, kein Beweis: beim Einbau des Klumpen-Kriteriums
-stand nach dem ersten Anlauf genau ein solcher Fall da, und der zweite fand
-eine Verteilung ohne ihn.
+**Eine grobe Abweichung wird nicht hingenommen.** Bleibt nach dem ersten
+Verteilungslauf eine Woche stehen, in der eine Gruppe grob danebenliegt, sucht
+der Generator weiter – bis zu dreimal mit anderem Zufall. Die Verteilung ist
+eine Suche, kein Beweis: beim Einbau des Klumpen-Kriteriums stand nach dem
+ersten Anlauf genau ein solcher Fall da, und der zweite fand eine Verteilung
+ohne ihn. *(Damals hieß „grob" ein ganzer Satz. Das gilt nicht mehr: Seit jede
+Übung mit drei Sätzen dasteht, kann eine Gruppe mit Ziel 6 in einer Woche nur 3,
+6 oder 9 Sätze bekommen. Als grob gilt heute die Hälfte des Wochenziels
+(`MAX_REL` in `tools/build-plan.py`), und einzelne Wochen der ausgelieferten
+Pläne liegen über zwei Sätze daneben – siehe [2 bis 4 Sätze –
+gemessen](#2-bis-4-sätze--gemessen). Eine Garantie von einem Satz je Woche gibt
+es nicht.)*
 
 Die Länge einer Einheit ergibt sich fast vollständig aus den Zielen: ihre Summe
 über vierzehn Gruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
@@ -1179,7 +1968,10 @@ Tagen addieren, bleiben die Wochentage fest.
 3. **Aufteilung auf die Einheiten.** Zwei oder drei Sätze je Auftritt, immer die
    kürzeste Zerlegung, alle vier Einheiten etwa gleich lang und keine die
    längste – und die beiden am Ein-Tages-Abstand je auf eine Körperhälfte
-   festgelegt, siehe oben.
+   festgelegt, siehe oben. Das waren je Woche 2000 Zufallsversuche (`split()`);
+   jetzt ist es ein ganzzahliges Programm je Woche (`split_exakt()`), das die
+   Kriterien in ihrer Rangfolge exakt abarbeitet und an keinem Zufall hängt –
+   siehe *Neu gerechnet am 03.10.*
 
 Gerechnet wird durchweg in Zwanzigsteln eines Satzes – alle Anteile sind
 Vielfache von 0,05, damit ist „exakt" wirklich exakt und nicht bis auf
@@ -1434,12 +2226,13 @@ trainiert, umrandet geplant, gestrichelt ausgefallen, plus ein Ring um heute:
 | **trainiert** | gefüllt, in der Farbe des Modus (orange Hanteln, blau Bodyweight) |
 | **angefangen** | getönt mit Rahmen – Sätze stehen, die Einheit ist aber nicht fertig |
 | **geplant** | schlichter Rahmen |
-| **ausgefallen** | gestrichelt, nur bei abgeschaltetem Nachrücken möglich |
+| **ausgefallen** | gestrichelt in Grau (6,8:1 auf der Karte) – ein Trainingstag im Rhythmus, der ohne Training verstrich (siehe *Ausgefallen*) |
 
 Das Zeichen in der Kachel nennt den Modus (🏋️ / 🤸), bei erledigten Einheiten
 den, in dem tatsächlich trainiert wurde, sonst den, der beim Start greifen
 würde. Darunter zählt eine Zeile den Monat zusammen: wie viele Einheiten,
-wie viele davon mit Hanteln, wie viele mit Bodyweight, was offen ist.
+wie viele davon mit Hanteln, wie viele mit Bodyweight, was offen ist, wie viele
+Tage ausgefallen sind.
 
 **Ein Tipp auf einen Tag** klappt die Einheit auf: Datum, Zustand, Modus-Marke
 und alle Übungen mit Sätzen und Wiederholungen – in der Variante, die zu dem
@@ -1451,6 +2244,147 @@ weil die Liste durch dasselbe `exOf()` läuft wie überall sonst.
 nacheinander nachgetragen werden. Die Kachel zeigt dann „+1", und aufgeklappt
 stehen beide untereinander. Eine Map von Datum auf *eine* Einheit hätte die
 zweite still verschluckt.
+
+**Tage aus einem früheren Plan** – vor einem Fokuswechsel oder Neustart, das
+Protokoll liegt in der Ablage – sehen aus wie jeder trainierte Tag, und ein Tipp
+zeigt auch dort die Übungen, mit den gemachten Sätzen und dem Gewicht
+(„Goblet Squat · 3 Sätze · 20 kg"). Lange stand dort nur „Die Übungen dazu
+stehen in dem Plan, der damals galt", mit der Begründung, der Plan sei nicht
+mehr geladen. Für Namen, Sätze und Kilo braucht es ihn aber nicht: Das
+Protokoll steht nach Übung, die Namen kommen aus dem Katalog. Was fehlt, sind
+nur die Wiederholungen, die der Plan an jenem Tag vorsah – gezeigt wird
+deshalb, was gemacht wurde.
+
+**Eigene Einheiten stehen auch drin** – vor allem der Zusatztag. Der Kalender
+zeichnete nur den Plan, und ein ganz gemachter Zusatztag am Sonntag stand dort
+als leerer Tag, während die Statistik ihn bei den Trainingstagen mitzählte.
+Jetzt trägt der Tag, an dem ihr erster Satz stand, die Kachel einer trainierten
+Einheit (neben einer Planeinheit als „+1"), aufgeklappt stehen Name, Übungen
+und abgehakte Sätze, und die Zeile darunter zählt sie bei „trainiert" mit.
+
+**Ausgefallen – aus dem Protokoll gerechnet.**
+
+> „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+> Trainings hab ausfallen lassen"
+
+Stimmte. Tobi hatte am Do 08.10. Workout 9 gemacht, am Sa und am Mo nicht. Am
+Di standen der 10. und der 12. leer da, Workout 10 „heute · geplant", und in
+der Zeile kein einziges „ausgefallen". Das Nachrücken (`catchUpPlan()`) schiebt
+den Restplan jeden Tag aufs Neue auf heute; eine Einheit liegt deshalb nie
+unbegonnen in der Vergangenheit, und der Zustand „ausgefallen" kam nur in den
+Minuten nach Mitternacht vor, bis das Nachrücken lief. Diese Tabelle sagte es
+selbst: „nur bei abgeschaltetem Nachrücken möglich" – einen Schalter dafür gibt
+es längst nicht mehr.
+
+Jetzt rechnet `ausfallTage()` in `js/plan.js` die Tage aus dem Protokoll:
+
+* **Ausgefallen ist ein Trainingstag im Rhythmus des Plans, der verstrich,
+  ohne dass bis zum nächsten Trainingstag trainiert wurde.**
+* **Rhythmus:** ab dem letzten tatsächlich trainierten Tag *d* mit Einheit *k*
+  die Abstände der Plandaten, also *d* + Lücke(*k*), dann + Lücke(*k*+1) und so
+  weiter – genau der Plan, den der Kalender direkt nach dem Training zeigte.
+  Die Nummer im Rhythmus läuft je Trainingstag weiter, auch wenn die fällige
+  Einheit dieselbe bleibt; so bleibt die Woche erhalten, und die Ruhetage
+  dazwischen sind nie ausgefallen. Das Nachrücken machte ja jeden Tag zum
+  „heute" – das soll nicht als Dutzend Ausfälle erscheinen.
+* **Fenster:** Ein Trainingstag gilt bis zum nächsten. Wer darin trainiert,
+  hat verschoben und nichts ausfallen lassen – Workout 10 am So statt am Sa ist
+  kein Ausfall. Solange das Fenster offen ist, gilt der Tag noch nicht als
+  ausgefallen, **heute nie**.
+* **Fällig** war die erste Einheit, die an dem Tag noch nicht angefangen war –
+  die, die nach hinten rückte. Ein Tipp auf den Tag sagt das: „Workout 10 ·
+  ausgefallen – Trainingstag im Rhythmus nach dem Training am Do, 08.10.
+  Workout 10 rückte nach hinten und ist jetzt für heute geplant" (oder „wurde
+  am Mo, 12.10. trainiert"), mit dem Knopf zu dieser Einheit. Ist die App über
+  Mitternacht offen und noch nicht nachgerückt, heißt es „ist noch offen" –
+  nie „jetzt für" einen vergangenen Tag.
+
+Bei Tobi heute: **Sa 10. und Mo 12. ausgefallen, je Workout 10**; Fr, So und
+heute nicht. Die Zeile darunter: „16 Einheiten in diesem Monat · 5 trainiert ·
+2 Tage ausgefallen · 11 offen". Ausgefallen sind **Tage**, keine Einheiten –
+die Einheit, die dran war, steht offen oder trainiert an ihrem neuen Tag und
+ist dort schon gezählt. Ohne das Wort läse sich 5 + 2 + 11 ≠ 16 wie ein Fehler.
+
+Die Randfälle, alle im Browser gegen die echte App nachgemessen
+(`tests/test-ausgefallen.mjs`):
+
+* **Sport außerhalb des Plans** ist kein Plantraining. Boxen am Sa lässt den Sa
+  ausgefallen, die Kachel trägt zusätzlich den Sport-Streifen, und das Detail
+  zeigt erst das Boxen, dann die Einheit.
+* **Ein Termin, der der fälligen Einheit jede Übung nimmt** (ein Turnier, das
+  alles schont), macht den Tag frei: Es gab nichts zu trainieren, die App selbst
+  hat die Einheit weitergeschoben. Termine verschieben den Plan sonst nicht.
+  Gerechnet mit dem Plan des Verlaufs – der Tag bleibt frei, auch nachdem die
+  Runde beim Fokuswechsel oder Rundenende in die Ablage gewandert ist.
+* **Früher trainiert, als der Plan sagt:** Dann zieht die App den Restplan vor,
+  und der Rhythmus läuft ab dem Tag des Trainings. Bisher tat das nur „Start";
+  wer Workout 10 am Fr statt am Sa in „Übungen & Gewichte" abhakte, ließ
+  Workout 11 am Mo stehen, und die Rechnung meldete den So als ausgefallen –
+  einen Tag, an dem die App „morgen · Workout 11" zeigte. Jetzt zieht auch der
+  erste Haken ohne Start und „Alle Sätze abhaken" vor (`planVorziehen()` in
+  `js/app.js`). Geprüft als Invariante: Jeder gemeldete Tag war am Tag selbst
+  „heute · Workout *n*" mit eben diesem *n*.
+* **Eine eigene Einheit oder der Zusatztag** im Fenster zählt als Training.
+* **Angefangen und liegen gelassen** ist trainiert – der Rhythmus läuft ab dem
+  Tag weiter, fällig ist danach die nächste Einheit.
+* **Zwei Einheiten an einem Tag** nachgeholt: Gerechnet wird ab der zweiten.
+  Workout 10 und 11 am Mo – der Sa ist ausgefallen („wurde am Mo, 12.10.
+  trainiert"), der Mo nicht.
+* **Fokuswechsel, Neustart, neue Runde:** Die abgelegten Runden zählen mit.
+  Bis zum Wechseltag läuft der alte Rhythmus, danach liegt Workout 1 dort, wo
+  die App es hinlegte – der übliche Abstand nach dem letzten Eintrag des alten
+  Verlaufs, auch einer eigenen Einheit am Wechseltag (wie `frischerStart()`),
+  frühestens am Wechseltag. Sonst stünden Tage als ausgefallen da, an denen
+  der Kalender gar kein Workout 1 zeigte.
+* **Hin und zurück:** Cut → Aufbau → Cut ändert nichts an den Ausfällen vor
+  dem Wechsel – siehe die Spur unten.
+* **Zeitzone und Tageswechsel:** alles in lokalen Tagen, ein Training nach
+  Mitternacht gehört zum Tag des ersten Satzes. Ist die App über Mitternacht
+  offen, zählt die Zeile einen Tag, den beide Rechnungen kennen, einmal.
+
+**Kein Schnappschuss.** Gelesen werden nur die Tage im Protokoll
+(`startedOn`), die Plandaten und die Termine – nie die Verschiebung. Damit
+wirkt es rückwirkend für jeden vorhandenen Verlauf: Tobi sieht seine Tage
+sofort und nicht erst ab jetzt. Gemessen: Wer die App von Fr bis Di täglich
+öffnet (Verschiebung 31, 31, 32, 33, 34), sieht am Di genau dieselben Tage wie
+jemand, der sie erst am Di öffnet (31 → 34 in einem Schritt). Nicht
+rekonstruierbar ist, was gelöscht wurde – es gilt das heutige Protokoll –, und
+der Tag, an dem ein Verlauf verlassen wurde, der später zurückkam.
+
+**Die eine gespeicherte Spur: `verlassen`.** Beim Fokuswechsel holt
+`wechsleFokus()` den Verlauf des Ziel-Fokus aus der Ablage zurück, und dessen
+`finishedOn` ging dabei verloren. Gemessen an Cut W1–W7 bis Fr 18.09., Wechsel
+auf Aufbau am Mi 23., zurück am Di 29.: Vor dem Rückwechsel standen Sa 19. und
+Mo 21. (Cut W8) als ausgefallen da, danach nur So 20. als „Workout 1
+(Aufbau)" – ein Cut-Ruhetag, an dem es den Aufbau-Plan noch gar nicht gab; die
+echten Ausfälle verschwanden. Aus dem Protokoll ist der Tag nicht zu holen: Er
+liegt irgendwo zwischen dem letzten Cut- und dem ersten Aufbau-Training. Also
+merkt sich der Stand je Rückkehr den Tag des Verlassens (`state.verlassen`,
+beim nächsten Ablegen mit in die Runde) – gemessen 15 Byte für den leeren
+Schlüssel und 12–13 Byte je Rückkehr. Für Stände, die vor dieser Fassung
+zurückgeholt wurden, fehlt sie; dann gilt als Wechsel spätestens das erste
+Training im anderen Plan, bis dahin läuft der alte Rhythmus, und kein Tag wird
+einem Plan zugeschrieben, den es noch nicht gab. Die Tage stimmen damit auch
+dort, nur die Einheit am Wechseltag kann aus dem alten Plan heißen.
+
+**Sichtbar.** Die Kachel ist gestrichelt in `--muted` (6,8:1 auf der Karte,
+WCAG 1.4.11 verlangt 3:1), der Legendenpunkt ebenso, ohne Farbe – das Merkmal
+bleibt die Strichelung. Vorher stand dort `--line` mit 1,3:1: Die Ausfälle
+waren die blassesten Kacheln des Monats, blasser als jeder leere Ruhetag. Die
+Zeile hält „2 Tage ausgefallen" mit geschützten Leerzeichen zusammen; bei
+414 px hing die 2 sonst am Zeilenende hinter der Moduszählung.
+
+**Serie und Statistik bleiben, wie sie sind.** Die Serie zählt Einheiten der
+Reihe nach (siehe *Serie in Folge*), der Kalender Tage. Würde ein
+ausgefallener Tag sie brechen, stünde sie nach zwei an einem Tag nachgeholten
+Einheiten auf 1, obwohl keine Einheit fehlt. Eine eigene Ausfall-Kennzahl gibt
+es nirgends, und es wird auch keine erfunden.
+
+Geprüft in `tests/test-ausgefallen.mjs` an Tobis Stand. Gegen den Stand davor
+(9b3a4b4, v239) werden 35 von 68 Prüfungen rot; einzeln zurückgedreht wird
+jede Regel rot – das Fenster (W10 am So wäre ein Ausfall am Sa), der Start von
+Workout 1 nach einem Wechsel (Sa 19. / Mo 21. statt So 20. / Di 22.), der freie
+Tag bei einem Termin, der alles schont, und die Zählung über Mitternacht.
 
 ### In den Google-Kalender
 
@@ -1464,7 +2398,7 @@ diese App läuft auf dem Handy, also ist der Weg über das Handy der einzige, de
 zählt:
 
 1. **Chrome** öffnen (nicht die Kalender-App) und `calendar.google.com` aufrufen.
-2. Im **Drei-Punkte-Menü** *Desktopseite* anhaken. Ohne das fehlt die
+2. Im **Drei-Punkte-Menü** *Desktopwebsite* anhaken. Ohne das fehlt die
    Einstellungsseite – die mobile Fassung zeigt sie gar nicht erst.
 3. *Einstellungen → **Importieren und exportieren*** → Datei wählen → Kalender
    wählen → *Importieren*.
@@ -1483,7 +2417,9 @@ Umbauzeit, auf fünf Minuten aufgerundet.
 **Verschiebt sich der Plan, wandern die Termine mit** – aber nicht von selbst.
 Die App spricht mit keinem Server und kennt kein Google-Konto; automatisch
 schreiben hieße OAuth, ein Google-Cloud-Projekt und eine Netzverbindung, also
-genau die drei Dinge, die diese App bewusst nicht hat. Stattdessen trägt jeder
+genau die drei Dinge, die diese App bewusst nicht hat. (Von selbst verschiebt
+der Weg unter *Google Kalender automatisch* weiter unten – ohne OAuth und ohne
+Server der App, über ein kleines Skript in Tobis eigenem Google-Konto.) Stattdessen trägt jeder
 Termin eine **feste Kennung** aus seiner Workout-Nummer
 (`workout-7@workout.local`). Wird die Datei nach einer Verschiebung
 neu erzeugt und noch einmal importiert, erkennt der Kalender dieselben Termine
@@ -1494,7 +2430,25 @@ behält der Kalender stur den alten Stand.
 Daran erinnert die App von sich aus: Steht der Plan nicht mehr dort, wo er beim
 letzten Export stand, erscheint in der Kalender-Karte der Hinweis „Der Plan hat
 sich seit dem letzten Export um *n* Tage verschoben". Ein Tipp auf den Knopf,
-ein Import, und die Termine stimmen wieder.
+ein Import, und die Termine stimmen wieder. **Außer, der Kalender „Workout"
+ist verbunden** (*Google Kalender automatisch*, unten): Dann schweigt der
+Hinweis. Er riete sonst nach jedem Nachrücken zum Neu-Import, und jeder Import
+stellte dieselben Trainings ein zweites Mal hin – die Datei kennt die Termine
+des Skripts nicht. Die Datei bleibt erreichbar, mit genau diesem Satz
+darüber.
+
+Verschoben ist aber nicht das Einzige, was veralten kann. Jeder Termin trägt
+auch die Übungsliste, die Satzzahl und die Dauer, und nach der Neuverteilung vom
+03.10. standen beim Cut 69 von 84 Terminen mit anderen Übungen im Kalender – die
+App sagte nichts. Der Export merkt sich deshalb, aus welchem Fokus und welchem
+Planstand (`stand`) er stammt, und der Hinweis nennt den Grund: „Der Plan wurde
+seit dem letzten Export überarbeitet" oder „Exportiert hast du ‚Cut' – jetzt
+gilt ‚Aufbau'". Verglichen wird der Fingerabdruck des Plans, nicht jede einzelne
+Liste: Die ändert sich mit jeder Nacharbeit und jedem Aufstieg, und ein Hinweis,
+der nach jedem Training kommt, wird nicht mehr gelesen. Ein Export von vor
+dieser Angabe bekommt beim Start den Plan nachgetragen, der bis dahin galt, und
+meldet das nächste Update genauso. Nach „Termine austragen" steht nichts mehr im
+Kalender, was veralten könnte – dann kommt dazu auch kein Hinweis.
 
 ### Wieder austragen
 
@@ -1524,6 +2478,1663 @@ Die Uhrzeit steht **ohne Zeitzone** in der Datei („floating"): 18:00 heißt
 18:00 im Kalender des Geräts, im Sommer wie im Winter. Mit fester Zeitzone
 müsste eine `VTIMEZONE`-Tabelle mitreisen, die zur nächsten Zeitumstellung
 falsch wäre.
+
+### Google Kalender automatisch
+
+> „Sicher dass man jetzt die Workout zeiten täglich um 17:30 nicht
+> reinschreiben kann inkl Verschiebung wenn ich mal was verpasse oder so?"
+
+> „Ja aber nur wenn es wirklich keinen Weg gibt wie verschoben wird auch wenn
+> ich die app nicht öffne"
+
+Die Kalenderdatei oben verschiebt nur, wenn jemand sie neu einliest – und das
+tut niemand jeden Tag. Es gibt aber einen Weg, der auch dann verschiebt, wenn
+die App zu bleibt, und er braucht weder einen Server der App noch OAuth noch
+einen Schlüssel außer Haus.
+
+**Ohne Öffnen der App ändert sich der Plan nur dadurch, dass Tage vergehen.**
+Beim nächsten Öffnen rückt er nach, eine liegen gebliebene Einheit schließt
+sich ab, die Runde rollt weiter, der Zusatztag wird für heute gerechnet. Was die
+App am Tag *d* zeigen würde, steht deshalb schon heute fest – unter der einen
+Annahme, dass bis dahin nicht trainiert wird. Die App rechnet es aus, für jeden
+der nächsten 42 Tage (die *Vorschau*, `js/kalender-vorschau.js`), und schickt
+es an ein kleines Google-Apps-Script in Tobis eigenem Google-Konto. Das Skript
+legt die Vorschau ab und gleicht einen eigenen Kalender „Workout" an: sofort
+und danach jede Stunde mit der Liste für heute (Berliner Zeit). Es rechnet
+nichts selbst, es wählt nur den Tag. Wird trainiert, geht eine neue Vorschau
+hinaus, und die alte ist überholt. Termine stehen um **17:30 Berliner Zeit**,
+30 Minuten vorher kommt die Erinnerung. Seit v246 reicht der Kalender **ein
+Jahr** voraus: hinter den vier Wochen eine Schätzung, wie es weiterginge, wenn
+ab dann nach Plan trainiert wird (unten, *Ein Jahr im Voraus*).
+
+Seit v245 ist alles da: die Rechnung (hier), der Vertrag mit dem Skript, das
+Skript selbst (`kalender/workout-kalender.gs`, unten *Das Skript in Tobis
+Google-Konto*) und die Karte unter *Mehr → Kalender* samt dem Senden (unten
+*In der App: die Karte und das Senden*). Solange niemand verbindet, rechnet
+die App keine Vorschau und schickt nichts – kein Zeitgeber, kein Worker,
+keine Anfrage.
+
+#### Einrichten – einmal, am Handy
+
+> „Es soll von selbst einfach das optimale passieren"
+
+Deshalb gibt es nichts zu wählen: Der Kalender heißt „Workout", die Termine
+stehen um 17:30, die Erinnerung kommt 30 Minuten vorher, und gesendet wird von
+selbst. Uhrzeit und Erinnerung lassen sich hinterher ändern, müssen aber
+nicht. Einzurichten ist es einmal, in Tobis Apps-Script-Projekt von der Probe
+am 26.10. – genau so steht es auf der Karte:
+
+1. In der App *Mehr → Kalender → **Code kopieren***. Darin steckt ein
+   Kennwort nur für diesen Kalender. Es steht fest im Speicher, *bevor* der
+   Code die App verlässt; noch einmal kopieren gibt denselben Code.
+2. In Chrome `script.google.com` öffnen, im Drei-Punkte-Menü *Desktopwebsite*
+   anhaken und das Projekt von der Probe öffnen (sonst `script.new`).
+3. Den ganzen Code dort durch den kopierten ersetzen und speichern.
+4. Oben die Funktion `einrichten` wählen und *Ausführen*. Fragt Google nach
+   Zugriff: *Berechtigungen prüfen* → Konto → *Erweitert* → *… öffnen
+   (unsicher)* → *Zulassen*. Warten, bis „Ausführung abgeschlossen" dasteht.
+   Das räumt die Probe weg (Kalender „Workout-Probe", alte Auslöser), legt
+   „Workout" an und genau einen stündlichen Auslöser.
+5. *Bereitstellen → Bereitstellungen verwalten → Bearbeiten* (Stift) *→
+   Version: Neue Version → Bereitstellen*. Die URL bleibt dieselbe. (Gibt es
+   noch keine Bereitstellung: *Neue Bereitstellung → Web-App*, „Ausführen als:
+   Ich", „Zugriff: Jeder".)
+6. Die *Web-App-URL* (endet auf `/exec`) kopieren, in der App einfügen und
+   ***Verbinden*** tippen.
+
+Danach steht auf der Karte „Verbunden", und nach etwa einer Minute stehen die
+Termine in „Workout". Fehlt der Kalender am Handy: Google-Kalender-App →
+Einstellungen → Workout → *Synchronisieren*.
+
+Schritt 5 ist der, den man am leichtesten vergisst, und ohne ihn geht nichts:
+Die Web-App läuft auf der bereitgestellten Fassung, nicht auf dem
+gespeicherten Code. Bei Tobi wäre das die Probe, und die hat kein `doPost` –
+Google antwortet dann mit einer Fehlerseite ohne CORS. Die App fragt dann
+dieselbe Adresse mit einem GET: Antwortet `doGet` lesbar, aber nicht wie der
+neue Code, läuft noch die Probe, und die App sagt genau das – „Die Web-App läuft
+noch mit dem Code der Probe" samt *Neue Version*. Schritt 4 übersprungen (naheliegend:
+bei der Probe hat Tobi schon eine Funktion `einrichten` ausgeführt) schadet
+dagegen nicht: Die erste Vorschau räumt die Probe dann selbst weg.
+
+**Keine zweite Rechnung.** Die Vorschau rechnet mit genau den Schritten, mit
+denen die App beim Laden den Tag nachzieht – kein Nachbau, der beim nächsten
+Umbau der Regeln auseinanderliefe. Dafür stehen die Startschritte jetzt in
+`js/tagstart.js` (`tagNachziehen()`), ohne Oberfläche: Umzug eines
+abgeschafften Fokus, Planwechsel und Reparaturen, nachstempeln, Tagesabschluss,
+Runde weiter, nachrücken, Aufstieg, Zusatztag – in der Reihenfolge, die die App
+beim Laden und beim Tageswechsel fährt. Die App ruft dieselbe Funktion und
+hängt nur ihre Anzeige an (Startansicht, Diagnoseprotokoll, das Beenden einer
+liegen gebliebenen Sitzung mit Meldung und Sicherung). Die Termine kommen aus
+`kalenderTermine()` in `js/kalender.js`, derselben Quelle, aus der jetzt auch
+die Kalenderdatei ihre Einheiten nimmt (`kalenderEinheiten()`): jede Einheit an
+ihrem tatsächlichen Tag, mit Titel, Übungsliste und Dauer wie in der Datei. Im
+Kalender „Workout" steht die Einheit so, wie trainiert wird – mit dem Zusatztag
+darin –, die Datei bleibt beim Plan der Einheit, wie bisher.
+
+**Die Kennung** eines Termins ist `<fokus>-<runde>-<n>`, für einen allein
+stehenden Zusatztag `<fokus>-<runde>-z<woche>` – nicht die Nummer allein wie in
+der Datei. Nach dem Rundenende fängt Workout 1 wieder an, und mit derselben
+Kennung hätte der Abgleich das erledigte Workout 1 der alten Runde aus der
+Vergangenheit auf den neuen Tag gezogen.
+
+**Je Tag ein frischer Start.** Jeder Tag der Vorschau beginnt mit dem
+Zustand, den die App jetzt hat (`store.importJSON()`), nicht mit dem des
+Vortags: Der Kalender soll zeigen, was die App beim nächsten Öffnen aus dem
+jetzigen Stand rechnet. Gemessen ist es ohnehin dasselbe – je Tag frisch
+gesät, Tag für Tag fortgeschrieben (die App jeden Tag geöffnet), ein eigener
+Prozess je Tag und die echte App im Browser am Tag *d* ergeben dieselben
+Termine.
+
+**Zu welcher Uhrzeit gerechnet wird.** Um 0:05 – außer, die 3-Stunden-Regel
+des Tagesabschlusses greift später. Wer bis 23:10 trainiert und die Einheit
+liegen lässt, dem schließt die App sie erst ab 2:10 ab; um 0:05 gerechnet, stünde
+sie im Kalender den ganzen nächsten Tag offen, samt der Nacharbeit, die erst
+der Abschluss verteilt. Deshalb max(0:05, letztes Lebenszeichen + 3 h + 1 min),
+höchstens 23:59. Für heute gilt die echte Uhrzeit mit derselben Untergrenze:
+Die Liste für heute gilt im Kalender den ganzen Tag. Die Uhrzeit wirkt nur über
+diese Regel – Nachrücken, Runde und Zusatztag hängen am Tag allein.
+
+**Im Worker, nie im Fenster.** Im Fenster der App teilten sich die Rechenmodule
+den Zustand mit ihr, und das Neusäen je Tag ersetzte das echte Training. Ein
+Modul-Worker (`js/kalender-worker.js`) lädt dieselben Dateien als eigene
+Instanzen, ohne Seite und ohne echten Speicher; die Vorschau ersetzt dort den
+Speicher durch eine Map und die Uhr durch eine Unterklasse von `Date`, bevor
+sie die Module lädt. Im Fenster bricht sie ab, bevor sie etwas anfasst. Ein
+Leerlauf-Rückruf im Fenster wäre kein Ersatz: Er verteilt die Last, trennt aber
+den Zustand nicht. Gemessen am Rechner: 42 Tage in Chromium im Worker 220–255 ms
+beim ersten Mal (mit dem Laden der Module), 115–155 ms danach; in Node
+0,3–0,4 s mit dem Laden, rund 0,2 s danach. Am Handy ist es nicht gemessen und dürfte ein Mehrfaches sein – im
+Worker steht die Oberfläche dabei nicht still. Dabei fiel ein alter Fehler auf:
+`js/figure.js` startete seine Bildschleife überall, wo es
+`requestAnimationFrame` gibt – auch im Worker, der kein `document` hat. Sie
+startet jetzt nur mit Seite.
+
+#### Der Vertrag zwischen App und Skript
+
+Er steht vollständig im Kopf von `js/kalender-vorschau.js`; die Regeln, die
+beide Seiten auswerten, stehen dort als Funktionen (`nutzlastPruefen()`,
+`sendungVergleichen()`, `vorschauFuer()`), damit das Skript sie Zeile für Zeile
+übernimmt. Kurz:
+
+* **Die Sendung** ist ein einfacher POST an die Web-App-Adresse (`…/exec`),
+  Body JSON, Content-Type `text/plain;charset=utf-8`, keine eigenen Header.
+  Apps Script beantwortet kein `OPTIONS`; jede andere Form löste einen
+  Preflight aus und käme nie an. Sie ist idempotent – zweimal geschickt ändert
+  beim zweiten Mal nichts.
+* **Die Felder:** `v` (1, seit v246 auch 2 – dann mit `ferne`, unten *Ein Jahr
+  im Voraus*), `token`, `geraet`, `seq`, `gesendet`, `app`,
+  `minuten` (Beginn in Minuten nach Mitternacht, Europe/Berlin, Standard 1050 =
+  17:30), `erinnerung` (Minuten vorher, Standard 30), `ab`, `fenster`
+  (`[7, 28]`: je Tag die Termine von 7 Tagen davor bis 28 danach), `stand`
+  (`{einheiten, saetze, zuletzt}`), `texte` (jeder Titel samt Übungsliste
+  einmal, unter einem kurzen Hash) und `tage` (je Tag
+  `[kennung, datum, dauer, hash, fertig]`). Die Uhrzeit rechnet das Skript
+  selbst aus Tag und Minuten in Europe/Berlin – so stimmt sie über die
+  Zeitumstellung hinweg. Dazu zwei Sonderformen: `probe` („Verbinden", nur
+  antworten) und `aus` („Abschalten").
+* **Wer gilt**, wenn zwei Geräte senden: dasselbe Gerät mit der späteren
+  Sendung immer; ein anderes nur, wenn es *zuletzt trainiert* hat, bei
+  gleichem Lebenszeichen mit mindestens so vielen Einheiten und Sätzen. Das
+  Lebenszeichen zählt über alle Runden, auch abgelegte und die anderer
+  Fokusse: Am Morgen nach Workout 84 ist das Protokoll leer, nach einem
+  Fokuswechsel steht dort der ältere Verlauf – allein daraus gerechnet, meldete
+  das Handy „nie trainiert", und ein Tablet aus der Schublade überholte es
+  still (gefunden bei der Prüfung). Nicht
+  „die neueste Sendung gewinnt" – ein Tablet, das zwei Wochen in der Schublade
+  lag, rückt beim Öffnen nach, sendet frisch und hätte den Kalender des Handys
+  überschrieben, mit dem seitdem trainiert wird. Ein neues Handy braucht
+  dafür keinen Knopf: Mit dem ersten Satz dort hat es zuletzt trainiert.
+* **Welcher Tag gilt:** die Liste für heute (Berlin), sonst die letzte davor.
+  Nach sechs Wochen ohne neue Sendung ist die Vorschau aufgebraucht; das Skript
+  verschiebt dann nichts mehr und sagt es.
+* **Was das Skript mit der Liste macht:** je Eintrag ein Termin, wiedergefunden
+  über die Kennung, bei *fertig* mit „✓" vor dem Titel und ohne Erinnerung. Ein
+  eigener Termin, dessen Kennung fehlt (`bleibtStehen()`), kommt weg, wenn er
+  heute oder später liegt – die Einheit ist dort leer, weil ein Termin alles
+  schont, oder ein unberührter Zusatztag steckt jetzt in der Einheit des Tages.
+  Vor heute bleibt er nur stehen, wenn er zu einer anderen Runde oder einem
+  anderen Fokus gehört als die Liste: Verlauf, etwa die letzte Einheit einer
+  abgelegten Runde, denn die Liste kennt nur die laufende. Aus der laufenden
+  Runde fehlt in der Vergangenheit nur, was nie gemacht wurde – ein
+  Zusatztag, der an Ruhetagen allein stand und dann in eine Einheit wanderte;
+  der kommt weg. Termine ohne Kennung fasst das Skript nicht an.
+* **Die Antwort** ist immer JSON, auch bei jedem Fehler: `ok`, `code`,
+  `version`, `kalender` und mehr – sonst sähe die App nur einen CORS-Fehler.
+  Ob sie am Handy lesbar ist (Weiterleitung über
+  `script.googleusercontent.com`), ist erst in Tobis Konto zu prüfen; die App
+  darf sich nicht darauf verlassen.
+
+**Größe.** Eine Vorschau über 42 Tage ist an Tobis Stand und den Fällen unten
+32,6–35,4 KiB groß (gzip rund 3,5 KiB), 17–27 verschiedene Texte. Das passt
+unter die 64 KiB, bis zu denen ein Browser beim Wegschalten noch sendet
+(`keepalive`), mit über 40 % Luft. Mit Uhrzeiten als ISO-Text je Eintrag
+wären es gut 70 KiB gewesen; deshalb nur Tag und Dauer, die Uhrzeit einmal.
+Mit dem Jahr dahinter (v 2) sind es an Tobis Stand 56,1 KiB – unten.
+
+**Geprüft** in `tests/test-kalender-vorschau.mjs` an Tobis Stand vom Do 08.10.
+und an daraus gebauten Fällen: verpasst bis Mo 12.10. und über die
+Zeitumstellung bis Mo 26.10., Workout 9 liegen geblieben (Abschluss am Sa,
+nachgerückt bis Mi), bis 23:10 trainiert und über Mitternacht bis 0:20, ein
+Bouldern-Termin, das Rundenende 84/84 (auch im Tagesabschluss), ein Turnier,
+das alles schont, der Zusatztag allein an Ruhetagen und danach in der Einheit,
+ein Zusatztag, der an einem eigenen Tag gemacht wurde, ein Start mit
+Planumbau, ein Gerät mit anderem Fokus, und „Wer gilt" am Morgen nach dem
+Rundenende und nach einem Fokuswechsel gegen ein Tablet mit älterem Training
+(dazu ein Lebenszeichen aus der Zukunft in der Ablage, das nicht zählt). Die Liste jedes geprüften Tages ist
+dieselbe wie die der echten App, im Browser an genau diesem Tag zur selben
+Uhrzeit geöffnet (15 Tage), wie die eines eigenen Prozesses (20 Tage) und wie
+die fortgeschriebene (sieben Fälle über je 42 Tage); der Worker rechnet Byte
+für Byte dasselbe wie Node. Gegen die App von v244
+(vor dem Umzug der Startschritte) gemessen: 49 Tage in zwölf Fällen, keine
+Abweichung. Die Kalenderdatei ist wortgleich wie bis v244, auch in dem, was
+sie absagt.
+
+**Grenzen, ehrlich.** Was nicht gesendet wurde, gilt als nicht trainiert: Wer
+ohne Netz trainiert und die App danach nicht mehr mit Netz öffnet, dem
+verschiebt der Kalender fälschlich, bis die nächste Sendung kommt – auf
+Android schickt der Service Worker sie nach, sobald wieder Netz da ist
+(unten, *Ohne Netz trainiert*), auf dem iPhone nicht. Die
+Vorschau reicht sechs Wochen; was hinter den vier Wochen jedes Tages steht, ist
+eine Schätzung (unten). Die App rechnet in der Ortszeit des Handys, der
+Kalender in Berliner Zeit – auf Reisen in einer anderen Zeitzone kann der
+Tageswechsel abweichen. Und Google sieht, was im Kalender steht: Titel,
+Übungen, Zeiten – in Tobis eigenem Konto, sonst nirgends.
+
+#### Das Skript in Tobis Google-Konto
+
+> „Es soll von selbst einfach das optimale passieren"
+
+Von selbst heißt: einmal einrichten, und danach verschiebt es jede Stunde, ohne
+dass jemand zusieht – auch keiner, der merkt, wenn es hakt. Das Skript ist
+deshalb klein im Annehmen und vorsichtig im Schreiben, und es sagt, was los
+ist. Die Vorlage liegt in `kalender/workout-kalender.gs`; die App setzt beim
+„Code kopieren" das Kennwort ein (der Platzhalter `<<KENNWORT-AUS-DER-APP>>`
+steht genau einmal darin, in der Zeile `const TOKEN = '…';`). Im Repository
+steht kein Kennwort, und unersetzt nimmt das Skript nichts an. Die Fassung des
+Skripts steht als `const FASSUNG = 2;` lesbar darin (bis v245: 1) – daran
+erkennt die App, ob Tobi den Code erneuern sollte und was sie schicken darf.
+
+**Einrichten.** Code in Tobis Probe-Projekt (script.new) ganz ersetzen,
+speichern, oben `einrichten` ausführen. Das räumt die Probe vom 26.10. weg
+(Kalender „Workout-Probe", über die Eigenschaft `kal` und über den Namen – sie
+lief womöglich zweimal; gelöscht wird nur ein eigener Kalender mit genau diesem
+Namen), löscht alle alten Auslöser des Projekts, legt den Kalender „Workout"
+in Europe/Berlin an oder findet den eigenen über die gespeicherte id wieder und
+legt genau einen Auslöser an: `stuendlich`, jede Stunde. Was es getan hat, steht
+im Ausführungsprotokoll, samt dem nächsten Schritt: *Bereitstellen →
+Bereitstellungen verwalten → Bearbeiten → Version: Neue Version →
+Bereitstellen*. Die URL bleibt dabei dieselbe. Wiederholt ausgeführt, entsteht
+nichts doppelt. Wurde nur bereitgestellt und nie eingerichtet, legt die erste
+Sendung der App Kalender und Auslöser selbst an (und sagt es in der Antwort).
+Steht dann noch die Probe da (die Eigenschaft `kal` in diesem Projekt), räumt
+dieselbe Sendung sie weg wie `einrichten` – nur einen eigenen Kalender mit genau
+dem Namen „Workout-Probe" – und sagt es; „Verbinden" kündigt es vorher an.
+Ohne das blieb „Workout-Probe" still neben „Workout" stehen. Einen Haken hat
+der so angelegte Auslöser: Er entsteht aus `doPost`, also aus der
+bereitgestellten Version, und hängt an ihr. Bei Tobi lief er nach dem nächsten
+Code-Tausch weiter mit dem alten Code – darum gehört `einrichten` seit v247 zu
+jedem Code-Tausch (unten, *Nach jedem Code-Tausch: einrichten*).
+
+**Neue Fassung, alter Speicher.** Die Web-App läuft auf der bereitgestellten
+Fassung, ein stündlicher Auslöser aus dem Editor (`einrichten`) auf dem
+zuletzt gespeicherten Code – einer, den `doPost` angelegt hat, auf der Fassung
+der Bereitstellung, aus der er entstand (bis v247 stand hier nur
+„wahrscheinlich auf dem zuletzt gespeicherten Code"; Tobis 28.10. zeigte den
+anderen Fall). Vergisst Tobi „Neue Version", schreibt also ein alter `doPost`,
+und ein neuer Abgleich liest. Deshalb ist `doPost` klein (prüfen, ablegen,
+abgleichen versuchen), und jede Fassung liest jedes Speicherformat, das eine
+frühere geschrieben hat. Format 1: die Sendung ohne Kennwort als JSON in Stücken von
+höchstens 8000 Byte (Google erlaubt 9 KB je Wert und 500 KB insgesamt; eine
+Vorschau von 64 KiB sind höchstens neun Stücke, eine mit Ferne bis 192 KiB
+höchstens 25), dazu eine Meta-Zeile mit Format,
+Generation, Länge und Prüfsumme. Erst wenn die neuen Stücke stehen, zeigt die
+Meta-Zeile auf sie, erst dann gehen die alten (seit v246 dazu vorher alles,
+was zu keiner geltenden Sendung gehört – unten, *Ein Jahr im Voraus*). Ist der
+Speicher beschädigt oder in einem unbekannten Format, fasst das Skript den
+Kalender nicht an und der Auslöser wirft (dann schickt Google eine Mail); die
+nächste gültige Sendung ersetzt ihn. Den umgekehrten Fall – die Web-App neu,
+der Auslöser alt – fängt das nicht auf: Fassung 1 kann die Sendung mit dem
+Jahr nicht lesen und wirft bei jedem Lauf, auch nach der nächsten Sendung; da
+hilft nur `einrichten` (unten, *Nach jedem Code-Tausch: einrichten*).
+
+**Annehmen.** Erst die Größe (über 192 KiB wird gar nicht ausgepackt, eine
+v 1 darf wie bisher höchstens 64 KiB haben), dann
+das JSON, dann das Kennwort – verglichen, ohne beim ersten falschen Zeichen
+aufzuhören –, dann der Vertrag (`nutzlastPruefen_()`). Wer gilt, entscheidet
+`sendungVergleichen_()`: dasselbe Gerät mit der späteren Sendung, ein anderes
+nur, wenn es zuletzt trainiert hat. „Abschalten" gilt von jedem Gerät mit dem
+Kennwort, nur nicht als verspätete Wiederholung einer früheren Sendung
+desselben Geräts. Die Antwort ist immer JSON, auch bei jedem Fehler, und nie
+mit dem Kennwort, einer Kalender-ID oder einer Adresse darin – auch nicht in
+einer Fehlermeldung, die Google selbst formuliert. `doGet` ist öffentlich
+(„Zugriff: Jeder") und sagt deshalb nur die Fassung und ob ein Kennwort im Code
+steht – ohne einen Blick in den Speicher: Wer nur die URL hat, soll damit nicht
+das Tageskontingent der Skript-Eigenschaften (50 000 Zugriffe) leeren können.
+Wie es sonst steht, sagt die Probe beim „Verbinden", und die braucht das
+Kennwort.
+
+**Abgleichen.** Die Liste für heute in Berliner Zeit (`vorschauFuer_()`),
+ausdrücklich mit Zone – die Zeitzone des Projekts zählt nirgends. Je Eintrag
+genau ein Termin, erkannt an unsichtbaren Markierungen (`setTag`): `workout`
+trägt die Kennung, `workoutSkript` die zufällige Kennung des Projekts,
+`workoutText` den Fingerabdruck der Beschreibung, die das Skript gesetzt hat.
+Termine ohne diese Markierungen – von Hand, eine eingelesene Kalenderdatei,
+ein anderes Werkzeug – fasst es nie an. Ein Termin derselben Einheit wird
+verschoben, nicht neu angelegt, auch wenn er außerhalb des Fensters liegt;
+Doppelte kommen weg. Gesucht wird bis 35 Tage vor dem Fenster und mindestens
+bis zum Fenster der zuletzt ganz angeglichenen Liste (`workout.liste`): War
+die Vorschau lange aufgebraucht, stehen ihre offenen Termine weit vor dem
+heutigen Fenster – kam die nächste Sendung erst zwölf Wochen später, fand der
+Abgleich sie nicht, legte jede Einheit neu an, und 17 alte blieben doppelt
+stehen (gefunden bei der Prüfung). Beginn ist der Tag um `minuten` in Europe/Berlin
+(`Utilities.parseDate`), also 17:30 im Sommer wie im Winter. Erledigtes steht mit
+„✓ " davor und ohne Erinnerung, Offenes mit der Popup-Erinnerung aus der App;
+Voreinstellungen des Kalenders und Mail-Erinnerungen entfernt das Skript an
+seinen Terminen, damit nichts doppelt klingelt – an jedem neuen Termin
+ausdrücklich, nicht nur, wenn `getPopupReminders()` eine Abweichung meldet: Ob
+Google die Voreinstellung dort überhaupt meldet, ist nicht belegt, und sonst
+behielten erledigte Termine und bei „keine Erinnerung" alle sie still. Was in der Liste fehlt, kommt
+weg oder bleibt stehen, wie `bleibtStehen_()` sagt: verpasste Termine der
+laufenden Runde weg, weil die Einheit gewandert ist; Verlauf einer abgelegten
+Runde bleibt. Ändert Tobi im Kalender „Workout" einen Termin des Skripts von
+Hand, setzt der nächste Abgleich Tag, Uhrzeit, Titel und Erinnerung zurück
+(die Beschreibung nicht – verglichen wird der Fingerabdruck, damit Google sie
+umformen darf, ohne dass das Skript sie jede Stunde neu schreibt). In die
+Beschreibung des Kalenders schreibt es „Zuletzt abgeglichen", von wann der Plan
+ist, bis wann er reicht, die Fassung des Skripts und jeden Hinweis.
+
+**Schonen.** Höchstens vier Minuten und 150 Änderungen je Lauf, das Dringendste
+zuerst (heute und die nächsten Tage, dann rückwärts), nach jedem Anlegen und
+Löschen eine Zehntelsekunde Pause. (Fassung 2: viereinhalb Minuten, 400
+Änderungen, `doPost` 25 Sekunden, und den Rest macht ein einmaliger Auslöser
+ein paar Minuten später – unten, *Ein Jahr im Voraus*.) Bremst Google („Service invoked too many
+times", auf Deutsch „zu oft"/„zu viele"), hört der Lauf auf, und die nächste
+Stunde macht weiter – jeder Lauf gleicht den ganzen Tag an, nicht nur den
+Unterschied zum letzten. Dabei fiel in der Prüfung auf: Bremst Google zwischen
+dem Anlegen eines Termins und seiner Markierung, stünde er unmarkiert da, sähe
+aus wie ein fremder und bliebe für immer doppelt. Das Skript merkt sich die id
+deshalb vor dem Markieren (`workout.offen`) und holt die Markierung im nächsten
+Lauf nach. Scheitert Google an so einer gemerkten id aus einem anderen Grund
+als dem Bremsen (der Termin ist gelöscht oder im Papierkorb), gibt das Skript
+sie auf – vorher hielt eine einzige solche id jeden weiteren Abgleich an.
+Ein aufgebrauchtes **Tageskontingent** („… too many times for one day") ist
+kein kurzes Bremsen: Das holt die nächste Stunde nicht nach. Dann hört der Lauf
+auf, und der Auslöser wirft – Google schickt die Mail, statt dass es still
+als „Google bremst" weiterläuft.
+
+**Zwei Projekte.** Richtet Tobi ein zweites Projekt ein, übernimmt es den
+Kalender „Workout" des ersten, statt einen zweiten anzulegen; die Beschreibung
+trägt dafür die Zeile `Skript-Kennung: wk-…`. Das zuletzt eingerichtete Projekt
+gilt. Das andere sieht beim nächsten Lauf eine fremde Kennung, fasst den
+Kalender nicht mehr an und schaltet seinen Auslöser ab – kein Hin und Her im
+selben Kalender. Ein Projekt, das nie eine Vorschau bekommen hat, fasst den
+Kalender ohnehin nicht an.
+
+**Wenn etwas fehlt.** Löscht Tobi den Kalender „Workout", legt der Auslöser
+ihn nicht ungefragt neu an, sondern wirft – Google schickt die Mail, und die
+App bekommt es beim Senden und beim „Verbinden" gesagt; `einrichten` legt ihn
+neu an. Ist die Vorschau aufgebraucht (sechs Wochen ohne Sendung), verschiebt
+das Skript nichts mehr und legt stattdessen einen einzigen Hinweis-Termin auf
+heute zur Trainingszeit, mit Erinnerung: „Workout-App öffnen – der Kalender
+verschiebt nicht mehr". Er wandert täglich mit und verschwindet mit der
+nächsten Vorschau. Nach „Abschalten" kommen die eigenen Termine ab heute weg,
+die Vorschau verlässt den Speicher, und bis zur nächsten Sendung tut der
+Auslöser nichts – ohne Fehler, auch wenn Tobi den Kalender danach löscht.
+
+**Geprüft** in `tests/test-kalender-gas.mjs` (Node, ohne Netz und ohne
+Browser): das Skript in einem nackten V8-Kontext ohne `fetch`, `TextEncoder`,
+`setTimeout` und `Intl`, mit Attrappen von CalendarApp und seinen Terminen
+(Markierungen, Erinnerungen, Voreinstellung eines neuen Kalenders, Bremsen nach
+einer Zahl von Schreibzugriffen, Zeit je Schreibzugriff), Skript-Eigenschaften
+mit 9 KB je Wert und 500 KB insgesamt, Auslösern, Sperre, ContentService und
+Utilities mit Zone (`YYYY` wirft). Eingabe sind echte Vorschauen aus
+`vorschauRechnen()`, gerechnet in Europe/Berlin; das Skript selbst läuft in
+America/Los_Angeles, wo Berliner Mitternacht der Nachmittag davor ist. Geprüft
+sind die Vorlage selbst (Platzhalter, kein Geheimnis, beim Laden kein
+Dienstaufruf, `einrichten` als erste Funktion), die vier Regeln gegen den Kern
+(44, 17, 7 und 7 Fälle), Tobis Probe samt zweitem Probe-Kalender und altem
+Auslöser, zwölf abgewiesene Sendungen, elf Wochen Abgleich an Tobis Stand
+(Mitternacht, Zeitumstellung, abhaken, zwei Geräte, Horizont, Abschalten), die
+leere Einheit, der Zusatztag, das Rundenende, Bremsen und langsames Google, ein
+zweites Projekt, ein gelöschter Kalender, ein Speicher im Format 1 wörtlich und
+beschädigt, die belegte Sperre – und, was die Prüfung des Entwurfs fand: eine
+gemerkte id, an der Google dauerhaft scheitert, die nächste Sendung 30 und 89
+Tage nach dem Ende der Vorschau, `doGet` ohne Zugriff auf den Speicher, das
+aufgebrauchte Tageskontingent, eine Voreinstellung des Kalenders, die
+`getPopupReminders()` nicht meldet (Attrappe mit eigenem Zustand wie
+`useDefault`), und Tobis Probe ohne `einrichten`. Gegen den Stand vor dieser
+Nachbesserung sind zehn dieser Prüfungen rot. 14 absichtlich eingebaute Fehler (lokaler Tag
+statt Berlin, „die neueste Sendung gewinnt", `YYYY`, Kennwort im Speicher, zu
+große Stücke, fremde Termine anfassen …) fängt die Prüfung alle. Gezählt: die
+erste Sendung legt 21 Termine mit 8 Lese- und 123 Schreibzugriffen an; eine
+ruhige Stunde schreibt nur die Beschreibung (eine Zeile mit der Uhrzeit) und
+fragt rund 240-mal Felder der Termine ab – ob so eine Abfrage in Apps Script
+ein eigener Aufruf ist oder aus dem schon geladenen Termin kommt, ist
+ungeprüft.
+
+**Ehrlich dazugesagt.** Nichts davon ist in echtem Apps Script gelaufen außer
+den Bausteinen aus Tobis Probe (Web-App mit JSON, eigener Kalender in
+Europe/Berlin, `parseDate` mit Zone, Popup-Erinnerung, Beschreibung). Ungeprüft
+sind dort: Markierungen per `setTag`/`getTag`, `getEventById` mit der id eines
+eben angelegten Termins, `getOwnedCalendarsByName`, der genaue Wortlaut, mit
+dem Google bremst, und wie lange ein Aufruf dauert. Google fragt nach Zugriff
+auf alle Kalender; dass das Skript nur „Workout" anfasst, ist eine Regel dieses
+Codes, keine Sperre.
+
+#### In der App: die Karte und das Senden
+
+> „Ja aber nur wenn es wirklich keinen Weg gibt wie verschoben wird auch wenn
+> ich die app nicht öffne"
+
+Das Skript verschiebt nur so gut, wie die letzte Vorschau ist, die es bekommen
+hat. Die App muss also von selbst und rechtzeitig schicken – vor allem dann,
+wenn trainiert wurde, denn alles, was nicht ankam, gilt im Kalender als nicht
+trainiert. Und sie muss sagen, wenn es hakt, denn sonst merkt es niemand: Das
+Skript läuft bei Google, ohne dass jemand zusieht. Das Senden steht in
+`js/kalender-sync.js`, die Karte in `kalenderKarte()` in `js/app.js`.
+
+**Die Karte** unter *Mehr → Kalender* sagt vorweg, was passiert und was nicht:
+Die Trainings stehen in einem eigenen Kalender „Workout" in Tobis Konto, um
+17:30, mit den Übungen; verpasst er eins, rückt es nach, auch ohne dass er die
+App öffnet – gerechnet mit „nicht trainiert". An Google geht nur, was im
+Kalender steht (Titel, Übungen, Tage, Uhrzeit), in sein eigenes Konto. Google
+fragt beim Einrichten nach Zugriff auf alle Kalender; dass das Skript nur
+„Workout" anfasst, ist eine Regel seines Codes, keine Sperre von Google.
+Dazu die Grenzen: ohne Netz trainiert, sechs Wochen nicht geöffnet, dass
+Kennwort und URL mit Sicherung und Exportdatei reisen, und seit v246, dass
+alles hinter den vier Wochen eine Schätzung ist. Beides steht
+zugeklappt unter *Was an Google geht · Grenzen* am Ende der Karte – vorher
+stand es mit rund 200 Wörtern vor den Schritten, und Schritt 1 begann bei
+360 px Breite erst unten am ersten Bildschirm (die Karte war 1326 px hoch).
+Nicht verbunden stehen nach dem ersten Absatz gleich die sechs Schritte von
+oben, *Code kopieren*, das URL-Feld und *Verbinden*; Hauptknopf ist erst *Code
+kopieren*, mit Kennwort *Verbinden*. Verbunden steht dort, wann zuletzt etwas
+ankam und bis wann die Termine reichen („Zuletzt angekommen: vor 3 Min. (Skript
+Fassung 2). Im Kalender: Termine bis 08.10.2027." – solange das Skript das Jahr
+noch einträgt, bis wann sie schon stehen, unten *Ein Jahr im Voraus*), was beim letzten
+Versuch schiefging, Uhrzeit (Berliner Zeit) und *Erinnerung vorher* (kurz
+„30 Min." – „30 Min. vorher" passte bei 360 px nicht ins Feld) – jede Änderung
+geht sofort hinaus –, was eine Mail „Summary of failures" von Google bedeutet
+(sie kommt vom stündlichen Abgleich dieses Skripts; meist hilft `einrichten`,
+sonst dem Assistenten Bescheid geben), *Code kopieren*, *Trennen* und,
+zugeklappt, *Neues Skript-Projekt?* mit dem URL-Feld – ohne Hauptknopf.
+
+Eine Meldung der Karte („Verbunden – die erste Vorschau ist unterwegs …",
+„Code kopiert …") gilt nur, bis ein neueres Ergebnis da ist; dann sagt der
+Stand oben, was los ist. Vorher stand nach dem Verbinden über „✓ Verbunden.
+Zuletzt angekommen" weiter groß und grün „Noch keine Vorschau angekommen", die
+ganze Sitzung lang. Bittet das Skript schon beim Verbinden um etwas
+(`einrichten`, ein anderes Projekt pflegt den Kalender) oder ist sein Code zu
+alt, steht dessen Satz in der Farbe für „da ist etwas zu tun" und ohne „nach
+etwa einer Minute stehen die Termine". „Code kopieren" im verbundenen Zustand
+sagt alle Schritte zum Erneuern (im selben Projekt ersetzen, speichern,
+`einrichten`, *Neue Version*) statt auf nummerierte Schritte zu zeigen, die
+dort nicht stehen. In v246 stand dort kein `einrichten` („Kalender und
+Auslöser bestehen schon") – das war falsch, seit v247 gehört es zu jedem
+Code-Tausch (unten, *Nach jedem Code-Tausch: einrichten*). Steht die Bitte um
+neuen Code für das Jahr mit ihren nummerierten Schritten auf der Karte,
+verweist die Meldung nur auf sie („… Weiter mit Schritt 2.").
+
+**Das Dashboard** bekommt eine Zeile nur, wenn Tobi selbst etwas richten muss:
+Das Skript kennt das Kennwort nicht, der Code in Apps Script ist älter als die
+App („Kalender-Code erneuern"), geantwortet hat nicht das Skript, oder das
+Skript bittet um `einrichten` (Kalender gelöscht, ein anderes Projekt pflegt
+ihn, kein stündlicher Auslöser). Kein Netz, ein beschäftigtes Skript, eine
+ausgebliebene Antwort oder ein anderes Gerät, das zuletzt trainiert hat,
+richten sich von selbst – die App schickt dieselbe Vorschau nach 2, 5 und 15
+Minuten noch einmal (unten) – und stehen nur unter *Mehr*; das andere Gerät
+seit v247 als deutlicher Hinweis mit „Trennen" (unten, *Zwei Geräte*), und
+dort auch, wenn das Skript nichts nachträgt. Hat die Verbindung
+schon einmal geklappt, ist auch „nicht das Skript" erst nach diesen drei
+Wiederholungen ein Alarm: Meist ist das ein Aussetzer bei Google. Bleibt es
+nach drei Wiederholungen bei `fehler`, ist das kein Beschäftigtsein mehr –
+dann kommt es aufs Dashboard, mit der Bitte um das Diagnoseprotokoll. Dazu
+seit v246 einmal, ohne Warnfarbe, die Bitte um neuen Code für das Jahr (unten).
+
+**„Code kopieren"** holt die Vorlage (der Service Worker hält sie vor) und
+setzt das Kennwort ein: 256 Bit, zufällig, beim ersten Tipp erzeugt und
+*vorher* fest gespeichert – lädt die App beim Wechsel in den Browser und
+zurück neu und entstünde dabei ein neues Kennwort, passte der eingefügte Code
+nicht mehr, und jede Sendung würde abgewiesen. Ein zweites Kopieren, auch nach
+einem Neuladen, gibt denselben Code. Lässt der Browser das Kopieren nicht zu,
+steht der Code markiert zum Abschreiben da.
+
+**„Verbinden" fragt erst und merkt sich dann.** Die App schickt eine Probe
+(`probe: true`), die beim Skript nichts speichert, und verbindet nur, wenn
+eine lesbare Antwort des Skripts zurückkommt. Sonst wüsste niemand, ob das,
+was die URL beantwortet, überhaupt das Skript ist. Jeder Fehlschlag hat einen
+Satz, der sagt, was zu tun ist:
+
+| Was | Die App sagt |
+| --- | --- |
+| leeres Feld, Test-URL (`…/dev`), Adresse des Editors, Weiterleitung (`googleusercontent`), fremde Adresse | was gemeint ist – vor jeder Anfrage |
+| kein Netz | geht hinaus, sobald Netz da ist |
+| keine lesbare Antwort, aber das Netz war da – und ein GET (`doGet`) antwortet lesbar, aber nicht wie der neue Code | „Die Web-App läuft noch mit dem Code der Probe": *Bereitstellungen verwalten → Bearbeiten → Version: Neue Version* |
+| … und auch der GET antwortet ohne CORS (Anmeldeseite, Fehlerseite) | „Google lässt die App nicht zum Skript durch": „Zugriff: Jeder" (nicht „Jeder mit Google-Konto") und „Ausführen als: Ich", sonst ist die URL falsch |
+| … und der GET antwortet wie der neue Code | „Der neue Code ist bereitgestellt, aber das Senden kam bei ihm nicht an": noch einmal *Verbinden* |
+| … und auch der GET kommt gar nicht durch | „Google hat geantwortet, aber nicht das Skript" mit allen drei Ursachen: Neue Version, „Zugriff: Jeder", „Ausführen als: Ich", URL auf `/exec` |
+| lesbare Fehlerseite | „Unerwartete Antwort von Google (HTTP 404) – stimmt die URL?" |
+| `token` | Code kopieren, in Apps Script ersetzen, speichern, `einrichten`, Neue Version (seit v247 mit `einrichten`) |
+| `format` mit „erneuern" (zu einer Sendung in der Fassung, die das Skript spricht) | „Kalender-Code erneuern" samt `einrichten` und *Bereitstellungen verwalten → Bearbeiten → Version: Neue Version* |
+| eine ältere `version` als die Vorlage (Fassung 1) | verbunden – es läuft mit v 1 weiter; die Karte bittet um den neuen Code für das Jahr (unten) |
+| 30 s keine Antwort | noch einmal *Verbinden* |
+
+„Keine lesbare Antwort, aber das Netz war da" lässt sich unterscheiden, obwohl
+der Browser in beiden Fällen nur „Failed to fetch" sagt: Die App fragt ein
+zweites Mal ohne CORS. Kommt dann eine undurchsichtige Antwort, war das Netz
+da, und geantwortet hat eine Anmeldeseite, eine Fehlerseite oder eine falsche
+Adresse. Welche davon, fragt die App gleich selbst nach – mit einem einfachen
+GET an dieselbe Adresse, den `doGet` ohne Kennwort beantwortet –, statt Tobi
+zwischen drei Ursachen wählen zu lassen: „Es soll von selbst einfach das
+optimale passieren". Wird eine andere URL verbunden, geht zuerst die Probe an die neue,
+dann ein „aus" an die alte – sonst schöbe deren Skript sechs Wochen nach seiner
+letzten Vorschau weiter –, dann die erste Vorschau an die neue.
+
+**Wann gesendet wird.** Nur verbunden, und nur, wenn sich die Vorschau seit
+der zuletzt angekommenen geändert hat (ein Fingerabdruck über Texte, Tage,
+Uhrzeit, Erinnerung und Verbindung – nicht über die Zahl der Sätze). In einem
+Training ist das dreimal so: beim ersten Haken, beim zweiten – ab zwei Sätzen
+schließt der Tagesabschluss die Einheit morgen ab, die Liste für morgen zeigt
+sie dann als erledigt, das geht gedrosselt hinaus – und beim Abschluss; weitere
+Sätze ändern bis dahin nichts. (Bis zur Prüfung stand hier „ein zweiter Haken
+ändert am Kalender nichts", und die Prüfung dazu bestand nur, weil die Uhr im
+Test in einem Sprung vorging und der Zeitgeber der Drossel nie lief.)
+
+| Anlass | Wann |
+| --- | --- |
+| erster Haken einer Einheit | sofort – ab da steht sie auf heute fest; ohne Sendung schöbe der Kalender sie morgen als verpasst weiter |
+| Abschluss einer Einheit | sofort, mit „✓" |
+| jede andere Änderung | gerechnet 2 s danach, geschickt frühestens 5 s danach und höchstens alle zwei Minuten |
+| die Pause (Start, Ende, „+30 s") | gar nicht – die Vorschau liest sie nicht (seit v246, unten *Rechenzeit*) |
+| Start | 3 s nach dem Laden – ein neuer Tag ist eine neue Vorschau, und die sechs Wochen zählen ab dem letzten Öffnen |
+| kein Netz, Skript beschäftigt (`fehler`), keine Antwort in 45 s (`zeit`) | dieselbe Vorschau noch einmal nach 2, 5 und 15 Minuten, solange die Seite lebt, dazu bei `online` und beim Zurückkommen (höchstens einmal je Minute) |
+| Wegschalten | nur, was fertig gerechnet bereitliegt, mit `keepalive` (unter 64 KiB, nach der Sicherung); größer (ein Jahr mit vielen Terminen) gleich in den Ausgang für den Service Worker – ohne Background Sync gewöhnlich, und offen, bis die Antwort da ist |
+| App zu | der Service Worker schickt nach, was nicht ankam – ohne Netz, sobald wieder welches da ist; ist das Skript beschäftigt, einige Minuten später (unten) |
+
+Bis zur Prüfung des Entwurfs ging nach `fehler` und `zeit` bei bestehendem Netz
+nichts mehr hinaus, obwohl das Skript „die App schickt es später noch einmal"
+sagt: Der stündliche Abgleich hält die Sperre bis zu vier Minuten, `doPost`
+wartet 30 s. Beim Skript blieb dann die Vorschau von vor dem Training, und ab
+Mitternacht schob der Kalender die gemachte Einheit als verpasst weiter – bis
+die App wieder offen war. Gemessen: eine Stunde danach null weitere Sendungen.
+
+**Wie.** Ein einfacher POST: der Text als Body (der Browser schreibt
+`text/plain;charset=UTF-8` dazu), keine eigenen Header, `credentials: 'omit'`,
+`redirect: 'follow'`. Apps Script beantwortet kein `OPTIONS`, jede andere Form
+löste einen Preflight aus und käme nie an. Ohne Cookies, weil Google mit ihnen
+einen angemeldeten Fremden sähe statt „Jeder". Die erste Sendung darf 45 s
+dauern – das Skript legt dabei alle Termine an –; bleibt die Antwort aus, sagt
+die App „Gesendet, aber die Antwort blieb aus", nicht „nicht angekommen", denn
+gespeichert hat das Skript vor dem Abgleich.
+
+**Gerechnet wird im Worker** (`js/kalender-worker.js`), ein lebender Worker
+für alle Sendungen; meldet er einen anderen Fokus, kommt ein neuer. Im Fenster
+bleibt nur, den Zustand hinüberzugeben und die fertige Nutzlast in Text zu
+wandeln. Gemessen am Rechner (Chromium, `tests/test-kalender-sync.mjs`, echte
+Uhr, vier Läufe): im Worker rund 190–310 ms je Vorschau, im Fenster rund
+1–3,5 ms je Sendung, und während der Worker rechnet, keine Aufgabe im Fenster
+über 50 ms. Am Handy ist es nicht gemessen; dort dauert die Rechnung länger,
+die Oberfläche steht aber auch dann nicht still. Beides steht je Sendung im
+Diagnoseprotokoll (`rechnen=`, `haupt=`), seit v246 dazu `vertrag=` und
+`fern=` (wie weit die Ferne reichte). Mit dem Jahr: unten.
+
+**Ohne Netz trainiert** – der häufigste echte Fehlfall: im Studio kein Netz,
+und bis zum nächsten Öffnen mit Netz hielte der Kalender das Training für
+verpasst. Wo es Background Sync gibt (Chrome, also Tobis Android), legt die
+App die fertige Sendung deshalb in einen Ausgang (Cache „kalender-ausgang") und
+bittet den Browser um ein `sync`. Das bekommt der Service Worker, sobald wieder
+Netz da ist, auch bei geschlossener App. Dasselbe nach `fehler` und `zeit`:
+Schließt Tobi die App gleich nach dem Training, bevor die Wiederholung in zwei
+Minuten käme, schickt der Service Worker – bei bestehendem Netz sofort. Er
+schickt erst mit CORS, um die Antwort zu lesen: Sagt das Skript `fehler`
+(beschäftigt), wirft er, behält die Sendung, und der Browser versucht es einige
+Minuten später noch einmal. Scheitert die Anfrage mit CORS, schickt er dieselbe
+ohne CORS – die wirft nur ohne Netz; eine Seite ohne Freigabe hielte ihn sonst
+endlos auf. Nur an eine Web-App-Adresse von Apps Script. Vermerkt wird, dass es
+hinausging, und, wenn lesbar, was das Skript sagte; die Karte sagt „Im
+Hintergrund nachgeschickt" – „Ohne Netz trainiert: …" davor seit v247 nur,
+wenn die Sendung wirklich mangels Netz im Ausgang lag, und nur bis zur
+nächsten eigenen Sendung, die ankommt (unten, *Nach jedem Code-Tausch:
+einrichten*). Auf dem iPhone gibt es das nicht.
+
+**Wer was sieht.**
+
+* **Google**, in Tobis Konto: was im Kalender steht (Titel, Übungen, Tage,
+  Uhrzeit), dazu im Speicher des Skripts die Vorschau samt Trainingsstand
+  (Zahl der Einheiten und Sätze, wann zuletzt trainiert), eine zufällige
+  Kennung des Geräts und die Fassung der App – nie das Kennwort.
+* **Die automatische Sicherung** trägt Kennwort und URL mit, Ende-zu-Ende
+  verschlüsselt: Ein neues Handy, das sie zurückholt, schickt von selbst
+  weiter. Der Server liest sie nicht.
+* **Die Exportdatei** trägt beides im Klartext. Wer sie hat, kann damit Termine
+  in „Workout" schreiben – sonst nichts, und das steht auf der Karte.
+* **Nie** stehen Kennwort oder URL im Diagnoseprotokoll (dort nur Ergebnis,
+  Größe, Zeiten, Zähler), im Rückkanal (der meldet ausgewählte Zahlen), in
+  einer Meldung auf dem Bildschirm, in der Konsole – und nicht im Worker: Er
+  bekommt den Zustand ohne die Verbindung, so kann auch keine Fehlermeldung
+  aus ihm sie enthalten.
+* **Nur auf diesem Gerät** (`workout.kalender.v1`, nicht in Sicherung und
+  Export): die Kennung des Geräts für das Skript, der Zähler `seq`, was zuletzt
+  ankam. Stünde „zuletzt angekommen" im Zustand, löste jede Sendung die nächste
+  aus. Und ein neues Handy soll beim Skript als eigenes Gerät auftreten, denn
+  daran hängt die Regel „Wer gilt": Mit dem ersten Satz dort hat es zuletzt
+  trainiert.
+
+**Einlesen.** Eine Datei oder Sicherung mit Verbindung bringt sie mit. Eine
+ohne Adresse (von vor dem „Verbinden") lässt die des Geräts stehen – ein
+Einlesen trennte sonst still einen Kalender, der dann sechs Wochen nach einer
+alten Vorschau schöbe. Eine Adresse außerhalb von `script.google.com` fällt
+beim Laden und beim Einlesen weg (`normKalender()`): Das Kennwort geht
+nirgendwohin sonst.
+
+**Trennen** schickt dem Skript ein „aus" – seine Termine ab heute
+verschwinden, und es schiebt nichts mehr – und vergisst die URL. Das Kennwort
+bleibt, es steht ja noch im Skript. Ohne Netz wartet das „aus" und geht nach,
+sobald welches da ist. *Alle Daten löschen* tut dasselbe. Ganz weg ist das
+Skript erst, wenn Tobi das Projekt in Apps Script löscht und unter
+`myaccount.google.com/permissions` den Zugriff entzieht. Eine Ausnahme seit
+v247: Sagte eine Antwort `aelter` – beim Skript gilt der Plan eines anderen
+Geräts –, und kam danach von diesem Gerät nichts mehr an, geht kein „aus",
+weder beim Trennen noch beim Löschen noch an die alte URL beim Wechsel; ein
+Versuch dazwischen, der scheitert, ändert daran nichts. Das Skript nimmt ein
+„aus" von jedem Gerät mit dem Kennwort an und räumte damit die Termine des
+Geräts weg, mit dem trainiert wird (unten, *Zwei Geräte*).
+
+**In der Einzeldatei** steht die Karte ohne Knöpfe, mit dem Satz, dass es nur
+in der App aus dem Netz geht: Aus einer Datei startet kein Modul-Worker, und
+die Vorlage lässt sich nicht holen.
+
+**Geprüft** in `tests/test-kalender-sync.mjs` (Playwright, das Skript per
+`page.route` gespielt, kein Aufruf erreicht Google): die Karte und ihre Sätze,
+das Kennwort fest im Speicher vor dem Kopieren und dasselbe über zweites
+Kopieren und Neuladen, jede Fehlerart beim Verbinden, die Probe und die erste Vorschau
+als einfacher POST, die `nutzlastPruefen()` aus dem Vertrag besteht, der Takt
+(Start, Neuladen am selben und am nächsten Tag, erster, zweiter und dritter
+Haken mit der Uhr in Schritten, Drossel, Abschluss, Wegschalten, `online`), die
+Antworten und was davon aufs Dashboard kommt, die Wiederholungen nach `fehler`,
+`zeit` und einer undurchsichtigen Antwort, die Nachfrage per GET beim
+Verbinden, die Meldung, die dem Stand weicht, Aufbau der Karte, die Erinnerung
+bei 360 px, Uhrzeit und Erinnerung, neue URL, Trennen mit und ohne Netz,
+*Alle Daten löschen*, Sicherung und Export samt neuem Handy, wo Kennwort und
+URL nie stehen, der ICS-Hinweis, der Service Worker beim `sync` (per CDP
+ausgelöst – Background Sync ist im Chromium ohne Oberfläche abgeschaltet;
+auch nach `fehler`), die Last im Fenster und die Einzeldatei – 170 Prüfungen
+in v245 (mit dem Jahr seit v246 mehr, unten).
+Gegen v244 (456214c) gelaufen, war sie rot: 26 Zeilen, die meisten Abschnitte
+brechen gleich ab. Gegen den Stand vor der Nachbesserung (96df6bb) sind 27
+Zeilen rot – alles, was die Prüfung des Entwurfs fand.
+
+**Ehrlich dazugesagt.** Ob die Antwort des Skripts am Handy lesbar ist, zeigt
+erst Tobis Konto: Die Weiterleitung über `script.googleusercontent.com` lässt
+sich hier nicht nachstellen (Playwright folgt einem gespielten 302 nicht).
+Dass Antworten per ContentService per `fetch` lesbar sind, steht in einer
+Testreihe außerhalb von Google (Tanaike); Tobis Probe hat `doGet` im Browser
+geöffnet, nicht per `fetch`. Wäre die Antwort bei ihm nicht lesbar, käme
+„Verbinden" nie über „nicht das Skript" hinaus, und die App müsste
+nachgebessert werden – stumm verbunden wird nicht. Background Sync auf Tobis Handy und die Rechenzeit
+dort sind ungemessen. Was die App nicht schicken konnte, gilt als nicht
+trainiert; auf dem iPhone bleibt das so bis zum nächsten Öffnen mit Netz.
+
+#### Ein Jahr im Voraus (v246)
+
+> „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr machen"
+
+Bis v245 stand im Kalender „Workout", was die Liste eines Tages kennt: sieben
+Tage zurück, 28 voraus. Seit v246 steht dahinter ein Jahr, und es rückt nach
+wie die vier Wochen – auch ohne dass die App offen ist. Die vier Wochen (die
+*Nähe*) bleiben genau, wie sie waren: Jede der 42 Tageslisten ist Byte für Byte
+dieselbe wie ohne Jahr.
+
+**Wie die Ferne entsteht.** Für jeden Tag *d* der Vorschau rechnet die App
+dazu, wie es ab *d* weiterginge, wenn Tobi von da an nach Plan trainiert: der
+Rest der laufenden Runde an seinen Tagen und über ihr Ende hinaus die nächsten
+Runden, so wie die App sie anlegt. Workout 1 der nächsten Runde kommt im
+üblichen Abstand nach Workout 84 – `naechsteRundeAb()` in `js/tagstart.js`,
+dieselbe Funktion, die jetzt auch `rundeWeiter()` nimmt –, die Runde legt
+`store.restartPlan()` an, die Termine kommen aus `kalenderTermine()` mit der
+Kennung `<fokus>-<runde+1>-<n>`, die Übungen mit den Einstellungen von heute.
+Kein Nachbau der Planregeln, nur die Funktionen der App, im Worker mit frisch
+gesätem Zustand je Tag (`fernTermine()` in `js/kalender-vorschau.js`). Was die
+Nähe eines Tages schon zeigt, steht nicht noch einmal in seiner Ferne. Endet
+die Runde innerhalb der vier Wochen, stehen deren erste Einheiten nach
+Workout 84 trotzdem schon da: Die Nähe kennt die nächste Runde erst, wenn sie
+angelegt ist, und dazwischen klaffte sonst eine Lücke von bis zu vier Wochen.
+
+Dass die Kennungen beim echten Rundenwechsel stimmen, ist nachgespielt, nicht
+angenommen: Workout 1–80 erledigt, dann Tag für Tag nach Plan trainiert, die
+App jeden Tag geöffnet – alle 65 Einheiten der Runde 2 in den nächsten vier
+Monaten stehen mit derselben Kennung, am selben Tag und mit demselben Text da
+wie geschätzt. Im Kalender heißt das: Beim Rundenwechsel wird nichts gelöscht
+und neu angelegt, die Termine bleiben dieselben (in der Attrappe des Skripts:
+84 von 84 dieselben ids).
+
+**Was Schätzung ist.** Alles hinter den vier Wochen. Steigt Tobi in der
+nächsten Runde auf, wechselt den Fokus, trägt einen Termin ein oder trainiert
+nicht nach Plan, sieht es dort anders aus; je näher die Tage rücken, desto mehr
+wird aus der Schätzung die Nähe, und die stimmt. Verpasst er einen Tag, rückt
+das ganze Jahr um einen Tag nach – das steht in der Liste jedes Tages, also
+auch ohne App. Die Karte sagt es zugeklappt unter *Was an Google geht ·
+Grenzen*, die Beschreibung des Kalenders sagt, bis wann Termine stehen.
+
+**Kompakt.** 42 Tage zu je rund 200 Terminen wären über 8000 Einträge. Aber
+zwischen zwei Tagen verschiebt sich die Ferne fast immer als Ganzes:
+`catchUpPlan()` schiebt den ganzen Rest, und die nächsten Runden hängen an der
+letzten Einheit. In der Sendung stehen deshalb wenige Referenzlisten (Tage als
+Zahl ab `ab`, nicht als Datum) und je Tag nur, welche Liste, um wie viele Tage
+verschoben und was dann noch anders ist (`weg`, `dazu` – ein Termin in der
+Ferne trifft genau die Einheit, die gerade auf seinem Tag liegt). Das wird
+nicht angenommen, sondern je Tag geprüft: Die echte Fernliste des Tages muss
+genau herauskommen; wo keine Liste mit höchstens 24 Änderungen passt oder die
+Probe nicht aufgeht, wird sie selbst eine neue Referenz – die geht immer auf.
+Texte stehen einmal unter ihrem Hash, für Nähe und Ferne. An Tobis Stand ist es
+eine Liste mit 216 Einträgen, Versatz 0, 1, 2 … – jeder verpasste Tag schiebt
+sie um einen weiter, ohne eine Änderung.
+
+**Die Ferne hält das Senden nie auf.** Bis zur Prüfung des Entwurfs warf die
+Probe, wenn sie nicht aufging, und mit ihr fiel die ganze Sendung aus – auch die
+vier Wochen, die mit der Ferne nichts zu tun haben. Jetzt wird der Tag dann eine
+eigene Referenz. Scheitert die Ferne trotzdem (ein Fehler beim Rechnen), geht
+die Nähe allein hinaus, als v 1: Das Skript gleicht die vier Wochen an und lässt
+das Jahr dahinter stehen, wie es ist. Das Diagnoseprotokoll vermerkt
+`fernfehler=…`, und die App schickt diese Sendung nicht „passend" als v 2 nach –
+sie ging mit Absicht als v 1.
+
+**Größen**, gemessen in `tests/test-kalender-vorschau.mjs` und
+`tests/test-kalender-gas.mjs`:
+
+| Fall | Sendung |
+| --- | --- |
+| Tobis Stand, ein Jahr (v 2) | 56,1 KiB (gzip 6,9 KiB), 88 Texte, 192 Termine hinter der Nähe |
+| derselbe Stand nur mit Nähe (v 1) | 34,4 KiB |
+| derselbe Stand, 30, 100 oder 200 Tage nicht geöffnet (alles nachgerückt) | je 54,9 KiB, eine Referenzliste |
+| drei Termine in der Ferne (Padel, ein Turnier, das alles schont, Bouldern) | 75,1 KiB |
+| Fußball jede Woche, 52 Termine | 111,9 KiB, 7 Referenzlisten, 186 Texte |
+| Grenze im Test künstlich auf 45 KiB gesetzt | Ferne gekürzt auf 47 Tage, 43,2 KiB |
+
+Den Unterschied machen die Texte, nicht die Tage: 28 Tage Reichweite sind
+34,6 KiB, 85 Tage 48,8, 365 Tage 56,1.
+
+**Das Budget.** Die 64 KiB von bisher sind die Grenze für `keepalive`, und die
+gilt nur für das, was beim Wegschalten hinausgeht: `kalenderVerstecken()` und
+ein Zeitgeber, der bei versteckter Seite feuert (`kalPlanen()`), beide in
+`js/kalender-sync.js` – und `keepalive` teilt sich die 64 KiB mit der
+Sicherung, die vorher hinausgeht. `sw.js` schickt ohne `keepalive`. Eine
+Sendung über 64 KiB versucht es beim Wegschalten deshalb gar nicht erst,
+sondern geht gleich in den Ausgang, und der Service Worker schickt sie; bei
+offener Seite geht sie ganz normal. Die eigentliche Grenze ist der Speicher des
+Skripts: 500 KB Skript-Eigenschaften insgesamt, 9 KB je Wert, und beim
+Speichern stehen die alte und die neue Sendung kurz nebeneinander. Daher
+höchstens 192 KiB für v 2 – zweimal sind es 384 KiB, mit Luft für den Rest.
+Wird es mehr, wird die Ferne kürzer (in Schritten auf drei Viertel, höchstens
+bis auf die vier Wochen), nie die Sendung abgewiesen; `gekuerzt` sagt es, und
+die Karte auch: „Im Kalender: Termine bis 05.02.2027. Diesmal nicht ein ganzes
+Jahr – die Sendung wäre sonst zu groß geworden (viele verschiedene Termine)."
+Passt nicht einmal die Nähe, geht sie ohne Ferne. Ein Skript der Fassung 1
+bekommt nie mehr als 64 KiB: v 1 trägt nur die Nähe und ihre Texte.
+
+**Rechenzeit**, am Rechner gemessen, im Worker in Chromium (vier Läufe nach dem
+Laden der Module):
+
+| Fall | ohne Ferne | mit Ferne | davon Ferne |
+| --- | --- | --- | --- |
+| Tobis Stand | 80–140 ms | 176–203 ms | 92–107 ms |
+| drei Termine in der Ferne | 175–198 ms | 328–440 ms | 149–201 ms |
+| Fußball jede Woche, 52 Termine | 1,5–1,7 s | 2,7–3,0 s | 1,0–1,1 s |
+
+In Node an Tobis Stand 262–280 ms (Ferne rund 145 ms), Fußball 4,1 s (Ferne
+1,5 s) – den größeren Teil kosten dort die Termine schon in der Nähe. In der
+laufenden App (`tests/test-kalender-sync.mjs`, echte Uhr, vom Auftrag an den
+Worker bis zur fertigen Vorschau) 350–550 ms. Am Handy grob das Drei- bis
+Vierfache: an Tobis Stand eine knappe Sekunde, mit Fußball jede Woche um die
+zehn. Beides im Worker, neben der Oberfläche – im Fenster kostet eine Sendung
+1–3 ms, und während der Worker rechnet, gab es keine lange Aufgabe im Fenster.
+Ein Training mit 20 Sätzen rechnet rund zwanzigmal (2 s nach jedem Haken), an
+Tobis Stand am Handy geschätzt eine Viertelminute Rechenzeit über die ganze
+Stunde, im Hintergrund. Die Pause zählt nicht mit: Pausenstart, „+30 s" und
+Pausenende meldet der Store als `pause` (`store.setRest()`), und die liest die
+Vorschau nicht. Bis zur Prüfung des Entwurfs rechnete jede davon die Vorschau
+samt Jahr noch einmal, ohne dass etwas anderes herauskam – gemessen 13 statt 6
+Rechnungen für sechs Sätze mit Pause, also rund 40 je Training; mit Fußball
+jede Woche wären das am Handy 5–7 Minuten im Worker gewesen, die Hälfte
+umsonst. Dafür muss sich alles andere melden. Eine Beschwerde tat es nicht
+(`store.toggleInjury()`, `store.clearInjuries()` – schon vor v246): Solange
+das Pausenende neu rechnete, fiel das im Training nicht auf. Danach ging nach
+einer Beschwerde, die Tobi in der Pause an der Übung anhakt („Wenn etwas weh
+tut"), die Vorschau von davor hinaus, mit der gesperrten Übung, und unter
+Mehr → Verletzungen ging nach dem Anhaken oder „Alle Haken entfernen" gar
+nichts hinaus – bis zur nächsten Änderung. Gefunden beim Gegenlesen von v246;
+jetzt melden sich beide, und auch die Sicherung erfährt davon.
+
+**Deshalb nicht seltener.** Gerechnet wird ohnehin entprellt (2 s nach einer
+Änderung, gesendet höchstens alle zwei Minuten, sofort nur beim ersten Haken
+und beim Abschluss), und die Ferne nur, solange das Skript sie annimmt. Und
+jede Sendung braucht beides aus derselben Rechnung: Schon der erste Haken
+ändert das Jahr – ohne ihn rückte morgen alles einen Tag nach, mit ihm nicht.
+Die Ferne nur beim Start und nach dem Abschluss hieße, dass nach einem
+abgebrochenen Training beim Skript eine Sendung liegt, deren Jahr nicht zur
+Nähe passt (als v 2), oder eine ohne Jahr (als v 1 – dann verschiebt das Skript
+das Jahr nicht mehr, solange die App zu bleibt). Beides gäbe genau das auf,
+wofür es das Jahr gibt.
+
+**Der Vertrag, Fassung 2** – vollständig im Kopf von `js/kalender-vorschau.js`.
+Rückwärts verträglich in beide Richtungen: Die App schickt v 1 wie bisher,
+solange das Skript Fassung 1 meldet, und v 2 mit `ferne`, sobald es Fassung 2
+meldet. Es zählt die letzte lesbare Antwort (jede trägt `version`, auch eine
+Ablehnung); unbekannt heißt v 1, und was v245 auf dem Gerät vermerkte, zählt
+mit. Ein Gerät, das das Skript noch nicht kennt, schickt also erst v 1 und
+gleich danach v 2. Ein Skript der Fassung 2 nimmt beides. Weist ein Skript eine
+v 2 zurück – etwa, weil der alte Code wieder bereitgestellt ist –, schickt die
+App dieselbe Vorschau gleich als v 1, ohne Warnzeile; ging die v 2 beim
+Wegschalten hinaus, beim Zurückkommen. Probe und „aus" gehen immer als v 1.
+Die Antwort der Fassung 2 trägt dazu `offen` (so viele Änderungen stehen noch
+aus), `bis` (so weit reicht die Liste), `stehen` (bis dahin stimmt der
+Kalender schon ganz), `folge` (kommt der Rest in ein paar Minuten oder mit
+der nächsten Stunde) und `morgen` (Google lässt heute nichts mehr zu,
+Tageskontingent) – die Probe ebenso, vom letzten Abgleich.
+
+**Das Skript, Fassung 2.** Ein Jahr anzulegen dauert länger, als ein Lauf bei
+Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
+(45 Sekunden). Deshalb:
+
+* `doPost` legt ab und ist 25 Sekunden nach Eingang der Anfrage mit dem
+  Angleichen fertig – das Nächste zuerst: heute und die vier Wochen, dann die
+  letzten Tage, dann die Ferne der Reihe nach. Das Warten auf die Sperre zählt
+  mit (bis 30 s; ein Lauf `weiter` hält sie bis zu viereinhalb Minuten). Bis
+  zur Prüfung des Entwurfs begannen die 25 s erst danach, und in der Probe kam
+  die Antwort nach 56 s – die App hatte nach 45 s aufgegeben („die Antwort
+  blieb aus") und schickte zwei Minuten später noch einmal. Bleibt nach dem
+  Warten nichts übrig, macht `weiter` den Rest. Die Antwort sagt, wie viel noch
+  offen ist (`offen`), bis wann die Liste reicht (`bis`), bis wann der Kalender
+  schon steht (`stehen`) und ob der Rest in Minuten kommt (`folge`) oder erst
+  morgen (`morgen`) – in Feldern, nicht als Satz im Hinweis: Den Satz „Noch
+  183 Änderungen offen" zeigte die App bis zur Prüfung des Entwurfs bis zur
+  nächsten Sendung, auch als längst alles eingetragen war.
+* Bleibt etwas offen, legt das Skript einen einmaligen Auslöser `weiter` an
+  (frühestens in drei Minuten), der viereinhalb Minuten lang weitermacht und,
+  wenn nötig, den nächsten anlegt – bis alles steht. Nicht, wenn Google bremst:
+  dann die nächste Stunde. Ein kleiner Rest (unter zehn Änderungen, keine davon
+  in den vier Wochen oder den Tagen davor) wartet ebenfalls auf die nächste
+  Stunde.
+* Als unterwegs zählt nur der `weiter`, den das Skript zuletzt selbst angelegt
+  und sich gemerkt hat (`workout.folge`: id und Zeit), und nur bis eine halbe
+  Stunde nach seiner Zeit. Ein gefeuerter einmaliger Auslöser bleibt bei Google
+  gelistet, bis ihn jemand löscht – `weiter` löscht ihn selbst. Bis zur Prüfung
+  des Entwurfs genügte irgendein gelisteter: Scheiterte das Löschen einmal
+  (Google: „server error"), oder brach Google den Lauf vor seiner ersten Zeile
+  ab, kam nie wieder ein neuer, und Beschreibung und App versprachen weiter „in
+  den nächsten Minuten" – nachgetragen wurde nur noch stündlich, bis zum
+  nächsten `einrichten`. Jetzt kommt so ein Rest weg, und ein neuer kommt.
+* Ein ganzer Lauf, der nichts ändern konnte – die Zeit ging schon beim Lesen
+  drauf (bei Google ungemessen; in der Attrappe mit fünf Sekunden je
+  Lesezugriff) –, legt keinen neuen `weiter` an: Läufe ohne Fortschritt im
+  Minutentakt zehrten nur die 90 Minuten auf, die Google den Auslösern am Tag
+  gibt. Dann macht die nächste Stunde weiter, und die Beschreibung sagt das.
+* Die vier Wochen kommen vor der Ferne dran: Von Grund auf stehen sie in der
+  Attrappe nach dem ersten Lauf `weiter` ganz, erst dann beginnt die Ferne.
+* Ein verpasster Tag verschiebt das ganze Jahr sanft: je Termin genau ein
+  Schreibzugriff (`setTime`); Titel, Beschreibung und Erinnerung nur, wenn sie
+  anders sind; nichts wird neu angelegt.
+* Eine ruhige Stunde – dieselbe Sendung, derselbe Tag, derselbe Kalender, der
+  letzte Lauf fertig – prüft nur die Nähe: 252 Lesezugriffe statt 2341 für das
+  ganze Jahr. Einen Termin in der Ferne, den Tobi von Hand verschiebt, stellt
+  das Skript deshalb erst in der ersten Stunde des nächsten Tages zurück (in der
+  Nähe wie bisher in der nächsten Stunde). Den Kalender merkt es sich mit
+  (`workout.ferne`), seit dem Gegenlesen von v246: Löschte Tobi „Workout" und
+  führte „einrichten" noch am selben Tag aus, bekam der neue, leere Kalender
+  bis dahin nur die vier Wochen, und Beschreibung, Antwort und Karte sagten
+  trotzdem „Termine bis" in einem Jahr – bis zum ersten Lauf am nächsten Tag.
+* Die Beschreibung des Kalenders sagt „Termine bis 27.10.2027" und, solange
+  etwas offen ist, „noch 183 Änderungen offen, sie folgen in den nächsten
+  Minuten". Hat Google das Tageskontingent aufgebraucht: „… sie folgen
+  morgen." Bis zur Prüfung des Entwurfs stand dort „mit dem nächsten
+  stündlichen Abgleich" und eine Zeile darunter „morgen geht es von selbst
+  weiter". Die Karte der App sagt „morgen", wenn die jüngste Auskunft es sagt
+  (`morgen` in Antwort und Probe). Bis zum Gegenlesen von v246 las sie es aus
+  dem Hinweis der Antwort auf die letzte Sendung – das traf nur, wenn das
+  Kontingent schon in `doPost` ausging. Ging es in einem Lauf `weiter` aus (so
+  trägt sich das Jahr gewöhnlich ein), versprach die Karte die nächste
+  Stunde; und stand es im Hinweis, blieb „morgen" auch dann, als eine Probe am
+  nächsten Tag einen kleinen Rest für die nächste Stunde meldete. Den Hinweis
+  von gestern wiederholt die Karte nicht mehr, sobald ein neuerer Stand da ist
+  – aus einer Probe oder von einer Sendung, die der Service Worker
+  nachgeschickt hat. Bis zur Prüfung der Nachbesserung zählte dafür nur die
+  Probe: Eine Sendung über 64 KiB, die beim Wegschalten über den Service
+  Worker geht, wird nicht der letzte Versuch, und neben ihrem Stand („… mit
+  dem nächsten stündlichen Abgleich nach – noch 3 Änderungen") stand weiter
+  „morgen geht es von selbst weiter"; war nichts mehr offen, bis zur nächsten
+  eigenen Sendung, denn nachgefragt wird dann nicht mehr.
+* Der Speicher bleibt im Format 1 – eine Sendung mit Ferne ist nur länger. Die
+  Termine von Fassung 1 tragen dieselben Markierungen und Kennungen und werden
+  übernommen, nicht neu angelegt. Hinter der Ferne einer v 2 räumt das Skript
+  eigene Termine weg (die App hat gekürzt); eine v 1 lässt sie stehen, bis die
+  Nähe sie erreicht.
+* Vor dem Ablegen einer Sendung kommen Stücke weg, die zu keiner geltenden
+  gehören. Bis zur Prüfung des Entwurfs blieben die Reste eines Löschens, das
+  mittendrin scheiterte, für immer: Jede neue Sendung brauchte Platz für sie,
+  die geltende und sich selbst, und mit Sendungen von 185 KiB nahm das Skript
+  danach keine mehr an (500 KB voll) – es glich weiter nach der alten an.
+  Scheitert das Löschen nach dem Umschalten, ist das auch kein Fehler der
+  Sendung mehr (bis dahin „fehler", obwohl sie galt); die Reste gehen mit der
+  nächsten. Weg kommt dabei nur, was sicher zu keiner geltenden gehört:
+  Scheitert schon das Lesen der Meta-Zeile (Google: „Service error"), antwortet
+  `doPost` jetzt „fehler" – die App schickt es noch einmal –, statt den
+  Speicher für leer zu halten. Bis zum Gegenlesen von v246 räumte es dann die
+  Stücke der geltenden Sendung weg; scheiterte danach noch ein Zugriff, zeigte
+  die Meta-Zeile auf Gelöschtes, jeder Lauf warf „unvollständig", und der
+  Kalender verschob nichts, bis eine Sendung durchkam. Und eine ältere Sendung
+  galt in dem Fall als neu.
+* Workout 84 am Tag des Rundenwechsels gemacht: Sein Termin bleibt jetzt stehen
+  – bis v245 kam er weg, weil er „heute" lag und die Liste nur noch Runde 2
+  kannte. Eine Schätzung von Runde 2, die in der Vergangenheit liegt und nicht
+  eintraf, kommt weg (`bleibtStehen()`).
+* Nach „Abschalten" räumt das Skript das Jahr ab heute weg, ebenfalls in
+  Schritten mit `weiter`.
+
+**Das Update für Tobi.** Sein Skript ist Fassung 1. Die App merkt es an der
+Antwort und schickt ihm weiter v 1 – es läuft also alles weiter wie bisher. Auf
+der Startseite steht einmal, ohne Warnfarbe (kaputt ist nichts): „Google
+Kalender: Ein Jahr im Voraus geht jetzt – dafür einmal den Code im Skript
+erneuern und einrichten ausführen." mit *Ansehen* (bis v247 ohne „und
+einrichten ausführen"). Einmal heißt: bis er sie angesehen oder den Code
+kopiert hat – Mehr → Kalender schaut er von sich aus nicht an, dort allein sähe
+er die Bitte nie. Klein gesetzt wie die Zeile zum Ton, und sie eilt nicht:
+Steht oben schon eine andere Zeile (Tagesabschluss, Ton, Sicherung, Kalender)
+oder ist an der Einheit schon etwas abgehakt, tritt sie zurück und kommt, wenn
+das weg ist. Bis zur Prüfung des Entwurfs stand sie als gewöhnliche Zeile da
+(97 px), und bei 360×740 lag der Fuß der Startseite 26 px unter der Leiste;
+jetzt 69 px, und die Seite bleibt eine Seite. (Mit angefangener Einheit,
+„Training fortsetzen", steht die Startseite bei 360×740 schon ohne jede Zeile
+12 px über, so auch in v245 – der Fuß bleibt über der Leiste; das ist hier
+nicht angefasst.) *Ansehen* springt zur Bitte –
+unter die Kopfleiste, nicht dahinter (`scroll-padding-top` am Dokument; das
+hilft auch den Sprüngen zu *Kalender*, *Daten* und *Trainingsfokus*). Bis zur
+Prüfung lagen Überschrift und erster Satz der Bitte darunter, und lesbar begann
+sie mitten im Satz. Oben auf der Karte steht bei Fassung 1 „… vier Wochen im
+Voraus (ein Jahr mit neuem Code, siehe unten)" – bis zur Prüfung „ein Jahr im
+Voraus", zwei Absätze über „trägt nur die nächsten vier Wochen ein". Die Bitte
+selbst steht auf der Karte, bis die App die neue Fassung sieht, wörtlich so:
+
+> **Ein Jahr im Voraus.** Dein Skript bei Google ist noch Fassung 1 und trägt
+> nur die nächsten vier Wochen ein. Für ein ganzes Jahr braucht es einmal den
+> neuen Code – das Kennwort bleibt dasselbe:
+>
+> 1. „Code kopieren" tippen (gleich hier unten).
+> 2. In Chrome script.google.com öffnen, im Drei-Punkte-Menü Desktopwebsite
+>    anhaken und dein Projekt öffnen – dasselbe wie beim Einrichten.
+> 3. Den ganzen Code dort durch den kopierten ersetzen und speichern.
+> 4. Oben die Funktion einrichten wählen und Ausführen tippen. Fragt Google
+>    noch einmal nach Zugriff: erlauben wie beim Einrichten. Es gleicht sofort
+>    ab und kann ein paar Minuten laufen – warten, bis unten „Ausführung
+>    abgeschlossen" steht.
+> 5. Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version:
+>    Neue Version → Bereitstellen.
+>
+> Fertig. Die App merkt den neuen Code von selbst und schickt dann das ganze
+> Jahr. Bis dahin läuft alles weiter wie bisher.
+
+Schritt 4 kam mit v247 dazu. Bis dahin stand hier, `einrichten` gehöre nicht
+dazu: Der stündliche Auslöser bleibe und rufe `stuendlich` beim Namen – mit dem
+gespeicherten neuen Code. Das stimmt nur für einen Auslöser, der im Editor
+entstand. Tobis hatte `doPost` angelegt, und der lief nach dem Code-Tausch
+weiter mit Fassung 1 – was genau passierte und woran die App es jetzt merkt,
+steht unten (*Nach jedem Code-Tausch: einrichten*).
+
+Nach *Code kopieren* steht unter den Schritten nur: „Code kopiert – mit
+demselben Kennwort wie bisher. Weiter mit Schritt 2." Bis zur Prüfung des
+Entwurfs wiederholte die Meldung dort die Schritte 3 und 4 in sieben Zeilen.
+Sie geht, sobald eine Antwort nach dem Kopieren die Fassung sagt.
+
+Zu wählen gibt es nichts: Zurück aus Apps Script fragt die App mit einer Probe
+nach – sonst höchstens alle zwei Minuten, in der halben Stunde nach *Code
+kopieren* gleich beim Zurückkommen (höchstens alle zehn Sekunden) und, solange
+sie zu sehen ist, alle zwei Minuten von selbst. Bis zur Prüfung des Entwurfs
+merkte sie den neuen Code nicht, wenn Tobi nach 90 Sekunden zurück war und auf
+der Karte blieb: Gefragt hatte sie eben erst, beim Zeichnen der Karte, und das
+nächste Mal erst nach dem nächsten Wegschalten. Sieht sie Fassung 2, schickt
+sie das Jahr – genau einmal, auch wenn er zwischendurch kurz wegschaltet.
+Solange es beim Skript liegt (`doPost` gleicht bis zu 25 Sekunden an), steht
+auf der Karte:
+
+> ✓ Verbunden. Neuer Code erkannt (Skript Fassung 2) – das ganze Jahr geht
+> jetzt an das Skript. Zuletzt angekommen: vor 6 Min.
+
+Bis zur Prüfung stand dort so lange „(Skript Fassung 1)", ohne ein Wort zum
+Jahr – genau wenn Tobi nachsieht, ob es geklappt hat. Die vier Wochen stehen ja
+schon; das Jahr dahinter folgt in ein paar Läufen `weiter`. Der Satz geht,
+sobald die erste Sendung mit dem Jahr angekommen oder endgültig beantwortet
+ist. Bis zum Gegenlesen von v246 blieb er in zwei Fällen stehen, bis die App
+selbst wieder etwas zustellte (der nächste Haken, ein neuer Tag): wenn die
+erste v 2 vorübergehend scheiterte, Tobi die App vor der Wiederholung schloss
+und der Service Worker sie nachschickte – die App vermerkte die Ankunft nicht
+als Sendung, die ankam, und sagte auch nicht, was schon im Kalender steht –,
+und wenn das Skript sie mit `aelter` beantwortete (ein anderes Gerät hat
+zuletzt trainiert). Jetzt reisen Vertrag, Kürzung und die Auskunft der Antwort
+(`offen`, `bis`, `stehen`, `folge`, `morgen`) über den Ausgang und den Vermerk
+des Service Workers mit; die nachgeschickte Sendung gilt als die, die zuletzt
+ankam, und der gescheiterte Versuch davor steht nicht mehr als „Letzter
+Versuch" auf der Karte.
+
+**Wenn „Neue Version" fehlt.** Das ist der Schritt, den man am leichtesten
+vergisst (oben, *Einrichten*), und ohne ihn läuft die Web-App mit dem alten
+Code weiter – ein stündlicher Auslöser aus dem Editor nimmt schon den neuen,
+und beides geht gut zusammen, nur das Jahr kommt nicht. Meldet eine Antwort
+drei Minuten oder länger nach „Code kopieren" noch Fassung 1, steht über der
+Bitte:
+
+> Der Code ist kopiert, aber das Skript meldet noch Fassung 1. Meist fehlt der
+> letzte Schritt: Bereitstellen → Bereitstellungen verwalten → Bearbeiten
+> (Stift) → Version: Neue Version → Bereitstellen – oder das Speichern davor.
+> Ohne beides läuft die Web-App mit dem alten Code weiter. Und hast du
+> einrichten (Schritt 4) noch nicht ausgeführt: das auch – sonst bleibt der
+> stündliche Auslöser womöglich beim alten Code.
+
+Den letzten Satz gibt es seit v247. Ob `einrichten` lief, sieht die App an der
+Fassung nicht – die meldet die Web-App; darum steht er als Erinnerung da, und
+ob der Auslöser nachträgt, zeigt sich danach am Stand (unten).
+
+Gezählt wird die Zeit der Antwort, nicht die des Anzeigens. Bis zur Prüfung des
+Entwurfs hing der Satz an der Uhr beim Zeichnen: Kam Tobi nach sechs Minuten mit
+allem erledigt zurück, stand er da, bis die Nachfrage Fassung 2 meldete. Die
+grüne Meldung vom Kopieren („… merkt den neuen Code von selbst") steht dann
+nicht mehr daneben; bis zur Prüfung stand sie die ganze Sitzung neben dem
+orangen Satz, und Schritt 4 stand dreimal auf dem Schirm.
+
+**Während das Skript das Jahr einträgt**, sagt die Karte, was schon steht: „Im
+Kalender: Termine bis 10.12.2026. Den Rest bis 27.10.2027 trägt das Skript in
+den nächsten Minuten nach – noch 183 Änderungen." Bis zur Prüfung des Entwurfs
+stand dort gleich nach dem Code-Update „Termine bis 27.10.2027", als erst die
+vier Wochen da waren. Ist die letzte Auskunft drei Minuten alt und noch etwas
+offen, fragt die App beim Zurückkommen oder beim Öffnen der Karte mit einer
+Probe nach – höchstens alle zwei Minuten: „… – noch 95 Änderungen (Stand gerade
+eben)." Seit v247 auch von selbst, solange die Karte aufgeschlagen ist (bis
+dahin fragte sie nur beim Zeichnen – wer auf der Karte wartete, bekam eine
+einzige Probe); und sinkt `offen` über mehr als eine Stunde nicht, sagt sie
+das (unten, *Nach jedem Code-Tausch: einrichten*). „In den nächsten Minuten"
+verspricht sie seit der Prüfung von v247 nur eine Viertelstunde lang nach der
+Auskunft, danach steht „(Stand vor …)" da (ebenda). Ist alles eingetragen,
+steht dort „Im Kalender: Termine bis 27.10.2027.", und die App fragt nicht
+mehr.
+
+**Geprüft.** `tests/test-kalender-vorschau.mjs`: die Ferne über das
+Rundenende, die Kennungen gegen den echten Rundenwechsel, jeder geprüfte Tag
+von Nähe und Ferne gegen einen frischen Lauf der App für diesen Tag allein (an
+Tobis Stand, verpasst bis zur Zeitumstellung, verpasst 100 Tage, liegen
+geblieben, Termine samt Turnier in der Ferne), die Kodierung, das Kürzen, v 1
+aus derselben Rechnung, kaputte Fernen, `bleibtStehen()` am Rundenwechsel, der
+Worker in Chromium. `tests/test-kalender-gas.mjs`: die Regeln des Skripts
+gegen den Kern (`fernListe_()` an 294 Tagen), Tobis Weg von Fassung 1
+(`tests/kalender-fassung1.gs` ist der Code von v245 wörtlich) mit Codetausch
+ohne `einrichten` – 18 Termine übernommen, dieselben ids; so wörtlich war es
+nicht: Dort hatte `einrichten` den Auslöser für Fassung 1 im Editor angelegt,
+bei Tobi legte ihn `doPost` an, und der hing an der alten Version (v247,
+unten) –, ein Jahr von
+Grund auf in mehreren Läufen, die nächsten vier Wochen zuerst, ein verpasster
+Tag, die ruhige Stunde, Handarbeit in Nähe und Ferne, v 1 und v 2
+abwechselnd, eine gekürzte Ferne, Rundenwechsel, Abschalten, Bremsen.
+`tests/test-kalender-sync.mjs`: v 1, solange das Skript Fassung 1 meldet, die
+Zeile auf der Startseite und die Bitte auf der Karte mit ihren Schritten,
+„Code kopieren" mit demselben Kennwort, die Nachfrage beim Zurückkommen und
+dann von selbst v 2, ein neues Gerät (erst v 1, dann v 2), ein Skript, das v 2
+abweist (auch beim Wegschalten), was v245 vermerkte, und eine Sendung über
+64 KiB über den Service Worker. Und, aus der Prüfung des Entwurfs: eine Probe,
+die mit einer Referenz nicht aufgeht (der Tag wird eine eigene Referenz),
+`stehen` und `folge` in Antwort und Probe, eine Probe mitten im Auffüllen, die
+den Fortschritt sagt, die Karte während des Auffüllens und danach (und dass
+die App dann nicht mehr nachfragt), eine Ferne, die sich nicht rechnen lässt
+(die Nähe geht genau einmal als v 1), „Neue Version" vergessen (der Satz nach
+der Zeit der Antwort – und keiner, solange die Nachfrage läuft) und über 64 KiB
+ohne Background Sync. Gegen v245 (7c56f14) gelaufen, sind alle drei rot: Die
+Prüfung der Vorschau und die des Skripts brechen nach je zwei roten Zeilen ab
+(`fernListe()` fehlt), die der App hat 17 rote Zeilen, und ihre Abschnitte 13
+und 15 brechen ab. Gegen den Stand vor der Prüfung des Entwurfs (c2fa46b): die
+Vorschau an einer Stelle rot (`ferneBauen()` war dort nicht von außen zu
+prüfen), das Skript an sechs (`stehen`, `folge`), die App an acht – jeder
+Befund von oben.
+
+Aus der zweiten Prüfung des Entwurfs kam dazu: im Skript (Abschnitt 10 – die
+Attrappe lässt einen gefeuerten einmaligen Auslöser jetzt gelistet, wie es nach
+Erfahrungsberichten bei Google ist) ein `weiter`, das sich nicht löschen lässt
+oder nie lief, ein Lauf, der vor lauter Lesen nichts schafft, `doPost` nach
+28 s Warten auf die Sperre (Antwort nach 32 statt 56 s), ein gescheitertes
+Löschen alter Stücke bei Sendungen von 185 KiB und das Tageskontingent mitten
+im Jahr; in der App die Pause, die nicht neu rechnet (Abschnitt 3), die
+Startseite mit der Bitte bei 414×896 und 360×740 und wann die Bitte
+zurücktritt, der Sprung unter die Kopfleiste, „vier Wochen im Voraus" bei
+Fassung 1, die kurze Meldung nach dem Kopieren, schnell zurück nach 90 s, auf
+der Karte geblieben, „Neuer Code erkannt", solange die erste v 2 beim Skript
+liegt (und keine zweite), die grüne Meldung neben „Neue Version fehlt" und das
+Tageskontingent auf der Karte. Gegen den Stand vor dieser Prüfung (ed2a885)
+gelaufen: das Skript an acht Stellen rot, die App an 15 – jeder Befund. Danach
+einzeln gelaufen: 164, 178 und 219 Prüfungen, alle grün.
+
+Aus dem Gegenlesen von v246 kamen sechs Befunde, jeder erst nachgestellt, dann
+behoben: im Skript (Abschnitt 11) das Tageskontingent in einem Lauf `weiter`
+(die Probe sagt `morgen`), ein Lesefehler an der Meta-Zeile mit einem zweiten
+Fehler beim Speichern (`doPost` löscht nichts und antwortet „fehler", und eine
+ältere Sendung gilt dabei nicht als neu) und „Workout", gelöscht und am selben
+Tag neu eingerichtet (213 Termine statt 21); in der App (Abschnitt 16) eine
+Beschwerde in der Pause an der Übung, ganz über die Oberfläche, Anhaken und
+„Alle Haken entfernen" unter Mehr → Verletzungen, das Kontingent in `weiter`
+und am nächsten Tag vorbei, die erste v 2 über den Service Worker und als
+`aelter` beantwortet; in `tests/test-injuries.mjs` je eine Meldung an den
+Store. Gegen ba32bd2 gelaufen: das Skript an neun Stellen rot, die App an
+sechs, die Beschwerden an einer – jeder Befund. Danach einzeln gelaufen:
+164, 187 und 226 Prüfungen, alle grün; Tobis Weg von Fassung 1 (9b) und v 1
+und v 2 im Wechsel (9e) unverändert. Die Fassung des Skripts bleibt 2:
+derselbe Vertrag mit einem Feld mehr in der Antwort (`morgen`), das eine
+ältere App überliest, und `workout.ferne` merkt sich den Kalender mit (eine
+Zeile ohne ihn gilt als nicht fertig – der Lauf liest das Jahr dann einmal
+ganz). Fassung 1 liest aus `workout.abgleich` nur Tag und Zeit; das neue Feld
+dort stört sie nicht.
+
+Die Prüfung dieser Nachbesserung fand eine Lücke, die erst die Nachbesserung
+selbst aufgemacht hatte. Seit ihr gilt eine Sendung, die der Service Worker
+nachgeschickt hat, als die, die zuletzt ankam – und neben ihrem Stand stand
+der Kontingent-Hinweis der letzten eigenen Sendung weiter da (oben beim
+Tageskontingent). Vorher blieb der Stand bei der eigenen Sendung – veraltet,
+aber ohne Widerspruch. Nachgestellt in Abschnitt 16 f mit echtem Service
+Worker und 52 Terminen (105,7 KiB, beim Wegschalten über den Ausgang): nach
+einer Probe, mit drei Änderungen offen, und dann ganz ohne Rest. Gegen 123c0d3
+gelaufen: zwei Zeilen rot, genau die beiden mit dem Widerspruch; danach
+230 Prüfungen, alle grün. Das Skript ist dafür nicht angefasst.
+
+**Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1 legte
+bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je Termin
+(anlegen, Markierungen, Erinnerung, Beschreibung). Die Attrappe nimmt dafür eine
+halbe Sekunde je Schreibzugriff an – ein neuer Termin braucht sechs. Wie lange
+Verschieben und Lesen dauern, ist ungemessen. So gerechnet steht ein Jahr von
+Grund auf nach drei Läufen `weiter`, ein Jahr nach Tobis Weg von Fassung 1 nach
+zwei und der nächsten Stunde, und ein verpasster Tag – 209 Termine verschieben –
+passt in einen Lauf. Ist Google langsamer, dauert es länger; die vier Wochen
+kommen trotzdem zuerst, und die Beschreibung des Kalenders sagt, wie viel noch
+offen ist. Dass Google nach dem Codetausch nicht neu nach Zugriff fragt, folgt
+aus denselben Diensten, zeigt aber erst Tobis Konto. Fragt es doch, erlaubt Tobi
+es wie beim Einrichten – seit v247 im Schritt `einrichten`, der dazugehört;
+bliebe es unerlaubt, käme keine Sendung beim Skript an, die Karte sagte „nicht
+das Skript", und Google schickte die Mail „Summary of failures". Dass der
+stündliche Auslöser den neuen Code nimmt, stand hier bis v247 als sicher – es
+gilt nur für einen aus dem Editor (unten).
+Dass ein gefeuerter einmaliger Auslöser bei Google gelistet bleibt, bis ihn
+jemand löscht, sagen Erfahrungsberichte, nicht Googles Dokumentation – das
+Skript rechnet damit (oben, nur der gemerkte zählt), `weiter` löscht ihn
+selbst, und `einrichten` räumt jeden alten Auslöser weg. Wann Google ihn
+feuert, sagt Google nicht genau: `after()` heißt nur „frühestens nach drei
+Minuten" – „The actual duration might vary, but won't be less than your
+specified minimum" –, eine Obergrenze nennt die Dokumentation nicht. (Die
+±15 Minuten dort gehören zu `nearMinute()`; bis zur Prüfung des Entwurfs stand
+hier, `after()` habe sie.) Kommt `weiter` spät oder gar nicht, legt der nächste
+Lauf eine halbe Stunde nach seiner Zeit einen neuen an, und jeder stündliche
+Lauf macht weiter, wo der letzte aufgehört hat – das Auffüllen dauert dann ein
+paar Stunden statt Minuten; die vier Wochen kommen trotzdem zuerst. Während
+`weiter` läuft (bis zu viereinhalb Minuten), wartet eine Sendung der App bis zu
+30 Sekunden auf die Sperre und bekommt sonst „beschäftigt" – die App schickt
+sie nach 2, 5 und 15 Minuten noch einmal, der Service Worker ebenso; einen
+Vorrang für die App gibt es nicht. Ob ein
+Lesezugriff auf einen schon geladenen Termin bei Google ein eigener Aufruf ist,
+ist ungeprüft; deshalb liest eine ruhige Stunde nur die Nähe, und ein Lauf, der
+vor lauter Lesen nichts schafft, legt keinen `weiter` nach. Auf dem iPhone
+gibt es keinen Background Sync: Eine Sendung über 64 KiB geht beim Wegschalten
+dort gewöhnlich hinaus, so weit die Seite noch kommt, und gilt als offen, bis
+die Antwort da ist – kam sie nicht an, geht sie beim Zurückkommen noch einmal.
+Bis zur Prüfung des Entwurfs ging sie dort beim Wegschalten gar nicht, und
+nichts holte sie nach bis zur nächsten Änderung. Und die Ferne bleibt eine
+Schätzung – nach sechs Wochen ohne Sendung verschiebt der Kalender auch sie
+nicht mehr.
+
+#### Nach jedem Code-Tausch: einrichten (v247)
+
+> „Es soll von selbst einfach das optimale passieren"
+
+Von selbst ging es am 28.10. nicht – und die App hatte gesagt, es gehe. Was in
+Tobis Google-Konto passiert war (abgelesen am Kalender „Workout"): Am 27.10.
+hatte er die App mit dem Skript der Fassung 1 verbunden, ohne je `einrichten`
+auszuführen. Den stündlichen Auslöser legte darum das Skript selbst an, aus
+`doPost` heraus (`ausloeserSichern_()`), also aus einer Ausführung der
+bereitgestellten Version. Am 28.10. um 12:04 stellte er Fassung 2 als „Neue
+Version" bereit; die App meldete sofort „Skript Fassung 2", 204 Änderungen
+offen. Der stündliche Lauf um 12:14 schrieb aber „(Fassung 1)" in die
+Beschreibung des Kalenders, mit dem Plan von 11:55, der bis 08.12. reicht – und
+kein einziger neuer Termin kam.
+
+Das passt zu dem, wie Google Auslöser behandelt: Einer, den Code aus einer
+bereitgestellten Version anlegt, hängt an dieser Version und läuft auch nach
+„Neue Version" mit ihr weiter; nur einer, der im Editor entsteht, nimmt immer
+den zuletzt gespeicherten Code. Dokumentiert ist das bei Google nicht in diesem
+Wortlaut – es ist die Erklärung, die zu Tobis 12:14-Lauf passt. In v246 ließ
+die Bitte um neuen Code `einrichten` mit Absicht weg, und README und Vorlage
+sagten, es brauche es nicht („der Auslöser ruft `stuendlich` beim Namen, und
+das ist jetzt der neue Code"). Das stimmt nur für einen Auslöser aus dem
+Editor. `einrichten` löscht alle Auslöser des Projekts (`ausloeserNeu_()`),
+legt einen neuen im Editor an und gleicht sofort ab. Für Tobi heißt das jetzt:
+einmal `einrichten` im Editor ausführen – den Code nicht noch einmal tauschen,
+das Skript bleibt Fassung 2.
+
+**Die Anleitung**, überall, wo die App zum Code-Tausch auffordert – die
+Startseite, die Bitte um neuen Code auf der Karte samt „Code kopieren", die
+Meldung danach, „Neue Version fehlt", „Kalender-Code erneuern", das falsche
+Kennwort, und in der Vorlage der Kopf und die letzte Zeile von `einrichten()`:
+Code ersetzen, speichern, oben `einrichten` wählen und *Ausführen* (Google
+fragt womöglich noch einmal nach Zugriff; es gleicht sofort ab und kann ein
+paar Minuten laufen), dann *Bereitstellen → Bereitstellungen verwalten →
+Bearbeiten* (Stift) *→ Version: Neue Version → Bereitstellen*. Die Bitte um
+neuen Code steht oben (*Das Update für Tobi*), mit `einrichten` als Schritt 4.
+Verbunden, ohne Bitte, sagt die Meldung nach „Code kopieren" dasselbe in einem
+Satz:
+
+> Code kopiert – mit demselben Kennwort wie bisher. In Apps Script im selben
+> Projekt den ganzen Code damit ersetzen, speichern, oben einrichten wählen und
+> Ausführen tippen (fragt Google noch einmal nach Zugriff: erlauben; es gleicht
+> sofort ab und kann ein paar Minuten laufen), dann Bereitstellen →
+> Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version →
+> Bereitstellen. Die App merkt den neuen Code von selbst.
+
+Erst `einrichten`, dann „Neue Version": `einrichten` braucht nur den
+gespeicherten Code, und so endet die Anleitung wie beim ersten Einrichten. Am
+Skript ist nichts geändert außer Kommentaren und der letzten Zeile, die
+`einrichten` ins Protokoll schreibt („Nach jedem neuen Code hier wieder erst
+„einrichten", dann „Neue Version"."); `FASSUNG` bleibt 2, die App bittet also
+niemanden um neuen Code.
+
+**Was ein Auslöser mit dem alten Code tut**, nachgestellt in
+`tests/test-kalender-gas.mjs` (Abschnitt 12 – die Attrappe kennt keine
+Versionen, der Lauf des Auslösers bekommt dort den Code von Fassung 1): Liegt
+das Jahr schon beim Skript, kann Fassung 1 die Sendung nicht lesen („passt
+nicht zum Vertrag (v)"), der Lauf wirft, und Google schickt die Mail „Summary
+of failures"; in `workout.abgleich` steht danach kein `offen`, und die Probe
+der Web-App (Fassung 2) sagt nichts darüber, wie viel noch offen ist. Liegt
+dort noch eine Sendung von Fassung 1, gleicht er wie bisher die vier Wochen
+an – so sah die Beschreibung um 12:14 aus. Was bei Tobi genau im Speicher lag
+und ob dazwischen ein `weiter` lief, sieht die App nicht; neue Termine kamen
+keine. In beiden Fällen richtet `einrichten` es: ein neuer Auslöser, sofort
+abgeglichen (in der Attrappe 98 statt 186 offen danach), die nächste Stunde
+mit Fassung 2.
+
+**Woran die App es merkt.** An der Fassung nicht – die meldet die Web-App, und
+die stimmt. Aber `offen` sinkt nicht. Jede Auskunft des Skripts der Fassung 2
+über den Abgleich kommt an `kalStockenMerken()` vorbei (`js/kalender-sync.js`):
+die Antwort auf eine eigene Sendung, eine vom Service Worker nachgeschickte und
+jede Probe. Gemerkt wird ein Bezug – so viel war offen, seit wann, und wie
+viele Proben seitdem nichts anderes gesagt haben. Ein anderer Stand als der
+Bezug setzt ihn neu: weniger heißt, das Skript trägt nach; mehr heißt neue
+Arbeit (eine Sendung, nach der das ganze Jahr einen Tag weiterrückt, oder die
+eines anderen Geräts), und bis `weiter` damit anfängt, vergehen ein paar
+Minuten. Eine Probe mit demselben Stand oder ganz ohne `offen` zählt – ohne
+`offen` antwortet Fassung 2, wenn den letzten Abgleich ein Lauf des alten
+Codes schrieb, aber auch, wenn ein eigener Lauf vor dem Ende scheiterte
+(unten, *Was die Prüfung von v247 fand*). Haben über mindestens 75 Minuten
+mindestens zwei Proben nichts anderes gesagt, und ist noch etwas offen, steht
+auf der Karte, in der Farbe für „da ist etwas zu tun":
+
+> Das Skript trägt nichts nach – wahrscheinlich läuft der stündliche Auslöser
+> noch mit dem alten Code. In Apps Script einmal „einrichten" ausführen.
+
+Darüber verspricht der Stand nichts mehr („in den nächsten Minuten"), sondern
+sagt, seit wann nichts weniger wird: „Im Kalender: Termine bis 05.11.2026.
+Bis 08.10.2027 fehlen noch 204 Änderungen, seit 80 Min. nicht weniger." 75
+Minuten, weil dazwischen ein stündlicher Lauf gelegen haben muss – ein
+`weiter` kommt sonst nach Minuten, und ein kleiner Rest wartet höchstens eine
+Stunde. Sobald eine Auskunft weniger sagt, ist der Satz weg. Nicht, wenn die
+jüngste Auskunft „morgen" sagt: Ist das Tageskontingent aufgebraucht, sinkt
+bis morgen nichts, mit keinem Code. Kein Alarm auf dem Dashboard – die
+nächsten vier Wochen stimmen ja, es fehlt das Jahr dahinter. Ins
+Diagnoseprotokoll kommt es einmal (`was=stockt offen=204 minuten=80
+proben=8`), in seinen Kopf „· 204 offen, trägt nichts nach". Steht noch kein
+Bezug da – das erste Mal nach dem Update auf v247 –, gilt der Stand, den die App
+schon kennt: die Antwort von 12:04, solange seitdem keine Sendung ankam. Kommt
+vorher eine an, die einen anderen Stand sagt – am nächsten Tag etwa die beim
+Start, deren `doPost` in seinen 25 Sekunden ein paar Termine schafft –,
+beginnt der Bezug dort neu, und der Satz kommt frühestens 75 Minuten und zwei
+Proben danach (nachgestellt bei der Prüfung von v247: Startsendung 196 statt
+204 offen, der Satz nach 80 Minuten). Für Tobi heißt das: `einrichten` jetzt
+ausführen, nicht erst, wenn die Karte es sagt.
+
+Damit die App das bemerkt, während Tobi auf der Karte wartet, fragt die Karte
+seit v247 von selbst nach, solange sie aufgeschlagen ist und noch etwas offen
+ist: drei Minuten nach der letzten Auskunft, höchstens alle zwei Minuten. In
+v246 tat sie das nicht, nachgesehen: Sie fragte nur beim Zeichnen der Karte
+und beim Zurückkommen, von selbst nur in der halben Stunde nach „Code
+kopieren" – wer auf der Karte wartete, bekam eine einzige Probe. Auf den
+anderen Seiten fragt sie weiterhin nicht von selbst: Ein Training dauert eine
+Stunde, und jede Probe ist ein Aufruf bei Google. Gezählt wird dann, was beim
+Öffnen, beim Zurückkommen und auf der Karte ohnehin gefragt wird.
+
+**Die Nachlese aus den Prüfungen von v246**, alles nur in der App:
+
+* **„Ohne Netz trainiert"** stand vor jeder Sendung, die der Service Worker
+  nachgeschickt hatte – auch vor der, die nur über 64 KiB groß war und beim
+  Wegschalten mit Netz über ihn ging (bei Tobis Jahr mit rund 75 KiB häufig) –,
+  und blieb, weil der Vermerk nie verfiel; dazu „vor 1 Min.." mit zwei
+  Punkten. Jetzt reist der Grund mit (App → Ausgang → `sw.js` → Vermerk):
+  `netz`, `wegschalten` (keepalive scheiterte – ohne Netz oder an der 64-KiB-
+  Grenze, die keepalive mit der Sicherung teilt; das sagt der Browser nicht),
+  `fehler`, `zeit`, `gross`. „Ohne Netz trainiert: Im Hintergrund nachgeschickt
+  vor 2 Min." nur bei `netz`, sonst „Im Hintergrund nachgeschickt vor 3 Min.";
+  ein Vermerk eines Service Workers von vor v247 ohne Grund ebenso ohne. Der
+  Vermerk verfällt, sobald eine neuere eigene Sendung angekommen ist, und gilt
+  nur für die Verbindung, an die er ging.
+* **„Google bremst gerade – der Rest folgt mit dem nächsten stündlichen
+  Abgleich."** blieb unter „Das Skript sagt:" stehen, auch neben einer Probe,
+  die längst einen neueren Stand sagte – wie bis zur Nachbesserung von v246 der
+  Hinweis zum Tageskontingent. Ein eigenes Feld hat die Antwort dafür nicht;
+  die App erkennt den Satz am Wortlaut (`KALENDER_SPAETER`, in
+  `tests/test-kalender-sync.mjs` mit der Vorlage und mit Fassung 1 verglichen,
+  das Tageskontingent ebenso). Beide gelten nur, bis danach eine Auskunft kam:
+  eine Probe oder eine vom Service Worker nachgeschickte Sendung. Was Tobi tun
+  soll – `einrichten`, eine URL, „Zugriff: Jeder" –, bleibt stehen.
+* **Reiter und offene Einheit.** `go()` schrieb den Reiter mit
+  `setSetting('tab')` in den Zustand (damit die App nach dem Neuladen dort
+  wieder aufgeht), `render()` ebenso, welche Einheit in der Fokusansicht offen
+  ist – beides meldete sich ohne `was` beim Store, und jeder Wechsel rechnete
+  die Vorschau samt Jahr im Worker neu. Geschickt wurde nie etwas (gleicher
+  Fingerabdruck), aber am Handy kostet jede Rechnung an Tobis Stand geschätzt
+  eine knappe Sekunde, mit vielen Terminen viele. Jetzt melden sich beide als
+  `ansicht`, und `kalenderGeaendert()` überspringt das wie die Pause. Die
+  Sicherung hört weiter mit und zählt beides ohnehin nicht als Änderung.
+  Gemessen in `tests/test-kalender-sync.mjs` (17 e): sechs Wechsel des Reiters
+  und drei Übungen weiter in der Einheit, 0 und 0 Rechnungen im Worker; gegen
+  v246 5 und 3 (zwei der sechs Wechsel lagen keine zwei Sekunden auseinander
+  und wurden eine Rechnung).
+* **„+Wdh."** (`store.addBwPlus()`) meldete sich nicht beim Store: Die
+  automatische Sicherung erfuhr vom Aufschlag erst mit der nächsten Meldung –
+  wer danach nichts mehr antippte, hatte ihn nur auf diesem Gerät. Jetzt meldet
+  es sich. Die Vorschau rechnet dabei mit, mit Absicht: Die Termine nennen den
+  Aufschlag zwar nicht, aber `bwPlus` zählt zur Einstufung
+  (`leistungsStand()`), und die prüft jeder Tag der Vorschau
+  (`pruefeAufstieg()` in den Startschritten) – hebt ein Aufschlag den Median
+  über die nächste Stufe, steht ab morgen ein Satz mehr in den Terminen. Kommt
+  dasselbe heraus, geht nichts hinaus. Geprüft in
+  `tests/test-sicherung-auto.mjs`.
+
+**Zwei Geräte.** Tobi hat die App auch im Browser am Rechner – eigener
+Speicher, eigener Trainingsstand: Dort fehlte Workout 13 vom Montag, trainiert
+hatte er am Handy. Er hatte sie dort mit einem zweiten Skript-Projekt in einem
+anderen Google-Konto verbunden, und dessen Kalender zeigte einen Plan, der eine
+Einheit hinterherhinkte (So/Mo/Mi/Fr statt Mo/Mi/Fr/Sa). Nichts in der App
+sagte, warum. Jetzt steht auf der verbundenen Karte, welchen Stand dieses
+Gerät schickt, aus dem echten Zustand – das jüngste Lebenszeichen einer
+Einheit, so wie `stand.zuletzt` in der Sendung, ohne Lebenszeichen der jüngste
+Trainingstag:
+
+> Dieses Gerät schickt: zuletzt trainiert Workout 13 am Mo 26.10. Verbunden
+> sein soll nur das Gerät, auf dem du trainierst – jedes Gerät hat seinen
+> eigenen Stand, und ein zweites schickt einen Plan, der hinterherhinkt.
+
+Ohne Training ehrlich „Dieses Gerät schickt: noch nie trainiert." Hängen zwei
+Geräte am selben Skript, sagt die Antwort sogar mehr: `aelter` heißt, beim
+Skript gilt der Plan eines anderen Geräts, das zuletzt trainiert hat, und die
+Antwort trägt dessen Stand (`stand`). Das stand bisher nur als „Letzter
+Versuch …: Ein anderes Gerät hat zuletzt trainiert …" im Stand der Karte. Jetzt
+als eigener Hinweis in Warnfarbe, mit dem Tag, an dem dort zuletzt trainiert
+wurde:
+
+> Ein anderes Gerät mit neuerem Training ist mit diesem Kalender verbunden –
+> dieses hier nicht mehr verbinden („Trennen" unten; die Termine des anderen
+> bleiben stehen). Im Kalender gilt dessen Plan; trainierst du doch hier
+> weiter, gilt mit dem ersten Satz wieder dieses. Dort zuletzt trainiert am
+> Mo 26.10.
+
+Nicht auf dem Dashboard: Der Kalender stimmt ja, für das Gerät, mit dem
+trainiert wird. Und „Trennen" schickt in diesem Fall kein „aus" – das war die
+Lücke, die der Rat erst aufgemacht hätte: Das Skript nimmt ein „aus" von jedem
+Gerät mit dem Kennwort an und räumt dann die Termine ab heute weg, also die des
+Geräts, mit dem trainiert wird, bis es wieder etwas schickt. Getrennt wird nur
+dieses Gerät („Getrennt – dieses Gerät schickt nichts mehr. Den Kalender pflegt
+weiter das andere Gerät."); dasselbe bei *Alle Daten löschen* und beim Wechsel
+zu einer anderen URL. Gemerkt wird das für sich, nicht am letzten Versuch
+(unten, *Was die Prüfung von v247 fand*). Ob das andere Gerät inzwischen selbst
+getrennt ist, weiß die App nicht – dann bleibt eben dessen letzter Plan beim
+Skript, bis Tobi dort trennt.
+
+**Was die Prüfung von v247 fand**, nachgestellt und behoben, alles in der App:
+
+* **`aelter` hing am letzten Versuch.** Jeder Versuch danach überschrieb ihn,
+  auch einer, der nicht ankam: Sagte das Skript „beschäftigt" – ein Lauf
+  `weiter` des anderen Geräts hält die Sperre bis zu viereinhalb Minuten – oder
+  fehlte das Netz, war der Hinweis weg, und „Trennen", *Alle Daten löschen* und
+  eine neue URL schickten das „aus" doch, das die Termine des Geräts wegräumt,
+  mit dem trainiert wird. Jetzt steht es für sich im Speicher des Geräts
+  (`fremd` in `workout.kalender.v1`, mit dem Stand, der beim Skript gilt),
+  gesetzt von jeder Antwort `aelter` – auch der auf eine Sendung, die der
+  Service Worker nachgeschickt hat; sein Vermerk trägt dafür jetzt den Stand
+  mit (`sw.js`) –, und weg erst, wenn eine eigene Sendung ankommt. Der
+  gescheiterte Versuch steht darüber im Stand der Karte („Letzter Versuch
+  gerade eben: Das Skript ist gerade beschäftigt …"), der Hinweis bleibt. Im
+  Kopf des Diagnoseprotokolls steht dann „· beim Skript gilt ein anderes
+  Gerät".
+* **Die Sätze dazu.** Der Dialog von *Alle Daten löschen* kündigte auch dann
+  an: „Die Termine ab heute verschwinden dort." Jetzt: „Dieses Gerät wird vom
+  Kalender „Workout" getrennt; die Termine des anderen Geräts bleiben dort
+  stehen." Unter „Neues Skript-Projekt?" stand „Das alte bekommt dann ein
+  „Trennen"." – jetzt „Das alte behält dann den Plan des anderen Geräts – es
+  bekommt kein „Trennen"."
+* **Eine alte Auskunft versprach weiter.** „In den nächsten Minuten" stand da,
+  bis die zweite Probe den Stillstand zeigte: nach fünf Stunden weg beim
+  Zurückkommen anderthalb Minuten lang, ohne Wegschalten bis zur 75. Minute;
+  ein „morgen" von gestern blieb „morgen". Jetzt hält jedes Versprechen nur so
+  lange, wie es gelten kann (`KALENDER_VERSPRECHEN` in `js/app.js`): „in den
+  nächsten Minuten" eine Viertelstunde – ein `weiter` kommt drei Minuten nach
+  dem vorigen Lauf, und auf der Karte fragt die App alle paar Minuten nach –,
+  „mit dem nächsten stündlichen Abgleich" 75 Minuten, „morgen" am Tag der
+  Auskunft. Danach sagt der Stand, was die Auskunft wusste und wann sie kam:
+  „Den Rest bis 08.10.2027 trägt das Skript nach – noch 204 Änderungen (Stand
+  vor 5 Std.)."
+* **„Zuletzt gesichert: vor 3 Min.."** unter Mehr → Daten – dieselbe Ursache wie
+  die zwei Punkte unter Mehr → Kalender, nur älter: `vorWann()` endet mit dem
+  Punkt der Abkürzung oder des Datums. Beide Stellen nehmen jetzt `punkt()`.
+* **Was sich ohne neuen Code im Skript nicht unterscheiden lässt.** Ohne
+  `offen` antwortet Fassung 2 auch, wenn ihr eigener letzter Lauf vor dem Ende
+  scheiterte – ein Fehler vor dem Abarbeiten, oder ein Tageskontingent, das
+  auch die Beschreibung des Kalenders trifft. Dann sagt die Probe auch kein
+  „morgen" (`probeAntwort_()` gibt es nur mit `offen` weiter, obwohl
+  `workout.abgleich` es weiß), und für die App sieht es aus wie der alte
+  Auslöser: Die Karte rät bis zum nächsten Tag zu `einrichten`. Schaden kann
+  das nicht – `einrichten` legt den Auslöser neu an, oder es scheitert an
+  derselben Grenze, bevor es einen Auslöser anfasst (`kalenderSichern_()`
+  schreibt die Beschreibung vor `ausloeserNeu_()`). Nachgestellt in
+  `tests/test-kalender-gas.mjs`, Abschnitt 12; vorgemerkt für die nächste
+  Fassung des Skripts: `morgen` und `fehler` auch ohne `offen` weitergeben.
+  Jetzt nicht – Tobi soll den Code nicht noch einmal tauschen. Dass der Bezug
+  mit der ersten Sendung neu beginnt, die einen anderen Stand sagt, steht oben
+  bei *Woran die App es merkt*.
+
+**Geprüft.** `tests/test-kalender-sync.mjs`, Abschnitt 17 (das Skript wie
+immer per `page.route` gespielt): die Anleitung an jeder Stelle mit
+`einrichten` vor „Neue Version", nirgends mehr „nicht nötig", auch nicht in der
+Vorlage, die Fassung 2 bleibt; die Erkennung mit einer Attrappe, die nach der
+Sendung (204 offen, `weiter` in Minuten) in keiner Probe mehr `offen` sagt – die
+Uhr in Schritten von zehn Minuten, die Karte aufgeschlagen: nach 40 Minuten und
+vier Proben, von selbst gefragt, noch kein Satz, nach 80 Minuten und acht der
+Satz in Akzentfarbe, der Stand ohne Versprechen, einmal im Diagnoseprotokoll,
+nichts auf dem Dashboard, auf dem Dashboard 30 Minuten lang keine Probe, und
+sobald eine Probe 150 sagt, ist der Satz weg; das Tageskontingent zwei Stunden
+und vier Proben lang ohne Satz; „Ohne Netz trainiert" nur mit dem Grund `netz`,
+ohne „Min..", der Vermerk weg nach der nächsten eigenen Sendung; „Google bremst"
+weg neben einer Probe danach, `einrichten` nicht (auch nicht vom Dashboard);
+Reiter und Einheit ohne Rechnung; „Dieses Gerät schickt" aus dem echten
+Zustand (nach einem Satz in Workout 9: „zuletzt trainiert Workout 9 am Do
+08.10.") und ehrlich ohne Training; `aelter` deutlich auf der Karte, nicht auf
+dem Dashboard, und Trennen danach ohne „aus" an das Skript. Angepasst, was
+v247 bewusst anders sagt (Abschnitte 2, 4, 5, 13, 15 c, 16 e), und dazu: der
+Grund durch den echten Service Worker (9: ohne Netz „Ohne Netz trainiert", 14:
+über 64 KiB ohne) und die zwei Hinweise wörtlich wie in der Vorlage und in
+Fassung 1 (12). `tests/test-kalender-gas.mjs`, Abschnitt 12: der Auslöser mit
+Fassung 1 nach „Neue Version" (oben). `tests/test-sicherung-auto.mjs`: „+Wdh."
+geht von selbst in die Sicherung. Gegen v246 (0f27b54, mit deren Vorlage)
+gelaufen: die App an 28 Stellen rot, alle bei dem, was v247 ändert. Grün
+blieben dort nur Prüfungen auf ein Fehlen, die v246 ohne Erkennung ohnehin
+besteht – nichts auf dem Dashboard, keine Probe auf den anderen Seiten, kein
+Satz beim Tageskontingent und keiner mehr, nachdem `offen` sank. Die Sicherung
+an einer Stelle rot, das Skript an einer, der neuen letzten Zeile von
+`einrichten()`; alles andere in Abschnitt 12 läuft mit dem Skript von v246
+genauso, mit denselben Zahlen – am Skript ist nur Text geändert.
+
+**Geprüft, nach der Prüfung von v247.** `tests/test-kalender-sync.mjs`,
+Abschnitt 18: `aelter`, dann ein Versuch, auf den das Skript „beschäftigt"
+sagt, dann „Trennen" – der Hinweis bleibt, mit dem Stand des anderen Geräts,
+der Versuch steht darüber, und kein „aus" geht hinaus; `aelter`, dann kein
+Netz, dann *Alle Daten löschen* – der Dialog sagt, dass die Termine des anderen
+Geräts stehen bleiben, und auch mit Netz geht kein „aus" nach; dasselbe mit
+„Trennen" ohne Netz – es wartet keins; eine neue URL nach `aelter` und
+„beschäftigt" – an die alte geht kein „aus", und der Satz unter „Neues
+Skript-Projekt?" sagt es vorher; trainiert Tobi doch hier, ist der Hinweis weg,
+und „Trennen" schickt wieder ein „aus"; fünf Stunden weg, die Probe beim
+Zurückkommen ohne `offen` – vor der zweiten Probe kein „in den nächsten
+Minuten", sondern „(Stand vor 5 Std.)"; ein „morgen" von gestern ohne neuere
+Auskunft – kein Versprechen. Abschnitt 9, mit dem echten Service Worker: Sagt
+das Skript ihm `aelter`, trägt sein Vermerk den Stand, die Karte sagt es, obwohl
+der letzte eigene Versuch „beschäftigt" war, und „Trennen" schickt kein „aus".
+Dafür bekommt dort auch der erste Vermerk die Zeit der Seite, wie in 16 d: Die
+Uhr des Service Workers geht echt, die der Seite steht am 08.10. – ohne das lag
+das, was er nachgeschickt hatte, Wochen nach allem, was die Seite danach
+vermerkte. 17 b sagt nach 40 Minuten „(Stand vor 40 Min.)" statt „in den
+nächsten Minuten". `tests/test-kalender-gas.mjs`, Abschnitt 12: was die App an
+der Probe nicht unterscheiden kann (oben). `tests/test-sicherung-auto.mjs`:
+„Zuletzt gesichert: vor 5 Min." mit einem Punkt. Gegen den Stand vor dieser
+Nachbesserung (c072dcf) gelaufen: die App an 13 Stellen rot – Abschnitt 18
+überall außer dort, wo Tobi hier trainiert (das galt schon vorher), 9 an zwei
+Stellen, 17 b an einer –, die Sicherung an einer („vor 5 Min.."). Die neue
+Prüfung im Skript-Test ist auch dort grün: Sie hält fest, wie Fassung 2
+antwortet, und die ist unverändert. Danach einzeln gelaufen:
+`test-kalender-sync` 269, `test-kalender-gas` 195, `test-sicherung-auto` 77,
+`test-kalender-vorschau` 164, `test-tagesabschluss` 218, `test-diagnose` 151,
+`test-bodyweight` 45, `test-single` 18, `test-tabs` 11, `test-update` 5
+Prüfungen, alle grün.
+
+**Ehrlich dazugesagt.** Dass ein Auslöser an der Version hängt, aus der er
+entstand, ist aus Tobis 12:14-Lauf geschlossen, nicht aus Googles
+Dokumentation gelesen; dass `einrichten` es richtet, folgt daraus und aus
+`ausloeserNeu_()`, gesehen ist es erst, wenn Tobi es ausgeführt hat und `offen`
+sinkt (die Karte zeigt es dann). Ob Google bei `einrichten` noch einmal nach
+Zugriff fragt, ist ungeprüft – die Anleitung sagt deshalb „womöglich". Die
+Erkennung kann sich irren: Bremst Google länger als eine Stunde, hängen die
+Läufe aus einem anderen Grund, oder scheiterte ein Lauf von Fassung 2 selbst
+(oben: ein Tageskontingent, das auch die Beschreibung trifft), steht derselbe
+Satz da – `einrichten` schadet dann nicht und schreibt ins
+Ausführungsprotokoll, was los ist. Gefragt wird von selbst nur auf der
+aufgeschlagenen Karte; liegt die App die ganze Zeit auf einer anderen Seite,
+kommt der Satz erst mit den Proben beim Öffnen und Zurückkommen. Und die Zeile
+„Dieses Gerät schickt" sagt, was dieses Gerät weiß – welches Gerät Tobi für das
+richtige hält, weiß nur er.
+
+#### Microsoft To Do (v248)
+
+> „Kann man machen dass immer wenn ich an dem Tag n workout machen muss, das
+> als todo in meine app kommt und halt automatisch verschiebt usw?"
+>
+> „Naja ich mach ja garnicht strikt alle zwei Tage Workout sondern immer
+> unterschiedlich. Und manchmal verpass ich ja n workout. Dann ändert sich ja
+> der Plan und so. Das soll alles berücksichtigt werden"
+
+Eine Wiederholung in To Do („alle 2 Tage") kann das nicht: Tobis Tage sind
+nicht gleichmäßig, und ein verpasstes Training schiebt den ganzen Rest. Was
+dafür zu rechnen ist, rechnet aber schon die Vorschau – welche Einheit an
+welchem Tag ansteht, wenn bis dahin nicht trainiert wird. To Do hängt deshalb
+am selben Skript wie der Kalender und an derselben Liste für heute
+(`vorschauFuer_()`): Je Einheit, die heute ansteht, steht in To Do eine
+Aufgabe in der Liste „Workout", fällig heute, mit Titel und Übungen wie im
+Termin („Workout 9 · 6 Übungen · 17 Sätze", darunter „• 3 × 8–12 Goblet
+Squat" …). Keine zweite Rechnung, also kein zweites Ergebnis.
+
+| Fall | in To Do |
+| --- | --- |
+| Trainingstag | eine Aufgabe, fällig heute – ab dem ersten stündlichen Lauf nach Mitternacht |
+| Ruhetag | nichts |
+| verpasst | dieselbe Aufgabe rückt auf den Tag, auf den die App die Einheit schiebt – keine zweite |
+| in der App trainiert | hakt sich ab, sobald die App das Training schickt – auch das von gestern Abend, das erst heute ankommt |
+| in To Do gelöscht | bleibt heute weg; steht die Einheit morgen noch an, kommt sie wieder |
+| in To Do abgehakt, in der App nicht trainiert | heute bleibt sie abgehakt, morgen ist sie wieder offen und weitergerückt – wie der Termin: Die App hat kein Training gesehen |
+| Liste „Workout" in To Do gelöscht | wird neu angelegt, die Aufgabe darin neu |
+| anderer Plan (Fokuswechsel, neue Runde) | die offene Aufgabe der alten Einheit kommt weg |
+| in der App abgeschaltet, oder `todoTrennen` | offene Aufgaben weg, erledigte bleiben |
+
+Das Skript merkt sich, welche Aufgaben es angelegt hat (`workout.todo.aufgaben`),
+fasst nur die an und ruft Microsoft nur, wenn sich etwas ändert – eine Stunde
+wie die davor gar nicht, auch nicht für einen neuen Zugang. Eine eigene
+Erinnerung bekommt die Aufgabe nicht: Der Kalender erinnert schon 30 Minuten
+vor 17:30, zwei Meldungen für dasselbe Training wären eine zu viel.
+
+**Anmeldung mit Code, ohne Weiterleitung.** Tobis To Do liegt in einem privaten
+Microsoft-Konto. Daran kommt ein Skript nur über eine bei Microsoft
+registrierte App, und registrieren geht nur in einem Entra-Verzeichnis – für
+ein privates Konto heißt das: ein kostenloses Azure-Konto (Microsoft prüft
+dabei Handy und Karte, abgebucht wird nichts). Die App „Workout" ist
+registriert für nur persönliche Microsoft-Konten, mit öffentlichen
+Clientflows und dem delegierten Recht `Tasks.ReadWrite`; ihre App-ID steht als
+`TODO_APP` in der Vorlage (seit v251: `aec9b2f8-2993-4680-9ac0-c4123a905323`) –
+sie ist kein Geheimnis, sie sagt Microsoft nur, wer fragt. Ob die
+Registrierung passt, sagt ein einziger Aufruf des Gerätecode-Endpunkts mit
+dieser ID, ohne dass sich jemand anmeldet: *AADSTS700016* – die App gibt es
+für persönliche Konten nicht (ID vertippt, anderer Kontotyp); *AADSTS70002*
+(„must be marked as 'mobile'") – die App gibt es, aber „Öffentliche
+Clientflows zulassen" steht auf Nein; ein Code – passt. Beim ersten Versuch
+am 1.11.2026 kam AADSTS70002. `todoVerbinden` nennt in diesem Fall beide
+Einstellungen. Angemeldet wird mit Gerätecode (`todoVerbinden`): Das Skript holt
+bei Microsoft einen Code und schreibt ihn mit der Adresse ins
+Ausführungsprotokoll, Tobi gibt ihn dort ein und meldet sich an, und der
+Minuten-Auslöser `todoWarten` fragt nach, bis es durch ist – höchstens so
+lange, wie der Code gilt (15 Minuten) –, und räumt sich dann weg. So steht
+kein Geheimnis im Code, und an der Bereitstellung ändert sich nichts, anders
+als bei einer Anmeldung, die auf die Web-App zurückleitet. Den
+Erneuerungs-Token hebt das Skript in seinen Eigenschaften auf, wie die
+Vorschau; Microsoft gibt bei jedem Gebrauch einen neuen aus, und der ersetzt
+den alten.
+
+**Fällig um Mitternacht UTC.** To Do kennt nur den Tag. Graph legt Mitternacht
+UTC des Tages ab und zeigt dieses Datum ohne Umrechnung; mit Berliner
+Mitternacht (22 oder 23 Uhr UTC am Vortag) stünde die Aufgabe einen Tag zu früh
+da (`todoTag_()`).
+
+**Fehler bei To Do treffen den Kalender nicht.** To Do läuft nach dem Kalender
+und wirft nie in ihn hinein (`todoAbgleichenSicher_()`). Bremst Microsoft,
+hakt es oder ist es nicht erreichbar, versucht es der nächste Lauf wieder,
+ohne Meldung. Ein Fehler, der bleibt – vor allem eine Anmeldung, die nicht
+mehr gilt (Zugriff entzogen, Passwort geändert, Token abgelaufen) –, lässt
+den stündlichen Lauf **einmal** werfen, dann schickt Google die Mail „Summary
+of failures", wie beim Kalender; die Stunden danach bleibt es still. Bei einer
+Anmeldung, die nicht mehr gilt, vergisst das Skript den Zugang und ruft
+Microsoft gar nicht mehr auf, bis wieder `todoVerbinden` läuft. Den Zugang
+wegwerfen tut es nur bei einer eindeutigen Absage (`invalid_grant` und
+Verwandte, `TODO_ABGEWIESEN`); eine andere Störung bei der Anmeldung zählt als
+„später".
+
+**Beim Senden.** Schickt die App ein Training, soll sich die Aufgabe gleich
+abhaken, nicht erst eine Stunde später. Ein neuer Plan nimmt dem Kalender in
+`doPost` aber die ganzen 25 Sekunden – ein Jahr Termine umziehen. Ist To Do
+verbunden, hält der Kalender deshalb 6 Sekunden frei (`TODO_POST_MS`); was er
+dabei liegen lässt, macht „weiter" ohnehin. In der Prüfung fiel genau das auf:
+Beim Planwechsel kam To Do in `doPost` sonst gar nicht dran.
+
+**Keine neue Fassung.** `FASSUNG` bleibt 2. Was die App schickt, ändert sich
+nicht, und wer To Do nicht will, braucht den neuen Code nicht – mit Fassung 3
+bäte die App jeden darum. Wer To Do will, tauscht den Code einmal wie gewohnt.
+Seit v248 steht in „Verbinden" und jeder Antwort auf eine Sendung das Feld
+`todo` (`verbunden`, `wartet`, `zuletzt`, `hinweis`; null ohne App-ID); die App
+liest es noch nicht.
+
+**Einrichten, einmal:**
+
+1. In der App *Mehr → Kalender → Code kopieren*, in Apps Script den ganzen
+   Code ersetzen und speichern, oben `einrichten` *Ausführen* (Google fragt
+   neu nach Zugriff – dazu gehört jetzt „Mit einem externen Dienst
+   verbinden"), dann *Bereitstellen → Bereitstellungen verwalten → Bearbeiten
+   → Neue Version → Bereitstellen*.
+2. Oben `todoVerbinden` wählen und *Ausführen*. Unten im Protokoll stehen eine
+   Adresse und ein Code: die Adresse öffnen, den Code eingeben, mit dem
+   Microsoft-Konto anmelden, in dem To Do liegt, und den Zugriff für
+   „Workout" erlauben.
+3. Spätestens eine Minute danach steht in To Do die Liste „Workout" – an
+   Ruhetagen leer, an Trainingstagen mit der Aufgabe für heute.
+
+Trennen: oben `todoTrennen`. Den Zugriff bei Microsoft ganz entziehen:
+account.live.com/consent/Manage → „Workout" → Entfernen.
+
+**Was an Microsoft geht:** Titel und Übungen der Einheiten, die heute anstehen,
+ihr Tag, und ob sie erledigt sind. Kein Kennwort, kein Trainingsstand, keine
+anderen Tage. Die Vorlage nennt außer Microsofts Anmeldung und Graph keine
+Adresse, und der Zugang geht nur an Graph – beides prüft der Test.
+
+**Geprüft** in `tests/test-kalender-gas.mjs`, Abschnitt 13, gegen eine
+Attrappe von Microsoft, die Zugänge nach einer Stunde ablaufen lässt und jeden
+Erneuerungs-Token nur einmal nimmt, mit Tobis Stand: Workout 9 steht am Mo
+26.10. an, das Training vom Montagabend kommt am Di nach (der Stand von T27). Ohne
+Verbindung kein einziger Aufruf im Netz, ohne App-ID im Code ebenso. Verbinden
+mit Code, Warten, `einrichten` mittendrin (der Auslöser kommt wieder),
+angenommen, abgelehnt, abgelaufen, ein übrig gebliebener Auslöser. Die Aufgabe
+mit Titel, Übungen, Fälligkeit und ohne Erinnerung; eine ruhige Stunde ohne
+Aufruf; verpasst rückt dieselbe Aufgabe mit einem Schreibzugriff; das
+nachgeschickte Training hakt sie ab, statt sie zu löschen; die nächste Einheit
+an ihrem Tag. In To Do gelöscht, abgehakt ohne Training, die Liste gelöscht;
+Microsoft bremst (429); die Anmeldung hakt, ohne „gilt nicht mehr" zu sagen;
+ein Zugang, den Microsoft vor seiner Zeit ablehnt (401); ein Planwechsel; die
+Anmeldung gilt nicht mehr (einmal werfen, danach still und ohne Aufruf, der
+Kalender läuft weiter, „Verbinden" erfährt es) und wieder verbinden, auch am
+selben Tag mit einem anderen Konto (die Aufgabe für heute steht gleich dort);
+abgeschaltet, wieder an, getrennt. Kein Zugang in Protokoll, Antworten oder
+Kalender; jeder Wert in den Eigenschaften unter 9 KB. Der Kalender ist in
+jedem dieser Schritte wie vorher (`abweichung()`), und die 195 Prüfungen von
+vorher sind grün – zwei davon angepasst: die Adressen in der Vorlage (nur
+Microsoft) und die Funktionen, die oben zur Auswahl stehen. Die ganze Suite
+lief mit (97 Dateien, 4533 Prüfungen). Rot war nur, was ohne diese Änderung
+genauso rot ist: in `test-kalender-sync` die zwölf Prüfungen, in denen der
+Service Worker im Hintergrund nachschickt – die Hintergrund-Synchronisation
+feuert in der Testumgebung dieser Sitzung nicht; gegen v247 gelaufen,
+dieselben zwölf –, und einmal ein Fenster von 31 ms in
+`test-ton-freischalten`, beim zweiten Lauf grün.
+
+**Grenzen, ehrlich.** Dass To Do ein über Graph gesetztes Datum ohne
+Umrechnung zeigt, steht nicht in Microsofts Dokumentation, sondern in einer
+Frage auf Microsoft Q&A (1237380); die Attrappe nimmt es so an. Am ersten
+Trainingstag nachsehen: Steht die Aufgabe einen Tag zu früh da, ist
+`todoTag_()` die Stelle. Auch sonst ist die Attrappe nach Microsofts
+Beschreibung gebaut (Gerätecode, Fehlernamen, Graph) – gesehen ist es erst bei
+Tobi. In „Mein Tag" kann das Skript nichts legen; dafür hat Graph keine
+Eigenschaft. Die Aufgabe steht in „Workout" und unter „Geplant". Wer in To Do
+abhakt, ohne in der App zu trainieren, hat sie am nächsten Tag wieder: Die App
+ist die Quelle, wie für den Kalender. Die App zeigt den Stand von To Do (noch)
+nicht; bleibt etwas schief, kommt die Mail von Google, einmal. Und dass die
+App-Registrierung nach den 30 Tagen der Azure-Testphase weiter gilt, folgt
+daraus, dass sie zum Verzeichnis gehört und nicht zum Abo – gesehen ist es
+erst danach.
 
 ## Übungsvorrat
 
@@ -1618,6 +4229,70 @@ Sätze, und an der Zahl der Rudersätze ändert eine schwerere Stange nichts. Wa
 sich ändert, ist, was in diesen 2,86 Sätzen passiert: 35 kg beidarmig statt
 16 kg einarmig, und ein Zug, der wachsen kann statt bei 20 kg Kurzhantel zu
 enden.
+
+### Wenn die Stange am Sofa nicht passt (v252)
+
+> *„So wie in der app angegeben kann ich hip thrusts glaub ich nicht bei mir
+> zuhause machen. Wenn ich auf dem Sofa liege, stößt die langhantel links oder
+> rechts gegen die Wand"*
+
+Der Hip Thrust braucht zweierlei: eine Kante an der Wand und links und rechts so
+viel Platz, wie die Stange lang ist. Steht das Sofa in einer Nische, fehlt das
+zweite. Bisher blieb dann nur, ihn unter *Mehr → Übungen* auszuschalten, und es
+sprang das Beckenheben mit der Scheibe ein – gleiche Muskelanteile, aber eine
+Scheibe auf der Hüfte statt 40 kg und mehr auf der Stange. Für jemanden, der
+den Hip Thrust mit der Langhantel macht, ist das kein Ersatz, sondern ein
+Rückschritt.
+
+Jetzt gibt es zwei Wege, und der Hip Thrust nennt beide in seiner Erklärung
+(„Kein Platz für die Stange"):
+
+1. **Eine andere Kante.** Ein stabiler Stuhl ohne Rollen, die Lehne fest an
+   einer freien Wand. Der Aufbau-Text sagte bisher, ein Stuhl kippe nach hinten
+   – das stimmt für den frei stehenden. An der Wand wird er beim Hochdrücken nur
+   gegen sie geschoben.
+2. **Der Boden.** Das **Beckenheben mit Langhantel** (`langhantel-beckenheben`):
+   dieselbe Stange, dasselbe Startgewicht (40 kg, Stange gesamt, Schritt 5),
+   dieselben Muskelanteile wie der Hip Thrust (Gesäß 1,0, Beinbeuger Hüfte
+   0,5). Kürzerer Weg, dieselbe Last. Es steht in keinem Plan
+   (`nurErsatz`) und springt ein, wenn der Hip Thrust ausgeschaltet ist – vor
+   dem Beckenheben mit der Scheibe, weil `ersatzFuer()` bei gleichen Anteilen
+   die erste passende Übung im Katalog nimmt. Ohne Langhantel bleibt es bei der
+   Scheibe; ohne Hanteln ist es das Beckenheben ohne Gerät.
+
+Wo der Hip Thrust wegen einer Beschwerde fällt, fällt das Beckenheben mit
+Langhantel mit: Handgelenkbruch, ISG-Blockade, Leistenbruch, Zerrung der
+Oberschenkelrückseite. Vom Hip Thrust unterscheidet es der halbe Weg, nicht die
+Last – bei der ISG-Blockade und der Zerrung wird es deshalb, wie er, zum
+Beckenheben mit der Scheibe.
+
+**Nebenbei gefunden:** An der Karte einer ausgeschalteten Übung stand
+„Statt Hip Thrust – dafür fehlt gerade das Gerät. Unter Mehr → Was da ist wieder
+anhaken." Die Stange lag daneben. Abgewählte Übung und fehlendes Gerät tauschen
+über denselben Weg (`stattWarum: 'vorrat'`); die Zeile sagt jetzt, welches von
+beiden es war.
+
+**Die Pläne bleiben.** Ein neuer Katalogeintrag ist für
+`tools/pruefung/plan-frisch.py` eine geänderte Eingabe. Neu gerechnet wurde
+nicht: `tools/build-plan.py` nimmt nur Übungen ohne `nurErsatz` in die Pläne,
+diese kann also keinen ändern. So steht es unter `hingenommen` in
+`tools/pruefung/plan-eingaben.json`, je Plan, mit Grund. Und für
+`tools/pruefung/plan-pruefen.py` ist eine Übung ohne Sätze, die der
+Vergleichsstand nicht kennt, eine, die „neuerdings ganz aus dem Plan fällt" –
+`tools/pruefung/befunde.json` führt sie deshalb unter `ohne_saetze`, in allen
+acht Plan-Modus-Paaren. Das fehlte bis v253 und fiel erst in CI auf (siehe
+*Vor dem Commit und vor dem Push*).
+
+Geprüft in `tests/test-beckenheben-langhantel.mjs`: Katalog und Texte; in keinem
+Plan; der Ersatz in allen acht Cut-Einheiten mit Hip Thrust, Satz für Satz;
+ohne Langhantel und bei ISG-Blockade oder Zerrung die Scheibe; im Training
+Name, Gewicht und der richtige Grund an der Karte; die Figur mit der Stange quer
+über der Hüfte und den Scheiben über dem Boden. Gegen v251 rot in Katalog,
+Plänen, Ersatz und Training.
+
+*Grenzen, ehrlich:* Das Gewicht kommt nicht vom Hip Thrust mit – wer dort schon
+über 40 kg war, stellt es einmal ein. Und ob ein Stuhl trägt, weiß die App
+nicht; ein Klappstuhl tut es nicht.
 
 ### Sieben Übungen, die es vorher nicht gab
 
@@ -1715,6 +4390,19 @@ Einheit –, aber die Einheiten laufen dann auseinander: 12 bis 21 Sätze statt 
 bis 18. Eine Einheit, die anderthalbmal so lang ist wie die nächste, ist der
 schlechtere Tausch. Umgebaut wird zwischendurch, gewartet wird die ganze Zeit.
 
+**Gezählt wird wie in der App.** Lange zählte der Generator nur Gerätefamilien
+je Tag – ohne Gewicht, und die SZ-Stange als Langhantel. Die App zählt jeden
+Gerätewechsel als Aufbau und jeden Gewichtswechsel am selben Gerät als Umbau
+(`ruestHint()`), und so stehen die Zahlen auch in jeder Tabelle hier. Im Aufbau
+waren das 2,39 gegen 3,55 je Einheit: Optimiert wurde eine andere Zahl als die,
+die gemessen wird. Jetzt rechnet `ruest_zaehlen()` in `tools/build-plan.py`
+dieselbe Reihenfolge wie `ruestOrder()` nach (Gerät, Startgewicht,
+Stufenregel) und zählt wie `ruestHint()`; `tests/test-reihenfolge.mjs` legt
+beide Zählungen Einheit für Einheit nebeneinander. Mit den Startgewichten,
+denn mehr kennt der Generator nicht – welche Übungen zusammen an einem Tag
+stehen, entscheidet aber nur er. Was das bringt, steht unter *Neu gerechnet am
+03.10.*
+
 ### Mehr Sätze auf weniger Übungen – gemessen und verworfen
 
 Naheliegend, wenn Umbauten das Ärgernis sind: dieselbe Wochenmenge auf **vier**
@@ -1738,7 +4426,9 @@ die vordere Schulter, die nur noch alle zwei Wochen drankommt. Bei gleichem
 Wochenvolumen wächst ein Muskel zwar unabhängig von der Frequenz ähnlich gut –
 aber 14 Tage sind keine niedrigere Frequenz mehr, das ist eine Lücke.
 
-`PER_SET` steht deshalb weiter auf `(3, 3)`.
+`PER_SET` steht deshalb weiter auf `(3, 3)`. Zwei bis vier Sätze je Auftritt,
+je nach Übung und Woche, sind ebenfalls nachgerechnet und verworfen (*2 bis 4 Sätze –
+gemessen*).
 
 **Die App sortiert innerhalb der Einheit.** Nach Gerät, und innerhalb des Geräts
 absteigend nach Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in
@@ -1761,8 +4451,11 @@ vor Kniebeuge oder Kreuzheben. Beides ist Vorermüdung: Die Grundübung endet
 dann am kleinen Muskel statt am großen, und genau dafür ist sie nicht da.
 `ruestOrder()` prüft das Ergebnis deshalb und setzt die Übung fest, die
 überholt hat; danach wird neu sortiert, bis nichts mehr überholt. Die Ersparnis
-bleibt dabei stehen – 304 Rüstvorgänge über den Plan, genau wie ohne die Regel,
-gegen 312 in der reinen Plan-Reihenfolge. Der Maßstab ist `tier` aus
+blieb dabei stehen – beim Einbau 304 Rüstvorgänge über den Aufbau-Plan, genau
+wie ohne die Regel, gegen 312 in der reinen Plan-Reihenfolge. Mit den Plänen vom
+03.10. sind es 260 gegen 281 (gemessen am 05.10.); die jeweils heutige Zahl gibt
+`tests/test-reihenfolge.mjs` aus („Rüstvorgänge: … sortiert gegen …"), und der
+Test schlägt an, wenn das Sortieren mehr kostet als die Plan-Reihenfolge. Der Maßstab ist `tier` aus
 `exercise-meta.json` und "beide treffen denselben Muskel direkt" (Anteil ab
 0,5); der Beinbeuger vor dem Drücken bleibt also erlaubt.
 
@@ -1861,7 +4554,7 @@ Bei Bruch, Riss und Bandscheibenvorfall steht über der Liste, dass hier die
 ärztliche Freigabe entscheidet, wann überhaupt wieder bewegt wird – nicht der
 Trainingsplan.
 
-**Alles geht durch eine Stelle.** `exOf()` in `js/app.js` – und darunter
+**Alles geht durch eine Stelle.** `exOf()` in `js/plan.js` – und darunter
 `adjustedPlan()` – ist der einzige Weg,
 auf dem die App an die Übungen eines Plantags kommt – Startansicht, Fokus,
 Statistik, Kalender. Damit kann es gar nicht passieren, dass eine
@@ -1884,6 +4577,34 @@ genau die sperrt, greift der Ersatz nicht und die Übung fällt doch weg. Das
 findet die App selbst und schreibt es hin. Die andere steht als `COMBOS` von
 Hand in der Datei – Dinge, die man wissen muss und die keine Formel hergibt,
 etwa dass Tennis- und Golferarm zusammen den kompletten Zug lahmlegen.
+
+**Ein Tausch auf eine Übung, die der Modus sperrt, ist kein Tausch.** Manche
+Sperren gelten nur in einem Modus (`avoidDb`, `avoidBw`): Beim Handgelenkbruch
+ist der Hip Thrust mit Hanteln gesperrt, weil die Hand die Stange auf der Hüfte
+hält – und dieselbe Beschwerde tauscht den Goblet Squat auf den Hip Thrust. Im
+Hantel-Modus fielen dann beide weg, aber die Karte im Training sagte
+„Goblet Squat → Hip Thrust" und gleich daneben „Hip Thrust fällt aus", und der
+Tab zählte die Goblet-Sätze als getauscht. Dasselbe Muster steht an mehr als
+einer Stelle – die Handgelenksüberlastung tauscht Liegestütze auf die Floor
+Press und sperrt sie ohne Hanteln, und 16 weitere Beschwerden tauschen auf
+eine Übung, die eine *andere* nur in einem Modus sperrt. Deshalb liest die
+Notiz die Kette jetzt allgemein zu Ende (`modusNotiz()` in `js/plan.js`):
+Fällt das Ziel im Modus weg, fällt die Ursprungsübung aus; wird es im Modus
+weitergetauscht, heißt es gleich „A → Y". Der Tab rechnet dafür im
+eingestellten Modus, wie die Wochentabelle darunter. `tests/test-injuries.mjs`
+prüft jede Beschwerde einzeln und jedes solche Paar in beiden Modi an jeder
+Einheit.
+
+**Der Text an der Übung sagt, was im Modus passiert.** Bei den Liegestützen
+hieß es unter *Wenn etwas weh tut → Handgelenk* in beiden Modi „Dann geht es
+auf die Bodenpresse". Ohne Hanteln ist die Bodenpresse aber selbst ein
+Liegestütz, die Handgelenksüberlastung sperrt sie dort mit, und die Übung fällt
+ersatzlos weg. Der Eintrag steht deshalb zweimal da, je Modus mit dem Ende, das
+stimmt (`tools/exercise-meta.json`); bei Floor Press und Bodenpresse ohne
+Hanteln ebenso. `tests/test-schmerz.mjs` prüft jeden Eintrag, der einen Ersatz
+ankündigt, gegen die Sperren seines Modus. Nach dem Anhaken springt die
+Fokusansicht außerdem zu einer offenen Übung: Fiel die gezeigte ersatzlos weg,
+rückte bisher die nächste auf ihre Position – auch eine längst fertige.
 
 **Die 3D-Figur** kommt aus `js/figure.js`, mit einer ruhig stehenden Stellung
 (`stand`) und Marken an den betroffenen Stellen. `SPOTS` übersetzt einen Namen
@@ -1970,9 +4691,12 @@ herausreißt.
 
 Alles liegt im `localStorage` genau eines Browsers. Android räumt den bei
 Platzmangel weg, und „Websitedaten löschen" reicht ebenfalls – ein halbes Jahr
-Training wäre weg. Deshalb erinnert die Startansicht nach acht erledigten
-Einheiten daran und bietet die Sicherung direkt an; in *Mehr* steht, wann
-zuletzt gesichert wurde.
+Training wäre weg. Deshalb sichert die App seit v240 **von selbst** –
+verschlüsselt, auf dem Server des Betreibers, lesbar nur mit dem Schlüssel des
+Nutzers (siehe [Automatische Sicherung](#automatische-sicherung)). Wo es keinen
+Server gibt oder die Sicherung abgeschaltet ist, erinnert die Startansicht wie
+bisher nach acht erledigten Einheiten daran und bietet die Datei direkt an; in
+*Mehr* steht, wann zuletzt gesichert wurde.
 
 **Umzug auf ein anderes Gerät oder in die installierte App.** *Genau eines
 Browsers* ist dabei wörtlich zu nehmen: Chrome und Firefox teilen sich nichts,
@@ -1996,6 +4720,318 @@ Das Einlesen **beendet auch die Einrichtung**: Wer die frisch installierte App
 klicken, die der Import gleich wieder überschreibt. Der Knopf ist deshalb unter
 *Mehr* erreichbar, ohne die Einrichtung abzuschließen. Eine kaputte Datei lässt
 den vorhandenen Stand unangetastet.
+
+Nach dem Einlesen lädt die App einmal neu – immer, nicht nur bei einem anderen
+Fokus. Beim Start läuft der Planwechsel samt Reparaturen, und nur dort. Eine
+Sicherung aus einem älteren Planstand mit angefangener Einheit zeigte sonst bis
+zum nächsten Öffnen die Übungen des neuen Plans; wer weitertrainierte, bekam
+danach die alte Liste festgeschrieben und eine schon gemachte Übung offen
+daneben. Dasselbe gilt für „Stand von vor dem Import zurückholen".
+
+### „Sicherung weitergeben" tat nichts
+
+> „Wenn ich auch 'Sicherung weitergeben' klicke passiert nichts."
+
+Stimmt, und zwar aus zwei Gründen, die sich gegenseitig verdeckt haben:
+
+* **Der Typ.** Chrome teilt Dateien nur mit bestimmten Endungen und Typen –
+  Text, Bilder, Audio, Video, PDF (`ShareServiceImpl.PERMITTED_EXTENSIONS` und
+  `PERMITTED_MIME_TYPES` im Chromium-Quelltext, für Android und Desktop gleich).
+  `.json` und `application/json` stehen nicht darauf. `canShare()` sagt
+  trotzdem ja, weil es den Typ gar nicht prüft; erst `share()` lehnt im
+  Browserprozess ab, mit `NotAllowedError`.
+* **Das Schweigen.** Der Fehler landete in `catch { return; }` mit dem
+  Kommentar „abgebrochen – kein Grund für eine Meldung". Abgebrochen ist aber
+  nur ein `AbortError`. Die Ablehnung wurde mitverschluckt: kein Dialog, keine
+  Meldung, kein Download, nichts.
+
+Jetzt geht die Datei als **`.txt` mit genau `text/plain`** raus – der Vergleich
+in Chrome ist exakt, `text/plain;charset=utf-8` fiele schon wieder durch.
+*Datei laden* nimmt `.txt` ohnehin an. Ein Abbruch bleibt still; jede andere
+Ablehnung endet im Download, mit einer Meldung, die den Grund nennt, und mit der
+Sicherung im Textfeld unter *Mehr → Daten*. Das Textfeld ist der Weg, der
+sicher geht: Ob ein Download nach einer abgelehnten Freigabe, also ohne frische
+Berührung, auf jedem Handy durchkommt, ist nicht belegt.
+
+`tests/test-sicherung.mjs` spielt alle drei Antworten durch – geteilt,
+abgebrochen, abgelehnt – und liest die geteilte `.txt` wieder ein.
+
+### Automatische Sicherung
+
+> „Lass das doch generell einfach automatisch sichern"
+
+Bis v239 stand im Code ausdrücklich das Gegenteil: *Was hier bewusst nicht
+passiert: die Sicherung von selbst irgendwohin schicken.* Tobi ist Nutzer und
+Betreiber in einer Person und hat das anders entschieden. Die Grundsätze
+dahinter gelten weiter, und an ihnen hängt die ganze Bauart:
+**offengelegt, abschaltbar, löschbar – und lesen kann es niemand außer dem
+Besitzer des Schlüssels, auch der Betreiber nicht.**
+
+**Ende-zu-Ende verschlüsselt.** Beim ersten Mal erzeugt das Gerät einen
+Schlüssel aus 256 Bit Zufall (WebCrypto). Er geht nie über die Leitung. Was
+hinausgeht, ist der Stand – derselbe wie in der Sicherungsdatei –, mit gzip
+gepackt und mit AES-GCM verschlüsselt, mit frischem IV bei jedem Mal. Der Server
+sieht:
+
+| Feld | Was es ist |
+| --- | --- |
+| `id` | SHA-256 über `"id:"` + Schlüssel, hex – eine Zufallskennung |
+| `w_hash` | SHA-256 der Schreibmarke; die Marke selbst (SHA-256 über `"w:"` + Schlüssel) wird nicht gespeichert |
+| `daten`, `iv` | Chiffrat und IV, base64 |
+| `groesse`, `stand` | Länge des Chiffrats, Zeitpunkt der letzten Sicherung – sekundengenau, und weil nach jeder Einheit sofort gesichert wird, verrät er, **wann trainiert wird** |
+| IP-Adresse | sieht Supabase wie bei jeder Anfrage. In die Tabelle kommt sie nicht; gegen Missbrauch zählt `sicherung_quelle` je Quelle und Tag mit, wie viel neu angelegt wurde – die Quelle ist ein Hash aus Adresse und Tagessalz, beides weg mit dem Tag (siehe [Einrichten](#automatische-sicherung-einrichten)) |
+
+Wer zugleich den Rückkanal an hat, sollte eines wissen: Seine Meldung kommt nach
+einer Einheit in derselben Sekunde von derselben Adresse wie die Sicherung. Der
+Betreiber könnte die Zufallskennung der Sicherung also der Zeile im Rückkanal
+zuordnen – lesen kann er die Sicherung trotzdem nicht. Unter *Mehr → Daten*
+steht dasselbe in zwei Sätzen: „Der Server – bei Supabase – sieht eine
+Zufallskennung, wie groß die Sicherung ist und wann sie kam, sekundengenau: also
+auch, wann du trainierst. Dazu, wie bei jeder Anfrage, die IP-Adresse deines
+Geräts; gespeichert wird nicht sie, sondern gegen Missbrauch bis zum Tagesende
+ein Hash davon." Bis v240 hieß es dort „Der Server sieht *nur* …" – ohne Adresse
+und ohne das, was die Uhrzeit verrät. Gefunden bei der Prüfung der Sicherung.
+
+Ein halbes Jahr Training sind gepackt rund 30 bis 60 KB statt 300 bis 500 KB
+(gemessen an der Hochrechnung aus `tests/zusatz-tobi-do.json`). Ob gepackt
+wurde, steht als erstes Byte *im* Chiffrat – von außen nicht einmal das.
+
+**Wann.** Nur, wenn sich der Inhalt geändert hat: Das Gerät merkt sich den Hash
+des zuletzt gesicherten Klartexts. Felder, die sich ohne Training ändern – der
+offene Reiter, die laufende Pause, die Uhr der Einheit, was dem Rückkanal
+gemeldet wurde –, zählen dabei nicht, sonst schickte jedes Wegschalten eine
+neue Sicherung los.
+
+| Anlass | Wann |
+| --- | --- |
+| eine Einheit abgeschlossen | sofort, an der Drossel vorbei – mit dem Knopf *Abschließen* genauso wie mit dem letzten Haken |
+| jede andere Änderung | gedrosselt: höchstens alle zwei Minuten |
+| Start der App | wenn seit der letzten Sicherung etwas dazukam – und alle 30 Tage ohnehin, damit die 400 Tage (unten) nie ablaufen, solange die App benutzt wird |
+| App weggelegt | nur, was schon fertig verschlüsselt bereitliegt und unter 64 KB bleibt – mehr trägt `keepalive` nicht, und ohne `keepalive` stirbt die Anfrage mit der eingefrorenen Seite |
+| kein Netz | still; nachgeholt beim nächsten Anlass oder sobald der Browser „online" meldet |
+| weniger als zehn Sekunden nach der letzten Sicherung | gar nicht – sondern genau dann, wenn die zehn Sekunden um sind |
+
+**Der letzte Haken sicherte nicht.** Die App beendet eine Einheit von selbst,
+sobald der letzte Satz steht („soll das training automatisch zuende sein") –
+Tobis gewöhnlicher Weg. Dieser Zweig rief die sofortige Sicherung nicht auf; das
+tat nur der Knopf *Abschließen*. Wer das Handy gleich danach weglegte, schickte
+per `keepalive` den Stand, der vor dem letzten Satz vorbereitet worden war:
+laufende Einheit, letzter Satz offen, nicht als erledigt vermerkt. Jetzt laufen
+beide Wege durch dieselbe Stelle, `einheitBeenden()`, damit sie nicht wieder
+auseinanderlaufen.
+
+**Die zehn Sekunden hält das Gerät selbst ein.** Der Server nimmt je Sicherung
+höchstens alle zehn Sekunden etwas an und sagt sonst `zu oft`. Kam die Einheit
+drei Sekunden nach einer gedrosselten Sicherung zum Abschluss – nachgetragene
+Sätze, ein Supersatz-Partner –, lehnte er die sofortige Sicherung ab, die App
+plante den nächsten Versuch erst nach der Zwei-Minuten-Drossel, und wer das Handy
+weglegte, hatte die fertige Einheit bis zum nächsten Start nur auf dem Gerät.
+Unter *Mehr* stand dazu der rohe Fehlercode. Jetzt wartet das Gerät die zehn
+Sekunden ab (gemessen in seiner eigenen Uhr ab der letzten gelungenen
+Sicherung) und schickt dann – ist die App inzwischen weggelegt, mit
+`keepalive`. Ein `zu oft`, das trotzdem kommt (ein zweites Fenster), ist kein
+Fehler mehr, sondern ein Termin zehn Sekunden später.
+
+Erst, wenn der Einstieg den Satz dazu gezeigt hat und es etwas zu sichern gibt:
+Ein frisches Gerät, das nur seinen Namen kennt, schickt nichts – es soll erst
+die Gelegenheit haben, eine vorhandene Sicherung zurückzuholen.
+
+**Zwei Geräte, ein Schlüssel.** Nach einem Umzug ist das der Normalfall,
+solange das alte Handy noch herumliegt – und das alte Handy rückt beim nächsten
+Öffnen den Plan nach, ändert also seinen Stand. Ohne Vorkehrung hätte es den
+neueren Stand des neuen Handys still überschrieben. Jedes Schreiben nennt
+deshalb den Stand, den es zu ersetzen glaubt (`p_vorher`); hat dazwischen ein
+anderes Gerät geschrieben, lehnt der Server mit `veraltet` ab. Das Gerät hört
+dann auf, sagt es auf dem Dashboard („Sicherung angehalten") und unter *Mehr*
+mit zwei Knöpfen: *Diesen Stand sichern* oder *Den Stand von dort holen*. Ein
+zweites Fenster derselben App auf demselben Gerät ist kein fremdes Gerät – es
+legt seinen Stand in denselben Speicher, und daran erkennt die App es.
+
+**Die verlorene Antwort.** Auch ein einziges Gerät konnte sich selbst für ein
+fremdes halten: Es schickt, der Server schreibt, aber die Antwort kommt nie an
+– Android beendet die weggelegte App, das Netz reißt nach dem Schreiben ab, oder
+der Abbruch nach zehn Sekunden greift bei langsamem Netz. Beim nächsten Mal
+nannte das Gerät den alten Stand als Vorgänger, bekam `veraltet`, zeigte
+„Ein anderes Gerät sichert unter deinem Schlüssel" und sicherte gar nicht mehr,
+bis jemand entschied – bei nur einem Handy. Jetzt vermerkt das Gerät vor dem
+Abschicken den IV dessen, was unterwegs ist (`offen`). Kommt `veraltet`, liest
+es die Zeile einmal: Trägt sie einen dieser IVs, war es das Gerät selbst – der
+IV ist bei jeder Verschlüsselung frisch gewürfelt, kein anderes Gerät kann ihn
+geschrieben haben. Dann übernimmt es den Stand und sichert weiter. Nur bei
+fremdem IV ist es ein Konflikt. Ein Schreiben beim Weglegen geht außerdem nicht
+mehr neben einem laufenden hinaus, sondern wartet in derselben Reihe.
+
+**Zurückholen auf einem neuen Gerät.** Im Einstieg (Schritt 1) und unter
+*Mehr → Daten* steht *Sicherung zurückholen*:
+
+1. Erst der **Passwortmanager**: `navigator.credentials.get({password: true,
+   mediation: 'optional'})`. Chrome zeigt die Kontoauswahl, ein Tipp genügt.
+   (`'silent'` liefert auf einem neuen Gerät praktisch immer nichts, weil die
+   Einführung zur automatischen Anmeldung dort noch nicht gezeigt wurde.)
+2. Gibt es ihn nicht oder liefert er nichts: ein **Eingabefeld** für den
+   Schlüssel oder den ganzen Wiederherstellungs-Link.
+3. Oder gleich der **Link**: `…/#sicherung=<Schlüssel>`. Er öffnet die App mit
+   dem Angebot „Zurückholen". Der Anker gehört nicht zur Anfrage, der Schlüssel
+   erreicht also keinen Server, und die App nimmt ihn sofort aus der
+   Adresszeile. **Aus dem Browserverlauf nicht:** Chrome hat die Adresse samt
+   Anker beim Öffnen vermerkt, und `replaceState` ändert daran nichts
+   (nachgesehen in der History-Datenbank eines Chromium mit Oberfläche).
+
+Danach derselbe Weg wie beim Einlesen einer Datei: Rückfrage, wenn hier schon
+ein Verlauf steht, der bisherige Stand wird beiseitegelegt, Neuladen. Unter
+welchem Schlüssel das Gerät danach weitersichert, hängt am Weg:
+
+| geholt über | gesichert wird danach unter |
+| --- | --- |
+| den eigenen Passwortmanager | dem geholten Schlüssel – es ist der eigene vom alten Gerät. Hatte das neue Gerät vorher unter einem anderen gesichert, wird jene Sicherung gelöscht, sonst läge sie bis zum Ablauf der 400 Tage auf dem Server, und kein Knopf käme mehr an sie heran |
+| den Link oder das Eingabefeld | dem **eigenen** Schlüssel des Geräts; hat es noch keinen, entsteht ein frischer – samt der Zeile „Schlüssel sichern" |
+
+**Warum ein Link-Schlüssel nie übernommen wird.** Bis v240 übernahm das Gerät
+jeden geholten Schlüssel als seinen eigenen. Woher ein Link kommt, weiß aber
+niemand: Jeder Hyperlink auf `…/Workout/#sicherung=…` öffnet das Angebot, ein
+Messenger ist nicht nötig. Hinter dem Link konnte ein harmloser Köder-Stand
+liegen; ein Tipp auf *Zurückholen* (auf einem Gerät ohne Verlauf ohne
+Rückfrage), und das Gerät sicherte ab da jedes Training unter dem Schlüssel
+dessen, der den Link geschickt hatte – der las mit. Unter *Mehr* stand dazu
+„als Link verschickt oder kopiert", obwohl dieses Gerät nichts verschickt
+hatte, und die Zeile „Schlüssel sichern" kam nie. Dazu der Verlauf: Weil das
+Gerät unter dem Schlüssel aus dem Anker weitersicherte, öffnete der
+Verlaufseintrag (Omnibox, synchronisierter Verlauf) jede künftige Sicherung.
+Jetzt öffnet ein Link nur den Stand, aus dem er stammt; die Zeile dahinter
+bleibt unberührt, sie gehört dem, der den Link hat. Der Passwortmanager dagegen
+ist der eigene – was dort liegt, hat der Mensch selbst abgelegt.
+
+**Stand von vor dem Import zurückholen** nimmt die Sicherung mit. Bis v240
+holte der Knopf nur den Stand auf dem Gerät zurück; die Sicherung blieb beim
+eben geholten Schlüssel, und die nächste Sicherung schrieb den alten Stand
+darüber. Die Sicherung vom alten Handy – drei Einheiten – hatte danach eine,
+ohne Rückfrage, und gerade dann, wenn man zurückholt, ist das alte Handy oft
+schon weg. Jetzt legt das Zurückholen auch beiseite, was das Gerät bis dahin
+über seine Sicherung wusste (`workout.sicherung.v1.vorImport`), und der Rückweg
+stellt es wieder her: den Schlüssel von vorher; die beim Zurückholen gelöschte
+eigene Zeile legt die nächste Sicherung neu an, ein noch ausstehender
+Löschauftrag für sie wird zurückgenommen. Die geholte Zeile bleibt, wie sie
+ist. Gab es vorher keinen eigenen Schlüssel, entsteht ein frischer. Ein
+Datei-Import danach verwirft diese Ablage – beiseitegelegt ist dann der Stand
+von vor der Datei.
+
+**Der Schlüssel muss aus dem Gerät heraus**, sonst ist die Sicherung mit dem
+Handy verloren. Zwei Wege, beide unter *Mehr → Daten*:
+
+* **Passwortmanager.** `navigator.credentials.store(new PasswordCredential(…))`
+  – Chrome synchronisiert den Eintrag über das Google-Konto auf jedes Gerät mit
+  demselben Konto. Eine Nutzergeste braucht `store()` nicht, aber Chrome fragt
+  bei einem neuen Eintrag nach („Passwort speichern?"), und **die Seite erfährt
+  nie, ob gespeichert wurde**: Das Versprechen erfüllt sich, bevor Chrome
+  überhaupt fragt. Die App sagt deshalb „übergeben", nicht „gespeichert", und
+  *Nachsehen* prüft es mit der Kontoauswahl. Der Benutzername trägt den Anfang
+  der Kennung (`workout-sicherung-1a2b3c4d`): Ein zweiter Eintrag unter
+  demselben Namen ersetzte den ersten **still** – ein frisches Gerät, das ablegt,
+  bevor es zurückholt, hätte damit den einzigen Weg zur alten Sicherung
+  überschrieben. Der Eintrag gilt für den ganzen Ursprung
+  (`finanzdienste.github.io`); fremde GitHub-Konten kommen nicht heran, weil
+  `github.io` auf der Public-Suffix-List steht.
+* **Link an dich schicken.** Über den Teilen-Dialog, als Mail oder Notiz an sich
+  selbst; ohne Teilen in die Zwischenablage und sichtbar ins Feld. **Wer den
+  Link hat, kann den Verlauf lesen** – das steht direkt darunter.
+
+Auf dem Dashboard ersetzt eine einmalige Zeile die alte Erinnerung, solange der
+Schlüssel nur auf dem Gerät liegt: „Wird automatisch gesichert – der Schlüssel
+liegt aber nur auf diesem Gerät. *Schlüssel sichern*". Ein Tipp: der
+Passwortmanager, wo es ihn gibt, sonst – oder wenn der Browser ablehnt – der
+Link. Danach ist sie weg, und die Erinnerung „N Einheiten seit der letzten
+Sicherung" kommt nicht wieder, solange automatisch gesichert wird.
+
+**Offengelegt, abschaltbar, löschbar.** Im Einstieg, Schritt 1, und unter
+*Mehr → Daten* steht derselbe Satz – *„Dein Training wird automatisch
+verschlüsselt auf dem Server von Tobi gesichert. Lesen kann es nur, wer den
+Schlüssel hat – der liegt auf diesem Gerät und, sobald du ihn dort ablegst, in
+deinem Passwortmanager."* –, mit dem Schalter daneben (Standard: an). Unter
+*Mehr* dazu: „Zuletzt gesichert: vor 3 Min.", wo der Schlüssel liegt, und
+*Sicherung auf dem Server löschen* (schaltet zugleich ab, sonst käme sie mit der
+nächsten Änderung wieder). Abgeschaltet heißt: keine einzige Sicherung, auch
+nicht beim Start – nur ein Löschauftrag, den der Mensch selbst gegeben hat, geht
+noch hinaus. *Alle Daten löschen* nimmt die Sicherung auf dem Server mit –
+bliebe sie stehen, schriebe das erste Training danach einen fast leeren Stand
+darüber. Was 400 Tage niemand erneuert hat, löscht der Server von selbst.
+
+**Löschen ohne Netz.** *Alle Daten löschen* vergaß bis v240 erst Kennung und
+Schreibmarke und schickte dann das Löschen hinterher, ohne auf die Antwort zu
+warten; die Meldung hieß immer „Alle Daten gelöscht". Ohne Netz – oder bei
+jedem Serverfehler – blieb die Sicherung auf dem Server, kein Knopf kam mehr an
+sie heran, und lag der Schlüssel im Passwortmanager, holte ein neues Gerät die
+„gelöschte" Sicherung vollständig zurück. Jetzt steht der Löschauftrag in einem
+eigenen Schlüssel (`workout.sicherung.loeschen`), bevor irgendetwas vergessen
+wird, und bleibt dort, bis der Server ihn bestätigt; der Start und das
+„online"-Ereignis holen ihn nach. Die Meldung sagt, was ist: „Alle Daten
+gelöscht – die Sicherung auf dem Server wird gelöscht, sobald wieder Netz da
+ist", und unter *Mehr* steht es, solange es aussteht.
+
+**Löschen während des Schreibens.** *Sicherung auf dem Server löschen* lief an
+der Warteschlange vorbei. Hing die allererste Sicherung gerade im Netz, kam das
+Löschen zuerst an, fand nichts („Da lag nichts"), und das Schreiben legte die
+Zeile gleich danach an – bei abgeschalteter Sicherung. Jetzt reiht sich jedes
+Löschen hinter einem laufenden Schreiben ein; und ein Schreiben, dessen Antwort
+erst kommt, nachdem der Schlüssel vergessen wurde, vermerkt nichts mehr.
+
+**Wenn der Server die Funktionen nicht kennt** (der SQL-Block lief noch nicht),
+antwortet PostgREST mit 404 und `PGRST202`. Die App sagt das unter *Mehr*, ruhig
+und ohne Meldung, und bis dahin gilt die alte Erinnerung mit dem Datei-Weg.
+Nachgefragt wird einmal je Start und danach höchstens alle zehn Minuten – beim
+Zurückkommen in die App, beim Öffnen von *Mehr* oder mit der nächsten Änderung.
+Bis v240 fragte sie nur beim Start; die installierte App bleibt auf Android aber
+oft tagelang im Speicher, und wer den SQL-Block gerade ausgeführt hatte, las
+weiter „kennt die Sicherung noch nicht" und hielt es für gescheitert.
+
+**Was nicht belegt ist**, ehrlich dazugesagt:
+
+* ob Chrome die Abfrage „Passwort speichern?" auch in der installierten App
+  (WebAPK) zeigt – im Quelltext gibt es Hinweise darauf, auf einem Gerät
+  geprüft ist es nicht. Deshalb *Nachsehen* und der Link daneben;
+* ob eine `keepalive`-Anfrage mit CORS-Vorabanfrage (der `apikey`-Kopf löst
+  eine aus) auf jedem Chrome durchgeht. Scheitert sie, holt der nächste Start
+  es nach – verloren geht nichts;
+* ob der linke Eintrag in `X-Forwarded-For` bei Supabase die Adresse des Geräts
+  ist (so steht es im Beispiel zur Drossel in der Supabase-Doku). Wäre es die
+  eines Proxys, gälten die Grenzen je Quelle für alle zusammen; fünf neue
+  Sicherungen am Tag reichen dann immer noch für eine Handvoll Geräte, und
+  `tools/aufraeumen.sql`, Schritt 6, zeigt es: eine einzige Quelle für alle.
+
+Die Datei-Wege – *Als Datei sichern*, *Datei laden*, *Sicherung weitergeben* –
+stehen unverändert unter *Mehr → Daten*, für den, der keinen Server will oder
+hat. Einzurichten ist die Sicherung einmal auf dem Server:
+[Automatische Sicherung einrichten](#automatische-sicherung-einrichten).
+
+`tests/test-sicherung-auto.mjs` spielt den Server mit der Semantik der drei
+Funktionen nach und prüft: Der Server bekommt kein Klartext-Fragment (keinen
+Namen, keine Übung, kein `"log"`), der Schlüssel geht nie über die Leitung,
+entschlüsseln lässt es sich nur mit ihm; gesichert wird nach dem Abschluss
+sofort, sonst höchstens alle zwei Minuten, beim Weglegen nur unter 64 KB und nur
+bei Änderung; zurückgeholt auf frischen Geräten über den (nachgebildeten)
+Passwortmanager und über den Link; ein falscher Schlüssel findet nichts; fehlen
+die Funktionen, bleibt es bei einem Versuch; abgeschaltet geht keine Anfrage
+raus; Löschen löscht; und ein zweites Gerät mit demselben Schlüssel wird nicht
+still überschrieben.
+
+`tests/test-sicherung-faelle.mjs` spielt die Fälle aus der Prüfung nach, jeder
+gegen die Fassung davor gegengeprüft (dort rot): ein fremder Link, dessen
+Schlüssel nicht übernommen wird; der Rückweg nach dem Zurückholen, der die
+geholte Zeile unberührt lässt; *Alle Daten löschen* ohne Netz, nachgeholt beim
+nächsten Start, danach findet ein neues Gerät nichts mehr; Löschen, während die
+erste Sicherung im Netz hängt; die verlorene Antwort ohne falschen Konflikt; der
+letzte Haken mit sofortigem Weglegen; *Abschließen* drei Sekunden nach einer
+gedrosselten Sicherung; der nachgezogene SQL-Block ohne Neustart; und der Satz
+unter *Mehr*, der die IP-Adresse nennt.
+
+**Seit dem 25.10. war der Fall *Abschließen* in CI rot, lokal grün** – „zu oft"
+vom nachgebildeten Server. Es lag am Labor, nicht an der App: `lab.warte()`
+sprang mit der Uhr des Geräts vor und stellte erst danach die Laboruhr nach.
+Was die fälligen Zeitgeber beim Sprung hinausschickten, kam lokal nach dem
+Nachstellen an, auf dem neuen CI-Abbild oft davor – dann sah der Server nach
+der gedrosselten Sicherung und acht Sekunden Sprung drei Sekunden statt elf.
+Seit v254 geht die Laboruhr zuerst vor (`tests/sicherung-labor.mjs`).
+Nachgestellt mit einer Pause zwischen Sprung und Laboruhr: so rot wie in CI,
+mit der neuen Reihenfolge grün.
 
 ### Die Ablage liegt nicht mehr im Weg jedes abgehakten Satzes
 
@@ -2157,18 +5193,57 @@ heute, nicht am Excel-Termin.
 
 ## Die zwei Modi
 
-Der Umschalter oben rechts wechselt die angezeigte Variante. Die Satzzahl bleibt
-in beiden Modi identisch, nur Übung und Wiederholungsbereich ändern sich – ohne
-Zusatzlast wird über mehr Wiederholungen, langsameres Tempo oder eine einbeinige
-Ausführung nachgeschärft.
+Gewählt wird die Variante unter *Mehr → Womit trainierst du*, als zwei
+gleichrangige Knöpfe *Hanteln* und *Bodyweight* – kein Umschalter oben mehr und
+kein „Standardmodus": *„‚Standardmodus' kann raus. Hier schaltet man immer
+zwischen Hanteln und bodyweight hin und her je nachdem was man grad hat und so.
+Nichts davon ist Standard."* Die Startansicht sagt unter dem Startknopf nur, was
+gilt.
+
+Ohne Hanteln ändern sich Übung und Wiederholungsbereich – ohne Zusatzlast wird
+über mehr Wiederholungen, langsameres Tempo oder eine einbeinige Ausführung
+nachgeschärft – **und die Satzzahl**: Jeder Auftritt hat ohne Hanteln eine
+eigene, zwei bis vier Sätze (`bwSets`), damit die Fassung für unterwegs dieselben
+Wochenziele trifft (siehe [Der Bodyweight-Modus trifft jetzt dieselben
+Ziele](#der-bodyweight-modus-trifft-jetzt-dieselben-ziele)). Wie viele Auftritte
+je Plan abweichen, zählt `tools/pruefung/vorher-nachher.py`; am 05.10. waren es
+58 von 481 im Aufbau, 83 von 483 in „Bauch, Beine, Po", 61 von 404 im Cut und
+17 von 475 im Oberkörper.
 
 Beide Varianten werden **getrennt** protokolliert: Wer ein Workout mit Hanteln
 beginnt und auf Bodyweight umschaltet, verliert die Einträge nicht.
 
-Ist „Modus je Workout merken“ aktiv (Standard), behält eine einmal bearbeitete
-Einheit ihren Modus, auch wenn global umgeschaltet wird.
+**Was umgestellt wird.** Die Wahl unter *Mehr* gilt für die laufende Einheit,
+solange sie nicht fertig ist, und für jede, in der noch nichts steht – die
+vorn stehende ebenso wie die nächsten. Eine schon trainierte Einheit bleibt in
+der Variante, in der sie gemacht wurde; eine laufende, die ganz abgehakt ist
+und nur noch auf *Abschließen* wartet, auch. Eine eigene Variante trägt eine
+Einheit erst, wenn in ihr etwas eingetragen ist. Vorher legte schon das bloße
+Ansehen ihrer Übungsliste den damaligen Modus fest: Workout 2 einmal vorab
+angeschaut, dann auf Bodyweight gestellt – und Workout 2 kam trotzdem mit
+Hanteln. Vorher kippte jede Einheit mit, die
+zuletzt auf dem Dashboard stand: Wer nach der fertigen Hantel-Einheit „für das
+nächste Mal" auf Bodyweight stellte, sah die von heute danach als
+Bodyweight-Einheit, mit anderen Übungen. Die Karte unter *Mehr* sagt es so.
+
+**Fertig ist fertig, auch in der Fokusansicht.** Sätze beider Varianten zählen
+zusammen (`saetzeErledigt()`), und so zählen jetzt auch Fortschrittsleiste,
+Satzknöpfe und der Knopf *Weiter* in der Fokusansicht – vorher nur der Eimer
+der gerade eingestellten Variante. Nach dem Umschalten stand die mit Hanteln
+fertige Übung dort mit leeren Feldern da, während der Kopf sie mitzählte, und
+ein Tipp auf einen leeren Knopf buchte einen Satz, den es nie gab. Jetzt steht
+darunter, wie in der Liste, dass die Sätze der anderen Variante mitzählen, und
+eine über beide fertige Übung bekommt keinen Satz mehr dazu.
+
+Einen Schalter „Modus je Workout merken" gibt es nicht mehr: Die eigene
+Variante einer Einheit gilt immer, wenn sie eine hat (`workoutMode()` in
+`js/store.js`), alle anderen nehmen die Wahl unter *Mehr*. Welche Einheiten
+beim Umstellen mitwechseln, steht oben unter *Was umgestellt wird*.
 
 ## Übungszuordnung
+
+Alle 39 Übungen aus `js/data.js`, Stand 04.11. Die ersten
+29 stehen in mindestens einem der vier Pläne:
 
 | Hanteln | Fassung für unterwegs | Gerät |
 | --- | --- | --- |
@@ -2179,7 +5254,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 | Sitzendes Seitheben | Sitzendes Band-Seitheben | Loop-Band + Stuhl |
 | Überkopf-Trizepsstrecker | Überkopf-Trizepsstrecker am Band | Loop-Band + Stuhl |
 | Einbeiniges stehendes Wadenheben | Einbeiniges Wadenheben | Treppenstufe |
-| Wadenheben gebeugtes Knie | Wadenheben mit gebeugtem Knie | Ohne Gerät |
+| Sitzendes Wadenheben | Wadenheben mit gebeugtem Knie | Ohne Gerät |
 | Fersenerhöhter Goblet Squat | Fersenerhöhter 1½-Wdh. Bodyweight Squat | festes Buch |
 | SZ-Curls | Band-Curls | Loop-Band |
 | Gewichtete Crunches | Crunches | Ohne Gerät |
@@ -2195,16 +5270,43 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 | Rumänisches Kreuzheben | Einbeiniges Kreuzheben (Standwaage) | Ohne Gerät |
 | Split Squat | Split Squat ohne Gewicht | Ohne Gerät |
 | Hängendes Knieheben | Hängendes Knieheben | Klimmzugstange |
-| Band-Pull-Apart | Band-Pull-Apart | Loop-Band (Face Pull: + Klimmzugstange) |
+| Band-Pull-Apart | Band-Pull-Apart | Loop-Band |
+| Inverted Row | Inverted Row | Klimmzugstange tief |
+| Einbeiniges Kreuzheben | Einbeiniges Kreuzheben | Ohne Gerät |
+| Pike-Liegestütze | Pike-Liegestütze | Ohne Gerät |
+| Kurzhantel-Bodenpresse | Enge Liegestütze | Ohne Gerät |
+| Face Pull | Face Pull | Loop-Band + Klimmzugstange |
+
+Die übrigen 10 stehen in keinem Plan. Sie kommen als Ersatz hinein – wenn eine
+Verletzung eine Übung sperrt (`js/injuries.js`), ein Gerät fehlt oder eine
+Übung abgewählt ist (`js/vorrat.js`) – und stehen für eigene Workouts bereit:
+
+| Hanteln | Fassung für unterwegs | Gerät |
+| --- | --- | --- |
+| Hammercurls | Band-Hammercurls | Loop-Band |
+| Reverse Snow Angel | Reverse Snow Angel | Ohne Gerät |
+| Knieheben im Liegen | Knieheben im Liegen | Ohne Gerät |
+| Seitheben mit Flaschen | Seitheben mit Flaschen | zwei volle Flaschen |
+| Rucksack-Curls | Rucksack-Curls | Rucksack |
+| Rucksack-Rudern | Rucksack-Rudern | Rucksack |
+| Sitzendes Seitheben mit Flaschen | Sitzendes Seitheben mit Flaschen | zwei volle Flaschen |
+| Trizepsstrecken an der Tischkante | Trizepsstrecken an der Tischkante | Tischkante |
+| Beckenheben mit Langhantel | Beckenheben | Ohne Gerät |
+| Beckenheben | Beckenheben | Ohne Gerät |
+
+Die Liste selbst ist nicht die Quelle: Namen kommen aus der Excel oder, für Übungen,
+die dort nicht stehen, aus `tools/exercise-meta.json`; das Gerät steht dort ebenfalls.
+*Mehr → Übungen* zeigt die ganze Liste in der App.
 
 ## Aufbau
 
 ```
-index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
+index.html              Grundgerüst, Topbar, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
-js/data.js              Aus Excel + plan.json erzeugt: 24 Übungen, 84 Einheiten, Wochenziele
+js/data.js              Aus Excel + plan*.json erzeugt: 38 Übungen, je Fokus 84 Einheiten, Wochenziele
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen inkl. Monatsraster
+js/diagnose.js          Diagnoseprotokoll: Ringpuffer aus Textzeilen, Fehler-Lauscher – importiert nichts
 js/store.js             Zustand und localStorage-Persistenz
 js/text.js              Text und Zahlen fürs Auge
 js/uebung.js            Die einzelne Übung nachschlagen
@@ -2212,11 +5314,25 @@ js/stufen.js            Erfahrungsstufen: Startgewichte, Sätze, Aufstieg
 js/gewichte.js          Arbeitsgewichte und die Reihenfolge beim Umbauen
 js/plan.js              Termine, Übungen je Einheit, Nacharbeit, Fortschritt
 js/bilanz.js            Was insgesamt geleistet wurde, über Runden hinweg
-js/app.js               Rendering der fünf Tabs und Event-Handling
+js/tagstart.js          Den Tag nachziehen: was die App beim Laden und beim Tageswechsel am Zustand weiterschreibt
+js/kalender.js          Die Termine, wie ein Kalender sie zeigen soll (Kalenderdatei und Kalender „Workout")
+js/kalender-vorschau.js Was die App an jedem der nächsten 42 Tage zeigen würde – und der Vertrag mit dem Skript
+js/kalender-worker.js   Der Modul-Worker, in dem die Vorschau rechnet
+js/kalender-sync.js     Wann die Vorschau an das Skript geht, wie, und was die App aus der Antwort macht
+kalender/workout-kalender.gs  Vorlage des Skripts in Tobis Google-Konto, das den Kalender „Workout" angleicht (läuft nur bei Google)
+js/scheiben.js          Welche Gewichte sich aus Stange und Scheiben bauen lassen
+js/supersatz.js         Welche Übungen sich zum Supersatz paaren
+js/vorrat.js            Was gerade da ist, und der Ersatz für das, was fehlt
+js/aktivitaeten.js      Was Sport außerhalb des Plans mit welchem Muskel macht
+js/termine.js           Tage, an denen etwas anderes ansteht
+js/muster.js            Was im Protokoll steht, ohne dass es jemand hingeschrieben hat
+js/anzeige.js           Symbole und Beschriftungen für mehrere Ansichten
+js/ansicht-*.js         Kalender, Scheiben, Vorrat, Statistik: Ansichten, die nur lesen
+js/app.js               Zustand der Oberfläche, Routing, Ereignisse, alles, was ins DOM schreibt
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 js/chart.js             Verlaufskarten für die Statistik
-js/audio.js             Erzeugte Töne und das vorausgeplante Pausensignal
+js/audio.js             Erzeugte Töne, Freischalten mit der ersten Berührung, das vorausgeplante Pausensignal
 js/config.js            Adresse des Rückkanals – leer heißt: kein Server
 js/telemetry.js         Melden, löschen, Betreiber-Übersicht (siehe Rückkanal)
 js/ics.js               Trainingstermine als Kalenderdatei (.ics)
@@ -2280,22 +5396,31 @@ korrigierten Eingaben neu gebaut und gegen den Vergleichsstand geprüft:
 
 Was bleibt, ist die Aufgabe, das nicht mehr unbemerkt passieren zu lassen.
 `tools/pruefung/plan-frisch.py` hält in `tools/pruefung/plan-eingaben.json`
-fest, aus welchen Eingaben die Pläne entstanden sind — und zwar nur die fünf
-Felder, die den Plan wirklich bestimmen (`dbShares`, `bwShares`, `tier`,
-`equip`, `dbWeight`). Hinweistexte und Zeichenmuster ändern sich oft und ändern
-am Plan nichts; zählte man sie mit, schlüge die Prüfung ständig grundlos an und wäre
-nach der dritten Meldung abgeschaltet.
+fest, aus welchen Eingaben die Pläne entstanden sind — und zwar je Variante
+nur die sechs Felder, die den Plan wirklich bestimmen (`dbShares`, `bwShares`,
+`tier`, `equip`, `dbWeight` und, seit dem 25.09., `bewegung`). Hinweistexte und
+Zeichenmuster ändern sich oft und ändern am Plan nichts; zählte man sie mit,
+schlüge die Prüfung ständig grundlos an und wäre nach der dritten Meldung
+abgeschaltet.
 
-Die bekannte Abweichung steht unter `hingenommen`, mit Begründung. Das ist kein
-Schlupfloch, sondern der ehrlichere von zwei Wegen: Im Repo steht damit
-schwarz auf weiß, dass die Pläne älter sind als ihre Eingaben und warum das so
-bleiben soll. Ein Fingerabdruck, den man einfach nachzieht, verschwiege
+Die damals bekannte Abweichung stand unter `hingenommen`, mit Begründung. Das
+ist kein Schlupfloch, sondern der ehrlichere von zwei Wegen: Im Repo steht
+damit schwarz auf weiß, dass ein Plan älter ist als seine Eingaben und warum
+das so bleiben soll. Ein Fingerabdruck, den man einfach nachzieht, verschwiege
 dieselbe Lage. Jede *neue* Abweichung schlägt an — nachgestellt mit einer
 erfundenen Änderung an `goblet-squat.tier`.
 
-Praktisch heißt das: `equip` wirkt hier nur auf die Bündelung der Umbauten. Die
+*(Stand 05.10.: Alle vier Pläne sind mit ihren heutigen Eingaben erzeugt, und
+`hingenommen` ist leer. Dort standen bis dahin 17 Einträge – „neu im Katalog"
+für Übungen, die `--schreiben` längst in den festgehaltenen Stand übernommen
+hatte. Keiner konnte je wieder greifen, und doch las sich jeder wie eine gültige
+Ausnahme. Seitdem leert `--schreiben` die Einträge der geschriebenen Variante
+mit, und die Prüfung schlägt an, wenn unter `hingenommen` etwas steht, zu dem es
+keine Abweichung mehr gibt.)*
+
+Praktisch hieß das damals: `equip` wirkte nur auf die Bündelung der Umbauten. Die
 Reihenfolge *innerhalb* einer Einheit rechnet die App ohnehin zur Laufzeit mit
-dem aktuellen Wert (`ruestOrder` in `js/gewichte.js`) — die SZ-Stange steht also
+dem aktuellen Wert (`ruestOrder` in `js/gewichte.js`) — die SZ-Stange stand also
 längst da, wo sie hingehört.
 
 ### Die Rechnung steht neben der Anzeige, nicht darin
@@ -2305,29 +5430,86 @@ sie zeigt. Das ist keine Stilfrage. Wer nachsehen wollte, wie die Satzzahl
 zustande kommt, musste durch Renderfunktionen scrollen; und jede Rechnung war
 nur über den Browser prüfbar, weil sie an einem `<div>` klebte.
 
-Die Rechnung steht jetzt in sechs Modulen daneben, streng in einer Richtung —
-jedes benutzt nur die vor ihm, keines benutzt `app.js`:
+Die Rechnung steht seit dem 08.09. in sechs Modulen daneben, streng in einer
+Richtung — jedes benutzt nur die vor ihm, keines benutzt `app.js`. Verschoben
+wurde damals **wortgleich**: kein Verhalten geändert, keine Zeile neu getippt.
+Die 815 Browserprüfungen liefen vorher und nachher unverändert grün — bei einem
+Umbau dieser Größe ist das der einzige Beleg, der zählt. Seitdem sind weitere
+Module dazugekommen, und die sechs sind gewachsen (Zeilen am 05.10.; damals in
+Klammern):
 
 | Modul | Was darin steht | Zeilen |
 | --- | --- | --- |
-| `js/text.js` | Text und Zahlen fürs Auge | 23 |
-| `js/uebung.js` | die einzelne Übung nachschlagen | 43 |
-| `js/stufen.js` | Startgewichte, Sätze je Übung, Aufstieg | 125 |
-| `js/gewichte.js` | Arbeitsgewichte, Reihenfolge beim Umbauen | 240 |
-| `js/plan.js` | Termine, Übungen je Einheit, Nacharbeit, Fortschritt | 519 |
-| `js/bilanz.js` | was insgesamt geleistet wurde, über Runden hinweg | 204 |
+| `js/text.js` | Text und Zahlen fürs Auge | 28 (23) |
+| `js/uebung.js` | die einzelne Übung nachschlagen | 96 (43) |
+| `js/stufen.js` | Startgewichte, Sätze je Übung, Aufstieg | 250 (125) |
+| `js/gewichte.js` | Arbeitsgewichte, Reihenfolge beim Umbauen | 496 (240) |
+| `js/plan.js` | Termine, Übungen je Einheit, Nacharbeit, Fortschritt | 1141 (519) |
+| `js/bilanz.js` | was insgesamt geleistet wurde, über Runden hinweg | 278 (204) |
+| `js/scheiben.js` | welche Gewichte sich aus Stange und Scheiben bauen lassen | 417 |
+| `js/supersatz.js` | welche Übungen sich zum Supersatz paaren | 214 |
+| `js/vorrat.js` | was gerade da ist, und der Ersatz für das, was fehlt | 350 |
+| `js/aktivitaeten.js` | was Sport außerhalb des Plans mit welchem Muskel macht | 560 |
+| `js/termine.js` | Tage, an denen etwas anderes ansteht | 183 |
+| `js/muster.js` | was im Protokoll steht, ohne dass es jemand hingeschrieben hat | 145 |
 
-Verschoben wurde **wortgleich**: kein Verhalten geändert, keine Zeile neu
-getippt. Die 815 Browserprüfungen liefen vorher und nachher unverändert grün —
-bei einem Umbau dieser Größe ist das der einzige Beleg, der zählt.
+Am 18.09. kam die zweite Hälfte dazu: **die Ansichten, die nur lesen und HTML
+zurückgeben**, aus `app.js` heraus (6926 → 6107 Zeilen). Die Grenze dabei:
+**Wer schreibt, bleibt.** Eine Ansicht, die `render()` aufruft oder `ui`
+verändert, wäre keine Ansicht, sondern eine Handlung; wo eine Ansicht Zustand
+der Oberfläche braucht, bekommt sie ihn als Argument (`vorratKarte(seite)`,
+`calMonthNow(gewaehlt)`).
 
-**Was bleibt.** `js/app.js` hat noch 4571 Zeilen: die Renderfunktionen,
-den Zustand der Oberfläche (`ui`), die Tab-Verwaltung und den Klick-Verteiler.
-Diese Hälfte weiter zu zerlegen ginge auch, hieße aber, `ui`, `render()` und
-`go()` über eine Registrierung zu entkoppeln — die drei Blöcke, die dafür in
-Frage kämen (Kalender, Verletzungen, Betreiber-Übersicht), greifen alle
-darauf zu. Das ist mehr Maschinerie, als es einbringt, und wird deshalb
-bewusst nicht gemacht.
+| Modul | Was darin steht | Zeilen |
+| --- | --- | --- |
+| `js/anzeige.js` | Symbole und Beschriftungen, die mehr als eine Ansicht braucht | 48 |
+| `js/ansicht-kalender.js` | das Monatsraster | 271 |
+| `js/ansicht-scheiben.js` | Stangen und Scheiben | 207 |
+| `js/ansicht-vorrat.js` | was da ist, und die Übungsübersicht | 264 |
+| `js/ansicht-statistik.js` | die Karten der Statistik | 292 |
+
+Am 26.10. (v245) folgten **die Startschritte des Tages** – nicht aus
+Ordnungsliebe, sondern weil der Kalender sie ohne Oberfläche braucht (siehe
+*Google Kalender automatisch*): `js/tagstart.js` mit `tagNachziehen()`, 1530
+Zeilen, `js/app.js` 10719 → 9381. Wortgleich verschoben bis auf die Stellen, an
+denen die Anzeige mitging; die heißen jetzt Anschlüsse
+(`tagstartAnschliessen()`: Diagnoseprotokoll, das Beenden einer liegen
+gebliebenen Sitzung mit Meldung und Sicherung, die Startansicht). Ohne
+Anschluss rechnet derselbe Code still – so in der Vorschau. Die 18 Testdateien,
+die Start, Tageswechsel, Nachrücken, Zusatztag und Kalender berühren, liefen
+vor und nach dem Umzug mit denselben 1211 Prüfungen grün.
+
+**Was bleibt, und warum es vorerst bleibt.** Hier stand am 08.09.: „`js/app.js`
+hat noch 4571 Zeilen … weiter zerlegen ist mehr Maschinerie, als es einbringt."
+Am 05.10. sind es rund 7300 Zeilen – mehr als die 5535, die der Anlass für die
+erste Aufteilung waren, und das trotz der Ansichten, die am 18.09. hinausgingen.
+Die Begründung von damals muss sich also an anderen Zahlen messen lassen:
+
+* **Was drin ist.** Grob nachgezählt an den Abschnittsköpfen: der
+  Ereignis-Verteiler mit 103 `case`-Zweigen und gut 1000 Zeilen (109 Zugriffe
+  auf `ui`, 87 Aufrufe von `render()`), Training und Fokusansicht, Zusatztag
+  und Wochenvolumen, Verletzungen mit Reha-Übungen (rund 600 Zeilen),
+  Betreiber-Übersicht und die Seite *Mehr* (zusammen rund 640), Rückkanal,
+  Vergleich mit Freunden, Bandstärke, Pausentimer und der Start.
+* **Was eine weitere Zerlegung bringen würde.** Jede Änderung trifft weniger
+  fremden Code; Ansichten wie *Mehr*, Verletzungen oder Betreiber-Übersicht
+  ließen sich wie die vom 18.09. für sich prüfen; und mehrere Änderungen
+  gleichzeitig kämen sich seltener in die Quere – seit dem 18.09. haben 40 von
+  95 Commits `js/app.js` angefasst.
+* **Was sie kostet.** Die Renderfunktionen dieser Blöcke lesen `ui` und rufen
+  `render()` und `go()` auf; herauslösen hieße, ihnen den Zustand als Argument
+  zu geben und das Schreiben im Verteiler zu lassen, Ansicht für Ansicht. Der
+  Verteiler selbst bleibt so groß, wie er ist, solange jede Handlung dort ein
+  `case` ist – ihn aufzuteilen bräuchte eine Registrierung, also genau die
+  Maschinerie, die am 08.09. zu viel war. Und jeder Umzug ist ein großer Diff
+  (am 18.09. +4055/−3818 Zeilen), der mit allem kollidiert, was gleichzeitig in
+  `app.js` arbeitet.
+
+Deshalb wird jetzt nicht zerlegt – nicht, weil es sich nicht lohnte, sondern
+weil es nur in einer ruhigen Phase ohne parallele Änderungen an `app.js` geht.
+Kandidaten nach dem Muster vom 18.09. sind die Seite *Mehr* (`renderSettings()`
+und ihre Karten), Verletzungen mit Reha-Übungen und die Betreiber-Übersicht;
+den Verteiler selbst lohnt es erst danach anzusehen.
 
 **Damit die Richtung hält**, prüft `tools/pruefung/schichten.py` bei jedem
 Push drei Dinge: keine Kreise zwischen den Modulen, jedes von `app.js`
@@ -2352,7 +5534,8 @@ Zwei Stufen, damit „lokal grün" dasselbe heißt wie „in CI grün":
 
 - **Bei jedem Commit** läuft `.githooks/pre-commit` (unter zehn Sekunden): Bau
   von `js/data.js` und `dist/workout.html` samt Prüfung, ob sie aus den jetzigen
-  Quellen stammen, dazu Linter und Schichten. Aktiviert wird der Hook über
+  Quellen stammen, dazu Linter und alle Tore aus CI (`tools/pruefung/tore.sh`,
+  zusammen unter einer Sekunde). Aktiviert wird der Hook über
   `prepare` in `package.json`, also bei jedem `npm ci` von selbst.
 - **Vor dem Push** `npm run pruefen`: genau die Schritte aus
   `.github/workflows/pruefung.yml`, in derselben Reihenfolge, inklusive aller
@@ -2365,6 +5548,15 @@ und ließ die alte Datei liegen. Der letzte Fall ist der tückische: Ein Verglei
 „vorher gleich nachher" meldete *stabil*, weil beide Läufe am selben Fehler
 scheiterten. `tools/pruefung/erzeugt.sh` prüft deshalb zuerst den Rückgabewert
 des Baus und erst dann den Vergleich.
+
+**Bis v253 lief im Haken nur ein Teil der Tore** (Schichten, Version, Plan
+davor). Das Beckenheben mit Langhantel aus v252 steht in keinem Plan, wie
+gewollt – `plan-pruefen.py` meldete es trotzdem achtmal als „fällt neuerdings
+ganz aus dem Plan", weil der Vergleichsstand in `tools/pruefung/befunde.json`
+die Übung noch nicht kannte. Bemerkt hat das erst CI, zwei Fassungen später.
+Seit v254 steht die Liste der Tore an einer Stelle, `tools/pruefung/tore.sh`,
+und Haken wie `npm run pruefen` rufen sie auf; die acht Zeilen in
+`befunde.json` sind nachgetragen.
 
 ### Der Linter
 
@@ -2387,6 +5579,12 @@ echten Funde dann an niemanden mehr. Was drinsteht, sind
 `js.configs.recommended` plus eine Handvoll Regeln, von denen jede hier schon
 einmal etwas kaputt gemacht hat. Er läuft in CI vor den Browsertests.
 
+Er liest auch die Vorlage des Kalender-Skripts (`kalender/workout-kalender.gs`):
+als Skript statt als Modul, mit den Diensten von Apps Script als bekannten
+Namen und ohne `?.` und `??`. Laufen kann sie nur in Tobis Google-Konto – ein
+Tippfehler in einem selten genommenen Zweig fiele sonst erst auf, wenn der
+Kalender stehen bleibt.
+
 
 Die App hat keinen Bauschritt, aber sie hat zwei Dinge, die stillschweigend
 kaputtgehen können: erzeugte Dateien und eine Mathematik. Beides wird bei jedem
@@ -2396,7 +5594,7 @@ Push nachgerechnet.
 npm install          # nur für die Tests; die App selbst braucht nichts
 npx playwright install chromium
 npm test             # alle Browsertests
-npm run test:plan    # die sechs Pläne nachrechnen
+npm run test:plan    # die vier Pläne nachrechnen
 ```
 
 Einzelne Tests: `node tests/lauf.mjs zeit stufen`. Der Läufer startet die
@@ -2431,10 +5629,13 @@ Zusage, auf der die ganze Tagesverteilung steht.
 dritte feste Regel, und sie kommt ohne neue Zahl aus: Die Wochenobergrenze
 steht schon da. Schöpft ein einzelner Tag sie aus, ist etwas grundsätzlich
 schiefgegangen – unabhängig davon, was die Trainingslehre zum optimalen
-Tagesvolumen sagt, wo die Datenlage dünn ist. Sie greift heute nirgends: Der
-höchste Wert über alle sechs Pläne und beide Modi ist 9,0 bei einer Obergrenze
-von 10. Genau das ist ihr Zweck – nichts ändern, sondern anschlagen, wenn sich
-etwas ändert.
+Tagesvolumen sagt, wo die Datenlage dünn ist. Sie greift nirgends (Stand 05.10.):
+Der höchste Wert über alle vier Pläne und beide Modi ist 8,85 (Trizeps,
+Oberkörper ohne Hanteln) bei einer Obergrenze von 13; am knappsten liegt der
+Trizeps im Aufbau ohne Hanteln mit 8,8 bei 10. Die aktuellen Werte zeigt
+`python3 tools/pruefung/plan-pruefen.py --bericht` in der Spalte *Spitzentag*.
+Genau das ist ihr Zweck – nichts ändern, sondern anschlagen, wenn sich etwas
+ändert.
 
 Gemessen wird in **gewichtetem Volumen**, derselben Währung wie die Ziele. Die
 rohe Satzzahl taugt dafür nicht, und das ist keine Feinheit: Sie meldet für den
@@ -2463,9 +5664,11 @@ hilft das niemandem, dessen Hip Thrust seit dreißig Tagen ausfällt.
 Der Zusammenhang, an dem sich beide Fehlschläge aufhängen, ist keine
 Faustregel, sondern eine Gleichung. Ein Auftritt einer Übung hat immer drei
 Sätze; also kommt eine Muskelgruppe genau so oft dran, wie sie direkte Sätze
-durch drei hat. An allen sechs Plänen nachgemessen stimmt das auf zwei
-Nachkommastellen: 3,0 direkte Sätze ergeben 1,00 Termine, 4,4 ergeben 1,48,
-5,9 ergeben 1,95, 8,1 ergeben 2,24.
+durch drei hat. Im Aufbau-Plan (Hanteln) nachgemessen: 3,0 direkte Sätze
+ergeben 1,00 Termine, 4,4 ergeben 1,48, 5,9 ergeben 1,95, 8,1 ergeben 2,71.
+Weniger Termine werden es nur dort, wo eine Gruppe an einem Tag zwei direkte
+Übungen bekommt – beim Trizeps an 31 von 63 Tagen (Stand 05.10.), deshalb 15,1
+direkte Sätze an 3,0 Terminen.
 
 Der Haken ist, dass die *Ziele* etwas anderes zählen – gewichtetes Volumen,
 also auch das Halten bei der Kniebeuge und das Mitziehen beim Rudern. Eine
@@ -2495,20 +5698,41 @@ Was als dieselbe Bewegung gilt, steht als `bewegung` in
 `tools/exercise-meta.json`, je Modus, wo es sich unterscheidet – ohne Hanteln
 werden Floor Press und gewichtete Liegestütze beide zu Liegestützen. Der
 Generator verteilt danach (`split()`, erstes Kriterium), und
-`tools/pruefung/bewegung.py` prüft es in CI.
+`tools/pruefung/bewegung.py` prüft es in CI – **jeden Modus für sich**.
 
 Neu verteilt wurden nur die Tage, nicht die Mengen (`WK_NUR_TAGE=1`): Jede
 Woche bekommt genau die Sätze je Übung wie vorher, nur auf andere Einheiten.
 
-| Plan | vorher | jetzt | Rüstvorgänge je Einheit |
-| --- | ---: | ---: | --- |
-| Aufbau | 21 | 8 | 3,52 → 3,55 |
-| Bauch, Beine, Po | 3 | 0 | 3,30 → 3,31 |
-| Cut | 5 | 0 | 3,01 → 3,05 |
-| Oberkörper | 49 | 34 | 3,00 → 3,08 |
+| Plan | vorher | danach | 05.10. (mit / ohne Hanteln) | Rüstvorgänge je Einheit (vorher → danach → 05.10.) |
+| --- | ---: | ---: | ---: | --- |
+| Aufbau | 21 | 8 | 1 / 8 | 3,52 → 3,55 → 3,45 |
+| Bauch, Beine, Po | 3 | 0 | 0 / 0 | 3,30 → 3,31 → 3,10 |
+| Cut | 5 | 0 | 0 / 0 | 3,01 → 3,05 → 2,85 |
+| Oberkörper | 49 | 34 | 11 / 32 | 3,00 → 3,08 → 3,04 |
 
-*Die Cut-Zeile gilt für den Stand vom 17.09. Der Cut vom 25.09. (fünf feste
-Grundübungen, siehe unten) steht weiter bei null und bei 2,99 Rüstvorgängen.*
+*Gezählt werden Paare, nicht Einheiten (im Oberkörper ohne Hanteln 32 Paare in
+29 Einheiten). „danach" ist der Stand dieser Umstellung (Cut: 17.09., sonst
+25.09.); „vorher" und „danach" zählen ein Paar einmal, egal in welchem Modus es
+doppelt ist. Die letzte Spalte ist der Stand der Pläne vom 03.10. (siehe *Neu
+gerechnet am 03.10.*), gezählt am 05.10. Den jeweils heutigen geben
+`python3 tools/pruefung/bewegung.py` (Paare je Modus) und
+`python3 tools/pruefung/ruestaufwand.py tools/plan*.json` (Spalte „Rüsten") aus;
+festgehalten ist er in `tools/pruefung/bewegung-stand.json` und
+`tests/ruestaufwand-stand.json`. Seit dem 03.10. liegt der Umbau in drei der
+vier Pläne unter „vorher"; der Oberkörper liegt mit 3,04 noch knapp darüber.*
+
+**Je Modus, nicht zusammen.** Bis zum 05.10. zählte `bewegung.py` ein Paar
+einmal, egal in welchem Modus es doppelt war, und verglich mit einer Zahl je
+Plan. Ohne Hanteln werden Floor Press und Füße-erhöhte Liegestütze aber beide zu
+Liegestützen, und diese Paare setzten die Grenze: Im Oberkörper hätten es mit
+Hanteln statt 11 bis zu 32 Paare werden dürfen, im Aufbau statt 1 bis zu 8, ohne
+dass die CI etwas merkt. Genau so ist es im Generator schon einmal passiert –
+mit Hanteln 11 → 19 bei gleicher Summe (der Kommentar bei `bewpaare` in
+`tools/build-plan.py`, der seither je Modus begrenzt). Jetzt steht in
+`bewegung-stand.json` je Plan `{"db": …, "bw": …}`, und jede Zahl wird für sich
+verglichen. Gegenprobe: Ein Tausch zweier Übungen im Oberkörper-Plan, der mit
+Hanteln ein zwölftes Paar macht und ohne Hanteln bei 32 bleibt, ließ die alte
+Prüfung grün und schlägt in der neuen an.
 
 **Null geht nicht überall, und das ist Arithmetik.** Im Oberkörper-Plan haben
 seitliche Schulter und Brust je 12 Sätze die Woche, also vier Auftritte, und die
@@ -2517,7 +5741,7 @@ Hanteln sind alle Brustübungen Liegestütze. Im Aufbau sind die restlichen acht
 dieselbe Lage: Floor Press und Füße-erhöhte Liegestütze, beide ohne Hanteln
 Liegestütze. Dort sind es sechs Sätze für eine Gruppe an einem Tag – nicht
 schlechter als eine Übung mit sechs Sätzen. `tools/pruefung/bewegung-stand.json`
-hält den erreichten Stand fest; mehr schlägt an.
+hält den erreichten Stand je Plan und Modus fest; mehr schlägt an.
 
 **Was es kostet, steht hier, damit es niemand später als Fehler findet:** etwas
 mehr Umbau (Tabelle oben – 2 Rüstvorgänge mehr über den ganzen Aufbau-Plan, 7 im
@@ -2526,7 +5750,14 @@ hingenommen sind: im Aufbau der Nacken 2,24 statt 2,33 Termine je Woche, in
 „Bauch, Beine, Po" der Trizeps 2,43 statt 2,52 und ein bis zwei Tage mehr
 Abstand bei Gesäß und Oberschenkel, im Cut die vordere Schulter mit bis zu 12
 statt 9 Tagen Abstand. Nacken und vordere Schulter haben in diesen Plänen kein
-eigenes Ziel; sie laufen mit.
+eigenes Ziel; sie laufen mit. *(Seit 03.10. zum Teil erledigt: Der Umbau im
+Aufbau liegt unter „vorher", der im Oberkörper nur noch 0,04 je Einheit darüber
+statt 0,08 (Tabelle oben); der Trizeps in „Bauch, Beine, Po" ist
+wieder bei 2,52 Terminen, der Oberschenkel dort wieder bei höchstens 3 Tagen
+Abstand, die vordere Schulter im Cut bei höchstens 7. Geblieben sind der Nacken
+im Aufbau mit 2,24 und das Gesäß in „Bauch, Beine, Po" mit höchstens 5 statt 3
+Tagen. Gemessen am 05.10. mit `python3 tools/pruefung/plan-pruefen.py
+--bericht`.)*
 
 ## Trainingsfokus
 
@@ -2651,8 +5882,10 @@ ganzzahligen Lösungen (`wandern()`). Die erste, die er mit den Pflichtübungen
 fand, war exakt und schief: sechs Sätze Waden die Woche, null Trizeps.
 `tools/pruefung/startpunkt.py` rechnet deshalb vorher mit demselben Löser einen
 ausgewogenen Startpunkt – jede Übung möglichst nah an drei Sätzen die Woche,
-möglichst viele drin, Band und Rucksack als zweite Wahl, weil Hanteln und
-Stange im Haus sind – und der Generator nimmt ihn als `WK_START`. Der
+möglichst viele drin, Rucksack als zweite Wahl, weil Hanteln und Stange im
+Haus sind (Bänder nicht mehr – siehe [Neu gerechnet am
+29.09.](#neu-gerechnet-am-2909-hantel-vor-rucksack-grundübungen-gleich-lange-wochen))
+– und der Generator nimmt ihn als `WK_START`. Der
 Startpunkt liegt als `tools/pruefung/cut-start.json` im Repo, damit der Lauf
 nachvollziehbar bleibt und nicht nur sein Ergebnis:
 
@@ -2709,6 +5942,733 @@ die 48-Stunden-Regel nur vier Übungen zu, und die fünfte muss auf einen
 anderen Tag. Kosten: Bizeps 2,52 statt 2,62 Termine je Woche, Rücken 2,19 statt
 2,24, Rüstvorgänge 3,00 statt 2,99. Die Karte in der App rechnet die Größen
 selbst aus (`tagLaenge()`), der Vergleich zum Aufbau steht in `fokusAnders()`.
+
+### Neu gerechnet am 29.09.: Hantel vor Rucksack, Grundübungen, gleich lange Wochen
+
+Zwei Fragen standen dahinter:
+
+*„Ists normal dass ich so viele Übungen mit Rucksack und Flaschen usw machen
+soll obwohl ich ja ne komplette hantelausrüstung usw hab?"*
+
+*„Ja kannst machen, aber sicher dass im cut so wenig sätze je muskelgruppe
+optimal sind?"*
+
+**Rucksack ist zweite Wahl, Band und Körpergewicht nicht.** Der Startpunkt
+(`tools/pruefung/startpunkt.py`) nimmt eine Übung mit Rucksack nur noch, wenn
+es ohne nicht aufgeht, und jeder ihrer Sätze kostet extra – sonst landete der
+Überschuss einer Gruppe ebenso gern beim Rucksack wie bei der Hantel. Bänder
+und Körpergewicht standen probeweise mit auf der Liste und flogen nach der
+Messung wieder herunter: Die Pläne bekamen dafür mehr Kurzhantelübungen mit je
+eigenem Gewicht, und der Umbau je Einheit stieg überall, beim Aufbau von 3,55
+auf 4,32. Ein Band braucht keinen Umbau, und wenig Umbau ist die härtere
+Vorgabe.
+
+**Grundübungen in jedem Plan**, nicht nur im Cut: `pflicht` in
+`tools/build-plan.py` hält Floor Press, Chin-ups, Rudern, Kreuzheben, Goblet
+Squat und Schulterdrücken mit einer Mindestmenge je Woche. Ohne diese Zeile
+fielen beim ersten Neulauf in „Bauch, Beine, Po" Chin-ups und Schulterdrücken
+ganz heraus, im Oberkörperplan stand das Schulterdrücken bei null.
+
+**Gleich lange Wochen.** Neu in `spread()`: `wochen_band()` gibt jeder Woche
+die beiden Satzsummen um den Schnitt vor, wie `band()` es für jede Übung tut,
+und jede Körnung daneben kostet `EBEN`. Anlass war der Cut: Mit den Schultern
+auf 8 lagen seine Wochen zwischen 54 und 63 Sätzen, und eine 63er-Woche geht
+auf vier Termine nur als 18/18/15/12 – der Termin nach dem Ein-Tages-Abstand
+bleibt wegen der 48-Stunden-Regel bei vier Übungen. Acht Einheiten mit 18
+Sätzen statt drei, also genau das, was am 26.09. behoben worden war. Mit dem
+Wochenband liegen alle Wochen bei 57 oder 60.
+
+#### Cut: die Schultern auf 8
+
+Zur zweiten Frage die ehrliche Antwort: *Optimal* ist für den Cut nicht
+bewiesen, weder 7 noch eine andere Zahl – es gibt kaum Studien im Defizit.
+Belegt ist, dass zum Halten deutlich weniger reicht als zum Aufbauen (Bickel
+2011: ein Drittel des Aufbauvolumens hielt die Muskeln, bei Jüngeren sogar ein
+Neuntel), und in der einen Studie im Defizit brachten 20 Sätze nicht mehr als
+12. Rund 7 gewichtete Sätze je Gruppe sind damit gut gedeckt – solange die
+Lasten bleiben; die tragen im Cut die Hauptlast. **Zwei Gruppen lagen aber
+darunter:** seitliche und hintere Schulter mit je 5 direkten Sätzen an 1,67
+Terminen, in sieben von 21 Wochen nur ein Termin. Beide bekommen vom Drücken
+und Ziehen wenig nebenbei ab. Jetzt ist ihr Ziel 8 (die hintere 7,95, damit es
+exakt aufgeht):
+
+| | Cut vom 26.09. | Cut vom 29.09. |
+| --- | --- | --- |
+| seitliche Schulter | 5 direkte Sätze, 1,67 ×/Woche | 6 direkte Sätze, 2,00 ×/Woche |
+| hintere Schulter | 5 direkte Sätze, 1,67 ×/Woche | 6 direkte Sätze, 2,00 ×/Woche |
+| Sätze je Woche | 51–60 (Ø 55,7) | 57–60 (Ø 57,7) |
+| Sätze je Einheit | 12–18 (33 × 12, 48 × 15, 3 × 18) | 12–18 (18 × 12, 64 × 15, 2 × 18) |
+| Rüstvorgänge je Einheit | 3,00 | 3,05 |
+| Rucksack (Sätze je Woche) | 1,0 | 1,0 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 |
+
+Face Pull ist dafür neu drin, Reverse Snow Angel draußen. **Was es kostet:**
+Bizeps 2,24 statt 2,52 Termine je Woche, Gesäß 2,76 statt 3,00 und bis 5 statt
+3 Tage Abstand, vordere Schulter 1,95 statt 2,10 und bis 7 statt 5 Tage – mit
+denselben Sätzen, nur anders verteilt. Der Beinbeuger am Knie (ein Termin je
+Woche) hat zweimal 11 Tage Abstand statt höchstens 7; das lag in allen
+gerechneten Varianten so. *(Seit 03.10. erledigt: Mit der exakten
+Tagesverteilung sind es höchstens 9 Tage, dreimal; das Gesäß kommt auf 2,90
+Termine und höchstens 4 Tage, die vordere Schulter auf 2,05. Der Bizeps steht
+weiter bei 2,24 – siehe *Neu gerechnet am 03.10.*)* In der stärksten Woche liegt mit Hanteln der Nacken
+bei 11,1 statt 9,9 Sätzen (der Face Pull trifft ihn mit; im Schnitt 9,85 bei
+einer Kappe von 10), die vordere Schulter bei 9,75 statt 9,3; seitliche und
+hintere Schulter liegen dort ohnehin höher, ihr Ziel stieg. Ohne Hanteln steigen
+in der stärksten Woche der Nacken auf 11,3 statt 9,75 und die vordere Schulter
+auf 11,05 statt 10,6, beide über der Kappe von 10 (die vordere Schulter lag
+schon vorher darüber). Die Kappe gilt aber für den Schnitt, und der liegt ohne
+Hanteln bei 9,8 und 8,7. Der Trizeps steigt dort auf 8,55 statt 8,25;
+seitliche und hintere Schulter steigen auch hier mit ihrem Ziel. Gerechnet:
+
+    WK_START=tools/pruefung/cut-start.json WK_REIHUNG=einheiten WK_SEED=11 python3 tools/build-plan.py cut
+    WK_NUR_TAGE=1 WK_SPLITS=20000 WK_REIHUNG=einheiten WK_SEED=21 python3 tools/build-plan.py cut
+
+Zwei Startwerte für die Mengen, drei Läufe für die Tage (zwei Rangfolgen);
+genommen ist der mit den wenigsten Befunden der Planprüfung.
+
+#### Aufbau: bleibt, wie er ist
+
+Neu gerechnet wurde auch er, mit Grundübungen und Rucksack als zweiter Wahl.
+Heraus kam ein Plan ohne gewichtete Liegestütze – aber mit 3,96 bis 4,00
+Rüstvorgängen je Einheit statt 3,55 und drei bis vier Einheiten mit 21 Sätzen,
+auch mit gleich langen Wochen. Zwei Sätze Rucksack weniger in der Woche sind
+das nicht wert. Der Aufbau bleibt deshalb der vom 25.09.; seine Grundübungen
+hatte er ohnehin (Goblet Squat 1,7 statt der 2 aus `pflicht`, Rudern 2,9 statt
+3 – knapp darunter, weil `pflicht` erst nach ihm kam).
+
+#### Oberkörper: kein Rucksack, Schulterdrücken drin, gleich lange Einheiten
+
+| | Oberkörper vom 25.09. | Oberkörper vom 29.09. |
+| --- | --- | --- |
+| Rucksack (Sätze je Woche) | 4,3 (Liegestütze, Inverted Row) | 0 |
+| Schulterdrücken (Sätze je Woche) | 0 | 3,1 |
+| vordere Schulter | 4,6 direkte Sätze, 1,52 ×/Woche | 7,6 direkte Sätze, 2,00 ×/Woche |
+| Sätze je Woche | 63–69 | 66–69 |
+| Sätze je Einheit | 12–21 (6 × 12, 2 × 21) | 15–18 (29 × 15, 55 × 18) |
+| Übungen je Einheit | 4–7 | 5–6 |
+| Übungen im Plan | 25 | 20 |
+| Rüstvorgänge je Einheit | 3,08 | 3,24 |
+| dieselbe Bewegung zweimal in einer Einheit | 34 | 32 |
+
+**Hier kostete es Umbau, und das stand bewusst da:** 3,24 statt 3,08
+Rüstvorgänge je Einheit *(seit 03.10. erledigt: 3,04, weniger als am 25.09.)*.
+Beim Aufbau war der Preis 0,4 und damit zu hoch;
+hier sind es 0,15 (13 Rüstvorgänge mehr auf 84 Einheiten – die gerundeten
+Werte der Tabelle liegen 0,16 auseinander) für einen Plan ohne Rucksack, mit
+der Grundübung, die ihm fehlte, und ohne die Einheiten mit 12 und 21 Sätzen.
+Drei Tagesverteilungen (zwei Rangfolgen, darunter `WK_REIHUNG=ruesten`) holten
+nur 0,01 zurück. Daraus stand hier der Schluss „es liegt an der Auswahl, nicht
+an den Tagen" – und der war falsch. Der Generator zählte damals Gerätefamilien
+ohne Gewicht, also eine andere Zahl als diese Tabelle, und probierte je Woche
+2000 Zufallsaufteilungen. Mit der Zählung der App und einer exakten Aufteilung
+holen allein die Tage 0,20 zurück, mehr als den ganzen Preis: 3,04 statt 3,24,
+siehe *Neu gerechnet am 03.10.* Weitere Kosten:
+Bauch 1,10 statt 1,19 Termine je Woche und bis 10 statt 7 Tage Abstand, Bizeps
+2,52 statt 2,86, Nacken 2,67 statt 2,76, Waden (ein Termin je Woche) bis 12
+statt 7 Tage Abstand, Beinbeuger am Knie (ebenso) bis 11 statt 10. *(Seit
+03.10. zum Teil erledigt: Bauch bis 8 Tage, Bizeps 2,76, Waden bis 11,
+Beinbeuger am Knie bis 7 Tage; Bauch 1,10 und Nacken 2,67 Termine sind
+geblieben.)* In der stärksten Woche bekommt die vordere Schulter mit Hanteln 13,2 statt 10,2
+Sätze, ohne Hanteln 13,5 statt 10,45 – mehr als die Kappe von 13, aber die
+gilt für den Schnitt, und der liegt ohne Hanteln bei 10,5 (vorher 9,5), also
+darunter. Die hintere Schulter liegt dort in beiden Modi bei 11,1 statt 9,9,
+Bizeps und seitliche Schulter um 0,15 Sätze höher. Der Bauch steigt mit
+Hanteln um 0,6 auf 8,25 und sinkt ohne Hanteln auf 8,1 statt 8,35; ohne
+Hanteln steigen dafür Gesäß auf 7,95 statt 7,1 und Beinbeuger an der Hüfte auf
+7,35 statt 6,35. Heraus fallen Band
+Pull-apart, gewichtete Crunches, gewichtete Liegestütze, Hip Thrust, Inverted
+Row, Pike-Liegestütze und Wadenheben mit gebeugtem Knie; neu sind
+Schulterdrücken und Reverse Fly.
+
+**Der erste Lauf hielt ohne Hanteln nicht.** Die vordere Schulter lag dort bei
+13,4 Sätzen (Kappe 13), weil Pike-Liegestütze und die Körpergewicht-Fassung des
+Schulterdrückens sie viel stärker treffen als die Hantel-Fassungen – und der
+Startpunkt rechnete nur mit den Hantel-Anteilen. Mit zwei bis vier Sätzen je
+Auftritt ließ sich das hinterher nicht ausgleichen, nachgerechnet mit einem
+ganzzahligen Löser: nicht exakt und nicht einmal auf die 0,05 Sätze, die die
+Planprüfung zulässt. Seitdem hält `tools/pruefung/startpunkt.py` die Gruppen
+ohne Ziel auch ohne Hanteln unter der Kappe. (Der Abstieg in `bw_saetze()`
+baut eine Überschreitung jetzt ebenfalls zuerst ab, statt jeden Schritt zu
+verweigern – geholfen hat das hier allein nicht.) Gerechnet:
+
+    python3 tools/pruefung/startpunkt.py oberkoerper
+    WK_START=tools/pruefung/oberkoerper-start.json WK_REIHUNG=einheiten WK_SEED=7 python3 tools/build-plan.py oberkoerper
+
+#### Bauch, Beine, Po: kein Rucksack, weniger Umbau, Schulter auf 8
+
+| | BBP vom 25.09. | BBP vom 29.09. |
+| --- | --- | --- |
+| Rucksack (Sätze je Woche) | 5,1 (Liegestütze, Inverted Row) | 0 |
+| Schulterdrücken / Floor Press (Sätze je Woche) | 1,1 / 1,0 | 2,3 / 2,9 |
+| seitliche Schulter | 6,3 direkte Sätze, 2,10 ×/Woche | 6,1 direkte Sätze, 2,05 ×/Woche |
+| hintere Schulter | 5,7 direkte Sätze, 1,90 ×/Woche | 6,1 direkte Sätze, 2,00 ×/Woche |
+| Sätze je Woche | 60–72 | 69 |
+| Sätze je Einheit | 15–18 (36 × 15, 48 × 18) | 15–18 (21 × 15, 63 × 18) |
+| Übungen im Plan | 28 | 23 |
+| Rüstvorgänge je Einheit | 3,31 | 3,15 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 |
+
+**Die seitliche Schulter steht hier jetzt auf 8, nicht 7** – aus demselben
+Grund wie im Cut. Mit dem Schulterdrücken zählt ein Teil ihres Ziels nebenbei,
+und beim ersten Neulauf mit 7 fiel sie auf 5,1 direkte Sätze an 1,71 Terminen.
+Mit 8 bleibt sie, wo sie war. **Was es kostet:** Bizeps 1,95 statt 2,19 Termine
+je Woche, Rücken 2,10 statt 2,24, Nacken 2,38 statt 2,71, bei Bizeps und Brust
+bis zu 7 statt 5 Tage Abstand, beim Gesäß bis 5 statt 4. In der stärksten Woche
+bekommt mit Hanteln die vordere Schulter 10,5 statt 7,05 Sätze, die seitliche
+10,5 statt 9,0 (ihr Ziel stieg), die hintere 9,9 statt 9,0, der Trizeps 7,65
+statt 6,9. Ohne Hanteln sind es bei der vorderen Schulter 11,5 statt 7,05 und
+beim Trizeps 8,05 statt 7,45; seitliche und hintere Schulter wie mit Hanteln,
+der Nacken 11,9 statt 11,85. Heraus fallen einbeiniges Kreuzheben, gewichtete
+Liegestütze, Inverted Row, liegende Trizepsstrecker, Reverse Fly und Reverse
+Snow Angel; Face Pull kommt dafür mit 3,1 statt 1,1 Sätzen je Woche (an 22
+statt 8 Terminen, also etwa einmal die Woche statt alle zweieinhalb Wochen),
+Rumänisches Kreuzheben mit 3 statt 1,1 Sätzen. Neu ist eine Übung:
+Pike-Liegestütze, 27 Sätze an 9 Terminen (ohne Hanteln 35), also rund 1,3
+Sätze je Woche (etwa alle zwei bis drei Wochen ein Termin). Gerechnet:
+
+    python3 tools/pruefung/startpunkt.py bbp --ohne-bw-kappe
+    WK_START=tools/pruefung/bbp-start.json WK_REIHUNG=einheiten WK_SEED=11 python3 tools/build-plan.py bbp
+
+(`--ohne-bw-kappe`, weil dieser Startpunkt vor der Kappe ohne Hanteln
+entstand – siehe Oberkörper oben. Der Plan hält sie trotzdem: Ohne Hanteln
+liegen vordere Schulter, Beinbeuger an der Hüfte und Nacken im Schnitt bei 8,0,
+8,1 und 9,8 Sätzen, die Kappe ist hier 12, und `tools/pruefung/plan-pruefen.py`
+prüft das in beiden Modi. Deshalb dürfen die Pike-Liegestütze hier neu
+dazukommen, während sie im Oberkörper herausfallen: Dort trieben sie im ersten
+Lauf zusammen mit dem Schulterdrücken die vordere Schulter ohne Hanteln über
+die Kappe, hier ist Platz.)
+
+Drei Läufe mit dem neuen Ziel, einer davon ohne Wochenband (`WK_EBEN=0` – der
+Schalter bringt den Generator von vorher zurück, nachgeprüft an einem älteren
+BBP-Lauf, der Einheit für Einheit wieder herauskam). Genommen ist der einzige
+mit null doppelten Bewegungen.
+
+### Neu gerechnet am 03.10.: Tage exakt verteilt, Umbau gezählt wie die App, ohne Hanteln gleich lang
+
+Kein neuer Plan, sondern dieselben Pläne, anders auf die Tage gelegt. Jede
+Übung kommt in jeder Woche genau so oft vor wie vorher, mit denselben Sätzen;
+neu sind die Tage, an denen sie steht, und die Satzzahl ohne Hanteln. Anlass
+war die Durchsicht der Planrechnung, und sie fand drei Dinge:
+
+* **Der Generator optimierte eine andere Zahl als die, die gemessen wird.** Er
+  zählte Gerätefamilien je Tag, ohne Gewicht und mit der SZ-Stange als
+  Langhantel – im Aufbau 2,39 je Einheit, die App zählt 3,55. Jetzt zählt er
+  wie sie (*Umbauen kostet mehr Zeit als Pausieren*).
+* **2000 Zufallsversuche je Woche finden das Minimum nicht.** `split()` hält
+  die Kriterien vorn in der Rangfolge zuverlässig; für den Umbau ganz hinten
+  war unter den Versuchen, die das schafften, fast nie einer mit weniger Umbau,
+  obwohl es ihn gab. Am Oberkörper stand deshalb der falsche Schluss „es liegt
+  an der Auswahl, nicht an den Tagen".
+* **Ohne Hanteln waren die Einheiten nicht gleich lang** – Aufbau 14 bis 21
+  Sätze, mit Hanteln 15 oder 18.
+
+**Schritt 3 ist jetzt exakt.** `split_exakt()` in `tools/build-plan.py` legt
+jede Woche als ganzzahliges Programm an (`scipy.optimize.milp`, das
+`tools/pruefung/startpunkt.py` schon braucht) und arbeitet die Kriterien der
+Rangfolge streng nacheinander ab: erst das vorderste minimieren, mit diesem
+Wert festhalten, dann das nächste. Ein Kriterium weiter hinten kann so keines
+weiter vorn verschlechtern. Hart, also keine Frage der Rangfolge:
+
+* die 48-Stunden-Regel **in beiden Modi** (`split()` sah nur die Gruppen mit
+  Hanteln);
+* nicht mehr doppelte Bewegungen als die Woche des Plans davor, je Modus und
+  zusammen;
+* Einheitenlängen in der Spanne der Woche davor, je Gruppe und Modus mindestens
+  so viele Termine;
+* kein größerer Abstand zwischen zwei Terminen einer Gruppe als in
+  `tools/pruefung/befunde.json`.
+
+Ließe sich das in einer Woche nicht halten, fielen erst der Abstand, dann die
+Termine, dann die 48 Stunden, und der Lauf sagte es; nötig war es in keiner
+Woche. Unter Gleichstand entscheidet die Nähe zum Plan davor, nicht ein
+Zufall: **Derselbe Lauf gibt denselben Plan**, auch mit anderem `WK_SEED`
+(nachgeprüft, Byte für Byte). Ein Lauf dauert damit Sekunden für die Tage und bis
+zu sieben Minuten für die Satzzahl ohne Hanteln. `WK_TAGE=zufall` bringt die
+alte Aufteilung zurück, zum Vergleich.
+
+**Ohne Hanteln gleich lang:** `bw_verteilen()` legt die Sätze ohne Hanteln so,
+dass jede Einheit in der Spanne ihrer Woche mit Hanteln bleibt (siehe *Der
+Bodyweight-Modus trifft jetzt dieselben Ziele*). Die Plansumme je Übung bleibt
+die aus `bw_saetze()`, also auch jedes Ziel im Schnitt.
+
+**Was es kostet, steht in der Tabelle mit:** Damit die Einheiten ohne Hanteln
+ins Band passen, weichen mehr Auftritte von drei Sätzen ab – im Bauch-Beine-Po-
+Plan 83 statt 41, im Cut 61 statt 25 –, und in diesen beiden Plänen stehen je
+vier Übungen mal mit zwei, mal mit vier Sätzen da. Ohne das Kriterium gegen
+solche gemischten Übungen wären es zehn und neun gewesen, bei 75 und 51
+Abweichungen. Mit Hanteln
+ändert sich an den Satzzahlen nichts. Sonst ist nichts schlechter geworden:
+Die Planprüfung zählt 33 Verbesserungen gegen den letzten Stand (Frequenz,
+größter Abstand, stärkste Woche) und keine Verschlechterung; `befunde.json`,
+`tests/ruestaufwand-stand.json` und `plan-eingaben.json` sind nachgezogen,
+`bewegung-stand.json` bleibt, wie es war (8/0/0/32).
+
+Die Tabellen kommen aus einem Lauf, nicht von Hand:
+`python3 tools/pruefung/vorher-nachher.py` stellt jeden Plan gegen den
+ausgelieferten (`origin/main`). „Vorher" ist der Aufbau vom 25.09. und die
+übrigen vom 29.09., „ohne
+Hanteln" heißt mit den Sätzen des Bodyweight-Modus; umgebaut wird dort nichts.
+
+#### Aufbau
+
+| | vorher, mit Hanteln | nachher, mit Hanteln | vorher, ohne Hanteln | nachher, ohne Hanteln |
+| --- | --- | --- | --- | --- |
+| Rüstvorgänge je Einheit | 3,55 | 3,45 | – | – |
+| Sätze je Einheit | 15–18 (23 × 15, 61 × 18) | 15–18 (23 × 15, 61 × 18) | 14–21 (3 × 14, 17 × 15, 2 × 16, 9 × 17, 35 × 18, 12 × 19, 3 × 20, 3 × 21) | 15–18 (15 × 15, 2 × 16, 67 × 18) |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | – | – | 54 (0) | 58 (1) |
+| Wochensätze: größte Abweichung des Schnitts vom Ziel | 0,00 | 0,00 | 0,00 | 0,00 |
+| stärkste Woche über der Grenze (Gruppenwochen darüber) | +2,15 (69) | +2,15 (69) | +3,90 (79) | +3,60 (75) |
+| Termine je Woche, alle Gruppen zusammen | 31,4 | 31,4 | 31,4 | 31,4 |
+| größter Abstand (Tage) | 11 | 11 | 11 | 11 |
+| dieselbe Bewegung zweimal in einer Einheit | 1 | 1 | 8 | 8 |
+| Rucksack (Sätze je Woche) | 3,0 | 3,0 | 3,1 | 3,1 |
+
+Der größte Abstand ändert sich bei keiner Gruppe.
+
+#### Bauch, Beine, Po
+
+| | vorher, mit Hanteln | nachher, mit Hanteln | vorher, ohne Hanteln | nachher, ohne Hanteln |
+| --- | --- | --- | --- | --- |
+| Rüstvorgänge je Einheit | 3,15 | 3,10 | – | – |
+| Sätze je Einheit | 15–18 (21 × 15, 63 × 18) | 15–18 (21 × 15, 63 × 18) | 14–20 (1 × 14, 14 × 15, 6 × 16, 2 × 17, 36 × 18, 24 × 19, 1 × 20) | 15–18 (7 × 15, 4 × 16, 5 × 17, 68 × 18) |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | – | – | 41 (0) | 83 (4) |
+| Wochensätze: größte Abweichung des Schnitts vom Ziel | 0,00 | 0,00 | 0,02 | 0,02 |
+| stärkste Woche über der Grenze (Gruppenwochen darüber) | +0,90 (24) | +0,90 (24) | +1,05 (17) | +1,05 (16) |
+| Termine je Woche, alle Gruppen zusammen | 31,4 | 31,4 | 31,4 | 31,4 |
+| größter Abstand (Tage) | 7 | 7 | 7 | 7 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 | 0 | 0 |
+| Rucksack (Sätze je Woche) | 0,0 | 0,0 | 0,0 | 0,0 |
+
+Der größte Abstand ändert sich bei keiner Gruppe.
+
+#### Cut
+
+| | vorher, mit Hanteln | nachher, mit Hanteln | vorher, ohne Hanteln | nachher, ohne Hanteln |
+| --- | --- | --- | --- | --- |
+| Rüstvorgänge je Einheit | 3,05 | 2,85 | – | – |
+| Sätze je Einheit | 12–18 (18 × 12, 64 × 15, 2 × 18) | 12–15 (16 × 12, 68 × 15) | 12–18 (17 × 12, 1 × 13, 5 × 14, 42 × 15, 17 × 16, 2 × 18) | 12–15 (4 × 12, 11 × 13, 1 × 14, 68 × 15) |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | – | – | 25 (0) | 61 (4) |
+| Wochensätze: größte Abweichung des Schnitts vom Ziel | 0,00 | 0,00 | 0,03 | 0,03 |
+| stärkste Woche über der Grenze (Gruppenwochen darüber) | +1,10 (7) | +1,10 (7) | +1,30 (13) | +1,30 (13) |
+| Termine je Woche, alle Gruppen zusammen | 29,2 | 29,5 | 29,2 | 29,5 |
+| größter Abstand (Tage) | 11 | 9 | 11 | 9 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 | 0 | 0 |
+| Rucksack (Sätze je Woche) | 0,0 | 0,0 | 0,0 | 0,0 |
+
+Größter Abstand je Gruppe, wo er sich ändert (Tage): Gesäß mit Hanteln 5 → 4; Beinbeuger (Knie) mit Hanteln 11 → 9; Gesäß ohne Hanteln 5 → 4; Beinbeuger (Knie) ohne Hanteln 11 → 9.
+
+#### Oberkörper
+
+| | vorher, mit Hanteln | nachher, mit Hanteln | vorher, ohne Hanteln | nachher, ohne Hanteln |
+| --- | --- | --- | --- | --- |
+| Rüstvorgänge je Einheit | 3,24 | 3,04 | – | – |
+| Sätze je Einheit | 15–18 (29 × 15, 55 × 18) | 15–18 (29 × 15, 55 × 18) | 14–20 (4 × 14, 23 × 15, 2 × 16, 5 × 17, 45 × 18, 4 × 19, 1 × 20) | 15–18 (25 × 15, 4 × 16, 5 × 17, 50 × 18) |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | – | – | 17 (0) | 17 (0) |
+| Wochensätze: größte Abweichung des Schnitts vom Ziel | 0,00 | 0,00 | 0,00 | 0,00 |
+| stärkste Woche über der Grenze (Gruppenwochen darüber) | +0,65 (11) | +0,65 (11) | +0,65 (10) | +0,65 (10) |
+| Termine je Woche, alle Gruppen zusammen | 29,0 | 29,4 | 29,0 | 29,4 |
+| größter Abstand (Tage) | 12 | 11 | 12 | 11 |
+| dieselbe Bewegung zweimal in einer Einheit | 11 | 11 | 32 | 32 |
+| Rucksack (Sätze je Woche) | 0,0 | 0,0 | 0,0 | 0,0 |
+
+Größter Abstand je Gruppe, wo er sich ändert (Tage): Bauch mit Hanteln 10 → 8; Waden mit Hanteln 12 → 11; Schulter vorn mit Hanteln 7 → 5; Beinbeuger (Knie) mit Hanteln 11 → 7; Bauch ohne Hanteln 10 → 8; Waden ohne Hanteln 12 → 11; Schulter vorn ohne Hanteln 7 → 5; Beinbeuger (Knie) ohne Hanteln 11 → 7.
+
+Beim Aufbau und beim Bauch-Beine-Po-Plan ändern die Tage fast nur den Umbau;
+die größten Abstände bleiben, wie sie waren, und im Aufbau kommt das Gesäß
+etwas öfter dran (2,71 statt 2,67 Termine je Woche). Beim Cut gibt es keine Einheit mit 18 Sätzen mehr,
+beim Oberkörper kommt der Beinbeuger am Knie nach höchstens 7 statt 11 Tagen
+wieder dran. Der Oberkörper liegt beim Umbau jetzt unter den 3,08 vom 25.09.,
+mit denen der Plan vom 29.09. verglichen worden war.
+
+Gerechnet:
+
+    WK_NUR_TAGE=1 python3 tools/build-plan.py standard
+    WK_NUR_TAGE=1 WK_REIHUNG=einheiten python3 tools/build-plan.py bbp
+    WK_NUR_TAGE=1 WK_REIHUNG=einheiten python3 tools/build-plan.py cut
+    WK_NUR_TAGE=1 WK_REIHUNG=einheiten python3 tools/build-plan.py oberkoerper
+
+Eingespielt nach dem folgenden Abschnitt: Alle vier ausgelieferten Pläne liegen
+in `tools/plan-vorher/`, auch der Aufbau (`standard.json`), der dort bisher
+fehlte, weil er sich seit Einführung der Ablage nicht geändert hatte. Eine
+angefangene Einheit behält damit ihre ganze alte Liste – aber nur nach einem
+Sprung um eine Fassung: Die drei Pläne, die dabei überschrieben wurden, fehlten
+danach. Heute ist die Ablage eine Kette, siehe „Einen Plan neu einspielen".
+
+**Nachtrag 05.10.: ohne Hanteln seltener über der Grenze.** Eine Zahl hat
+`bw_verteilen()` nur begrenzt, statt sie klein zu machen: die Gruppenwochen
+über der Grenze. Sie durfte nicht über der der gleichmäßigen Verteilung liegen;
+welche der übrigen Verteilungen es wurde, entschied die Nähe zu ihr – obwohl
+genau diese Zahl in den Tabellen oben und in `wochen-cap.py` steht. Jetzt
+kommt sie in der Rangfolge nach den Abweichungen von der Hantel-Satzzahl und
+vor der Nähe. Dazu zwei Regeln, beide nur mit `WK_NUR_TAGE`:
+
+* **Keine Woche stärker als in `befunde.json`.** Ohne diese harte Grenze je
+  Gruppe und Woche nahm die Suche im Aufbau eine stärkere Woche in Kauf
+  (vordere Schulter 13,75 statt 13,6), und `plan-pruefen.py` hätte angehalten.
+* **Unter Gleichstand bleibt der ausgelieferte Plan.** Zum Schluss entscheidet
+  die Nähe zu seinen Sätzen ohne Hanteln, wie bei den Tagen (`naehe` in
+  `split_exakt()`). Ohne das kam der Bauch-Beine-Po-Plan mit 16 anderen
+  Satzzahlen heraus, ohne dass eine Zahl besser wurde.
+
+Gegen den ausgelieferten Stand (`tools/pruefung/vorher-nachher.py`), ohne
+Hanteln – mit Hanteln bleibt jede Satzzahl, wie sie war:
+
+| | Aufbau | Oberkörper |
+| --- | --- | --- |
+| Gruppenwochen über der Grenze | 75 → 62 | 10 → 9 |
+| stärkste Woche über der Grenze | +3,60 → +3,60 | +0,65 → +0,65 |
+| Abweichung der einzelnen Woche vom Ziel, Mittel / größte | 0,68 / 3,00 → 0,65 / 3,00 | 0,44 / 2,70 → 0,43 / 2,70 |
+| Sätze je Einheit | 15–18 (15 × 15, 2 × 16, 67 × 18) → 15–18 (13 × 15, 4 × 16, 2 × 17, 65 × 18) | gleich |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | 58 (1) → 58 (1) | 17 (0) → 17 (0) |
+| geänderte Satzzahlen ohne Hanteln | 52 von 481 | 4 von 475 |
+
+Im Aufbau liegt der Bauch in keiner Woche mehr über der Grenze (stärkste Woche
+10,7 → 10,0), der Trizeps in 9 statt 13 Wochen, Bizeps 9 statt 11, Nacken 8
+statt 10, Gesäß 2 statt 4, seitliche Schulter 13 statt 14. Im Oberkörper kommt
+der Trizeps auf höchstens 12,75 statt 13,35 Sätze, also nie mehr über 13.
+Bauch-Beine-Po und Cut kommen Byte für Byte wieder heraus und bleiben, wie sie
+sind. Termine, Abstände, Bewegungspaare und Umbau ändern sich nirgends.
+`befunde.json` ist nachgezogen, wo es besser wurde, und
+`tests/test-bodyweight.mjs` hält die Gruppenwochen über der Grenze je Plan
+fest: Sie dürfen sinken, nicht steigen.
+
+Der Fingerabdruck (`stand`) zählt nur, welche Übung an welcher Nummer steht,
+und bleibt deshalb bei beiden Plänen. `plan-vorher.py` verlangt nichts, und in
+die Kette unter `tools/plan-vorher/` kommt kein Glied dazu: Eines mit dem
+laufenden Stand bettet `tools/build-data.py` nicht ein, und beim nächsten
+echten Wechsel stünden darin die Satzzahlen von vor diesem Nachtrag statt der
+ausgelieferten. Gerechnet mit denselben vier Aufrufen wie oben.
+
+### 2 bis 4 Sätze – gemessen
+
+> „wir können gern 2 bis 4 Sätze machen wenn das iwie sinnvoll ist"
+
+Gefragt war, warum mit Hanteln jede Übung genau drei Sätze hat. Ohne Hanteln
+stehen längst zwei bis vier da (*Der Bodyweight-Modus trifft jetzt dieselben
+Ziele*). Mit Hanteln hat es drei Stellen gegeben, an denen es etwas bringen
+könnte:
+
+* **Die einzelne Woche genauer.** Brust und Rücken kommen mit drei Sätzen je
+  Auftritt in einer Woche nur auf 9 oder 12, nie auf 10 (*Jede Übung steht mit
+  drei Sätzen da*). Mit einer Vier wird aus 9 eine 10.
+* **Weniger Umbau.** Steht dasselbe Gerät an einem Tag ohnehin, kann dort eine
+  Vier stehen und an einem anderen Tag ein Auftritt ganz wegfallen.
+* **Gleichmäßigere Einheiten** – 16 und 17 statt 15 und 18.
+
+`hantel_saetze()` in `tools/build-plan.py` rechnet das am fertig verteilten
+Plan, mit denselben harten Regeln wie *Neu gerechnet am 03.10.*: jedes Ziel im
+Schnitt exakt, jede Gruppe an jedem ihrer Tage weiter direkt dran (Termine,
+größter Abstand und 48 Stunden bleiben also stehen), Einheiten in der Spanne
+ihrer Woche, keine Woche stärker oder weiter vom Ziel als die schlechteste
+davor. Jeder Auftritt ohne drei Sätze kostet etwas, und keine Übung darf mal
+zwei und mal vier haben. Eingeschaltet wird es mit `WK_SAETZE=2,4`; ohne den
+Schalter entstehen dieselben vier Pläne Byte für Byte wie vorher (nachgeprüft).
+
+Ergebnis gegen die ausgelieferten Pläne, mit Hanteln (aus
+`tools/pruefung/vorher-nachher.py`):
+
+| | Aufbau | Bauch, Beine, Po | Cut | Oberkörper |
+| --- | --- | --- | --- | --- |
+| Abweichung der einzelnen Woche vom Ziel, Mittel (Sätze) | 0,60 → 0,50 | 0,44 → 0,38 | 0,69 → 0,57 | 0,37 → 0,29 |
+| … größte | 2,35 → 2,00 | 2,85 → 2,85 | 2,40 → 2,25 | 2,40 → 2,40 |
+| Rüstvorgänge je Einheit | 3,45 → 3,39 | 3,10 → 3,10 | 2,85 → 2,83 | 3,04 → 2,98 |
+| Übungen je Einheit | 5,73 → 5,65 | 5,75 → 5,73 | 4,81 → 4,77 | 5,65 → 5,60 |
+| Einheiten zwischen den beiden Längen (16/17 bzw. 13/14 Sätze) | 0 → 13 von 84 | 0 → 16 | 0 → 15 | 0 → 15 |
+| Auftritte ohne drei Sätze | 0 → 30 | 0 → 22 | 0 → 33 | 0 → 19 |
+| Termine je Woche, größter Abstand | gleich | gleich | gleich | gleich |
+| dieselbe Bewegung zweimal in einer Einheit | 1 → 1 | 0 → 0 | 0 → 0 | 11 → 6 |
+| Fortgeschritten: Auftritte mit sechs Sätzen am Stück | 0 → 8 | 0 → 4 | 0 → 8 | 0 → 6 |
+| ohne Hanteln: Wochenkappen | besser (75 → 65 Gruppenwochen darüber) | **schlechter** (16 → 17) | gleich | **schlechter** (stärkste Woche +0,65 → +1,65) |
+
+**Deshalb bleibt es bei drei.** Keine der Hoffnungen trägt, und es kostet
+etwas:
+
+* Die Woche wird um ein Sechstel bis ein Fünftel genauer, nicht um die Hälfte,
+  und die schlechteste Woche bleibt in zwei Plänen, wie sie war. Halbieren ginge
+  – im Aufbau von 0,60 auf 0,22 –, aber nur mit 120 Auftritten ohne drei Sätze
+  und 16 Übungen, die zwischen zwei und vier springen: Bekommt eine Übung in
+  einer Woche eine Vier, muss sie sie anderswo wieder abgeben, sonst stimmt
+  ihre Plansumme nicht. Wer stattdessen die Übungen tauschen lässt (eine immer
+  mit vier, eine andere immer mit zwei), trifft andere Gruppen mit, und die
+  Gleichungen gehen kaum noch auf.
+* Am Umbau ist kaum etwas zu holen, höchstens 0,06 je Einheit. Die
+  exakte Tagesaufteilung hat die Geräte schon zusammengelegt; ein Auftritt, der
+  wegfallen könnte, ohne dass eine Gruppe ihren Tag verliert, ist selten.
+* Mehr Termine gibt es nicht. Gedacht war an die Gruppen, die nur einmal die
+  Woche drankommen (Beinbeuger am Knie, im Oberkörper Waden und
+  Oberschenkel, bis 11 Tage Abstand): zwei Zweier statt einer Drei. Drei Sätze
+  lassen sich aber nicht auf zwei Auftritte teilen; es ginge nur als 4 und 2
+  im Wechsel, und eine Woche mit 4 statt 3 ist stärker als jede, die der Plan
+  je hatte – `plan-pruefen.py` hielte sie an.
+* Die Einheiten werden kaum gleichmäßiger: 13 bis 16 von 84 liegen danach
+  zwischen den beiden Längen, die Spanne bleibt 15 bis 18 (Cut 12 bis 15).
+* Ohne Hanteln wird es in zwei Plänen schlechter. Fällt ein Auftritt weg,
+  rechnet `bw_saetze()` die Sätze ohne Hanteln auf weniger Auftritte neu, und
+  dabei bekommt im Oberkörper die seitliche Schulter ohne Hanteln eine Woche
+  mit 14,65 Sätzen statt höchstens 13,65 (Grenze 13) – das Tor in
+  `plan-pruefen.py` hielte den Plan an.
+* Und auf der Stufe Fortgeschritten werden aus zwei Vieren derselben Übung
+  einmal fünf und einmal sechs Sätze (*Erfahrung: dieselben Übungen, andere
+  Startgewichte*: Gerundet wird über den ganzen Plan, damit das Volumen
+  stimmt). Mit drei überall sind es immer vier.
+
+Gerechnet ist das mit `WK_SAETZE_STRAFE=0.05` (eine Zwei oder Vier muss die
+Wochen einer Gruppe um ein Zwanzigstel ihres Ziels näher bringen) und
+`WK_SAETZE_UMBAU=0.1`. Billiger (0,01) und mit dreimal so viel Gewicht auf
+dem Umbau (0,3) kommt nichts Besseres heraus: im Bauch-Beine-Po-Plan 3,05
+Rüstvorgänge statt 3,10 bei 48 Auftritten ohne drei Sätze, dafür ohne Hanteln
+23 statt 16 Gruppenwochen über der Grenze.
+
+Für das Training heißt das: Jede Übung mit Hanteln bleibt bei drei Sätzen. Die
+Wochen schwanken bei Brust und Rücken weiter zwischen 9 und 12 – über den
+ganzen Plan stimmt die 10 exakt, und eine Woche mit 12 gleicht die mit 9 aus.
+
+    WK_SAETZE=2,4 WK_NUR_TAGE=1 python3 tools/build-plan.py standard --report
+
+### Einen Plan neu einspielen
+
+Jeder Plan trägt einen Fingerabdruck seiner Inhalte (`stand` in `js/data.js`:
+welche Übung hinter welcher Nummer steht, ohne Termine). Ändert er sich, schreibt
+die App beim nächsten Laden jede angefangene oder trainierte Einheit auf das
+fest, was dort gemacht wurde (`planWechsel()` in `js/app.js`), und nur der Rest
+bekommt den neuen Plan. Die Runde läuft weiter, und ein Hinweis sagt es.
+
+**Mit v215 ging dabei etwas verloren.** Der neue Cut kam, während eine Einheit
+angefangen war – Liegestütze im Wechsel mit Band-Seitheben, dahinter Crunches
+und Wadenheben:
+
+> „Heute nur zwei Übungen?"
+
+Festgeschrieben wurde aus dem Protokoll, und das kannte nur das erste Paar: Die
+Fokusansicht legte Einträge nur für die Übungen an, die sie gerade zeigte. Die
+Listenansicht tat es für alle, die Fokusansicht nicht – und angefangen wird
+fast immer in der Fokusansicht. Seit v216:
+
+* **Die Fokusansicht legt die ganze Einheit an**, sobald sie aufgeht, wie die
+  Liste mit jeder Karte.
+* **Der Plan davor reist mit.** Wer einen Plan neu einspielt, legt den
+  bisherigen vorher in die Ablage unter `tools/plan-vorher/` (heute eine Kette,
+  siehe unten); `tools/build-data.py` bettet dessen Übungen je Nummer als
+  `vorher` ein. Kommt der Wechsel von genau diesem Stand, schreibt die App eine
+  angefangene Einheit mit ihrer ganzen alten Liste fest, egal was das Protokoll
+  kennt.
+* **Was schon zu kurz festgeschrieben war, wird repariert** (`festReparieren()`):
+  eine nicht abgeschlossene Einheit, deren feste Übungen alle in derselben
+  Nummer des Plans davor stehen, der aber mehr hatte, bekommt dessen ganze
+  Liste zurück. Abgehakte Sätze bleiben, und die App sagt es. Abgeschlossene
+  Einheiten bleiben, wie sie sind – was nicht gemacht wurde, kommt nicht
+  nachträglich hinein.
+
+`tests/test-fest-vollstaendig.mjs` prüft alle drei, an genau diesem Fall.
+
+**Lücken darin, gefunden bei der Durchsicht der Reparatur.** Die ersten drei
+sind seit v219 zu, die übrigen seit der Fassung danach.
+
+* **Ein ganz abgehaktes Paar blieb kurz.** Stand das feste Paar schon
+  vollständig abgehakt da, ohne dass die Einheit abgeschlossen war, stempelte
+  `stempleFertige()` sie beim Start als fertig – gemessen an der kurzen Liste.
+  `festReparieren()` lässt Abgeschlossenes aus, also kamen Crunches und
+  Wadenheben nie zurück, und die Einheit galt als trainiert. Gestempelt wird
+  jetzt erst nach Umzug, Planwechsel und Reparatur. Was mit dem letzten Haken
+  oder mit „Abschließen" fertig wurde, trägt `done` schon vorher und bleibt,
+  wie es ist.
+* **Die alte Liste stand roh fest** – Plan-IDs und Plan-Sätze, ohne Stufe,
+  eigene Wahl und Beschwerden. Ein Anfänger bekam damit das hängende Knieheben
+  zurück, also genau die Übung, die
+
+  > „wenn man Anfänger ausgewählt hat soll auch nur die Boden Variante kommen"
+
+  nicht mehr kommen sollte. Fortgeschrittene bekamen drei Sätze statt vier, und
+  was eine Beschwerde gestrichen hatte, stand wieder da. `vorherFassung()` in
+  `js/plan.js` schickt die Liste jetzt über denselben Weg wie einen
+  gewöhnlichen Plantag: Beschwerden und Termine, Anfängerfassung und eigene
+  Wahl, Satzzahl der Stufe. Die Reparatur erkennt dabei auch die leichtere oder
+  schwerere Fassung einer Übung wieder (`stufenKette`) – vorher blieb
+  ausgerechnet die Einheit eines Anfängers kurz.
+* **Der Reparaturhinweis überschrieb den zum Planwechsel**, solange der noch
+  nicht weggetippt war, und „ab der nächsten offenen Einheit gelten die neuen
+  Übungen" war weg. Beide stehen jetzt getrennt in `planUmbau` (`einheiten` und
+  `repariert`) und zusammen in einem Hinweis.
+* **Bloß angezeigt hieß schon trainiert.** Was im Protokoll steht, geht vor:
+  Eine Übung dort behält ihre Fassung, auch wenn die Stufe heute eine andere
+  wählen würde. Gezählt hatte dafür jeder Eintrag – und die Fokusansicht legt
+  die ganze Einheit an, sobald sie aufgeht. Über einen solchen, nie
+  angefassten Eintrag kam eine Übung zurück, die eine danach angehakte
+  Beschwerde gesperrt hatte. Jetzt entscheidet nur, was angefasst ist
+  (abgehakt, Gewicht, Rückmeldung); gesehen heißt nicht gemacht. Die Satzzahl
+  jenes Tages (`soll`) gilt weiter für jede Übung, die so dastand.
+* **Eine richtig gekürzte Liste wurde „repariert".** Schreibt `planWechsel()`
+  eine Einheit aus dem Plan davor fest, während eine Beschwerde oder ein Termin
+  eine Übung streicht, ist die Liste kürzer – zu Recht. War die Beschwerde
+  später weg, sah die Reparatur einen längeren Plan davor, holte die Übung
+  zurück und meldete „Das war ein Fehler in der App". Jede Liste, die
+  `planWechsel()` festschreibt, trägt jetzt den Stand, aus dem sie stammt
+  (`festAus`) – auch eine aus dem Protokoll, wenn der Plan davor nicht passte,
+  weil eine Fassung übersprungen wurde –, und die Reparatur lässt sie aus;
+  ebenso eine, die schon einmal repariert wurde. Repariert werden nur noch die
+  unvermerkten kurzen Listen von v215.
+* **Nach der Reparatur stand die falsche Einheit auf der Startkarte.** Welche
+  Einheit das Dashboard zeigt, stand schon vor Planwechsel und Reparatur fest.
+  Die Einheit mit dem ganz abgehakten Paar galt da noch als fertig. Im
+  nachgestellten Fall (Cut, Einheiten 1–3 trainiert, die 4 repariert) stand
+  neben „Deine angefangene Einheit ist wieder vollständig" deshalb
+  „Heute · Workout 5", und wer auf Start tippte, ließ die reparierte 4 halb
+  liegen. Jetzt wird die nächste Einheit danach neu bestimmt.
+
+`tests/test-fest-vollstaendig.mjs` prüft alle: ein ganz abgehaktes Paar samt
+Startkarte, den Wechsel bei Anfänger, eigener Wahl und Fortgeschritten, die
+Reparatur einer Anfänger-Einheit (auch nach einem Aufstieg), beide Hinweise auf
+einmal, einen Planwechsel mit Beschwerde, die später wegfällt, einen bloß
+angezeigten Eintrag einer gesperrten Übung und den Vorrang von `soll`.
+
+**Zwei Zahlen, die beim Festschreiben nicht stimmten.**
+
+* **Die Nacharbeit kam doppelt.** `soll` hält die Satzzahl, die auf dem
+  Bildschirm stand – samt „+1 nachgeholt". So ging sie in die feste Liste, und
+  `exOf()` legte die Nacharbeit dann noch einmal obendrauf. Nachgestellt an
+  einer angefangenen BBP-Einheit: vor dem Update 21 Sätze, danach 23, der
+  Goblet Squat mit 5(+1) statt 4(+1), die erhöhten Liegestütze mit 4 ohne
+  Vermerk. Das Protokoll merkt sich jetzt neben `soll`, wie viel davon
+  Nacharbeit war (`nach`), und die feste Liste ist die Basis ohne sie.
+* **Die andere Variante bekam die falsche Satzzahl.** Festgeschrieben wurde nur
+  die Zahl des Modus, in dem trainiert wurde. Wer danach auf Bodyweight
+  umstellte, bekam das hängende Knieheben mit den drei Sätzen des Hantel-Tages
+  statt mit vier. Die Liste trägt jetzt beide (`sets`, `bwSets`). Eine ältere
+  ohne `bwSets` bleibt, wie sie war: ihre eine Zahl in beiden Modi.
+
+**Was schon doppelt dastand, wird repariert – aber nur, wo es sicher geht**
+(`festNachReparieren()`). Für Listen von vorher, und für ein `soll` von vorher,
+gibt es den Vermerk `nach` nicht. Sichtbar ist die Doppelung nur an einer
+Einheit, die noch offen ist und auf die `exOf()` jetzt Nacharbeit legt. Dort
+ist die Nacharbeit des Tages dieselbe Rechnung wie heute – sie misst die
+Einheiten davor in derselben Woche, und die ändern sich nicht mehr –, also wird
+sie an genau diesen Übungen abgezogen, wo die feste Zahl aus `soll` stammt. Die
+Einheit zeigt danach, was sie vor dem Update zeigte. Eine abgeschlossene
+Einheit bleibt, wie sie ist: Auf sie legt `exOf()` nichts mehr, und ob eine
+Vier dort „3 + 1" war oder die vier Sätze eines Fortgeschrittenen, sagt das
+Protokoll nicht – lieber die Zahl stehen lassen, die so zu sehen war, als eine
+zu erfinden. Jede Liste wird dabei einmal angesehen und vermerkt
+(`festNetto`), wie `festReparieren()` es mit `festAus` hält; was später in der
+Woche an Nacharbeit dazukommt, ist echte Nacharbeit. Geprüft in
+`tests/test-fest-vollstaendig.mjs`, mit und ohne Vermerk, an einer schon
+doppelt festgeschriebenen Liste, an einer vermerkten und an einer
+abgeschlossenen.
+
+**Eine Kette statt eines Plans davor.** Bis hierher lag je Variante genau eine
+Datei, `tools/plan-vorher/<variante>.json`, und der Plan vom 03.10. überschrieb
+sie: Cut e06a62 → a51fd2, Bauch-Beine-Po 0b49d3 → 4fabb1, Oberkörper
+905ce6 → 22bd0e. Die App nimmt einen früheren Plan aber nur, wenn sein Stand
+genau der ist, unter dem das Gerät zuletzt lief. Wer eine Fassung übersprungen
+hatte – eine Cut-Einheit unter v214 angefangen, die App erst nach dem 03.10.
+wieder geöffnet –, fand seinen nicht mehr, und die Einheit wurde wieder aus dem
+Protokoll festgeschrieben: zwei von fünf Übungen, derselbe Fehler wie am 29.09.,
+und mit dem Vermerk `festAus` danach auch nie mehr repariert. Jetzt liegt jeder
+Stand, der seit Einführung der Ablage ausgeliefert war, in einer eigenen Datei
+und bleibt dort:
+
+    tools/plan-vorher/
+      standard/9fc6f8d96677.json
+      cut/e06a6265485c.json     cut/a51fd2af0bfc.json
+      bbp/0b49d3183b5b.json     bbp/4fabb1de572c.json
+      oberkoerper/905ce67222ec.json   oberkoerper/22bd0e4d8a64.json
+
+Die drei überschriebenen sind aus der Geschichte zurückgeholt. Der Dateiname ist
+der Stand; `tools/build-data.py` hält an, wenn beides nicht zusammenpasst, und
+bettet alle außer dem laufenden als `PLANS[f].vorher` ein, eine Liste von
+`{ stand, ex }`. `planWechsel()` sucht sich daraus den Eintrag mit dem Stand des
+Geräts (`vorherPlan()`). Das kostet `js/data.js` rund 36 KB; je weiterem Stand
+kommen etwa 12 KB dazu.
+
+**Repariert wird nur gegen den Plan, aus dem eine Liste kam.** `festReparieren()`
+verglich die unvermerkten Listen mit „dem Plan davor", und der war nach dem
+03.10. beim Cut der a51fd2 – genau der Plan, in den v215 gewechselt hatte. Eine
+kurze Liste aus Einheit 3, Kreuzheben und Goblet Squat, stand dort auch drin,
+nur zwischen Rudern und Face Pull. Beim zweiten Start bekam die Einheit genau
+diese beiden dazu, die nie in ihr standen; Reverse Fly fehlte weiter, und der
+Hinweis versprach „wieder alle Übungen …, die dort vorher standen". Einheit 4
+blieb kurz. Ohne Vermerk festgeschrieben haben nur die Planwechsel bis v219, und
+von den Ständen der Kette lösten die nur den Cut e06a62 (v215), Bauch-Beine-Po
+0b49d3 und Oberkörper 905ce6 (v218) ab. Gegen genau diese repariert die App
+jetzt (`OHNE_VERMERK_AUS` in `js/app.js`); jeder andere Stand war noch der
+laufende Plan, als es `festAus` schon gab. Ein Präfix der alten Einheit zu
+verlangen hätte den Fall auch abgefangen, aber nicht jede echte Kurzliste
+durchgelassen: Die Fokusansicht zeigte als erstes Paar zwei Übungen, die
+zusammenpassen, nicht die ersten beiden – unter v214 etwa Goblet Squat mit dem
+Wadenheben, der letzten von fünf.
+
+`tests/test-fest-vollstaendig.mjs` prüft beides: für jeden Stand der Kette eine
+angefangene Einheit, die danach ganz feststeht, und das Gerät, das v215 geladen
+und alles danach übersprungen hat.
+
+**Und wenn sich nur die Satzzahlen ändern?** `stand` zählt nur, welche Übung
+hinter welcher Nummer steht. Der Neulauf vom 05.10. (ohne Hanteln weniger
+Wochen über der Grenze) hat allein `bwSets` verteilt – der Stand blieb, kein
+neues Glied in der Kette war nötig, und `planWechsel()` lief nicht. Eine ohne
+Hanteln angefangene Einheit hätte damit still eine andere Satzzahl bekommen,
+eine mit drei Sätzen abgeschlossene bei vier im Plan als unfertig gegolten.
+Deshalb trägt jeder Plan einen zweiten Fingerabdruck nur für die Satzzahlen
+(`saetze`, je Nummer Übung/sets/bwSets). Ändert er sich, schreibt
+`satzWechsel()` die Einheiten fest, in denen etwas passiert ist und deren
+Satzzahl im trainierten Modus vom neuen Plan abweicht – mit der Zahl jenes
+Tages aus dem Protokoll (`soll`), die des anderen Modus aus dem Plan. Ein
+Gerät, das noch gar keinen Satz-Fingerabdruck kennt (jede Fassung davor),
+wird dabei genauso geprüft: Ob sich etwas geändert hat, sagt das Protokoll.
+`tests/test-fest-vollstaendig.mjs` §15.
+
+**So kommt ein neuer Stand dazu.** Wer einen Plan neu einspielt
+(`tools/plan.json` oder `tools/plan-<variante>.json`), legt den ausgelieferten
+Stand dazu – nichts wird ersetzt, nichts gelöscht:
+
+1. Den Stand des ausgelieferten Plans nennt das Tor (siehe unten), oder er
+   steht in `js/data.js` unter `PLANS[<variante>].stand`, solange dort noch
+   nicht neu gebaut ist.
+2. `mkdir -p tools/plan-vorher/<variante>` und
+   `git show origin/main:tools/plan.json > tools/plan-vorher/standard/<stand>.json`
+   (für eine andere Variante `tools/plan-<variante>.json` und ihr Ordner).
+   Die Variante heißt wie in `PLANS`: `standard` für `tools/plan.json`.
+3. Den neuen Plan nach `tools/plan*.json` schreiben, dann
+   `python3 tools/build-data.py && python3 tools/build-single.py`.
+4. `python3 tools/pruefung/plan-vorher.py` muss durchgehen. In
+   `OHNE_VERMERK_AUS` kommt nichts dazu – ein Wechsel schreibt seit v220 mit
+   Vermerk fest.
+
+**Dass der ausgelieferte Plan dort auch liegt, prüft ein Skript.** Anfangs war
+es nur eine Bitte in diesem Abschnitt, und Vergessen fiele erst auf, wenn
+wieder eine angefangene Einheit zu kurz ist. Eine veraltete Datei hilft dabei so
+wenig wie keine: Die App nimmt einen früheren Plan nur, wenn sein Stand genau der
+ist, von dem der Wechsel kommt – der ausgelieferte. `tools/pruefung/plan-vorher.py`
+vergleicht deshalb mit dem ausgelieferten Stand, lokal `origin/main`: Hat ein
+Plan seither einen anderen Fingerabdruck, muss
+`tools/plan-vorher/<variante>/<stand>.json` (`standard` für `tools/plan.json`)
+da sein, sonst hält es an und nennt die Befehle, die ihn dorthin holen, etwa
+`mkdir -p tools/plan-vorher/cut` und
+`git show origin/main:tools/plan-cut.json > tools/plan-vorher/cut/345241a49404.json`;
+danach neu bauen. Es hält auch an, wenn ein Glied der Kette fehlt, das im
+ausgelieferten Stand lag – auch gegen die eine Datei von früher –, und wenn
+eine Datei nicht wie ihr Stand heißt. Verschobene Termine verlangen nichts, eine
+neue Variante auch nicht. Es läuft im Commit-Haken, in `npm run pruefen` und in
+CI.
+
+In CI ist der Vergleichsstand anders als bei der Versionspflicht nicht einfach
+der vor dem Push. Ausgeliefert wird nur `main`, und auf einem Zweig ist der Stand
+vor dem zweiten Push einer, den nie jemand auf dem Handy hatte. In der ersten
+Fassung verlangte das Tor genau diesen als Plan davor. Wer der Meldung folgte,
+scheiterte danach am Pull-Request gegen `main`, denn keine Ablage erfüllte beide
+Prüfungen. Mit `--ci` nimmt es deshalb bei einem Pull-Request dessen Basis, bei
+einem Push nach `main` den Stand davor und auf jedem anderen Zweig den Abzweig
+von `main` (`git merge-base origin/main HEAD`). Dafür holt der Checkout die ganze
+Geschichte (`fetch-depth: 0`). Liegt ein Zweig hinter `origin/main` und hat
+`main` dort inzwischen selbst einen neuen Plan, gibt man den Abzweig lokal von
+Hand an: `python3 tools/pruefung/plan-vorher.py $(git merge-base origin/main HEAD)`.
+
+`tests/test-plan-vorher.mjs` prüft es in einem Wegwerf-Repo, dessen
+`tools/plan-vorher/` es selbst anlegt. Ein neuer Cut ohne Plan davor wird
+angehalten, nach dem genannten Befehl geht er durch, und der ältere Stand liegt
+danach noch daneben. Ein gelöschtes Glied der Kette, eine alte Einzeldatei, deren
+Stand in der Kette fehlt, und eine falsch benannte Datei halten es an. Zwei
+Pushes mit Planänderung auf einem Zweig bestehen danach auch gegen `main`. Und
+es gleicht die echte Kette mit `js/data.js` ab: Jeder Stand aus
+`tools/plan-vorher/<variante>/` steht in `PLANS[<variante>].vorher`.
 
 ### „Kurz und knapp" war ein Jahr lang kaputt
 
@@ -3011,6 +6971,21 @@ der Statistik rechnet mit demselben Faktor, damit „Soll gegen Ist" weiter
 stimmt. Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt,
 hat er so gemeint.
 
+**Ohne Hanteln stimmte das „exakt" auf der Stufe Fortgeschritten nicht.**
+Dort stehen je Auftritt auch zwei und vier Sätze (siehe *Der Bodyweight-Modus
+trifft jetzt dieselben Ziele*), und je Auftritt gerundet werden daraus drei
+(+50 %) und fünf (+25 %). Nachgerechnet gegen das Wochensoll der Statistik
+(Ziel × 4/3): im Bauch-Beine-Po-Plan ohne Hanteln Bauch −0,43 Sätze je Woche,
+im Aufbau und im Cut −0,19. `satzZahlIm()` in `js/stufen.js` rundet deshalb
+nicht mehr je Auftritt, sondern je Übung über den ganzen Plan: Die Summe bis
+zum k-ten Auftritt folgt der gerundeten Summe der Plansätze × 4/3. Aus 2, 2, 2
+werden 3, 2, 3, aus 4, 4, 4 werden 5, 6, 5; über eine Woche liegt eine Übung
+höchstens einen Satz neben ihrem Soll, über den Plan auf den Satz genau, und
+dieselbe Einheit hat immer dieselbe Zahl – sie hängt nur am Plan. Mit drei
+Sätzen überall, also mit Hanteln, ändert sich nichts. Die größte Abweichung,
+die die Rundung jetzt noch beiträgt, sind 0,02 Sätze je Woche;
+`tests/test-stufen.mjs` prüft das je Plan und Gruppe gegen `targetOf()`.
+
 Pausen, Übungsauswahl und die Erholungsregel sind für alle dieselben – daran
 ist nichts stufenspezifisch. Und sobald jemand ein Gewicht selbst einstellt,
 gilt seins: Die Stufe ist ein Startpunkt, keine Obergrenze.
@@ -3116,7 +7091,7 @@ hochstufen – wer die Zahl, gegen die gerechnet wird, nirgends sehen kann, häl
 das für einen Fehler. Die Karte erscheint erst, sobald es eine abgelegte Runde
 gibt; vorher wären es zwei Mal dieselbe Zahl nebeneinander.
 
-`tests/test-gesamt.mjs` prüft das mit 33 Prüfungen, darunter beide Richtungen:
+`tests/test-gesamt.mjs` prüft das, darunter beide Richtungen:
 dass 35 + 35 aus der Ablage hochstufen, und dass 84 *angebrochene* Einheiten es
 nicht tun. Gegengeprüft – nimmt man die kumulative Zählung heraus, fallen zwei
 Prüfungen um; ersetzt man die Vollständigkeitsregel durch „irgendwas abgehakt",
@@ -3142,8 +7117,294 @@ Drei Grenzen, jede aus einem Grund:
 | höchstens 1 Satz je Übung, 3 je Einheit | Eine Einheit soll wiedererkennbar bleiben – und mehr wäre auch nicht die Belastung, für die die Erholungsregel gerechnet ist. |
 | gemessen gegen den Plan *ohne* Nacharbeit | Sonst wächst der Rückstand an sich selbst. Wer die nachgetragenen Sätze auch liegen lässt, bekommt sie nicht ein zweites Mal obendrauf. |
 
+| mindestens die Hälfte in den Rückstand | Ein Nachholsatz zählt nur, wenn mindestens die Hälfte seiner direkten Anteile (ab 0,5, wie in der Erholungsregel) eine Lücke trifft (`NACH_ANTEIL`). |
+
 Nur an **offenen** Einheiten. Einer abgeschlossenen nachträglich Sätze
 hinzuzufügen hieße, sie rückwirkend für unfertig zu erklären.
+
+**Die letzte Grenze kam aus einem Satz Schulterdrücken.** Im Cut blieben in
+Workout 3 Rudern, Goblet Squat und Hammercurls liegen – Rücken, Beine, Bizeps.
+Workout 4 bekam „+1 nachgeholt" beim Sitzenden Schulterdrücken, weil dessen
+Nackenanteil (0,3) eine Lücke traf; vordere Schulter und Trizeps, für die man
+den Satz macht, fehlten gar nicht. Bis dahin genügte ein Viertelsatz Rückstand,
+egal wie groß der Satz drumherum war: ein Satz samt 2:30 Pause für 0,3 Nacken.
+Gemessen wird an den direkten Anteilen und nicht an allen, sonst fiele jede
+Grundübung mit vielen kleinen Nebenanteilen durch, obwohl ihre Hauptarbeit
+genau die Lücke trifft. Fehlen nach Einheit 1 nur Bauch und Waden, bekommt
+Einheit 2 deshalb auch kein „+1" beim Split Squat mehr – für 0,25 Bauch.
+
+**Einmal angefangen, steht die Nacharbeit fest.** Sie wurde bei jedem Zeichnen
+neu gerechnet, und die Regel „abgeschlossen bekommt keine" griff schon mitten
+im Training: Sobald alle *Grund*sätze standen, galt die Einheit als fertig, das
+„+1" verschwand, und sie endete von selbst – Workout 4 mit 17 angesagten Sätzen
+bei 16/17, mit „Alle 15 Sätze stehen". Ob ein angesagter Satz drankam, hing nur
+davon ab, ob seine Übung vor dem letzten Grundsatz lag; mit Supersätzen ist er
+in der letzten Gruppe immer der letzte Schritt. Jetzt hält der erste Eintrag in
+einer Einheit ihre Nacharbeit fest (`nachFest` im Protokoll, für beide
+Varianten), und ab da gilt sie: Die Einheit endet mit dem letzten Nachholsatz,
+und Fortschritt und Abschluss zählen ihn mit („alle 19 Sätze"). Neue
+Nacharbeit bekommt eine abgeschlossene Einheit weiter nicht. Abbrechen oder
+ganz Zurücksetzen löst den Vermerk wieder; der nächste Anlauf rechnet neu.
+Das Pensum der Woche zählt die Nacharbeit dabei nicht mit – sie schließt den
+Rückstand, sie vergrößert ihn nicht.
+
+**Gemachte Nacharbeit zählt – derselbe Rückstand kommt nicht zweimal.**
+
+> „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich ja
+> goblet sqauds gemacht"
+
+Tobi, Montag, Workout 7 im Cut: Goblet Squat mit „4 Sätze … +1 nachgeholt". Am
+Donnerstag war ein Satz Kreuzheben liegen geblieben, am Samstag stand dafür der
+Goblet Squat mit „+1" da, und er hat alle vier gemacht. `offenInWoche()` maß
+jede frühere Einheit aber nur an ihrer Grundliste, und `saetzeErledigt()`
+deckelte die Haken auf die Grundzahl: Der vierte Haken fiel unter den Deckel,
+das Loch vom Donnerstag blieb offen, und der Montag forderte es ein zweites Mal
+ein. Die Grenze „gemessen gegen den Plan *ohne* Nacharbeit" deckte nur
+liegen gelassene Nachholsätze ab, keine gemachten.
+
+Jetzt zählt jeder Haken einer früheren Einheit entweder zu ihrer Grundzahl oder
+zu ihrer angesagten Nacharbeit, nie zu beiden, und die gemachte Nacharbeit wird
+je Muskelgruppe vom Rückstand abgezogen – auch aus einer Einheit, die noch
+offen ist (ihr *Rückstand* ist Zukunft, ihre gemachte Nacharbeit nicht).
+Erkannt wird der Nachholsatz am gespeicherten Vermerk (`nach`, ersatzweise
+`nachFest`), nicht an „soll minus heutige Satzzahl": Ein Tag, der mit einer
+höheren Stufe stand (vier Grundsätze, heute drei), hätte seinen vierten
+*Grund*satz sonst als Nacharbeit gutgeschrieben und echten Rückstand
+weggerechnet. Ohne Vermerk keine Gutschrift, und sie endet bei der angesagten
+Zahl. Eine Folge, die so gewollt ist: Stand ein Tag mit 2 + 1 (soll 3, davon 1
+Nacharbeit) und heißt die Stufe heute 3, wird er an seinen 2 Grundsätzen
+gemessen – an der Satzzahl, die an dem Tag galt.
+
+**Was am Tag nicht dastand, schuldet der Tag nicht.** Seit v216 legt die
+Fokusansicht beim Öffnen die ganze Einheit an und die Liste jede Karte; jede
+angezeigte Übung hat also einen Stempel in `soll`. Fehlt er in einer Einheit,
+die `nachFest` trägt (gesetzt ab v233 mit dem ersten Satz), hat eine
+Beschwerde, ein Termin oder der Plan davor die Übung an dem Tag gestrichen.
+Bisher hieß ein fehlender Stempel immer „stand da, nicht angefasst": Wurde der
+Termin „Beine" am Sonntag nach dem Training gelöscht, stand der Goblet Squat
+rückwirkend ganz offen in der Samstagseinheit, und Workout 7 holte ihn nach.
+Eine Einstellung darf keine Arbeit erzeugen. Ältere Einheiten ohne `nachFest`
+behalten die alte Lesart – aus der Zeit vor dem vollständigen Stempeln heißt
+der fehlende Eintrag wirklich „nicht angefasst". Beides steht in
+`tests/test-nacharbeit.mjs` (Abschnitte 9–11, samt Tobis Ablauf über die
+Oberfläche); ohne den Fix schlagen dort elf Prüfungen fehl.
+
+**Und es steht dran, woher.** An der Übung stand nur „+1 nachgeholt" – wofür,
+stand nirgends, und die „4" las sich wie eine neue Grundzahl. Jetzt steht
+unter der Übung eine stille Zeile, die das Warum sagt. Die Zahlen selbst sind
+seit v240 die Summe – „4 Sätze" an der Übung, „15 Sätze" im Kopf der Einheit,
+der Nachholsatz eingerechnet (v238 und v239 zeigten „3 + 1 Sätze" und
+„12 + 3 Sätze"; warum das wieder raus ist, steht unter *Summen statt
+Aufschlüsselung* beim Zusatztag):
+
+| Fall | Zeile |
+| --- | --- |
+| dieselbe Übung war an einem früheren Tag zu kurz | „+1 nachgeholt: am Sa nur 2 von 3 Sätzen abgehakt" |
+| eine andere Übung hat die Lücke hinterlassen | „+1 nachgeholt für hintere Schulter und Nacken: Reverse Fly (Sa 0 von 3)" |
+| keine festgehaltene Erklärung (Altbestand) | „+1 nachgeholt: Rest vom Do und Sa" |
+
+Der Tag steht als Kürzel, wenn er in den sechs Tagen davor liegt, sonst mit
+Datum („Do 24.9."); kein „vorgestern", weil die Zeile im Verlauf stehen bleibt.
+„abgehakt", weil die App nur Haken kennt. Genannt werden die Muskelgruppen,
+für die man den Satz macht (seine direkten Anteile, die wirklich Rückstand
+schließen), und die Übungen, die die Hauptgruppe davon offen gelassen haben –
+nur die Hauptgruppe, sonst stand beim Rudern der Reverse Fly, nur weil beide
+den Nacken streifen. Die Herkunft kommt aus derselben Schleife wie die
+Verteilung selbst (`nacharbeitPlan()`), nicht aus einer zweiten Rechnung, die
+irgendwann etwas anderes sagt.
+
+Wie die Nacharbeit wird auch ihr Grund mit dem ersten Satz festgehalten
+(`nachWarum` neben `nachFest`, für beide Varianten). Wird danach in der
+Einheit davor noch ein Satz nachgetragen, bleibt die Zeile, wie sie beim Start
+galt – genau wie die Sätze. Einheiten aus v233–v235 haben `nachFest`, aber
+noch kein `nachWarum`; für sie wird nachgerechnet und die Erklärung nur
+benutzt, wenn die Neurechnung *genau* die festgehaltene Nacharbeit ergibt –
+zuerst mit der Rechnung von damals (`offenInWocheAlt()`), denn die hat diese
+Sätze festgehalten. Wer Workout 7 noch unter v235 angefangen hat, trägt dort
+den Goblet Squat mit +1, den v237 nicht mehr ansagen würde; mit der heutigen
+Rechnung allein passte nichts, und an genau dieser Übung stand dann nur „Rest
+aus Workout 5–6". Jetzt steht dort „+1 nachgeholt für Gesäß: Rumänisches
+Kreuzheben (Do 2 von 3)" – der Rückstand, aus dem v235 den Satz gerechnet hat. Passt keine Rechnung, nennt die Zeile die Tage („Rest vom
+Do und Sa"), nicht Workout-Nummern.
+
+Die Quelle heißt, wie sie an *ihrem* Tag hieß: Wer am Donnerstag ohne Hanteln
+trainiert hat, liest „Einbeiniges Kreuzheben (Standwaage) (Do 1.10. 2 von 3)",
+nicht den Namen der Hantelfassung, die er nie gemacht hat.
+
+**Eine Einstellung löscht auch keine Arbeit.** Gestempelt wird die Übung, die
+am Tag dastand; gesucht wird mit der von heute. Wird nach dem Samstag eine
+Beschwerde angehakt, die das Hängende Knieheben gegen das Liegende tauscht,
+liegt der Stempel unter dem Hängenden – und wurde als „stand an dem Tag nicht
+da" gelesen. Das liegen gebliebene Knieheben verschwand aus der Rechnung.
+Gesucht wird deshalb auch unter `from`/`statt` und, andersherum (Beschwerde
+am Tag angehakt, heute ausgeheilt), unter einem Stempel einer direkt
+verwandten Übung, den heute keine andere Zeile trägt.
+
+**Und eine gesenkte Stufe schreibt nichts gut.** Ob ein Haken Nacharbeit war,
+misst die Grundzahl *jenes* Tages (4 bei „fortgeschritten"), nicht die auf
+heute gekappte (3 bei „geübt"). Sonst zählte bei „4 + 1, gemacht 4" der vierte
+Grundsatz als gemachter Nachholsatz, und wer das +1 ausließ, bekam mehr
+gutgeschrieben als jemand, dem gar keins angesagt war.
+
+Kein Popup, kein Toast, keine Ansage: eine kleine, gedämpfte Zeile direkt unter
+der Satzzahl, im Supersatz nur an der gerade gezeigten Übung. Die Satzknöpfe
+verweisen auf sie (`aria-describedby`) – nur der Nachholsatz selbst, nicht
+Satz 1 bis 3 –, und er heißt im Vorlesetext „Satz 4 von 4, nachgeholt". Die
+Satzzahl („4 Sätze × 8–12") ist schlichter Text: Ein `aria-label` am `<span>`
+(ein Name ohne Rolle), wie es die erste Fassung an „3 + 1" trug, kam je
+nach Vorlesefunktion an oder nicht, und wo es ankam, hieß es „3 Sätze plus 1
+nachgeholter Sätze". Die Fokusansicht bleibt dabei eine Seite: Die
+Zeile kostet 18 px (zweizeilig 35 px), und die Figur nimmt nur, was übrig
+bleibt. Gemessen bei 414×896, 390×844 und 360×740 liegt der erste Satzknopf
+weiter ganz über der Leiste unten. Bei 360×640 lag er beim Goblet Squat schon
+*vorher* 19 px darunter (Gewichtszeile, Aufbau- und Aufwärmhinweis, die Figur
+auf ihrem Mindestmaß) – ein eigener Befund, keiner dieser Änderung; mit der
+Zeile sind es 18 px, weil die Meta-Zeile ohne „· +1 nachgeholt" nicht mehr
+umbricht. Geprüft in `tests/test-nacharbeit-herkunft.mjs`.
+
+**Am Ruhetag steht, wohin der Rest geht.**
+
+> „Hab gestern nicht vollständig trainiert. Trotzdem soll ich heute nichts
+> nachholen?"
+
+Tobi, Freitag 09.10., ein planmäßiger Ruhetag im Cut. Am Donnerstag waren in
+Workout 9 Kreuzheben, Floor Press und Reverse Fly nicht ganz fertig geworden.
+Die Startansicht zeigte „Morgen · Workout 10 · Hanteln · 5 Übungen · 15 + 2
+Sätze" – richtig, aber nirgends stand, dass der Rest schon verteilt ist: auf
+die restlichen Einheiten derselben Woche (die Nacharbeit oben), und was dort
+nicht hineinpasst, nach der Woche (der Zusatztag unten). Ein Ruhetag
+dazwischen stimmt also. Jetzt steht es unter der Satzzahl, in einer stillen
+Zeile:
+
+> Heute frei. Was am Do liegen blieb, kommt dazu: morgen +2, Mo +1, Di +1,
+> der Rest entfällt.
+
+| Fall | Zeile |
+| --- | --- |
+| Rückstand, auf die restlichen Einheiten verteilt, ein kleiner Rest verfällt | „Heute frei. Was am Do liegen blieb, kommt dazu: morgen +2, Mo +1, Di +1, der Rest entfällt." |
+| alles passt hinein (nur ein Floor-Press-Satz liegen geblieben) | „Heute frei. Was am Do liegen blieb, kommt dazu: morgen +1, Di +1." |
+| mehr, als hineinpasst, und der Rest trägt einen Zusatztag | „… kommt dazu: morgen +2, Mo +2, Di +3, der Rest danach." |
+| nichts passt hinein, aber der Rest trägt einen Zusatztag | „Heute frei. Was am Do liegen blieb, kommt nach Di dazu." |
+| Rückstand von zwei Tagen (Sonntag, nach einem kurzen Samstag) | „Heute frei. Was am Do und Sa liegen blieb, kommt dazu: morgen +1, Di +3, der Rest entfällt." |
+| Quell- und Zieltag mit demselben Kürzel (Plan nachgerückt) | „Heute frei. Was am Do 8.10. liegen blieb, kommt dazu: morgen +1, Do +1, der Rest entfällt." |
+| der Zusatztag der Woche davor kommt morgen in die Einheit | „Heute frei. Was am Do liegen blieb, kommt dazu: morgen +1. Aus Woche 3 kommt dazu: morgen +3." |
+| … ohne Rückstand in der neuen Woche | „Heute frei. Aus Woche 3 kommt dazu: morgen +3." |
+| kein Rückstand, oder heute ist nicht frei | keine Zeile |
+
+**Dieselbe Rechnung, keine zweite.** Die Zahlen kommen aus derselben
+Verteilung, mit der jede dieser Einheiten an ihrem Tag ihre Nacharbeit rechnet
+– die Schleife aus `nacharbeitPlan()` steht jetzt für sich
+(`nacharbeitVerteilen()`), und `nacharbeitVorschau()` lässt sie Einheit für
+Einheit über die restliche Woche laufen. Was eine Einheit schließt, geht vom
+Rückstand ab, bevor die nächste rechnet; genau so zieht `offenInWoche()` an
+deren Tag die gemachte Nacharbeit ab. Angenommen ist nur, dass die Einheiten
+dazwischen so gemacht werden, wie sie dastehen. Der naheliegende Kurzweg –
+jede künftige Einheit gegen den heutigen Rückstand rechnen – hätte bei Tobi
+„Mo +2" angesagt; gezeigt hätte der Montag dann +1.
+
+Trägt eine Einheit schon festgehaltene Nacharbeit (`nachFest`), gilt die – wie
+in `nacharbeit()`. Das kommt ohne Training vor: Ein Satz in Workout 10 an- und
+wieder abgetippt hält die Nacharbeit fest, angefangen ist die Einheit danach
+nicht. Wurde dann in Workout 9 der vergessene dritte Floor-Press-Satz
+nachgetragen, stand im Kopf weiter „15 + 2 Sätze" (festgehalten) und darunter
+„morgen +1" (frisch gerechnet). Jetzt rechnet die Vorschau mit dem, was die
+Einheit trägt, und zieht ab, was diese Sätze schließen.
+
+**Was mit dem Rest geschieht, steht am Ende.** „der Rest danach" nur, wenn das,
+was nach der letzten Einheit offen bleibt, einen Zusatztag trägt – mit
+derselben Schwelle, die der Zusatztag selbst prüft (`zusatzRueckstand()`:
+Gruppen über einem halben Satz, zusammen mindestens sechs). Bleibt weniger,
+aber in einer Gruppe mehr als ein halber Satz, verfällt es, und das steht da:
+„der Rest entfällt". Vorher verfiel es still, und „Was am Do liegen blieb,
+kommt dazu" versprach das Ganze. Bei Tobi selbst ist es so: Der Face Pull am
+Montag holt einen der zwei liegen gebliebenen Reverse-Fly-Sätze nach, den
+zweiten keine Einheit mehr – hintere Schulter 1,0 und Hüftstrecker 0,7 bleiben
+offen. Vier Sätze offen, vier kommen dazu, und trotzdem bleibt etwas liegen;
+mit nur der Floor Press am Donnerstag (0 von 3) kommen zwei Sätze dazu, und
+zwei Sätze Brust verfallen.
+
+„danach" und nicht mehr „nach der Woche": Die Woche des Plans geht bei Tobi
+von Donnerstag bis Dienstag, und die zeigt die Startansicht nirgends. Am
+Freitag lagen „Mo" und „Di" im Alltagssinn schon nach der Woche, am Sonntag
+hieß „nach der Woche" ab morgen – genau da, wo schon „+2" stand. „danach" hängt
+am letzten genannten Tag; trägt die letzte Einheit der Woche selbst nichts,
+steht ihr Tag da („der Rest nach Di", „kommt nach Di dazu").
+
+**Tage statt Workout-Nummern:** die Quelle als Wochentag, an dem es liegen
+blieb (die Tage, die dann auch an den Nachholsätzen stehen), das Ziel als
+„morgen" oder Wochentag. Zwei verpasste Tage dehnen eine Woche über sieben: Am
+Dienstag 13.10. hieß es „Was am Do liegen blieb, kommt dazu: morgen +1, Do +1"
+– der erste Donnerstag lag fünf Tage zurück, der zweite zwei voraus. Trägt ein
+Quelltag dasselbe Kürzel wie ein Ziel oder ein anderer Quelltag, steht sein
+Datum dabei („Was am Do 8.10. liegen blieb"). Tag und Zahl hängen mit einem
+festen Leerzeichen zusammen; auf 360 px stand sonst „morgen" am Zeilenende und
+„+2" darunter.
+
+**Und der Zusatztag der Woche davor, wenn er morgen in die Einheit kommt.**
+Fällt nach einer Woche mit Rückstand am Ruhetag danach und am ersten Tag der
+neuen Woche jeder Zusatz unter die Erholungsregel, entsteht der Zusatztag erst
+am Tag der zweiten Einheit, in ihr. Am Freitag davor stand „Morgen · Workout 14
+· 15 + 1 Sätze" und die Zeile „morgen +1", am Samstag dann „5 + 1 Übungen · 15
++ 4 Sätze"; ohne Rückstand in der neuen Woche stand gar keine Zeile, und am
+Samstag kamen drei Sätze dazu. Jetzt rechnet `zusatzMorgen()` am Ruhetag, was
+`zusatztagRechnen()` morgen früh rechnet, mit denselben Stücken: die zuletzt
+abgeschlossene Woche (`zusatzZiel()`), nicht, wenn er vergeben oder sein Träger
+angefangen ist, die Einheit, die ihn morgen aufnimmt (`zusatzEinheitFuer()` mit
+dem Tag von morgen), und seine Übungen aus `zusatztagEx()`. Dort gelten
+Erholungsregel, Beschwerde, Gerät und Termin des Tages, an dem die Einheit
+liegt (`ruhendeGruppen()` bekommt dafür den Tag; am Tag selbst ist das wie
+bisher heute). Er steht als eigener Satz da, mit dem Namen, den er an der Übung
+trägt („Nachgeholt aus Woche 3"): „Aus Woche 3 kommt dazu: morgen +3." Der Kopf
+darüber zeigt ihn heute noch nicht – „15 + 1" und „+3" ergeben die „15 + 4" des
+Samstags. Nur für morgen: Liegt die Einheit später, steht der Zusatztag morgen
+womöglich allein da, und das zeigt die Startansicht dann selbst.
+
+**Nur, wenn heute wirklich frei ist.** Die gezeigte Einheit ist die, die die
+App für heute zeigt, und sie liegt nach heute; heute wurde nichts trainiert,
+und nichts läuft. „Nichts" heißt jede Einheit im Protokoll: Wer auf die Frage
+hin doch ein eigenes Workout macht – oder einen allein stehenden Zusatztag, im
+Protokoll ebenfalls ein eigenes –, las vorher danach „Heute frei.", weil nur
+Planeinheiten zählten. Nur geöffnet zählt nicht: `startedOn` steht erst mit dem
+ersten Eintrag. Ist die fällige verpasst, rückt der Plan nach (`catchUpPlan()`)
+und sie steht auf heute – keine Zeile. Wer eine andere Einheit anblättert oder
+die nächste mit *Start* vorzieht, sieht auch keine. Ohne Rückstand ebenfalls
+nicht: „Morgen · Workout 10" sagt schon, dass heute frei ist.
+
+Kein Popup, nichts zum Wegtippen, keine Karte. Die Buchhaltungszeile, die hier
+früher stand („↩ 2 Sätze aus dieser Woche nachgeholt …"), bleibt draußen –
+diese steht nur an einem Tag ohne Einheit und beantwortet die Frage, die genau
+dort aufkommt. Die Startansicht bleibt eine Seite: Die Zeile kostet bei
+414×896 und bei 360×740 zwei Textzeilen (34 px), das Muskelbild nimmt den Rest
+(343 statt 383 px, 187 statt 227 px). Auch die längste Fassung, mit dem
+Zusatztag der Woche davor, bleibt bei 360×740 bei zwei Textzeilen.
+
+Geprüft in `tests/test-nacharbeit-ruhetag.mjs`, über die Oberfläche und von
+Tobis Donnerstag aus (`tests/zusatz-tobi-do.json`): Workout 9 wie bei ihm
+abgehakt, dann die Woche Tag für Tag durchgespielt, jede Einheit ganz. Was die
+Zeile am Freitag ankündigt, zeigen Sa, Mo und Di dann wirklich (+2, +1, +1);
+am Sonntag rechnet sie vom Tag aus („morgen +1, Di +1, der Rest entfällt");
+nach der Woche entsteht kein Zusatztag, weil sie keinen ankündigt. Mit viel
+Liegengebliebenem (vier von fünf Übungen gar nicht) heißt es „morgen +2, Mo
++2, Di +3, der Rest danach", am Mittwoch „Aus Woche 3 kommt dazu: morgen +2",
+und am Donnerstag steckt der Zusatztag Woche 3 mit genau diesen zwei Sätzen in
+Workout 13. Dazu ohne Hanteln, mit Padel am Sonntag (Sa und Mo verlieren
+Beinübungen, „morgen +1, Mo +1, Di +1"), mit liegen gelassenen Chin-ups aus
+dem eingefügten Zusatz (kein Rückstand – dieselbe Zeile), mit zwei
+Quelltagen, mit dem Zusatztag der Woche davor in Workout 14 (mit und ohne
+Rückstand in der neuen Woche, der Samstag zeigt jeweils die Summe), mit zwei
+Donnerstagen im Satz, mit festgehaltener Nacharbeit an der nicht angefangenen
+Einheit, mit nur der Floor Press am Donnerstag („der Rest entfällt", und nach
+der Woche kommt wirklich nichts) und alle Fälle ohne Zeile, auch nach einem
+eigenen Workout. Gegenprobe: Gegen 9b3a4b4 werden 27 von 117 Prüfungen rot.
+Einzeln zurückgedreht wird jede Stelle rot: der Abzug zwischen den Einheiten
+(„Mo +2"), die Woche statt nur der nächsten Einheit, die Schwelle für „der Rest
+danach", „heute schon trainiert", „die Einheit für heute" und „liegt nach
+heute". Die zweite Runde gegen 8bf9b37: 19 von 177 Prüfungen rot (R1 bis
+R3, R6, R8d, R8f, R10 bis R13), und wieder einzeln: ohne den Zusatztag von
+morgen (R3, R10), mit der Erholungsregel oder der Einheit von heute statt von
+morgen (R10), ohne Datum am Quelltag (R11), ohne die festgehaltene Nacharbeit
+(R12), mit nur Planeinheiten als „heute trainiert" (R8f), ohne „der Rest
+entfällt" (R1, R2, R13), mit „nach der Woche" (R3).
 
 ### Der Zusatztag
 
@@ -3181,33 +7442,364 @@ die freiwillige Einheit nicht. Ausgefallene Einheiten sperren nichts: Was nicht
 stattgefunden hat, muss auch nicht erholt werden. Angehakte Verletzungen
 ebenfalls eingerechnet.
 
-Ein Beispiel aus dem Testlauf – vier Einheiten „abgeschlossen", bei jeder die
-letzten zwei Übungen nie angefasst:
+Ein Beispiel aus dem Testlauf (Aufbau) – vier Einheiten „abgeschlossen", bei
+jeder die letzten zwei Übungen nie angefasst, und heute steht Workout 5 an:
 
 | | |
 | --- | --- |
-| Rückstand | rund 26 Sätze bei 7 Muskelgruppen |
-| Vorschlag | 5 Übungen, 15 Sätze |
-| davon | Band-Pull-Apart, Schulterdrücken, zwei Wadenheben, SZ-Curls |
-| direkt getroffen | hintere/vordere Schulter, Nacken, Trizeps, Waden, Bizeps |
+| Rückstand | rund 30 Sätze bei 8 Muskelgruppen |
+| Vorschlag | 4 Übungen, 12 Sätze |
+| davon | fersenerhöhter Goblet Squat, Reverse Fly, zwei Wadenheben |
+| direkt getroffen | Oberschenkel vorn, hintere Schulter, Nacken, Waden |
+| ruhen, obwohl sie fehlen | Bauch, Bizeps, Gesäß, Beinbeuger an der Hüfte – Workout 5 trifft sie heute direkt |
 | Kollisionen mit dem Plan | keine |
 
-Genau die kleinen Gruppen also, die hinten aus der Einheit fallen, wenn die
-Zeit knapp wird.
+Vor allem die kleinen Gruppen also, die hinten aus der Einheit fallen, wenn die
+Zeit knapp wird – und keine, die heute ohnehin drankommt.
 
 Der Zusatztag geht als **eigenes Workout** in die Ablage, nicht in den Plan –
 der rechnet sein Wochenvolumen aus festen Einheiten, und eine
 dazwischengeschobene würde diese Rechnung stillschweigend verschieben. Abgehakte
 Sätze zählen trotzdem in der Statistik mit; trainiert ist trainiert.
 
-**Nur einmal je Woche.** Der Rückstand schrumpft nicht dadurch, dass man den
-Zusatztag macht – er steht im Plan, nicht im Protokoll. Ohne diese Sperre käme
-bei jedem Laden ein weiterer dazu.
+**Und in der Woche, für die er da ist.** Bis hierher zählte er dort nicht:
+Nach einem ganz gemachten Zusatztag (Goblet Squat, Chin-ups, Hammercurls, 9/9)
+standen in der Wochenbilanz genau die Lücken, die er schließen sollte, darunter
+„Für diese Woche steht schon ein Zusatztag bereit … Öffnen", und im Kalender war
+der Sonntag leer. Jetzt geht er in die Bilanz der Woche *N* aus „Zusatztag
+Woche *N*" ein, nicht in die, in deren Tage er fällt – und zwar je Gruppe
+höchstens bis zu dem, was nach den Planeinheiten samt Nacharbeit noch fehlte.
+Was die Nacharbeit schon geschlossen hat, schließt er nicht ein zweites Mal, und
+Volumen für Gruppen ohne Rückstand macht keine Woche voller, als sie geplant
+war. Der Hinweis darunter steht nur, solange er unberührt ist, und der Kalender
+markiert den Tag, an dem sein erster Satz stand (siehe *Kalender*).
 
-`tests/test-zusatztag.mjs`, 17 Prüfungen – darunter die Gegenrechnung über den
-echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in Reichweite
-kollidiert, und die beiden Fälle, in denen **nichts** passieren darf: volle
-Woche, und Woche läuft noch.
+**Nur einmal je Woche.** Ein angefangener Zusatztag bleibt, wie er ist, und
+ein zweiter kommt für dieselbe Woche nicht dazu – ohne diese Sperre käme bei
+jedem Laden ein weiterer dazu, solange der erste nicht ganz gemacht ist.
+
+**Auch beim Start mit Aufstieg.** Beim Öffnen der App prüft sie beides,
+Stufenaufstieg und Zusatztag, jedes für sich. Dort stand
+`pruefeAufstieg() || pruefeZusatztag()`, und der Kurzschluss ließ die zweite
+Prüfung aus, sobald die erste einen Aufstieg meldete – etwa nach dem Einlesen
+einer Sicherung. Der fällige Zusatztag fehlte dann bis zum nächsten Laden, und
+ein veralteter, unberührter blieb stehen und galt sogar als nächste Einheit.
+Nach einer Einheit liefen die beiden schon immer nacheinander.
+
+**Was gestern liegen blieb, ruht nicht.**
+
+> *„Hab gestern mein Training nicht ganz beendet. Müssten die muskelgruppen
+> nicht heute dazu kommen oder so?"*
+
+Eine abgeschlossene Einheit von gestern sperrte bis hierher *alle* ihre
+Gruppen – auch die der Übungen, von denen kein einziger Satz abgehakt war. Die
+letzten beiden Einheiten einer Woche liegen an zwei aufeinanderfolgenden Tagen
+(Freitag, Samstag) und treffen zusammen jede Gruppe; am Sonntag gab es deshalb
+nie einen Zusatztag, erst am Montag vor Workout 5. Jetzt sperrt eine
+angefasste Einheit – abgeschlossen oder angefangen – nur die Gruppen der
+Übungen, die wirklich trainiert wurden (in beiden Modi gezählt). Alles sperrt
+nur eine anstehende Einheit, die noch nicht angefangen ist – die 48 Stunden zur
+nächsten Einheit bleiben also gewahrt. Was am Samstag ausgefallen ist und am
+Montag nicht drankommt, steht damit schon am Sonntag im Zusatztag.
+
+**Gerechnet für den Tag, an dem er gemacht wird.** Das Versprechen eben hielt
+zuerst nur im Test. Angelegt wird der Zusatztag beim Abschluss der letzten
+Einheit der Woche – an deren eigenem Tag, und dort hing die Regel noch am
+Datum: Eine Einheit von heute sperrte alles, auch ihre ausgelassenen Übungen.
+Und am Sonntag, wenn er gemacht wird, wurde er nicht neu gerechnet, weil er
+schon dastand. Gemessen: Am Samstag angelegt mit Goblet Squat, gewichteten
+Crunches und hängendem Knieheben, obwohl am Samstag Reverse Fly und Wadenheben
+ausgefallen waren; am Sonntag standen damit sechs Sätze Bauch einen Tag vor der
+Einheit mit Bauch. Jetzt gilt zweierlei. Ob eine Einheit nach Trainiertem oder
+ganz sperrt, hängt an ihrem Stand, nicht am Kalender. Und ein **unberührter**
+Zusatztag wird bei jeder Prüfung neu gerechnet – beim Start, beim Tageswechsel
+und nach jeder abgeschlossenen Einheit: Der Name bleibt, die Übungen sind die
+von heute. Lässt die Regel heute keinen zu, ist er weg und kommt wieder, sobald
+sie es tut. Ein angefangener bleibt, wie er ist.
+
+**An einem Tag mit fälliger Planeinheit steht sie vorn.** Fiel mitten in der
+Woche eine ganze Einheit aus, entstand der Zusatztag oft erst am Tag von
+Workout 5 – und verdrängte es: Das Dashboard zeigte „Eigenes Workout /
+Zusatztag Woche 1" statt „Heute · Workout 5", ohne ein Wort davon, dass heute
+eigentlich Workout 5 dran war. Seitdem ist die fällige Planeinheit die nächste
+(`naechsteEinheit()`). Bis v238 stand der Zusatztag dann unter ihrem
+Startknopf als zweite Einheit des Tages, mit *Öffnen* – und das war die
+nächste falsche Antwort.
+
+#### In der Einheit des Tages (v239)
+
+> *„Was soll das mit zweite Einheit. Wenn heute Übungen dazu kommen dann soll
+> alles flüssig in EINE Einheit"*
+
+Tobi, Donnerstag, Workout 9 im Cut. Auf dem Dashboard stand „Hanteln · 5
+Übungen · 15 Sätze" mit Start, darunter „↩︎ Als zweite Einheit heute:
+Zusatztag Woche 2, 2 Übungen. Öffnen". Zwei Starts, zwei Übungslisten, zwei
+Abschlüsse an einem Tag. Und am Tag davor, als derselbe Zusatztag allein auf
+der Startseite stand:
+
+> *„Check ich nicht. Wann soll ich das machen?"*
+
+Dort stand „Eigenes Workout · Zusatztag Woche 2 · 2 Übungen · 6 Sätze" und
+kein Wort dazu, woher die Übungen kommen und warum sie heute dran sind.
+
+**Jetzt gehören seine Übungen zu der Einheit, die heute fällig ist** – ein
+Start, eine Liste, eine Fokusansicht („Übung 1 von 6"), ein Fortschritt,
+Supersätze und Rüst-Reihenfolge über alle Übungen, ein Abschluss. Im Kopf
+steht „Hanteln · 6 Übungen · 17 Sätze" – die Summe, der Zusatz eingerechnet
+(siehe *Summen statt Aufschlüsselung* gleich unten). Und an der Übung steht,
+woher sie kommt – eine stille Zeile wie bei der Nacharbeit, kein Popup, nichts
+zum Wegtippen:
+
+> Nachgeholt aus Woche 2: am Sa nur 1 von 3 Sätzen abgehakt
+
+Kommt die Übung nicht selbst aus der Woche, nennt die Zeile die Gruppe und die
+Übungen, die den Rückstand hinterlassen haben („Nachgeholt aus Woche 2 für
+Oberschenkel: Goblet Squat (Mo 0 von 3)"). Die Vorlesefunktion liest jeden
+Satzknopf als „Satz 1 von 2, nachgeholt, erledigt" und verweist auf die Zeile.
+An einem Tag **ohne** Planeinheit bleibt der Zusatztag die Einheit des Tages –
+mit „Heute · Zusatztag" statt „Eigenes Workout" und derselben Zeile an jeder
+Übung.
+
+**Summen statt Aufschlüsselung (v240).** In v239 stand im Kopf „Hanteln ·
+5 + 1 Übungen · 15 + 2 Sätze", und seit v238 an der Übung mit Nachholsatz
+„3 + 1 Sätze" – das „+" hieß überall nachgeholt. Tobi dazu:
+
+> *„Da brauch auch nicht 5+1 oder so stehen. Da soll einfach die normale Zahl
+> dieses Trainings inkl der nachholübungen stehen. Also einfach 6 in diesem
+> Fall. Genauso bei den Sätzen"*
+
+Jetzt steht überall die eine Zahl, die man an diesem Tag macht, Nachholsätze
+und eingefügte Übungen eingerechnet:
+
+| Stelle | bis v239 | ab v240 |
+| --- | --- | --- |
+| Kopf der Einheit (Startansicht, Übungsliste) | „Hanteln · 5 + 1 Übungen · 15 + 2 Sätze" | „Hanteln · 6 Übungen · 17 Sätze" |
+| Zeile über den Übungen der Liste | „5 + 1 Übungen · 0/17 Sätze" | „6 Übungen · 0/17 Sätze" |
+| Übung in der Liste | „3 + 1 × 8–12" | „4 × 8–12" |
+| Übung in der Fokusansicht | „3 + 1 Sätze × 8–12 Wdh." | „4 Sätze × 8–12 Wdh." |
+| Kalender, Tag mit Zusatz | „5 + 1 Übungen · 15 + 2 Sätze" | „6 Übungen · 17 Sätze" |
+
+Die Kopfzeile sagt, was der Tag *ist*, nicht, wie er zustande kam; die Zahl an
+der Übung ist die Zahl der Satzknöpfe darunter. Das Warum bleibt, wo es
+hingehört – in der stillen Zeile unter der Übung („+1 nachgeholt …",
+„Nachgeholt aus Woche 2 …"), und der Nachholsatz heißt im Vorlesetext weiter
+„Satz 4 von 4, nachgeholt". Kopf, Kalender und die Liste unter Mehr → Eigene
+Workouts teilen sich dafür eine Funktion (`umfangText()` in `js/anzeige.js`)
+und damit auch die Einzahl: Ein eigenes Workout mit einer Übung heißt jetzt
+überall „1 Übung · 3 Sätze" – im Kalender stand das schon so, in der Liste
+und im Kopf „1 Übungen".
+
+**Und keine zweite Übungszahl daneben.** Über der Liste steht sonst die
+Einordnung „Einheiten in diesem Fokus: 4 bis 5 Übungen, 68 von 84 mit 5 …".
+An Workout 9 mit den Chin-ups hieß das: „6 Übungen · 0/17 Sätze" und direkt
+darunter „4 bis 5 Übungen" – zwei Zahlen, die sich widersprechen, auf einem
+Bildschirm. Die Einordnung vergleicht den Plan; warum *dieser* Tag länger ist,
+sagt die Zeile an der eingefügten Übung. An einem Tag mit eingefügten Übungen
+fällt sie deshalb weg (`tagNotiz()`), und die Summe im Kopf ist die einzige
+Übungszahl der Ansicht. Nacharbeit ändert die Zahl der Übungen nicht, dort
+bleibt sie, ebenso an jedem Tag ohne Zusatz.
+
+Geprüft in `tests/test-summen.mjs` an Tobis Donnerstag (Workout 9 mit den
+Chin-ups, ohne Einordnung; Workout 10 daneben mit) und an einem Samstag mit
+Nacharbeit *und* Zusatz („6 Übungen · 19 Sätze", der Sliding Leg Curl mit
+„4 Sätze" und seiner Zeile darunter), samt Kalender, Vorlesefunktion und
+einem eigenen Workout mit einer Übung; gegen v239 schlagen dort fünfzehn
+Prüfungen fehl.
+
+**Drei Schichten, und jede Rechnung nimmt die, die sie meint.**
+
+| | | Maßstab für |
+| --- | --- | --- |
+| `exBasis()` | Plan ohne Nacharbeit, ohne Zusatz | Rückstand, „fertig ohne Nacharbeit", Nacharbeit, Erholungsregel an unberührten Einheiten |
+| `exOf()` | Plan der Einheit, mit Nacharbeit | Wochenbilanz (Soll und Ist), Kalenderdatei, Muster, Pausenspanne |
+| `einheitEx()` | `exOf()` und dahinter der Zusatz | Ablauf, Fortschritt, Abschluss, Anzeige, Statistik, Kalender, Zeiteichung |
+
+Bewusst so herum: `workoutByNo()` geht über `einheitEx()`, alles
+Buchhalterische über `exOf()`. Ein Aufrufer, der die falsche Schicht erwischt,
+zeigt höchstens eine Übung zu wenig an. Andersherum – den Zusatz in `exOf()`,
+und jede Wochenrechnung muss ihn ausdrücklich herausfiltern – hätte jeder
+vergessene Filter still die Woche aufgebläht, in deren Tage der Zusatz fällt:
+gemessen am naiven Einfügen stieg das Soll für den Rücken in Woche 3 von 6 auf
+12. Ohne Zusatz gibt `einheitEx()` die Liste von `exOf()` unverändert zurück,
+samt Reihenfolge – `tests/ruestaufwand-stand.json` bleibt, wie er ist.
+
+**Live, dann fest.** Bis zum ersten Eintrag in der Einheit kommen die Übungen
+aus dem Träger – dem „Zusatztag Woche N" unter den eigenen Workouts – und
+werden mit ihm neu gerechnet: beim Start, beim Tageswechsel, beim Vorziehen,
+nach einem Moduswechsel, einer Beschwerde, einer abgewählten Übung, einem
+abgewählten Gerät, einem eingetragenen oder entfernten Termin, nach „Von vorn
+beginnen", „Verlauf zurückholen" und einer Runde, die bei offener App
+weiterrollt. Bis
+dahin legt die Anzeige für sie nichts im Protokoll an, kein Satzfeld und keinen
+Stempel. Mit dem ersten Eintrag – Haken, Satzfeld oder „Alle Sätze abhaken" –
+steht genau das fest, was auf dem Bildschirm stand (`log[n].zusatz`), und der
+Träger ist im selben Schreibvorgang verbraucht. Danach gilt die Woche als
+**vergeben**: Auch ein liegen gelassener Zusatz wird nicht noch einmal
+angeboten, und er ist weder Rückstand noch gemachte Nacharbeit der Einheit, in
+der er stand – wie liegen gelassene Nacharbeit, sonst schaukelte sich der
+Rückstand auf. Abbrechen und Zurücksetzen löschen ihn; dann steht er neu
+gerechnet wieder da.
+
+Fällt eine noch unberührte Übung des festgehaltenen Zusatzes danach weg –
+Beschwerde, Gerät, Termin –, wird sie nicht ersetzt, der Zusatz ist vergeben.
+Aber die Notiz über der Liste nennt sie, in derselben Zeile wie eine Planübung
+(„Chin-ups (nachgeholt aus Woche 2) fällt aus"); vorher wurde aus „6 Übungen"
+(damals „5 + 1 Übungen") wortlos „5 Übungen". Und eine Sitzung, die noch auf dem Träger stand –
+an einem Ruhetag Start getippt, nichts abgehakt –, endet ohne Buchung, sobald
+er in der Einheit des Tages steckt (`traegerSitzungLoesen()`), spätestens mit
+dem ersten Satz (`halteZusatz()`). Vorher stand am Sonntag statt des Starts
+„Zusatztag Woche 1 läuft noch. ▶︎ Zurück zu Zusatztag Woche 1", und das führte
+im Kreis zurück auf dieselbe Einheit.
+
+**In der Wochenbilanz gehört er der Woche, aus der er kommt.** Seine Sätze
+stehen im Eimer der Einheit, zählen aber für Woche *N* (`zusatzBeitrag()`),
+gedeckelt auf deren Lücke – nicht für die Woche, in deren Tage er fällt. In der
+Statistik zählt jeder Satz, nicht mehr unter „eigene".
+
+**Wann er dazukommt.** In die erste nicht angefangene Planeinheit, wenn sie
+heute fällig ist – und nur, wenn heute noch keine Planeinheit angefangen wurde.
+Wer heute schon trainiert hat, bekommt keine zweite Einheit vorgesetzt: Die
+Startansicht bleibt auf „Für heute durch", die Wochenkarte sagt „Heute war
+schon Training – er kommt frühestens morgen dran". Am Tag darauf steckt er in
+der Einheit des Tages oder steht an einem Ruhetag allein da. Eine schon
+angefangene Einheit bekommt nie nachträglich etwas dazu; wer eine künftige
+Einheit vorzieht, bekommt ihn mit, und der Start sagt es („Los geht’s 💪 · dazu
+Chin-ups aus Woche 2"). Und nur in eine Einheit **hinter** seiner Woche, deren
+Einheiten im Protokoll alle angefangen sind (`zusatzEinheitFuer()`): Ein Träger
+der alten Runde hängt sich nicht an Workout 1 der neuen.
+
+**Welche Übungen.** Gierig wie bisher, mit drei Regeln mehr:
+
+- **Nur Nutzen, der heute zählt.** Ein Nebenanteil auf einer ruhenden Gruppe ist
+  kein Nutzen. Bei Tobi gewannen die Pull-ups (4,85) vor den Chin-ups (4,65)
+  allein über 0,2 hintere Schulter und 0,35 Nacken – genau die Gruppen, die der
+  Reverse Fly derselben Einheit direkt trifft. Ohne sie liegen die Chin-ups
+  vorn, 3,30 gegen 3,20, und das ist die Übung, die am Samstag liegen blieb.
+- **Nur, was sich trägt** – dieselbe Schwelle wie bei der Nacharbeit
+  (`NACH_ANTEIL`): Mindestens die Hälfte dessen, was eine Übung direkt
+  trainiert, muss in den Rückstand gehen. Sonst kamen nach den Pull-ups noch die
+  Chin-ups dazu, für 1,45 von 4,95 direkten Sätzen.
+- **Nur so viele Sätze, wie etwas bringen.** Gewählt wird mit drei Sätzen,
+  eingefügt mit der kleinsten Zahl, die schon genauso viel vom Rückstand
+  schließt. Bei Tobi schließen zwei Sätze Chin-ups Rücken (2,0 offen) und
+  Bizeps (1,3 offen); der dritte brachte nichts, weder Woche 2 noch Woche 3,
+  und an der Übung stand „am Sa nur 1 von 3 Sätzen abgehakt" – wer nachrechnet,
+  erwartet zwei. Allein bleibt es bei drei Sätzen je Übung.
+- **Bei gleichem Nutzen kein Umbau mehr.** In eine Einheit eingefügt gewinnt im
+  Hantel-Modus die Übung mit weniger Rüstschritten über die ganze Einheit
+  (`ruestSchritte()`), danach – mit Supersätzen – die mit mehr Paaren. Eine
+  Toleranz gibt es nicht: Der Nutzen bleibt der Maßstab, der Umbau entscheidet
+  nur den Gleichstand.
+
+Eingefügt höchstens zwei Übungen und mindestens eine, allein höchstens fünf und
+mindestens zwei. Dazu nichts, was eine Beschwerde im Modus sperrt, was ohne
+Gerät dasteht, was ein Termin an dem Tag schont oder schon in der Einheit steht
+– mit derselben Prüfung, mit der die Einheit ihn zeigt (`zusatzGrund()`). Mit
+Bouldern am Freitag nahm der Plan am Donnerstag den Reverse Fly heraus, und
+darunter stand als Zusatz die Inverted Row – Rücken, Nacken, Bizeps, hintere
+Schulter, genau die geschonten Gruppen. Und was ein Termin schont, ruht auch
+für den Nutzen (`ruhendeGruppen()`): Zwei Stunden Boxen am Freitag schonen am
+Donnerstag Nacken und hintere Schulter, nicht Rücken und Bizeps; ohne das
+gewannen die Pull-ups vor den Chin-ups, allein über ihre Last auf den beiden
+geschonten Gruppen. Die Erholungsregel sorgt dafür,
+dass keine eingefügte Übung eine Gruppe der Planeinheit direkt trifft – genau
+das macht sie zu guten Partnern im Supersatz.
+
+Gemessen an Tobis Donnerstag (`tests/test-zusatz-einheit.mjs`, Messung am
+Ende):
+
+| | ohne Zusatz | mit Zusatz |
+| --- | --- | --- |
+| Übungen · Sätze | 5 · 15 | 6 · 17 (Chin-ups ×2) |
+| Rüstschritte | 3 | 3 |
+| Supersatz-Paare | 2 | 3 (Reverse Fly ↔ Chin-ups) |
+| Formelzeit ohne Supersatz | 44 min | 50 min (mit Pull-ups und Chin-ups wären es 65) |
+| Woche 2 im Ziel, nach 2/2 Chin-ups | 9 von 14 | 11 von 14 (Rücken 6,0/6, Bizeps 6,45/6,45) |
+| dasselbe nach 1 / 2 / 3 Sätzen Chin-ups | | 9 / 11 / 11 von 14 |
+| Woche 3, Rücken und Bizeps | 0,0/6 · 0,0/6,45 | dasselbe |
+
+Und am Gleichstand (Sitzendes Seitheben in Woche 2 liegen gelassen): Band- statt
+Sitzendes Seitheben, drei statt vier Rüstschritte, drei statt zwei Paare.
+
+**Bewusst unverändert, und wo es endet.**
+
+- Wann ein Zusatztag entsteht, bleibt: ab sechs Sätzen Rückstand, nur für die
+  zuletzt abgeschlossene Woche; allein drei Sätze je Übung.
+- Was der Deckel von zwei Übungen abschneidet, verfällt, ebenso ein liegen
+  gelassener Zusatz – gewollt, wie bei der Nacharbeit.
+- Die Auswahlregeln gelten auch am Ruhetag. Tobis Mittwoch hätte damit keinen
+  Zusatztag gehabt (allein tragen nur die Chin-ups, allein braucht es zwei); sie
+  wären am Donnerstag in Workout 9 gekommen.
+- Lässt die Erholungsregel an einem Tag nichts mehr zu, fällt ein unberührter
+  Träger weiterhin still weg – sichtbar bleibt der Rückstand in den Balken der
+  Woche. Das ist ein eigener Befund.
+- `ruestSchritte()` zählt in Listenreihenfolge; den Wechsel im Supersatz
+  berücksichtigt nur die Zahl der Paare.
+- Eine Sicherung aus v239, in v238 eingespielt, holt die Zusatzübungen dort als
+  „gehalten" in den Plan der Einheit – v238 kennt `log[n].zusatz` nicht.
+
+Geprüft in `tests/test-zusatz-einheit.mjs` an Tobis Stand
+(`tests/zusatz-tobi-do.json`), 25 Fälle von der Startansicht bis zur
+manipulierten Sicherung, dazu der Platz auf 414×896 und 360×740: Die
+Startansicht bleibt eine Seite, und an den Chin-ups stehen Herkunftszeile,
+Wechselhinweis und Satzknöpfe über der Leiste. Gegenprobe: gegen v238 wird jeder
+Abschnitt rot, 93 von 157 Prüfungen („5 Übungen · 15 Sätze", „Als zweite
+Einheit heute", Pull-ups und Chin-ups, Abschluss nach 15). Einzeln zurückgedreht wird jede dieser Stellen rot: das
+Festhalten an jedem der drei Schreibwege, der Filter in `protokolliert()`, die
+Regel „vergeben", die Neurechnung nach dem Verwerfen, beim Vorziehen und nach
+dem Moduswechsel, der Filter in `festeListen()`, die Gleichstandsregel, der
+Nutzen ohne ruhende Gruppen und der Beitrag des festen Zusatzes zur Woche.
+
+Die Prüfung danach (Z20–Z25) fand neun Mängel, sieben verschiedene; gegen den
+ersten Stand von v239 (2598ac7) werden 41 von 188 Prüfungen rot. Einzeln
+zurückgedreht wird jede dieser Stellen rot: die kleinste Satzzahl beim
+Einfügen; die Neurechnung nach „Von vorn beginnen", nach „Verlauf
+zurückholen", beim Rundenwechsel mit offener App, beim Gerät und beim
+Eintragen und Entfernen eines Termins; die Bindung nur hinter einer Woche im
+Protokoll; „zählt nur hinter seiner Woche" (`zusatzZaehlt()`); keine Übungen
+des Trägers an Stelle der angekommenen; die Sitzung beim Start und in
+`halteZusatz()`; der Termin in `zusatzGrund()` und in `ruhendeGruppen()`; die
+weggefallene Zusatzübung in den Notizen. Die Zahl „Woche davor: … von 14" gibt
+der Test mit Nenner aus (Z5): Hier stand zuerst „9 von 12 → 11 von 12" – die
+App hat 14 Gruppen.
+
+`tests/test-zusatztag.mjs`, über 20 Prüfungen – darunter die Gegenrechnung über
+den echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in
+Reichweite kollidiert, ein eigener Fall mit einer gestern abgeschlossenen
+Einheit, die die Gruppen ihrer trainierten Übungen sperrt und die der
+ausgelassenen in den Zusatztag lässt, und die beiden Fälle, in denen
+**nichts** passieren darf: volle Woche, und Woche läuft noch. Dazu der
+Normalfall: am Tag der letzten Einheit angelegt, dann einen Tag weiter – dort
+muss er derselbe sein, den die App an diesem Tag frisch anlegen würde. Und dass
+ein gemachter Zusatztag in Wochenbilanz, Hinweis und Kalender ankommt.
+
+**Die Gegenrechnung war lange grün, ohne etwas zu prüfen.** Gefunden bei der
+Durchsicht der Tests auf Datumsabhängigkeit. Der Test legt die erste Woche mit
+einer festen Verschiebung „hinter uns" – so stand es im Kommentar. Im Code
+stand aber `+ 14`. Die Verschiebung kommt auf das Plandatum drauf, Workout 1
+lag damit zwei Wochen *vor* uns und die nächste offene Einheit drei Wochen. In
+Reichweite, also weniger als zwei Tage entfernt, lag an keinem Testtag eine
+Einheit. Die Schleife lief leer, und eine leere Schleife meldet keine
+Kollision. Nachgestellt: Mit einem `ruhendeGruppen()`, das gar nichts sperrt
+(`return new Set()`), blieb der Test grün.
+
+Seit v219 steht dort `- 14`. Damit wäre Workout 5 schon eine Woche verstrichen,
+und `catchUpPlan()` rückt den Plan nach, bis Workout 5 auf heute fällt – genau
+die Einheit, gegen die der Zusatztag ruhen muss. Danach liegt Workout 1 eine
+Woche zurück, Workout 4 zwei Tage, Workout 6 zwei Tage voraus; die beiden
+stehen genau auf der Grenze und sind nicht in Reichweite. Der Test zählt
+außerdem mit, wie viele Einheiten er tatsächlich geprüft hat. Ist es keine,
+ist das ein Fehler und kein „bestanden". Gerechnet wird wie in der App, in
+Kalendertagen am tatsächlichen Termin. Mit `new Date()` samt Uhrzeit wäre eine
+Einheit von übermorgen ab Mittag auf „morgen" gerundet worden – ein Fehlalarm
+an jedem Nachmittag.
+
+Seitdem fällt der Zusatztag im Testlauf kleiner aus: 4 Übungen und 12 Sätze
+statt 5 und 15. Split Squat und einbeiniges Kreuzheben fliegen raus, weil
+Workout 5 heute Gesäß und Beinbeuger an der Hüfte trifft. Genau das soll die
+Regel tun. Und bricht man `ruhendeGruppen()` mit Absicht, wird der Test jetzt
+rot. Weil Workout 4 genau auf der Grenze liegt, prüfte dieser Aufbau nie, ob
+eine kürzlich *abgeschlossene* Einheit sperrt – das tut der eigene Fall oben.
 
 **Nur nach oben.** Hier stand einmal die Gegenrichtung: Wer über mehrere
 Einheiten hinweg nur einen Teil schafft, dem hätte die App die Erfahrungsstufe
@@ -3226,8 +7818,11 @@ fest — sechs angebrochene Einheiten ändern die Stufe nicht.
 Gemessen wird gegen `exBasis()` – den Plan *ohne* Nacharbeit. Was die App
 selbst obendrauf gelegt hat, darf niemandem als Versäumnis angerechnet werden.
 
-**Und es steht dran.** An der Übung („+1 nachgeholt") und im Kopf der Einheit.
-Eine Einheit, die kommentarlos wächst, ist eine Zumutung.
+**Und es steht dran.** An der Übung die Zeile „+1 nachgeholt: …", woher der
+Satz kommt, direkt unter der Satzzahl; die Zahlen an der Übung und im Kopf der
+Einheit rechnen den Nachholsatz mit („4 Sätze", „15 Sätze" – seit v240 die
+Summe, vorher „3 + 1" und „12 + 3"). Eine Einheit, die kommentarlos wächst,
+ist eine Zumutung.
 
 Beim Einbau ist ein Fehler aufgefallen, der nichts mit dem Feature zu tun hat
 und trotzdem daran hing: Das `ui`-Objekt ruft `defaultWorkoutNo()` **während
@@ -3237,9 +7832,379 @@ noch nicht initialisiert – und das zeigte sich erst, sobald ein Protokoll da
 war, weil `completedMode()` ohne Protokoll vorher aussteigt. Elf Testdateien
 fielen gleichzeitig um, die Ursache war eine Zeile Reihenfolge.
 
-`tests/test-nacharbeit.mjs` prüft das mit 14 Prüfungen, darunter die
+`tests/test-nacharbeit.mjs` prüft das, darunter die
 wichtigste: dass **nichts** passiert, wenn alles normal läuft. Gegengeprüft –
 nimmt man die Nacharbeit heraus, fallen drei Prüfungen um.
+
+### Liegen geblieben: am nächsten Tag abgeschlossen (v241, ohne Wahl seit v244)
+
+> „Wieso steht da samstag? Heute ist Sonntag"
+
+Tobi, Sonntag 25.10., mit einem Bild der Startseite: „Tobi · Gestern · Workout
+12 / Sa, 24. Oktober 2026 / Hanteln · 5 Übungen · 17 Sätze / 4/17 Sätze",
+darunter „Training fortsetzen" und „Als trainiert markieren". Workout 12 war am
+Samstag angefangen und nie abgeschlossen worden. Eine angefangene Einheit
+bleibt auf ihrem Tag, und die Startseite zeigt die erste nicht abgeschlossene –
+also stand dort Samstag. Am Montag hätte „vor 2 Tagen" dagestanden, Workout 13
+wäre nie drangekommen, und was am Samstag liegen blieb, holte nichts nach: Eine
+offene Einheit trägt keinen Rückstand bei (oben, *Nacharbeit*), und der
+Zusatztag wartet, bis ihre Woche abgeschlossen ist.
+
+Zugesagt war: *„Ab dem nächsten Tag wird eine liegengebliebene Einheit
+automatisch mit dem abgeschlossen, was steht. Oben steht dann eine Zeile dazu
+und ein Knopf ‚Rest heute machen', falls du doch willst."*
+
+**Ohne Wahl (v244).** Unter der Zeile standen „Rest heute machen" und „OK".
+Tobi fragte zuerst: *„Was ist der Unterschied zwischen ok und Rest heute
+machen?"* – „OK" blendete nur aus, man blieb im Rhythmus, und ein Teil des
+Fehlenden kam per Zusatz in die nächste Einheit (höchstens zwei Übungen), der
+Rest entfiel; „Rest heute machen" holte alles nach, und der Plan rutschte einen
+Tag. Empfohlen war „OK". Dann:
+
+> „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von selbst
+> einfach das optimale passieren"
+
+Eine Wahl, deren eine Seite die empfohlene ist, ist keine – also trifft die App
+sie selbst: Sie bleibt im Rhythmus, und was fehlt, verteilen Nacharbeit und
+Zusatztag wie bisher. Beide Knöpfe sind weg, es gibt keine Rückfrage und nichts
+zum Wegtippen. Damit das nicht unbemerkt geschieht, bleibt die Zeile als
+Auskunft – was passiert ist und wohin der Rest geht – und geht von selbst
+(unten, *Die Zeile*). Wer doch in die Einheit zurück will, blättert zu ihr:
+Dort steht leise „Doch noch weitermachen", mit denselben Sicherungen, die der
+Knopf hatte (unten, *Zurück in die Einheit*).
+
+**Was jetzt gilt.** Eine Planeinheit, die an einem früheren Tag angefangen
+wurde, nicht abgeschlossen ist, mindestens zwei abgehakte Sätze hat und seit
+drei Stunden kein Lebenszeichen mehr, schließt sich selbst ab – genau wie mit
+„Als trainiert markieren", im Modus der Einheit (`store.markDone()`). Sie
+bleibt auf ihrem Tag. Alles Weitere hängt an „abgeschlossen" und greift von
+selbst: Die restlichen Einheiten der Woche holen nach, nach der letzten Einheit
+einer Woche kommt der Zusatztag, der Kalender zeigt „trainiert". Läuft auf ihr
+noch eine Sitzung, endet sie wie mit dem Knopf (`einheitBeenden()`) – die Zeit
+gebucht bis zum letzten Lebenszeichen, ohne Ton.
+
+Die Uhr selbst zählt nie über drei Stunden Stille hinaus (`store.clockStop()`),
+ganz gleich, wer sie anhält. Blieb die App über Nacht sichtbar und kam die Uhr
+um Mitternacht nicht dran – Rechner oder Tablet geschlafen –, hielten am Morgen
+das Wegschalten, das Neuladen oder „Abschließen" sie bis *jetzt* an: 14 Stunden
+gebucht statt 45 Minuten, und weil das Anhalten als frisches Lebenszeichen
+galt, blieb die Einheit offen. Jetzt endet die Zählung am letzten
+Lebenszeichen, wenn das drei Stunden und mehr her ist, und der Tagesabschluss
+greift wie sonst.
+
+Das galt in v241 nur, wenn nach der Stille zuerst angehalten wurde (aus dem
+Gegenlesen von v241). Tablet, App sichtbar: Start 10:00, ein Satz um 10:45,
+dann fast vier Stunden weg; um 14:30 der nächste Satz, um 14:45 „Abschließen" –
+gebucht 4 h 45 statt einer Stunde, denn mit dem Satz war das Lebenszeichen
+frisch, und die fertige Einheit ging so in die Zeiteichung. Wer zuerst
+„Abschließen" tippte, bekam 45 Minuten. Jetzt bemerkt schon der Eintrag die
+Stille (`eingetragen()`): Die Uhr hält am alten Lebenszeichen an und läuft ab
+dem Satz weiter – 45 plus 15 Minuten, und die Sitzung bleibt, wie sie war.
+
+| Schwelle | Wert | warum |
+| --- | --- | --- |
+| abgehakte Sätze | mindestens 2 (`ABSCHLUSS_AB`) | Ein Fehltipp ist *ein* Tipp: auf der Startseite vorgeblättert, in Workout 13 aus Versehen einen Satz abgehakt – `planVorziehen()` legt sie dann sogar auf heute. Am nächsten Tag hieße sie sonst „trainiert mit 1 von 15", und der Plan ginge an ihr vorbei. Nicht die gebuchte Zeit und nicht, ob eine Sitzung lief: Wer in „Übungen & Gewichte" abhakt, trainiert ohne Uhr. Was darunter liegt, bleibt offen wie bisher. |
+| ohne Lebenszeichen | 3 Stunden (`LIEGT_AB_MS`) | Eine Pause dauert höchstens drei Minuten, ein Anruf oder das Abendessen mitten im Training eine Stunde. Wer drei Stunden nichts eingetragen hat, trainiert nicht mehr – und eine Einheit vom späten Abend ist am Morgen erledigt, auch wenn sie erst nach Mitternacht liegen blieb. |
+| Lebenszeichen | der letzte Eintrag in *dieser* Einheit (`zuletzt` im Protokoll, seit v242), das Anhalten der Uhr (`clock.halt`), bei hart beendeter Seite der Start der laufenden Uhr | in Millisekunden gerechnet, nicht auf der Wanduhr – in der Nacht zum 25.10. sind von 0:30 MESZ bis 2:40 MEZ drei Stunden zehn vergangen, auch wenn die Uhr nur zwei Stunden zehn weiter steht. Werte aus der Zukunft zählen nicht. Je Einheit, weil bis v241 ein Platz für alle galt (`letzterEintrag`): Ein Fehltipp in Workout 13 um 23:55 – ein Satz an und gleich wieder ab – löschte das Lebenszeichen von Workout 12, und um Mitternacht war sie zehn Minuten nach ihrem letzten Satz abgeschlossen; in einer Sitzung machte er aus dem Satz nach Mitternacht einen zweiten Trainingstag (`weiterAm`). Ein Stand von v241 zieht beim Laden und beim Einlesen um. |
+
+**Wer über Mitternacht trainiert, merkt davon nichts.** Haken um 23:50, App
+kurz weg, um 0:20 wieder da: offen, die Sitzung läuft, die Uhr auch, und der
+letzte Satz beendet die Einheit wie immer. Beendet das Handy die App dabei,
+geht sie nach dem Neuladen in der Fokusansicht weiter – bis v241 wartete eine
+Sitzung, deren Uhr gestern gestartet war, auf dem Dashboard (oben, *Zurück in
+der App*). Im Kopf steht dann „Gestern angefangen · Workout 12" statt
+„Gestern · Workout 12" über einem Samstag, an dem man gerade sitzt – das war
+genau das Bild aus Tobis Frage. Für eine abgeschlossene Einheit von gestern
+bleibt es bei „Gestern" – außer, an ihr wird heute weiter trainiert („Doch noch
+weitermachen", unten).
+
+**Der Tag einer Sitzung ist der Tag, an dem auf Start getippt wurde** (`clock.on`),
+nicht der ihrer Einheit. Liegen geblieben ist eine Sitzung erst ab dem nächsten
+Tag; nach drei Stunden Mittagessen am selben Tag läuft sie weiter wie jede
+andere. Bis zur Nachbesserung zählte der Tag der Einheit: „Rest heute machen"
+(heute „Doch noch weitermachen") um 10:00, ein Satz, um 13:30 zurück – die
+Sitzung war still beendet, die
+Fokusansicht weg. Und ihre Einheit bleibt so lange offen: Wer am Sonntag um
+0:10 eine Einheit vom Samstag fortsetzt, trainiert heute an ihr. Am Montag
+liegt die Sitzung seit gestern, dann endet sie, und die Einheit schließt ab –
+beides zusammen, nie eine Sitzung auf einer Einheit, die sich eben
+abgeschlossen hat.
+
+**Wann.** Beim Laden – nach `stempleFertige()` (was ganz abgehakt ist, trägt
+seinen Stempel schon), vor `rundeWeiter()` (war Workout 84 die liegen
+gebliebene, rollt die Runde im selben Start weiter) und vor `pruefeAufstieg()`
+und `pruefeZusatztag()` (die abgeschlossene Einheit zählt dort mit). Beim
+Zurückkommen in die App, bevor die Uhr weiterläuft. Und bei offener App um
+Mitternacht: Eine Uhr dafür gab es bisher nicht, der Tag wurde nur beim Laden
+und beim Zurückkommen nachgezogen. Auf dem Handy genügt das fast immer, der
+Bildschirm geht aus. Bleibt die App sichtbar – Tablet, Rechner, Handy am
+Ladekabel –, stand am Morgen „Gestern · Workout 12" da, bis jemand
+wegschaltet. Die Uhr rechnet die nächste Mitternacht über das Datum, nicht als
+„in 24 Stunden": Der 25. Oktober hat 25. Lag dort eine Einheit von gestern
+noch keine drei Stunden, sieht sie wieder nach, wenn es so weit ist. Nach einem
+Umbau des Plans (`planWechsel()`, `festReparieren()`) wartet der Abschluss an
+diesem Tag bis zum nächsten Laden: Die Reparatur vervollständigt nur offene
+Einheiten, und das erst beim Start nach dem Planwechsel. Bleibt die Seite
+offen, am nächsten Tag – dann holt der Abschluss zuerst nach, was der nächste
+Start davor täte (reparieren, nachrechnen, nachstempeln). Bis zur
+Nachbesserung galt die Sperre für die ganze Lebensdauer der Seite, und die
+bleibt oft tagelang im Speicher: Am Montag stand „vor 2 Tagen angefangen ·
+Workout 12" da, am Mittwoch „vor 4 Tagen".
+
+**Die Zeile.** Oben auf der Startseite, im Stil der anderen Hinweise:
+
+| Lage | Zeile |
+| --- | --- |
+| Sonntag, Workout 12 vom Samstag; der Zusatztag kommt morgen in Workout 13 | „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Von den 11 offenen Sätzen kommen morgen 3 in Workout 13 mit rein." |
+| derselbe Montag, der Tag danach | „… Von den 11 offenen Sätzen kommen heute 3 in Workout 13 mit rein." |
+| Tobis Woche: in Workout 9 fehlen zwei Sätze, Workout 12 trägt sie (17 Sätze) | „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen. Aus Woche 3 kommen morgen 3 Sätze in Workout 13 mit rein." |
+| Donnerstag (frei), Workout 10 vom Mittwoch | „✓ Workout 10 vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen. Von den 12 offenen Sätzen kommen dazu: morgen +1, Sa +3." |
+| Freitag (Workout 11 ist dran), Workout 10 vom Mittwoch | „… Von den 12 offenen Sätzen kommen dazu: heute +1, morgen +3." |
+| der Zusatztag steht heute allein da | „… Zum Nachholen steht heute ein Zusatztag bereit." |
+| die Woche ist vorbei, der Rest trägt keinen Zusatztag | „… Für einen Zusatztag reicht der Rest nicht – er entfällt." |
+| nichts, was sicher wäre | nur der erste Satz |
+
+Kein Knopf darunter (seit v244, oben *Ohne Wahl*) – die Zeile ist eine
+Auskunft, und eine Auskunft, die niemand wegtippen kann, muss von selbst gehen.
+Sie steht auch über das Neuladen hinweg (`tagesabschluss` im Zustand) und geht:
+
+| Ende | warum |
+| --- | --- |
+| der erste Eintrag in einer anderen Einheit | die nächste ist angefangen – gesehen, und die Zeile hat ausgedient |
+| ein Eintrag in einer Einheit der Zeile – weitergemacht, nachgetragen –, oder ihr Zurücksetzen | was die Zeile über sie sagt („4 von 15 Sätzen", „ist abgeschlossen"), stimmt dann nicht mehr; wer dort einträgt, weiß, wie es um sie steht. Stehen zwei Einheiten in der Zeile, geht nur diese heraus (`abschlussOhne()`) |
+| ein neuer Tagesabschluss | er ersetzt sie |
+| ein Fokuswechsel, „Von vorn beginnen" | sie sprach vom alten Plan. Bis zur Nachbesserung stand nach dem Wechsel über „Morgen · Workout 1" im Aufbau weiter „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen." – Workout 12 dort liegt in 20 Tagen und ist unberührt; nach „Von vorn beginnen" ebenso über „Heute · Workout 1". Bis v242 ließ sie sich mit „OK" wegtippen, ohne Knopf stand sie bis zum ersten Satz oder bis Dienstag. Der Wechsel nimmt sie mit (`wechsleFokus()`, auch beim Umzug eines alten Fokus); scheitert er am vollen Speicher, steht sie wieder da wie alles andere (`mitAblage()`) |
+| der übernächste Tag | `ABSCHLUSS_ZEILE_TAGE` = 2: am Tag des Abschlusses und am Tag danach. Der Abschluss kommt oft an einem Ruhetag (Sonntag, Workout 12 vom Samstag), und am Tag danach sagt die Zeile, was in die Einheit von heute kommt. Vergeht auch der ohne Training, ist es keine Neuigkeit mehr – was nachgeholt wird, steht dann an den Übungen selbst (die Herkunftszeile) und an einem Ruhetag in der Zeile darunter. Ohne dieses Ende stünde sie ewig: eine Woche später noch „Workout 12 vom Samstag, 24. Oktober ist abgeschlossen". Bei offener App geht sie mit der Uhr um Mitternacht, und der neue Tag räumt sie auch aus dem Zustand (`abschlussAufraeumen()`), damit sie nicht in der nächsten Sicherung mitreist. Eine Zeile aus einer Sicherung, deren Tag in der Zukunft liegt (falsch gehende Uhr am anderen Gerät), steht gar nicht. |
+
+Nach einer weitergerollten Runde – Workout 84 lag, schloss sich ab, und die
+Runde rollte im selben Start weiter – bleibt sie stehen, obwohl das Protokoll
+von Workout 84 jetzt in der Ablage liegt: Sie sagt, warum die Startseite bei
+Workout 1 steht. „Von vorn beginnen" von Hand nimmt sie dagegen mit (oben).
+Sonst zeigt sie eine Einheit nur, solange sie so dasteht, wie die Zeile sagt –
+auf ihrem Tag und abgeschlossen (`abschlussListe()`).
+
+Und sie tritt zurück, wo sie sich selbst widerspräche:
+
+| wo | warum |
+| --- | --- |
+| solange auf einer ihrer Einheiten eine Sitzung läuft | „Doch noch weitermachen" getippt, ohne Haken zurück: Oben stand „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen.", direkt darunter „Gestern angefangen · Workout 12" mit „✓ Training abschließen (4/17)"; am Nachmittag neu geöffnet über „Workout 12 läuft noch.", und bei 360×740 schob sich die Seite 14 px. Bis v242 nahm „Rest heute machen" die Zeile beim Tipp weg. Jetzt ist sie weg, solange an der Einheit trainiert wird; der erste Haken nimmt sie ganz, und endet die Sitzung ohne einen, steht sie wieder da – der Tipp allein hat nichts geändert |
+| auf der Karte einer Einheit, von der sie spricht | am Sonntag zu Workout 12 zurückgeblättert, stand „4 von 17" dreimal da – in der Zeile, im Fortschritt, auf der Karte („✓ Abgeschlossen / 4 von 17 Sätzen · 20 min.") –, und bei 360×740 schob sich die Seite 41 px (am Montag 24), die Reihe „Übungen & Gewichte" halb unter der Leiste. Gerade diese Karte ist seit v244 der Weg zurück. Sie sagt selbst, was passiert ist; wohin der Rest geht, steht auf der Startseite. Zweimal steht die Zahl dort weiter, im Fortschritt und auf der Karte – wie über jeder abgeschlossenen Einheit, das ist hier nicht angefasst. Die Zeile zum Ton kommt dort trotzdem nicht (unten): Mit ihr allein schob sich die Karte um 8 px |
+
+Der Tag steht als Wochentag da und nicht als „gestern": Am Montag stimmte
+„gestern" schon nicht mehr. Klein gesetzt: Als Kasten wie die anderen
+Hinweise, mit voller Knopfreihe, war sie bei 360×740 129 px hoch und schob
+Start und Fuß 52 px unter die Leiste; mit den kleinen Knöpfen rechts darunter
+(bis v242) 106 px, ohne Knöpfe sind es 69 px, drei Zeilen bei 360 und bei 414
+px Breite. „4 von 15 Sätzen" und „Workout 13" brechen nicht mehr um – bei 360
+px stand „– 4" am Zeilenende und „von 15 Sätzen" darunter, bei 414 px „4 von
+15" und „Sätzen". Und das letzte Wort steht nie allein: Tobis eigener Sonntag
+(17 Sätze, „Von dem, was in Woche 3 liegen blieb, kommen morgen 3 Sätze in
+Workout 13 mit rein.") brauchte bei 360 px bis zur Nachbesserung vier Zeilen,
+86 px, in der letzten nur „rein." – gemessen war mit 15 Sätzen. Jetzt sagt die
+Zeile es im Wortlaut der Zeile am Ruhetag, „Aus Woche 3 kommen morgen 3 Sätze
+in Workout 13 mit rein.", drei Zeilen und 69 px auch dort. Die Körperkarte gibt
+an diesen Tagen Höhe ab, und die Startseite bleibt eine Seite – gemessen am
+Sonntag und am Montag, wenn Workout 13 mit dem Zusatz länger ist, mit 15 und
+mit Tobis 17 Sätzen, und auf den Karten von Workout 12 und 11, zu denen man
+zurückblättert. Nur nicht zusammen mit der stillen Zeile zum Ton (aus dem
+Gegenlesen von v241): Nach einer Nacht im Speicher klemmt auf dem iPhone der
+Tonkanal, und mit beiden Zeilen lag der Fuß bei 360×740 78 px (Sonntag) bzw.
+111 px (Montag) unter der Leiste – mit der Zeile zum Ton allein, vier Zeilen
+und 116 px, noch 35 bzw. 45 px. Auf der Startseite hat seit v242 die Zeile zum
+Abschluss Vorrang. Bis v242 war ihr „OK" ohnehin die nächste Berührung, und die
+weckte den Kanal; seit v244 steht sie ohne Knopf womöglich zwei Tage, und auch
+ohne Knöpfe passen beide am Montag bei 360×740 nicht zusammen (die Seite schob
+sich 24 px). Gebraucht wird der Ton im Training, und dort steht er: Klemmt der
+Kanal nach dem Tipp auf Start noch, zeigen die Fokusansicht und die Liste den
+ganzen Satz. Ist die Zeile zum Abschluss weg, steht die zum Ton auch auf der
+Startseite, kurz und klein gesetzt (52 px: *Töne kommen gerade nicht. Bleibt es
+stumm, App neu öffnen – Mehr → Töne und Hinweise*), und die Seite bleibt eine
+Seite – gemessen am Sonntag nach einem nachgetragenen Satz und am Dienstag.
+Die Körperkarte gibt auch für diese Zeile Höhe ab: Am Samstag selbst, Workout
+12 angefangen – Fortschritt, „Training
+fortsetzen", „Als trainiert markieren" –, lag der Fuß mit der kurzen Zeile
+allein sonst noch 13 px unter der Leiste. Gemessen bei 360×740 am Samstag,
+Sonntag und Montag. Nicht gelöst und unabhängig vom Ton: Eine angefangene
+Einheit mit vier Reihen Muskeln unter der Karte – Workout 13 mit dem Zusatz,
+am Montag nach drei Sätzen verlassen – passt bei 360×740 schon ohne jede Zeile
+nicht, der Fuß liegt 18 px unter der Leiste (in v241 genauso), mit der Zeile
+zum Ton 30 px.
+
+**Wohin der Rest geht, nur wenn es stimmt.** Gerechnet von den Stellen, die es
+dann tun – keine zweite Rechnung: der Zusatztag in der Einheit von heute
+(`zusatzBindung()`) oder allein (`naechsteEinheit()`), der Zusatztag von
+morgen und die Nacharbeit der Woche aus denselben Teilen wie die Zeile am
+Ruhetag (`ruhetagTeile()`, `zusatzMorgen()`, `nacharbeitVorschau()`,
+`restZiele()`), „entfällt" mit der Schwelle des Zusatztags
+(`zusatzRueckstand()`). „Von den 11 offenen Sätzen", weil ein Zusatztag in
+einer Einheit höchstens zwei Übungen bringt – mehr als den Teil verspricht die
+Zeile nicht, und sie sagt, wovon er ein Teil ist. Bis zur Nachbesserung stand
+dort „Davon": Hinter „4 von 15 Sätzen" las es sich wie „von den 4 gemachten",
+und die offenen nannte die Zeile nirgends. Die Zahl steht nur, wenn alles, was
+in der Woche offen ist, aus den Einheiten der Zeile stammt (`offenImBlock()`,
+dieselbe Herkunft, die der Zusatztag an seiner Übung nennt); fehlt auch
+woanders etwas, holt der Teil womöglich auch das nach, und die Zeile sagt nur,
+woher er kommt: „Aus Woche 3", wie die Zeile am Ruhetag („Aus Woche 3 kommt
+dazu: morgen +3."; bei der Nacharbeit „Von dem, was in dieser Woche liegen
+blieb, kommt dazu: …"). Und „der Rest danach" sagt die Zeile nicht: Ob nach der
+Woche ein Zusatztag kommt, entscheidet sich erst an seinem Tag, an der
+Erholungsregel. Gemessen mit Workout 11 vom Freitag, 3 von 12 – Rücken,
+Bizeps, hintere Schulter offen –, kam keiner: Am Sonntag ruhen die Gruppen von
+Samstag und Montag, am Montag trifft Workout 13 sie selbst. Die Zeile am
+Ruhetag verspricht ihn in so einem Fall weiterhin („der Rest danach"); das ist
+dort offen.
+
+**Keine Zahl zweimal.** Was die Zeile oben sagt, lässt die Zeile am Ruhetag
+weg – am Sonntag stand sonst „Von den 11 offenen Sätzen kommen morgen 3 in
+Workout 13 mit rein." über „Heute frei. Aus Woche 3 kommt dazu: morgen +3.".
+Ist die Zeile oben weg, steht es wieder unten.
+
+**Zurück in die Einheit.** Bis v242 führte „Rest heute machen" in der Zeile
+hinein; jetzt geht es dorthin, wo jede abgeschlossene Einheit ihren Weg zurück
+hat: zu ihr blättern (vom allein stehenden Zusatztag erst mit ↩ zurück zum
+Plan), „Doch noch weitermachen" – unaufdringlich, nur für den, der dorthin
+blättert. Derselbe Weg wie vorher der Knopf: Start, Fokusansicht, bei der Übung,
+die dran ist; die Zeile oben tritt solange zurück (oben). Ihre Karte sagt dabei,
+was stimmt. Bis v242 stand über jeder
+fertigen Einheit „✓ Für heute durch / … Die nächste Einheit kommt von selbst." –
+auch über Workout 12 vom Samstag, das sich am Sonntagmorgen selbst
+abgeschlossen hatte, unter „Gestern · Workout 12", und über jeder ganz
+gemachten Einheit von früher. Jetzt heißt es „Für heute durch" nur, wenn heute
+an ihr trainiert wurde (an ihrem Tag oder danach mit „Doch noch weitermachen",
+`store.trainiertAm()`); sonst „✓ Abgeschlossen" mit den Sätzen und der Zeit,
+ohne den Satz über die nächste Einheit – die ist längst gekommen.
+
+Die Einheit bleibt dabei auf ihrem Tag (`startedOn`) – im Kalender und in der
+Statistik steht sie am Samstag, auch mit dem Rest vom Sonntag, wie ein
+Training über Mitternacht. Ehrlich
+nachgesehen, was das sonst hieße: Überall, wo die App fragt „heute schon
+trainiert?", stand der Sonntag danach als frei da – die Zeile „Heute frei", ein
+Zusatztag als nächste Einheit für heute (`naechsteEinheit()`, `zusatzLage()`,
+`zusatzEinheit()`). Deshalb vermerkt der erste Haken in der Sitzung den Tag
+(`weiterAm`), und diese Stellen fragen `store.trainiertAm()`. Nur in einer
+Sitzung und nur nach drei Stunden Pause: Der vergessene dritte Satz von
+gestern, ohne Start in der Liste nachgetragen, ist kein Training, und über
+Mitternacht weitertrainiert ist kein zweiter Trainingstag. Die Rechnung der
+ausgefallenen Tage zählt den Tag mit (verschoben, nicht ausgefallen); die
+Trainingstage der Statistik nicht – dort bleibt es der Tag der Einheit. Im
+Kopf steht dabei „Gestern angefangen · Workout 12" über „Sa, 24. Oktober" –
+während der Sitzung und danach über „Für heute durch"; bis zur Nachbesserung
+stand dort wieder „Gestern · Workout 12", genau das Bild aus Tobis Frage.
+
+**Und doch nicht?** In der Sitzung stand „Abbrechen | ✓ Abschließen (4/15)".
+„Abbrechen" verwirft eine Einheit ganz – hier hieß es „doch nicht heute" und
+löschte die vier Sätze vom Samstag mit: Workout 12 war untrainiert, der Plan
+rückte einen Tag, und am Sonntag stand „Heute · Workout 12" da, Tobis Bild ohne
+Samstag. Auf einer Einheit, die an einem früheren Tag angefangen und
+abgeschlossen ist, gibt es „Abbrechen" deshalb nicht mehr, auch nicht bei
+„Doch noch weitermachen" (`frueherFertig()`): Was dort steht, war schon
+trainiert. „Abschließen" lässt sie, wie sie ist, und ein versehentlicher Haken
+lässt sich einzeln zurücknehmen. Eine Einheit von heute verwirft „Abbrechen"
+weiter ganz, auch nach „Doch noch weitermachen" (`tests/test-new.mjs`), ein
+Training über Mitternacht ebenso – es ist noch nicht abgeschlossen.
+
+**Eigene Workouts und Zusatztage** schließen sich nicht ab. Sie schieben keinen
+Plan, holen keinen Rückstand nach und stehen nie als nächste Einheit da, sobald
+sie angefangen sind – eine liegen gebliebene blockiert nichts, und ein
+„trainiert" hätte niemand gesagt. Eine Sitzung auf ihnen, die seit gestern
+liegt, endet aber: Sonst stünde über der Einheit von heute „Eigenes Workout
+läuft noch".
+
+**Aus fremder Hand.** `tagesabschluss` und das `zuletzt` der Einheiten reisen
+in der Sicherung mit. `importJSON()` nimmt ein Feld mit der Vorgabe `null` in
+jedem Typ an, also prüft `normAbschluss()` beim Laden, beim Einlesen und bei
+jedem Lesen: ISO-Tage, kleine ganze Zahlen, höchstens acht Einheiten, sonst
+nichts – eine Zeichenkette oder ein HTML-Schnipsel fällt weg. `zuletzt` wird nur
+über `eintragZuletzt()` gelesen: eine Zahl, nicht aus der Zukunft, sonst zählt
+es nicht. Das `letzterEintrag` einer Sicherung von v241 zieht in seine Einheit
+um (`eintragUmziehen()`), wenn es eine gültige Kennung und Zeit trägt.
+
+`tests/test-tagesabschluss.mjs` spielt es mit Tobis Woche durch: der Sonntag
+beim Laden, die Zeile mit Zahlen, Tag und Ziel, „Rest heute machen" und das
+Nachtragen ohne Sitzung, „OK" über das Neuladen, das Training über
+Mitternacht, die liegen gebliebene Sitzung beim Laden, beim Zurückkommen und
+nach hartem Ende, der Fehltipp, der Zusatz in Workout 13 am Montag und die
+Nacharbeit mitten in der Woche – jeweils verglichen mit dem, was die Einheiten
+an ihrem Tag dann wirklich tragen –, Sicherung und Import, die Nacht der
+Zeitumstellung und die Uhr bei offener App über den 25-Stunden-Tag, dazu, dass
+die Startseite mit der Zeile eine Seite bleibt. Und aus der Prüfung danach –
+zwei Prüfer, jeder Befund nachgestellt –: Tobis Woche mit den 17 Sätzen vom
+Bild, „Rest heute machen" und doch nicht, der Kopf beim Rest von heute, die
+Sitzung von heute nach drei Stunden Mittag (auch bei offener App), die am
+Sonntag fortgesetzte Einheit vom Samstag, der Start mit Planumbau, die Nacht
+bei sichtbarer App ohne Mitternachts-Uhr – 129 Prüfungen in fünfzehn
+Abschnitten. Gegen den Stand ohne Tagesabschluss (f43f137) sind 47 rot und
+jeder Abschnitt; zehn brechen ab, weil es Knopf oder Feld nicht gibt. Gegen den
+Stand vor der Prüfung (fcd9757) sind 23 rot, genau die neuen Fälle. Einzeln
+zurückgedreht wird jede Stelle rot: `trainiertAm()` nur mit `startedOn` (2: der
+Rest am Sonntag macht ihn nicht zum Trainingstag, der Zusatztag steht danach
+noch für heute da), ein Satz als Schwelle (3: der Fehltipp), ohne die drei
+Stunden (4: über Mitternacht, die Zeitumstellung), ohne die Uhr bei offener App
+(1), die Zeile am Ruhetag lässt nichts weg (2), „der Rest danach" versprochen
+(4) – gemessen vor der Prüfung –, und danach: der Tag der Sitzung wieder von
+ihrer Einheit (3), die Sperre nach dem Planumbau für die ganze Seite (1),
+„Abbrechen" auch auf einer Einheit von gestern (3), der Kopf ohne „angefangen"
+(2), „Davon" statt der offenen Sätze (6), die Uhr ohne Deckel (5) – jede nur in
+ihrem Abschnitt.
+
+Aus dem Gegenlesen von v241 (v242) kamen dazu: die Startseite mit der Zeile
+zum Abschluss und der zum Ton (2b), Stunden Stille vor dem nächsten Satz (16),
+der Fehltipp in einer anderen Einheit ohne und mit Sitzung (17) und die
+Sicherung von v241 (9), und aus der Prüfung danach der Samstag mit
+angefangener Einheit und der Zeile zum Ton (2b) – 161 Prüfungen in siebzehn
+Abschnitten. Gegen 87e4cd1 sind 19 davon rot: 10 in 2b, 3 in 16, 3 in 17 und 3
+in 9, die das neue Feld prüfen. 17c – Unsinn und ein Wert aus der Zukunft im
+neuen Feld – ist dort grün, weil 87e4cd1 das Feld nicht liest; es wacht über
+das neue. Gegen den ersten Stand von v242 (1e98686) ist eine rot: der Samstag
+bei 360×740.
+
+Ohne Wahl (v244) ging, was über „Rest heute machen" in die Einheit führte,
+über das Blättern und „Doch noch weitermachen" (3, 8e, 11, 12, 13) – mit
+denselben Sicherungen, und die Karte heißt dabei „Abgeschlossen". Neu geprüft:
+keine Knöpfe in der Zeile (2, 4, 19, 20); die Enden – über das Neuladen bleibt
+sie, am Montag steht sie, am Dienstag ist sie weg, auch ohne Neuladen um
+Mitternacht und auch aus dem Zustand; eine Woche alt oder aus der Zukunft
+steht sie nie; Zurücksetzen nimmt sie weg, ein neuer Tagesabschluss ersetzt
+sie (4); ein Satz in der Einheit nimmt sie weg (3, 3b), bei zwei Einheiten nur
+die eine (19); nach der weitergerollten Runde bleibt sie, bis Workout 1
+angefangen ist (20); die Zeile zum Ton kommt, wenn sie weg ist (2b, Sonntag
+und Dienstag); die Karte einer Einheit von gestern (18) – 192 Prüfungen in
+zwanzig Abschnitten. Gegen 6b533af (v242) sind 27 rot, verteilt auf 2, 2b, 3,
+3b, 4, 8d, 8e, 11, 12, 18, 19 und 20; nichts bricht ab. Beim Nachstellen
+fielen zwei Dinge am Test selbst auf: Ein nachgetragener Satz startet die
+Pause, und ihre Leiste (63 px) wäre in 2b mitgemessen worden – dort wird sie
+mit „Fertig" beendet. Und wer die Uhr umstellt und dann neu lädt (`f.tag()`),
+lässt die alte Seite beim Entladen ein „Zurückkommen" sehen, weil der Test
+`document.hidden` auf „sichtbar" hält: Sie rollte die Runde in 20 selbst
+weiter, schrieb die Ablage sofort, den Hauptstand aber nicht mehr – und die
+neue Seite rollte noch einmal, zwei gleiche Runden. Mit `document.hidden` wie
+im Browser beim Entladen geschieht das nicht; 20 öffnet die App deshalb gleich
+am nächsten Tag.
+
+Aus der Prüfung von v244 – zwei Prüfer, jeder Befund nachgestellt, alle vier
+berechtigt – kamen dazu: Fokuswechsel und „Von vorn beginnen", dazu der am
+vollen Speicher gescheiterte Wechsel (4g); Tobis eigener Satz, gemessen bei
+414×896 und 360×740, und die Karte von Workout 12 mit ihm (8f); die Karten von
+Workout 12 und 11 am Sonntag und am Montag in beiden Größen (18); „Doch noch
+weitermachen" ohne Haken, zurück, am Nachmittag neu geöffnet, ohne Haken
+abgeschlossen und bis Montag liegen gelassen (21) – 218 Prüfungen in
+einundzwanzig Abschnitten. Gegen den ersten Stand von v244 (1725a52) sind 13
+rot: 2 in 4, 5 in 8f (einer davon als Folge – ohne den neuen Wortlaut fehlt
+dem Montag die angekündigte Zahl), 4 in 18, 2 in 21. Der gescheiterte Wechsel
+ist dort grün; er wacht über das Neue. Gegen 6b533af (v242) sind 43 rot,
+nichts bricht ab.
+
+`tests/test-fortsetzen.mjs` (Fall 3 und 10) erwartete, dass eine Sitzung von
+gestern auf dem Dashboard wartet; das ist auf Zuruf anders und dort mit
+Begründung angepasst. Es stellt „gestern" auf einem Stand nach, den die App
+eben selbst geschrieben hat; seit v242 setzt es dafür das `zuletzt` der
+Einheit zurück statt `letzterEintrag` – sonst hielten die Sätze von gerade die
+Einheit offen. `tests/test-new.mjs` und `tests/test-progress.mjs`
+legten Workout 1 auf den 19. August und brauchten es offen: jetzt von heute.
+`tests/test-nacharbeit-ruhetag.mjs` (R12) hakt am Freitag einen vergessenen
+Satz von Donnerstag nach und erwartet die Zeile „Heute frei" – daran hat sich
+gezeigt, dass `weiterAm` nur in einer Sitzung zählen darf; der Test blieb, wie
+er war.
 
 ### Name, Gerät, Zeichnung und Hinweis müssen dasselbe sagen
 
@@ -3370,6 +8335,27 @@ verlangt, wäre der Trizeps ohne Band und Stange nur noch nebenbei drangekommen
 `tools/pruefung/geraete.py` prüft seither, dass kein Gerätetext ein „oder"
 oder einen Schrägstrich enthält.
 
+„Ohne Gerät" hat eine Schreibweise. Es standen vier im Katalog – „Ohne Gerät",
+„ohne Gerät", „ohne" und die Fassung mit Bücherstapeln –, und weil die
+Übungskarte den Gerätetext roh zeigt, sah dieselbe Angabe je Übung anders aus.
+`GERAET_AUS_TEXT` kennt nur noch „Ohne Gerät" (und die Bücherstapel, die etwas
+sagen); eine andere Schreibweise bricht den Bau ab, und `tests/test-katalog.mjs`
+prüft es an `js/data.js`.
+
+**Beide zugleich oder je Bein (v254).** *„Vllt sollten bei Übungen bei denen
+man mit beiden Körperteilen unabhängig voneinander macht jedesmal abhaken
+oder? Also hier zb 6?"* – gefragt beim Sliding Leg Curl. Dort arbeiten beide
+Beine zugleich, aber „Fersen auf je einem Handtuch" las sich wie ein Bein nach
+dem anderen, und drei Haken sahen dann nach drei Sätzen für ein Bein aus. Der
+Hinweis sagt es jetzt in beiden Fassungen: „beide Fersen zugleich … – einmal
+hin und zurück mit beiden Beinen ist eine Wiederholung". Wo eine Übung
+wirklich einseitig ist, steht „je Bein" bei den Wiederholungen, und ein Haken
+ist weiter ein Satz, gesetzt nach beiden Seiten – mit ihm beginnt die Pause,
+die erst danach fällig ist. `tests/test-katalog.mjs` prüft beides: Wer im
+Namen einbeinig oder einarmig ist, hat „je Bein" (oder „je Arm") bei den
+Wiederholungen, und ein Handtuch je Ferse ohne „je Bein" heißt im Hinweis
+„beide … zugleich" – das Zweite gegen v253 rot.
+
 ### Hochnehmen und ablegen
 
 *„Sag am besten bei jeder Übung auch immer wie man das Gewicht am besten
@@ -3397,6 +8383,106 @@ steht im Hinweis. Ohne Hanteln gibt es keine Last, also auch keinen Absatz.
 `tools/pruefung/geraete.py` verlangt den Text für jedes gezeichnete Gerät aus
 `MIT_LAST` (`tools/build-data.py`) und dass Hochnehmen und Ablegen beide
 vorkommen – das Ablegen ist der Teil, bei dem man müde ist.
+
+### Wadenheben mit Hantel: im Sitzen, die Hantel quer auf den Knien
+
+*„Ist nicht bisschen merkwürdig für Hantel nur in einer Hand zu halten?"* –
+zum Wadenheben mit gebeugtem Knie, Cut mit Hanteln. Es stand stehend da, das
+Knie 30° gebeugt, eine Kurzhantel in einer Hand (6,5 kg), und genau so war
+auch die Figur gezeichnet.
+
+Merkwürdig war das nicht nur fürs Gefühl. Die Hantelfassung wird jetzt **im
+Sitzen** gemacht, aus vier Gründen:
+
+- **Der richtige Muskel.** Die Übung ist für den Schollenmuskel (Soleus) da.
+  Die Zwillingswade läuft über das Knie; mit 90° im Knie ist sie entspannt,
+  und die ganze Arbeit bleibt beim Soleus. Mit 30° arbeitet sie noch mit.
+- **Symmetrisch.** Die Last liegt auf beiden Beinen, nicht in einer Hand.
+- **Kein Gleichgewicht.** Stehend auf den Ballen mit einer Hantel auf einer
+  Seite kostet das Ausbalancieren mehr Aufmerksamkeit als die Wade.
+- **Mehr Last.** Der Soleus ist kräftig; sitzend begrenzt nichts anderes mehr.
+
+So geht sie (*Sitzendes Wadenheben*): auf einen Stuhl, Knie 90°, Schienbeine
+senkrecht; die Fußballen auf einem dicken Buch, die Fersen frei dahinter; die
+Kurzhantel quer über beiden Oberschenkeln direkt hinter den Knien, beide Hände
+halten sie, ein gefaltetes Handtuch darunter, wenn das Eisen drückt. Fersen so
+hoch es geht, oben eine Sekunde halten, unten ganz tief unter die Buchkante.
+**Ein Buch, keine Hantelscheibe:** Die Scheiben aus dem Vorrat stecken an den
+Hanteln, und für jeden Satz eine abzuschrauben lohnt sich nicht – nur eine
+Scheibe, die ohnehin frei herumliegt, kann das Buch ersetzen. Hochnehmen und
+Ablegen steht wie überall darunter: Die Hantel steht vor dem Stuhl, aufgenommen
+wird sie im Stehen aus der Hocke; mit ihr hinsetzen und sie quer auf die
+Oberschenkel legen, dann die Ballen aufs Buch. Am Ende umgekehrt – aufstehen,
+in die Hocke, abstellen. Im Sitzen seitlich nach einer Hantel neben dem Stuhl zu
+greifen ginge nur mit Seitneigung und Drehung, und das mit der schwereren
+Hantel, die sitzend geht, und müde am Ende des Satzes.
+Neu unter *Wenn etwas weh tut*: „Oberschenkel über dem Knie" – Druck, kein
+Schaden; Handtuch, und nicht auf die Kniescheibe.
+
+**Ohne Hanteln bleibt sie stehend** mit gebeugtem Knie – ohne Last ist sitzend
+zu leicht. Neu ist dort die Hand an der Wand fürs Gleichgewicht; der Hinweis
+steht jetzt für sich, statt mit „gleiche gebeugte Knieposition" auf die
+Hantelfassung zu verweisen, und ohne „optional einbeinig" – eine Übung, eine
+Ausführung. Die Figur bleibt `calfbent`: Eine Wand kennt sie nicht, und eine
+Hand, die ins Leere greift, wäre schlechter als eine, die frei hängt.
+
+**Was sich nicht ändert**, mit Absicht: der Schlüssel
+`wadenheben-gebeugtes-knie` (an ihm hängen das eingetragene Gewicht und jeder
+protokollierte Satz – der Name kommt wie beim Überkopf-Trizepsstrecker aus
+`name` in `tools/exercise-meta.json`), die Muskelanteile, das Gerät (`onehand`,
+eine Kurzhantel), Startgewicht, Schritt, Pause und Wiederholungen. Damit
+ändert sich auch kein Plan: `stand` und `saetze` aller vier Fokusse sind
+dieselben wie vorher, es gibt **keine Planwechsel-Meldung**, und angefangene
+Einheiten bleiben, wie sie sind. Das Gewicht bleibt ebenfalls stehen (bei Tobi
+6,5 kg). Sitzend geht deutlich mehr; woran man das passende erkennt, sagt der
+Abschnitt *Wie schwer* unter „Mehr zur Ausführung": so schwer, dass die letzten
+zwei Wiederholungen eines Satzes hart werden. Er steht für sich – kein
+Vergleich mit der Stehfassung, die mit Hanteln niemand mehr sieht, und kein
+„eingetragenes Gewicht", das ein neuer Nutzer nicht hat. Eingestellt wird es wie
+überall mit `+`; einen Steigerungsvorschlag gibt es weiterhin nicht.
+
+**Die Figur** ist ein neues Muster, `calfseated`: sitzend auf der Bank, Knie
+und Hüfte rechtwinklig, die Ballen auf einem Buch unter beiden Füßen
+(`stufe: 'beide'`), von der Seite gezeigt, damit man die Ferse steigen sieht.
+Gehoben werden nur Knie und Fersen. Stehend hebt `heel` den ganzen Körper über
+die liegenden Zehen; sitzend stiege damit die Bank mit in die Luft. Deshalb
+gibt es `fuss` – der Fuß streckt sich im Sprunggelenk –, und `skelett()` stellt
+je Bild Hüft- und Kniewinkel so nach, dass Gesäß und Ballen bleiben, wo sie
+sind (`ballenSitz()`, Newton über zwei Winkel wie an der Stange; mit den
+Endstellungen allein liefen die Zehen auf halbem Weg 0,018 nach vorn). Die
+Zehen stehen dabei nicht wie sonst als tiefster Punkt auf dem Boden, sondern
+auf der Oberkante des Buchs, und das Buch steht auf dem Boden wie die Bank
+daneben (`BUCH`, 0,055 dick). Unten sinkt die Ferse 0,032 unter die Buchkante –
+die Dehnung, für die das Buch da ist –, oben steht sie 0,092 über dem Ballen.
+Die Oberseite des Buchs wird nach ihrer hintersten Ecke einsortiert, nicht nach
+ihrer Mitte: Sie liegt unter beiden Füßen und muss vor ihnen gezeichnet werden.
+Die
+Hantel rechnet `knieHantel()` aus den Oberschenkeln: quer zur Knieachse, bei
+82 % ihrer Länge, so hoch, dass jede große Scheibe auf ihrem Oberschenkel
+aufliegt – steigen die Knie, steigt sie mit. Die Arme sind gesucht: beide
+Hände im Obergriff am Griff, die Fäuste berühren sich nicht und nicht die
+Scheiben, über die ganze Bewegung höchstens 0,0045 neben der Achse.
+
+`tests/test-wade-sitzend.mjs` prüft Katalog, Pläne, Figur und App: Name und
+Hinweise je Fassung, Hochnehmen im Stehen, „Wie schwer" mit Maßstab,
+unveränderte Anteile und Planeingaben, Knie 90°, Gesäß und Ballen fest, Fersen
+steigen und sinken unten unter die Buchkante, das Buch auf dem Boden, Hantel
+quer auf den Oberschenkeln, beide Fäuste am Griff, kein Fuß unter der
+Buchoberseite aus neun Blickwinkeln, und in Tobis Cut-Einheit Karte, Fokus und
+Bodyweight-Karte. Gegen v239 ist er rot.
+
+**Nachgezogen nach der Prüfung.** Die erste Fassung hatte fünf Mängel: Die
+Buchoberseite deckte einen Fuß zu (von vorn beide), das Buch steckte ganz im
+Boden und der Fuß stand unten flach, „Wie schwer" nannte keinen Maßstab und
+verglich mit der Stehfassung, die Hantel wurde im Sitzen seitlich vom Boden
+gehoben, und der Test hielt feste Fingerabdrücke aller vier Pläne fest – die
+wären bei jedem berechtigten Neulauf rot geworden, auch wenn sich nur ein
+Termin verschiebt, der in `stand` gar nicht eingeht. Jetzt vergleicht er die
+Felder, aus denen die Pläne gerechnet sind (`FELDER` in
+`tools/pruefung/plan-frisch.py`), mit dem in `tools/pruefung/plan-eingaben.json`
+festgehaltenen Stand. In `tests/test-figur.mjs` zählen beim Sitzen auf dem Buch
+(`ballen`) die Zehen auf der Buchoberkante statt des tiefsten Punkts am Boden;
+darunter darf trotzdem nichts im Boden stecken.
 
 ### Jede Übung muss einen Weg nach unten nennen
 
@@ -3436,8 +8522,26 @@ erfüllen; die Zahl war damit von einer Ansage zu einem Vorwurf geworden.
 
 | | Geübt / Fortgeschritten | Anfänger |
 | --- | --- | --- |
-| Chin-ups | 5–10 Wdh., 180 s | **1–3 Wdh., 120 s** |
+| Chin-ups | 5–10 Wdh., 180 s | **3–10 Wdh., 180 s** (bis v254: 1–3, 120 s) |
 | Pull-ups | 4–10 Wdh., 180 s | **1–3 Wdh., 120 s** |
+
+**3–10 statt 1–3 (v255).** *„Aber wieso soll ich eigentlich nur drei
+wiederholungen machen? Wäre nicht 8 bis 12 oder so besser?"* – und auf die
+Frage, wie viele saubere er schafft: *„ich schaff aktuell 3, also wäre 3 bis x
+wohl am sinnvollsten"*. Mit drei stand er am oberen Ende von 1–3, und der
+Bereich ließ nach oben keinen Platz – Steigerungsvorschläge macht die App
+nicht, die Zahl auf der Karte ist die ganze Ansage. Dabei waren ein bis drei
+Wiederholungen nie Aufbau, sondern Maximalkraft (siehe *Was das nicht ersetzt*
+unten). Jetzt steht unten die Zahl, ab der ein Satz ein Trainingssatz ist, und
+oben die, ab der der Rucksack kommt: 10, wie im Hinweis. Dazwischen wird es von
+Woche zu Woche eine Wiederholung mehr. Wer die drei noch nicht schafft, hilft
+mit den Füßen auf dem Stuhl nach, nur so viel wie nötig – der Hinweis sagt das
+jetzt für jede Stufe gleich („Reicht es nicht bis zur unteren Zahl des
+Bereichs …"), statt allen 5–10 zu nennen, während der Anfänger 1–3 sah. Und
+der Rucksack steigt seit v253 in den Schritten der eigenen Scheiben; „in
+Kilo-Schritten" stand dort noch. Die Pause ist die des Katalogs, 180 s – die
+120 s waren für Sätze aus ein bis drei Wiederholungen gedacht. Die Pull-ups
+bleiben, wie sie sind: Zu ihnen gab es keine Zahl.
 
 Die Ausnahme steht als `dbStufen`/`bwStufen` an der Übung selbst, nicht als
 Sonderfall im Code – so lässt sich jede weitere Übung nachziehen, ohne dass
@@ -3448,7 +8552,8 @@ davon lassen sich trotzdem leichter machen: über die Bandstärke, die Neigung
 der Liegestütze oder die Ausführung des Leg Curls. Bei Klimmzügen bleibt nur,
 die Übung selbst zu ersetzen.
 
-**Die 120 Sekunden sind ein Kompromiss, kein Messwert.** Nach ein bis drei
+**Die 120 Sekunden sind ein Kompromiss, kein Messwert** – seit v255 nur noch
+bei den Pull-ups. Nach ein bis drei
 Wiederholungen ist die Erschöpfung gering, die Erholung dauert trotzdem gut
 zwei Minuten – volle drei wären nicht falsch, kosten aber neun Minuten für
 sechs Wiederholungen. Die Datenlage zu Pausenlängen bei so kurzen Sätzen ist
@@ -3556,6 +8661,12 @@ Wahl auf eine Geschwisterübung wirkt nicht mehr. Wer eine Übung nicht verträg
 hakt das unter Beschwerden an; die Flaschen und der Rucksack als Ersatz kommen
 nur noch über „Was da ist", wenn Band oder Stange fehlen.
 
+Unter dem Zeichen steht seit v224 die Übung, zu der der Knopf führt, nicht nur
+„leichter" oder „schwerer" (*„Bei schwerer kann ruhig die Übung stehen und
+so"*). Der Knopf ist so breit wie der Name, höchstens ein gutes Drittel der
+Zeile, und der Name bricht um, statt über den Rand zu laufen. „statt …" in der
+Mitte entfällt, wenn dieselbe Übung schon auf einem der Knöpfe steht.
+
 #### Und der Folgefehler, den diese Änderung ausgelöst hat
 
 > „Aber heute ist doch erst Dienstag? Montag stand ein Training an, Dienstag
@@ -3647,21 +8758,50 @@ Drei Entscheidungen, die dabei bewusst so ausgefallen sind:
 | | Entscheidung | Warum |
 | --- | --- | --- |
 | Leer | kein Standardsatz | Ein erfundener Scheibensatz sähe aus wie Wissen und wäre geraten. Ohne Eintrag rechnet die App wie vorher. |
-| Rucksack | wird nicht gerastet | Da passt auch eine Wasserflasche rein; ein Raster täuschte Genauigkeit vor. |
+| Rucksack | rastet mit Hanteln auf die Scheiben, einzeln (seit v253) | Bis v252 hieß es hier: wird nicht gerastet, da passt auch eine Wasserflasche rein. Dann stand bei den Chin-ups „Rucksack auf 1 kg“ – *„Wieso soll ich n Kilo reinpacken? Du weißt doch ich hab keine 1 Kilo Scheibe. Hab ich doch in der app angegeben“*. Zu Hause kommen Scheiben hinein (so sagt es auch der Hinweis der Übungen), und welche es gibt, steht im Vorrat. Eingetippt wird weiter frei, die Flasche geht also; ohne Hanteln – unterwegs, ohne Scheiben – bleiben freie Schritte. |
 | Eingabe | roh gespeichert, geprüft gerechnet | Sortieren und Aufräumen mitten im Tippen verschiebt die Zeile unter dem Finger, und der nächste Tastendruck landet in der falschen. |
 
-Direkt unter den Feldern steht, was damit erreichbar ist — für alle drei
-Ladearten getrennt, weil derselbe Vorrat je nach Gerät unterschiedlich weit
-reicht. Das ist der Beleg, dass die Eingabe stimmt: Wer seine gewohnten Gewichte
+Direkt unter den Feldern steht, was damit erreichbar ist — für jede Ladeart
+getrennt (seit v253 auch der Rucksack), weil derselbe Vorrat je nach Gerät
+unterschiedlich weit reicht. Das ist der Beleg, dass die Eingabe stimmt: Wer seine gewohnten Gewichte
 wiederfindet, hat richtig eingetragen; wer eine Liste krummer Zahlen sieht, hat
 sich vertippt.
+
+Deshalb zieht sie bei jedem Tastendruck nach, zusammen mit dem Hinweis neben
+der Zeile („+20 kg je Paar") und der Supersatz-Vorschau darüber – ersetzt
+werden nur diese Stellen, nicht die Felder, damit der Fokus im Feld bleibt.
+Vorher wurde gespeichert, aber nicht nachgezeichnet: Nach „Scheibengröße
+hinzufügen" (0,5 kg × 4) und dem Eintippen von 10 × 2 stand neben der Zeile
+weiter „+1 kg je Paar", und die Vorschau zeigte je Hand „0 · 1 · 2,5 · 3,5 …",
+also Gewichte aus 0,5er-Scheiben, die es gar nicht gibt. Ein richtig
+eingetragener Vorrat sah damit vertippt aus, bis man die Ansicht wechselte.
 
 Der Fall, den diese Vorschau als Erstes zutage förderte: Bei einem Vorrat mit
 **zwei Scheiben je Größe** stand dort „0 kg". Die Zahl war richtig — vier
 Scheiben kostet eine Stufe bei einem Paar, zwei reichen dafür nicht —, aber eine
 nackte Null sieht aus wie ein Fehler der App. Jetzt steht der Grund daneben:
 *„nur die leere Stange – für ein Paar bräuchte es von einer Größe vier
-Scheiben."*
+Scheiben."* In diesem Fall gibt es für beide Kurzhanteln kein Raster, und die
+Knöpfe gehen in den freien Schritten der Übung – vorher blieb das + dort
+einfach stehen.
+
+**Ein Gewicht neben dem Raster wird zuerst eingerastet.** Wer 12 kg je Hand
+eingetragen hat, bevor die Scheiben (4 × 1,25 / 4 × 2,5 / 4 × 5) drinstanden,
+liegt neben dem, was sich aufstecken lässt. Der Mindestschritt von fünf Prozent
+ließ das + dann über die 12,5 hinweg auf 15 springen. Jetzt geht der erste Druck
+auf den nächsten erreichbaren Wert in dieser Richtung – 12,5 nach oben, 10 nach
+unten –, und erst danach gelten die üblichen Schritte. Bis dahin sagt es die
+Rüstzeile: *„Aufbauen: Kurzhanteln auf 12 kg je Hand (12 kg lässt sich so nicht
+stecken – nächstes: 12,5 kg)"*. Vorher stand dort nur das Ziel, ohne Scheiben
+und ohne Grund, und dass 12 kg nicht aufgehen, merkte man erst an der Hantel.
+
+**Aufwärmsätze auch ohne Scheiben auf einer einstellbaren Zahl.** Die Hälfte und
+drei Viertel des Arbeitsgewichts rasten auf den eingetragenen Satz ein. Ohne
+Eintrag – oder bei beiden Kurzhanteln ohne Raster – stand vorher das Viertelkilo
+da: 26,25 kg an der Stange, 13,25 kg je Hand, 7,25 kg auf der Hüfte. Jetzt gilt
+dort die Schrittweite der Übung, bei Kurzhanteln je Hand, an der Stange
+höchstens 2,5 kg (ein Paar 1,25er), damit die Hälfte von 35 weiter 17,5 sein
+darf. Bei gleichem Abstand nach unten.
 
 ### Supersätze: die Pause füllen statt absitzen
 
@@ -3708,13 +8848,207 @@ Matching-Problem, dessen Lösung den Floor Press ans Ende schieben könnte — a
 dem Papier besser, im Training schlechter. Und ein Paar aus Übung 1 und Übung 6
 hieße, zwischen jedem Satz durch den halben Raum zu laufen.
 
-Über alle 168 Einheiten (4 Varianten × 2 Modi) findet sich im Schnitt **2,6
-Paare je Einheit**; 78 Übungen bleiben allein. Dass etwas übrig bleibt, ist
+**Ohne Hanteln zählt das Gerät der Bodyweight-Fassung.** Die Geräteregel und
+die Scheibenprüfung lasen vorher immer das Gerät und das Gewicht der
+Hantel-Fassung, auch ohne Hanteln. Band-Reverse-Fly und Wadenheben liefen dann
+einzeln, weil Kurzhantel und einarmige Kurzhantel dieselben Griffe sind; mit
+eingetragenem Scheibenvorrat änderte sich sogar die Paarung jeder dritten
+Bodyweight-Einheit nach Hantelgewichten, die dort niemand hebt. Ohne Hanteln
+ist jetzt nur der Rucksack ein Aufbau – es gibt einen, und er wird gepackt.
+Band, Stuhl und Klimmzugstange liegen nur da, und Scheiben sind keine im Spiel.
+
+Über alle 336 Einheiten der vier Pläne (4 × 84), gezählt wie die App die
+Einheit zusammenstellt (`workoutByNo()` und `resolve()`, Startgewichte, kein
+Vorrat eingetragen), findet `paare()` mit Hanteln im Schnitt **2,2 Paare je
+Einheit** (749 Paare, 345 Übungen bleiben allein) und ohne Hanteln **2,5**
+(828 Paare, 187 allein). Der Unterschied ist echt: Ohne Hanteln trennt fast
+nur noch der gemeinsame Muskel. `tests/test-supersatz.mjs` rechnet diese
+Zahlen nach und vergleicht sie mit diesem Absatz. Dass etwas übrig bleibt, ist
 keine Schwäche — wo zwei sich einen Muskel oder ein Gerät teilen, ist die
 normale Pause richtig. Unter *Mehr* steht deshalb nicht nur der Schalter,
 sondern auch, **wie die nächste Einheit konkret liefe**, Paar für Paar. Ein
 Schalter, der „paart automatisch" verspricht, ist sonst erst im Training
 überprüfbar — und dann steht man mittendrin.
+
+**Ohne Partner im Fenster wird weiter hinten gesucht.**
+
+> *„Wieso gibts heute keinen supersatz mit kurzhantel bodenpresse?"*
+
+Cut, Einheit 8, in Rüst-Reihenfolge: Bodenpresse, Pike-Liegestütze, Seitheben,
+Wadenheben, Gewichtete Crunches. Die Pike-Liegestütze teilen den Trizeps,
+Seitheben und Wadenheben die Kurzhanteln – der einzige mögliche Partner waren
+die Crunches, und die standen an fünfter Stelle, eine hinter dem Fenster von
+drei Plätzen. Die schwerste Übung des Tages lief allein mit 2:30 Pause.
+
+Zwei Dinge haben sich deshalb geändert. Erstens sucht `paare()` hinter dem
+Fenster weiter, wenn darin keiner passt – aber nur, wenn das insgesamt nicht
+weniger Paare ergibt; bei gleich vielen gewinnt das Paar für die frühere,
+schwerere Übung. Mit Hanteln sind es über alle 336 Einheiten 8 Paare mehr (732
+→ 740), ohne Hanteln keins, und die Umbauten mit Supersätzen bleiben in allen
+vier Plänen genau die ohne. Zweitens darf eine freie Scheibe (die Crunches
+halten sie auf der Brust) neben geladenen Kurzhanteln laufen, wenn der
+eingetragene Vorrat **beweist**, dass sie übrig ist. Ohne Vorrat bleibt es bei
+der Annahme, die Scheibe komme von der Hantel – dann wäre jeder Wechsel ein
+Umbau, und so zählt auch die Planrechnung (`freieScheibeReicht()` in
+`js/supersatz.js`).
+
+**Zwei Stangen, ein Scheibenvorrat.**
+
+> *„Goblet squad und Floor Press geht nicht im suoersatz weil man für beides
+> 5kg Scheiben brauch"*
+
+Verschiedene Stangen hießen bisher: Beide bleiben geladen, nichts wird
+gewechselt. Das stimmt nur, wenn die Scheiben für beide **zugleich** reichen.
+Hängen an beiden dieselben zwei 5er, wandern sie zwischen jedem Satz von einer
+Stange zur anderen – der Umbau, den die Geräteregel verhindern soll, nur über
+Umwege. `zusammen()` in `js/scheiben.js` prüft deshalb mit dem eingetragenen
+Vorrat (*Mehr → Was bei dir rumliegt*), ob sich beide Arbeitsgewichte gleichzeitig
+bestücken lassen – über alle Belegungen, nicht nur die mit den wenigsten
+Scheiben: Geht der Floor Press auch mit vier 2,5ern, ist es weiter ein Paar.
+Ohne eingetragenen Vorrat weiß die App es nicht und lässt die Paarung, wie sie
+war.
+
+Die Rüstzeile beider Übungen nennt dann auch genau diesen Weg. Vorher rechnete
+sie jede für sich: Floor Press 40 kg und Gewichtete Crunches 5 kg bei
+4 × 1,25 / 4 × 2,5 / 4 × 5 / 2 × 10 waren ein Paar, beim Floor Press stand
+„je Seite 1× 10 + 2× 5 kg" – alle vier 5er –, und beim Crunch „1× 5 kg", eine
+Scheibe, die nach der eigenen Anweisung nicht mehr daliegt. `zusammenBelegung()`
+gibt die gemeinsame Belegung mit den wenigsten Scheiben insgesamt zurück, immer
+in derselben Reihenfolge gesucht, damit beide Karten dieselbe Antwort zeigen;
+hier „2× 2,5 kg" auf der Brust. Passen die Belegungen für sich ohnehin
+nebeneinander, bleiben es genau die.
+
+Gesucht wird Größe für Größe: Für alles Weitere zählt nur, wie viel jedem
+Aufbau noch fehlt, nicht womit der Rest erreicht wurde – ein gescheiterter
+Zwischenstand wird gemerkt, und was ein Aufbau schon allein nicht mehr schafft
+oder mehr Eisen braucht, als noch daliegt, wird gar nicht erst versucht. Die
+erste Fassung zählte alle Belegungen auf; bei einem großen Vorrat und einem
+Paar, das nicht geht, waren das 1,4 s (4 Größen × 40 Stück) bis 25 s (6 × 20)
+im Hauptthread, bei jedem Neuzeichnen. Jetzt sind es wenige Millisekunden, mit
+derselben Antwort – `tests/test-supersatz.mjs` prüft das an 3000 zufälligen
+Sätzen gegen die alte Aufzählung. Wird es trotzdem zu viel, heißt die Antwort
+„weiß ich nicht" statt einer eingefrorenen App.
+
+**Zwei Übungen mit je einer Kurzhantel nehmen jede ihre eigene (seit v249).**
+
+> *„Wieso sind heute die letzten beiden Übungen nicht im Wechsel?"*
+> *„Ich hab ja zwei kurzhanteln"*
+
+Cut, Einheit 14: Langhantelrudern ↔ Bodenpresse, dann Reverse Fly,
+Fersenerhöhter Goblet Squat und Sitzendes Wadenheben einzeln. Der Reverse Fly
+braucht beide Hanteln, das ist richtig getrennt. Goblet Squat und Wadenheben
+zählen aber beide zur *einzelnen* Kurzhantel (`RUEST_FAM`), und weil eine
+Hantel und ein Hantel-Paar über dieselben Griffe laufen, galten alle drei als
+dieselbe Stange. Für ein Kurzhantel-Paar neben einer einzelnen stimmt das,
+für zwei einzelne nicht: Jede braucht eine Hantel, und es liegen zwei da. Die
+eine bleibt für den Goblet Squat geladen, die andere fürs Wadenheben.
+
+Dafür zählt `eigeneGriffe()` in `js/supersatz.js`, wie viele Griffe eine Übung
+belegt – eine Hantel (Goblet, einarmig) einen, das Paar zwei. Zwei Übungen mit
+je einem dürfen in den Wechsel, wenn kein Muskel geteilt wird und die Scheiben
+für **beide Hanteln zugleich** reichen – dieselbe Rechnung wie bei zwei
+Stangen (`zusammen()`), denn zwei Griffe sind beim Scheibenzählen zwei Stangen.
+Goblet Squat 20 kg und Wadenheben 10 kg brauchen mit 5ern sechs Stück: vier an
+der einen Hantel, zwei an der anderen. Sind es nur vier 5er und zwei 2,5er,
+hängen alle 5er am Goblet Squat, und es bleibt beim Einzeln. Ohne
+eingetragenen Vorrat sagt die App ja, wie bei zwei Stangen. Die Scheibe auf
+der Brust (Gewichtete Crunches) ist kein Griff: Sie kommt im Zweifel von einer
+Hantel, und für sie gilt weiter, dass der Vorrat es beweisen muss.
+
+Die zweite Hantel kommt aber **nur dazu, wo sie ein Paar mehr bringt.**
+Gierig gepaart nahm sich sonst manchmal die vordere Übung das Wadenheben und
+ließ dahinter mehr übrig: Bauch, Beine, Po, Einheit 62 hat drei Paare – Goblet
+Squat ↔ Pike-Liegestütze, Wadenheben ↔ RDL, Crunches ↔ Rudern. Mit der
+zweiten Hantel griff der Goblet Squat zuerst nach dem Wadenheben, und am Ende
+standen RDL und Rudern allein, beide an der Langhantel. Deshalb paart
+`paare()` zuerst wie vorher und nimmt die Paarung mit der zweiten Hantel nur,
+wenn sie mehr Paare hat; bei gleich vielen bleibt die, die es schon gab.
+
+Über die 336 Einheiten (mit Hanteln, Startgewichte, kein Vorrat) ergibt das
+in **9 Einheiten ein Paar mehr** – sieben im Cut, zwei im Oberkörper-Plan
+– und in keiner eins weniger oder eine bloß umgestellte Paarung. Gepaart wird
+dabei immer ein Goblet Squat (auch der fersenerhöhte) oder das Einbeinige
+Kreuzheben mit einem Wadenheben.
+
+Die Rüstzeile weiß davon. Sie kennt nur den Aufbau davor, und im Wechsel ist
+das der des Partners: Beim Wadenheben hätte „Umbauen: Kurzhantel von 20 auf
+10 kg" gestanden – genau der Umbau, den das Paar erspart. Jetzt steht dort
+*„Aufbauen: zweite Kurzhantel auf 10 kg (je Seite 1× 5 kg) – die erste
+bleibt geladen"*. Reichen die Scheiben nach einer Erhöhung nicht mehr für
+beide (das Paar bleibt, siehe unten), wird doch umgesteckt; dann steht wieder
+„Umbauen: Kurzhantel von 20 auf 10 kg", passend zum Hinweis darüber.
+
+Geprüft in `tests/test-supersatz.mjs`: die Regel selbst (mit Vorrat, knapp,
+mit kleineren Scheiben, ohne Vorrat; Reverse Fly + Wadenheben bleiben
+getrennt, die Brustscheibe zählt nicht als Griff), jede Einheit aller vier
+Pläne mit und ohne die zweite Hantel, Cut 14 und Bauch, Beine, Po 62 einzeln,
+beide Rüstzeilen im Training – mit genug Scheiben und mit knappen bei
+festgehaltenem Paar. Die Zählung der Umbauten rechnet seither mit zwei
+Hanteln: Mit nur einem Griff im Modell zählte jeder Wechsel zwischen Goblet
+Squat und Wadenheben als Umbau – im Cut 267 statt 239, und die Prüfung hätte
+angeschlagen. Mit zwei gezählt kosten Supersätze in allen vier Plänen weiter
+keinen einzigen Umbau mehr als ohne.
+
+*Grenzen, ehrlich:* Die Rüstzeile kennt weiter nur den einen Aufbau davor.
+Hat eine Übung nach dem Paar das Gewicht der Hantel, die *nicht* zuletzt dran
+war, sagt sie „umbauen", obwohl die richtige Hantel noch geladen daliegt. Und
+eine Einheit, deren erster Satz schon abgehakt ist, behält ihre Paarung
+(unten) – das neue Paar gibt es ab der nächsten.
+
+**Die Paarung steht, sobald trainiert wird.** Weil die Scheiben mitreden,
+hängt ein Paar am Gewicht – und ein Tipp auf + mitten im Supersatz löste es
+auf: Der Hinweis „Im Wechsel mit …" verschwand, die App blieb bei derselben
+Übung, und die angefangene Partnerübung rutschte hinter das nächste Paar. Die
+Paarung ist aber ein Plan für diese Einheit, wie die Rüst-Reihenfolge. Mit dem
+ersten abgehakten Satz wird sie deshalb im Protokoll der Einheit festgehalten
+(`paare`), damit sie auch ein Neuladen mit dem neuen Gewicht übersteht; vorher
+richtet sie sich nach Gewicht und Vorrat, damit die Vorschau unter *Mehr* zeigt,
+was ein eingetragener Vorrat bewirkt. Vorschau und Training lesen dieselbe
+Paarung. Reichen die Scheiben nach einer Erhöhung nicht mehr für beide
+Aufbauten, bleibt das Paar, und unter dem Wechselhinweis steht: *Die Scheiben
+reichen nicht für beide Aufbauten – zwischen den Sätzen umstecken.* Ändern sich
+die Übungen selbst (Beschwerde, Gerät weg, andere Fassung), wird neu gepaart.
+
+**Die Rüstzeile folgt dem Ablauf, nicht der Liste.** Sie sagt, was vor einer
+Übung umzubauen ist, und schaute dafür auf die Übung darüber. Im Supersatz liegt
+der Partner aber bis zu drei Plätze weiter unten. Workout 3 des Aufbau-Plans
+zeigte vor dem ersten RDL-Satz „Stange bleibt bei 40 kg – nichts umbauen" (die
+Stange war leer, die 40 kg gehörten zum Floor Press, der erst danach kam), beim
+Floor Press direkt nach dem RDL „Aufbauen", und bei den Crunches „Umbauen:
+Kurzhantel von 20 auf 5 kg" für einen Goblet Squat, den noch niemand angefasst
+hatte. Jetzt zählt die Reihenfolge der Sätze (`schritte()` je Gruppe), vom
+ersten Satz der Übung rückwärts. Ohne Supersatz ist das dieselbe Liste wie
+vorher.
+
+**Die Leiste unten gehört zur Übung, die zu sehen ist.**
+
+> *„Bei supersatz soll unten die pausenzeit angezeigt werden von der Übung die
+> grad angezeigt wird"*
+
+Im Wechsel laufen zwei Pausen zugleich, eine je Übung; die Leiste zeigte nur
+die zuletzt gestartete. Wer zum Partner wischte oder oben auf ihn tippte, sah
+weiter die Pause der anderen Übung samt deren Namen. Jetzt liest
+`leistenPause()` die Uhr der gezeigten Übung ab: noch nicht erholt → ihre
+Restzeit, sonst keine Leiste. Zurückwischen zeigt wieder die andere,
+weitergelaufen statt neu gestartet; eine weggetippte Pause kommt nicht wieder,
++30 s bleiben an der Übung hängen – auch im Ganzen, an dem der Balken misst
+(vorher stand er danach bei 118 %). Die Uhr (`workout.satzuhr.v1`) liegt nur im
+Gerät und überlebt ein Neuladen der Seite – sonst wäre die laufende Pause nach
+kurzem Wechsel in eine andere App beim ersten Wischen verschwunden.
+
+Abgelesen wird nach jedem Zeichnen, an dem, was gerade zu sehen ist – nicht nur
+beim Wischen. Vorher stand nach „Training fortsetzen" unter den Liegestützen die
+Pause der Pull-ups, und „Fertig" beendete dann deren Pause statt der gezeigten.
+
+**Was klingelt, ist eine andere Frage als was unten steht.** Ton, Vibration und
+Systemmeldung gehören der Pause, auf die der Ablauf wartet – der des nächsten
+Schritts. Die läuft weiter, egal wohin man wischt. Zuerst wurde mit der Leiste
+auch das Signal getauscht: Zu einer noch nicht begonnenen Übung gewischt, war
+die Pause samt Ton und Meldung weg; zum Partner gewischt, klingelte es zu
+dessen Ende. Die Pause des Partners klingelt bewusst nicht – ist sie kürzer,
+käme ihr Ton, während man noch auf die andere wartet. Dran ist sie trotzdem
+rechtzeitig: Nach dem nächsten Satz rechnet der Wechsel ihre Restzeit aus der
+Uhr und legt dann ihr Signal.
 
 ### Drei Minuten waren zu viel
 
@@ -3838,11 +9172,23 @@ nächsten Training.
 ### Einrichten in vier Schritten
 
 Wer den Link zum ersten Mal öffnet, bekommt **Name, Farbe, Erfahrung, Fokus** –
-in dieser Reihenfolge, eine Frage pro Bildschirm. Die Farbe wirkt sofort, damit
+in dieser Reihenfolge, eine Frage pro Bildschirm. Im ersten Schritt steht
+außerdem, wo ein Server eingetragen ist, der Satz zur
+[automatischen Sicherung](#automatische-sicherung) mit dem Schalter daneben und
+*Sicherung zurückholen* für den, der von einem anderen Gerät kommt – er
+überspringt damit die übrigen Fragen. Die Farbe wirkt sofort, damit
 die Auswahl nicht abstrakt bleibt; bei der Erfahrung stehen zwei Beispielgewichte
 unter jeder Stufe. Am Ende steht der Hinweis, dass sich unter *Mehr → Eigenes
 Workout* ohnehin jede Einheit selbst zusammenstellen lässt: Der Fokus ist ein
 Vorschlag, kein Korsett.
+
+Ist der Fokus ein anderer als der, mit dem die Seite geladen wurde, lädt „Los
+geht's" sie einmal neu – wie jeder andere Fokuswechsel. Der Plan wird beim Laden
+gewählt (`js/data.js`). Wer im Einstieg „Cut" nahm, trainierte vorher die erste
+Einheit nach dem Aufbau-Plan, sechs Übungen mit Klimmzügen, und beim ersten
+Neuladen stand mitten in der Einheit der Cut da, die schon abgehakten
+Liegestütze als fremde Übung dazwischen. Neu geladen wird erst am Ende, nicht
+schon beim Antippen des Fokus – sonst finge der Einstieg wieder beim Namen an.
 
 
 **Die Stufe bestimmt auch die Satzzahl.** Lange skalierte sie nur die
@@ -3933,6 +9279,238 @@ beide (`--accent-db`, `--accent-bw`), und `body.mode-bw` schaltet zwischen ihnen
 um. Das Attribut sitzt am `<html>` und nicht am `<body>`: `--accent` wird auf
 `:root` abgeleitet und nähme sonst weiter den Standardwert von dort.
 
+## Diagnoseprotokoll
+
+> „Können wir nicht allgemein alles mögliche im Hintergrund loggen damit du
+> siehst was funktioniert und was nicht oder so?"
+
+Ja – weil Ton, Pause, Service Worker und Speicher auf dem Handy still scheitern.
+Hinter *„es gab iwie keine sounds"* und *„Jetzt fehlt iwie die Pause"* standen
+jedes Mal Gründe, die in keinem Zustand stehen: ob die Pause ablief oder
+weggetippt wurde, ob das Signal auf der Audio-Uhr lag, ob der Tonkanal schlief,
+ob der erste Tipp den Ton überholt hat. Im Test nachgestellt sah man sie, am
+Gerät bis jetzt nichts. Jetzt schreibt die App das mit – nach denselben Regeln
+wie der Rückkanal, nur strenger, weil hier mehr drinsteht.
+
+### Vier Regeln
+
+* **Bleibt hier.** Ein eigener Schlüssel im Speicher des Browsers
+  (`workout.diagnose.v1`), höchstens 64 KB und 14 Tage; was älter oder zu viel
+  ist, fällt vorn weg. Nichts geht von selbst irgendwohin – kein Server, nicht
+  in die Sicherung (weder Datei noch Server), nicht in den Rückkanal.
+  `js/diagnose.js` hat keinen Weg nach draußen: kein `fetch`, kein
+  `sendBeacon`, keinen einzigen Import. Hinaus geht es nur, wenn du unter
+  *Mehr → Daten* auf **Protokoll teilen** oder **Kopieren** tippst – als
+  `.txt`, derselbe reparierte Weg wie bei der Sicherung (Chrome teilt `.txt`
+  mit genau `text/plain`, kein `.json`).
+* **Abschaltbar.** Ein Schalter in derselben Karte, Standard an. Aus heißt: Es
+  wird nichts mehr mitgeschrieben, auch nicht nach dem Neuladen und auch nicht
+  in einem zweiten Fenster; was da ist, bleibt bis zum Löschen. **Protokoll
+  löschen** leert es (mit Rückfrage), *Alle Daten löschen* räumt es mit – und
+  lässt den Schalter, wie er ist.
+* **Wenig.** Kennungen und Zahlen, keine Inhalte – die Tabelle unten. Uhrzeiten
+  stehen drin, also auch, wann du trainierst; das sagt die Karte dazu.
+* **Sichtbar.** Die Karte zeigt, was drinsteht, eine Zusammenfassung und einen
+  Kasten zum Abfotografieren: oben die Lage (der Kopf ohne den langen
+  User-Agent), darunter die letzten acht Einträge – ohne feste Höhe und an
+  Wortgrenzen umbrochen, damit ein Foto alles zeigt. Bei 414 × 896 und
+  Einträgen üblicher Länge ist er rund 560 px hoch, passt also auf einen
+  Bildschirm. Beim Gegenlesen endete er dort mit fester Höhe noch im Kopf, und
+  „break-all" brach mitten im Wort („Ti pp"). **Alles ansehen** klappt den
+  ganzen Text auf, und jede geteilte Datei beginnt mit „Workout-Diagnose · … ·
+  bleibt auf dem Gerät, geteilt nur auf Tipp" – damit auch der Empfänger weiß,
+  was er bekommt.
+
+| Was drinsteht | Was nie drinsteht |
+| --- | --- |
+| Zeit (Ortszeit, Millisekunden), Art des Eintrags | Name |
+| Einheit als Nummer, Übung als Kennung, Satz als „2 von 3" | Gewichte, Wiederholungen, Eingaben |
+| Pausenlänge, was am Pausenende entschieden wurde | Beschwerden, Termine, Notizen |
+| Tonzustand: Kontext, woher, angehalten, verpasst und warum | Sicherungsschlüssel, Kennung, Schreibmarke |
+| Fehler mit Meldung und Datei:Zeile | der Anker einer Adresse (`#sicherung=…`, `#stand=…`) |
+| Browser, Fenster, Fassung, Service Worker | Betreiber-Passwort, Schlüssel des Servers |
+| Speicherlage, Größen in KB, Ergebnis jeder Sicherung | der Inhalt des Trainingsprotokolls |
+
+Jede Adresse verliert Anker, Anfrage und Herkunft, bevor sie eine Zeile wird –
+im Anker eines Wiederherstellungs-Links steht der Sicherungsschlüssel. Jede
+Zeichenkette ab 40 Zeichen aus dem Alphabet von Schlüsseln wird zu „…" (der
+Sicherungsschlüssel hat 43, ein JWT weit mehr; die längste Übungskennung 32).
+Und eine Meldung über JSON verliert, was sie in Anführungszeichen zitiert:
+Chrome zitiert beim Parsen den Anfang des Textes, und das wäre der Anfang einer
+Sicherung – mit dem Namen darin. Gemeldet wird beim Einlesen deshalb nur der
+Name des Fehlers.
+
+### Was mitgeschrieben wird
+
+Eine Zeile je Ereignis, an der Stelle, an der es passiert (`notieren()` in
+`js/app.js`, `js/audio.js`, `js/sicherung.js`):
+
+```
+2026-10-25 16:37:44.498 satz einheit=1 mode=db ex=fuesse-erhoehte-liegestuetze satz=1 von=3 done=true exFertig=false fertig=false super=false pause=90
+2026-10-25 16:37:44.508 pause was=start dauer=90 ex=fuesse-erhoehte-liegestuetze satz=1 von=3
+2026-10-25 16:37:44.518 ton was=geplant plan=ready+rest in=90 zustand=running
+2026-10-25 16:37:46.520 pause was=ablauf stand=laeuft frisch=true ersatz=false toene=true leiste=true sichtbar=true spaet=0
+```
+
+| Art | Was |
+| --- | --- |
+| `start` | Start der Seite: installiert oder Browser, Browser kurz, Fenster, Zeitzone, Netz, Speicherlage, Größen, Plan, laufende Einheit und Pause, Grund eines Neuladens (Update, Import, Einstieg, Fokus); eine Zeile später die Fassung aus dem Zwischenspeicher; auf Android eine weitere mit der Version, die der User-Agent verschweigt (siehe unten) |
+| `sw` | Service Worker: registriert, Update gefunden, Zustand, Wechsel mit oder ohne Neuladen, Notausgang „App aktualisieren", die Fassung, sobald ein neuer Zwischenspeicher steht, Fehler |
+| `fehler` | jeder Fehler, den niemand gefangen hat – geworfen, abgelehnt, eine Datei, die nicht lädt |
+| `sicht` | App weg (mit Rest der Pause), wieder da (wie lange weg, wie viel gutgeschrieben), Seite zu, Neuladen |
+| `ton` | Kontext angelegt (woher, Zustand), Zustandswechsel, Wecken und Ergebnis, erste Berührung, los, geplant, vorgemerkt, nachgeholt, verfallen (mit Grund: Frist, überholt, kein Kontext), verpasst, verworfen auf stehender Uhr, erklungen, abgesagt |
+| `pause` | Start, Auflegen (Ton ja/nein, Hinweis über Worker/Seite/aus), Ablauf (wie viel zu spät) oder Abbruch (wie viel noch übrig war) mit dem, was `endRest()` entschied, weg, +30 s, Hinweis der Seite gezeigt oder gescheitert (mit Grund), Wakelock abgelehnt |
+| `satz` | ein Haken: Einheit, Modus, Übung, Satz („satz=2 von=3", gezählt wie in der Pausen-Zeile), was danach kam (Übung fertig, Einheit fertig, Supersatz, Pause) – oder abgelehnt, weil schon fertig |
+| `einheit` | Start, Abschließen, Ende (Dauer, liegen geblieben, Aufstieg), verworfen, zurückgesetzt, markiert, alles abgehakt, Uhr gedeckelt |
+| `tag` | Tagesabschluss (welche Einheiten mit wie vielen Sätzen, welche Sitzung, wie lange still), seine Zeile abgelaufen, Nachrücken, Nachziehen beim Zurückkommen, die Uhr um Mitternacht |
+| `plan` / `zusatz` / `nach` | Umzug, Umbau, Fokus, Neustart, Runde weiter oder zurück, Vorziehen, Aufstieg, Zusatztag, Nacharbeit festgehalten |
+| `schalter` | Töne, Satz-Tupfer, Hinweise, Supersatz, Teilen, Stufe, Pause, Modus, Fokus, Aufwärmen, Sicherung – von, nach |
+| `datei` | Sicherung teilen, herunterladen, Export, Import |
+| `sicherung` | Ergebnis jedes Versuchs (gelungen, keine Verbindung, Server kennt sie nicht, Konflikt, zu oft), Holen, Löschen, Löschauftrag |
+| `rueckkanal` | Ergebnis der Meldung |
+| `kalender` | Google Kalender automatisch: Anlass (erster Haken, Abschluss, Start, online, Einstellung, Wiederholung, Zurückkommen), Ergebnis jeder Sendung mit Fassung des Skripts, geänderten Terminen, Größe in Byte, Rechenzeit im Worker und im Fenster, Zähler, ob mit keepalive oder in den Ausgang des Service Workers, ob eine Wiederholung aussteht oder alle scheiterten (`wieder`, `erschoepft`); Verbinden samt Nachfrage per GET nach einer undurchsichtigen Probe (`probe-get`, Befund), Trennen, nachgesendet (mit dem Ergebnis, wenn der Service Worker es lesen konnte), Code kopiert – nie Kennwort, Adresse oder den Hinweistext des Skripts |
+| `speicher` | Zusage des Browsers, Speicherlage, Platz gemacht, Satzuhr |
+| `diagnose` | das Protokoll selbst: an, aus, geleert, geteilt, kopiert, heruntergeladen |
+
+Dieselbe Zeile binnen 10 s wird nicht wiederholt, sondern als „×n"
+hochgezählt – ein Fehler je Bild rollte sonst in Sekunden das ganze Protokoll
+weg.
+
+Der Kopf über dem Text (acht Zeilen, beim Ansehen, Teilen und Kopieren frisch
+gebaut, nie gespeichert): Zeit und Zeitzone; Fassung, Anzeige, Browser,
+Fenster, Netz; Speicher, Zusage und Größen; Ton mit seinen Zählern und den
+Schaltern; laufende Einheit, Pause, Plan, Service Worker; Sicherung,
+Rückkanal und Kalender (verbunden, wann zuletzt angekommen); Fehler, Einträge heute, wie oft und wie lange in dieser Sitzung
+geschrieben wurde; der volle User-Agent.
+
+Zwei Angaben darin waren beim Gegenlesen falsch und sind es nicht mehr:
+
+* **Die Fassung** las die Startzeile einmal aus dem Zwischenspeicher – und
+  genau nach *App aktualisieren* (der Notausgang räumt alle) und bei der
+  ersten Installation ist da noch keiner. Im Kopf stand „Fassung keine", in der
+  Datei nirgends eine Version. Jetzt zieht die App sie nach, sobald ein Service
+  Worker aktiviert ist oder die Seite übernimmt (`sw was=fassung`).
+* **Android.** Chrome schreibt seit Fassung 110 auf Android immer
+  „Android 10; K" in den User-Agent, egal welches Android läuft – das
+  Protokoll schrieb also „Android/10" in jede Datei. Jetzt steht dort
+  „Android/?", und die echte Version kommt aus `navigator.userAgentData` nach
+  (`start system=Android/14`). Nur die Version, nicht das Modell, das dieselbe
+  Abfrage hergäbe: Für Ton, Speicher und Worker zählen Browser und Android.
+
+### Was es kostet
+
+Geschrieben wird nie im Tipp, sondern gebündelt: höchstens einmal je Minute aus
+einem Zeitgeber (Vorderkante – ein Dauerfeuer schiebt das Schreiben nicht
+hinaus), dazu an denselben Stellen, an denen auch der Store sofort schreibt
+(Wegschalten, Schließen, Neuladen), und gleich nach einem Fehler, einer
+Störung des Speichers oder dem Ende einer Einheit – das höchstens alle zwei
+Sekunden. Gemessen im Test-Chromium auf dem Rechner (`tests/test-diagnose.mjs`,
+Fall 2; am Handy zeigt der Kopf die eigene Zahl):
+
+| | Protokoll | zum Vergleich |
+| --- | --- | --- |
+| je Eintrag | 2–4 µs, kein Speicherzugriff | – |
+| je abgehaktem Satz | 0 Schreibvorgänge im Tipp | der Store: eine Schreibung von 26–65 KB |
+| je Schreibung | 0,1–0,5 ms bei 64 KB, die erste einer Seite mit Platzhalter 2–4 ms | – |
+| Platzhalter beim Laden (nur mit Protokoll im Speicher; die erste Schreibung spart ihn dafür) | 0,3–1,4 ms, Median 0,5 ms; bei sechsfach gedrosselter CPU 2,5–10,5 ms | – |
+| je Satz im Protokoll | 550–770 Zeichen (Satz, Pause, Ton, Ende der Pause; mehr mit +30 s und Wegtippen) | – |
+
+Eine Einheit mit 17 Sätzen ergibt so 10 bis 13 KB; 64 KB halten die letzten
+fünf, sechs Einheiten. Wer etwas zeigen will, teilt es also am besten bald
+danach.
+
+### Der Speicher gehört dem Training
+
+Das Protokoll darf dem Training nie den Platz nehmen – in der Lage „voll"
+entscheiden die letzten Dutzend Byte (siehe oben,
+[Wenn der Speicher voll ist](#wenn-der-speicher-voll-ist-sagt-die-app-jetzt-das-richtige)).
+Drei Wege, alle drei im Test nachgestellt:
+
+* **Vorher.** Schon beim Laden, wenn ein Protokoll der letzten Sitzung im
+  Speicher liegt – noch bevor der Store das erste Mal schreibt –, sonst nach
+  dem ersten Schreiben jeder Seite, und danach höchstens alle zehn Minuten legt
+  das Protokoll kurz einen Platzhalter von 256 KB daneben und nimmt ihn gleich
+  wieder weg. Passt der nicht, räumt es seinen Schlüssel und läuft nur noch im
+  Arbeitsspeicher – bei so knappem Speicher hat es dort nichts zu suchen.
+  256 KB sind das Vierfache des Protokolls und mehr als der ganze Zustand samt
+  einer abgelegten Runde.
+
+  Das „beim Laden" kam beim Gegenlesen dazu: Füllte zwischen zwei Sitzungen
+  etwas anderes den Speicher (auf github.io teilen sich alle Projekte eines
+  Kontos die Herkunft), scheiterte schon das erste Schreiben des Stores beim
+  Start. Die App sah „voll" danach nie als *Wechsel*, das Protokoll behielt
+  seine 60 KB, und kein Satz kam an, bis die App wegschaltete.
+* **Wenn der Store „voll" meldet** (ein Satz kam nicht an) – auch, wenn er es
+  schon am Ende des Starts meldet –, gibt das Protokoll seinen Schlüssel im
+  selben Moment frei. Ein zweiter Schreibversuch des Stores
+  von dort aus wäre denkbar gewesen und wurde verworfen: Der Satz steht im
+  Arbeitsspeicher und geht mit dem nächsten Schreiben mit, die Warnung ist die
+  Wahrheit über diesen Moment – und `js/store.js` bleibt unangetastet.
+* **Scheitert das eigene Schreiben**, ebenso.
+
+Danach bis zum nächsten Start nur im Arbeitsspeicher (sonst ein Wechselspiel:
+Protokoll schreibt, Satz scheitert, Protokoll räumt). Teilen und Kopieren gehen
+aus dem Arbeitsspeicher weiter; die Karte sagt, dass es so ist.
+
+### Ansehen, teilen, löschen, abschalten
+
+Alles unter *Mehr → Daten*, in der Karte **Diagnoseprotokoll**:
+
+* **Ansehen** – die Zusammenfassung („312 Einträge seit 22.10. 19:02 · 27 KB ·
+  0 Fehler · zuletzt geschrieben …"), der Kasten zum Abfotografieren und
+  **Alles ansehen** für den ganzen Text, das Neueste unten.
+* **Protokoll teilen** – als `workout-diagnose-JJJJ-MM-TT.txt` über den
+  Teilen-Dialog des Handys. Abbrechen bleibt still; lehnt der Browser ab, wird
+  die Datei heruntergeladen, und der Text steht zum Kopieren im Feld.
+* **Kopieren** – in die Zwischenablage; geht das nicht (unter `file://`, ohne
+  Erlaubnis), steht der Text markiert im Feld.
+* **Protokoll löschen** – mit Rückfrage; danach steht eine Zeile da, die sagt,
+  warum es leer ist.
+* **Schalter** – aus schreibt nichts mehr. *Alle Daten löschen* leert das
+  Protokoll und lässt den Schalter, wie er ist; ist es an, heißt die erste
+  Zeile danach `diagnose was=geleert grund=reset`. Bis zum Gegenlesen stellte
+  es ihn wie jede andere Einstellung auf den Standard (an) zurück – wer es
+  bewusst abgeschaltet hatte, wurde nach dem Löschen aller Daten wieder
+  protokolliert, und weder die Rückfrage noch der Einstieg sagte es. Ein
+  Löschen soll nie dazu führen, dass mehr mitgeschrieben wird.
+  Abschalten verwirft nichts – auch nicht, wenn das Protokoll gerade nur im
+  Arbeitsspeicher lief (Speicher knapp oder gesperrt); bis zum Gegenlesen der
+  Zusammenführung gingen dabei die Zeilen seit dem Weichen verloren und mit
+  ihnen Teilen und Kopieren. Und „aus" überlebt den nächsten Start auch bei
+  vollem Speicher: Passt der Schalter nicht mehr hinein, sagt der Toast es
+  („gemerkt wird es, sobald wieder Platz ist"), und beim nächsten Wegschalten
+  mit Platz steht er drin.
+
+### Ehrlich dazugesagt
+
+* Ein Lade- oder Syntaxfehler im Modulgraphen (ein halbes Update, eine fehlende
+  Datei) verhindert jedes Modul, also auch dieses – die „weiße Seite" bleibt
+  unprotokolliert. Abhilfe wäre ein klassisches Skript in `index.html`, das
+  frühe Fehler sammelt; das ist ein eigener Schritt.
+* Was der Service Worker im Hintergrund tut – die Meldung „Pause vorbei" –,
+  sieht die Seite nicht. `meldung=worker` heißt „übergeben", nicht „gezeigt".
+  Zeigt die Seite die Meldung selbst (kein Worker übernimmt), steht das
+  Ergebnis da, nicht der Versuch: `pause was=meldung … gezeigt=true` oder
+  `gezeigt=false … name=TypeError` – auf Chrome Android wirft
+  `new Notification()` ohne Worker. Bis zum Gegenlesen stand dort schon vor dem
+  Versuch „gezeigt=true".
+* Endet die Seite hart, ohne Wegschalten (der Browser beendet sie, der Akku
+  ist leer), fehlt höchstens die letzte Minute.
+* Zwei Fenster (installiert und als Tab) hängen ihre Zeilen aneinander, statt
+  sich zu überschreiben; die Reihenfolge zwischen beiden ist nicht garantiert.
+* Etwa eine Schreibung je Satz bleibt – aus dem Zeitgeber, nie im Tipp. Ob das
+  am Handy spürbar ist, zeigt die Zeile „Schreibungen diese Sitzung … längste …"
+  im Kopf. Die Stellschraube ist `DIAGNOSE_DROSSEL_MS` in `js/diagnose.js`.
+* Eine Fehlermeldung kann etwas anderes zitieren, als die Regeln oben fangen.
+  Deshalb: höchstens 200 Zeichen, und du siehst den Text vor dem Teilen.
+
+`tests/test-diagnose.mjs` prüft das in 15 Fällen – Start, Kosten, Fehler,
+Pause und Ton, Tagesabschluss, Sicherung, Ansehen, Teilen, Kopieren, Schalter
+und Löschen, Ringpuffer, volle Ablage, „nichts geht raus", Einzeldatei, und
+was das Gegenlesen der Zusammenführung fand: Abschalten im Arbeitsspeicher,
+„aus" bei vollem Speicher, der Uhr-Deckel beim Satz (`uhr gedeckelt wo=satz`)
+und ein verfallener Gong, der nicht zweimal im Protokoll steht.
+
 ## Rückkanal und Betreiber-Übersicht
 
 Die App ist ohne ihn vollständig – kein Konto, kein Server, alles im Browser.
@@ -3997,8 +9575,13 @@ Die alten Zeilen stehen weiter in der Tabelle. Sie zu löschen ist eine
 Entscheidung des Betreibers, kein Aufräumen nebenbei.
 
 Heimlich mitzuzählen wäre technisch dasselbe und trotzdem etwas anderes: Die App
-verspricht jedem beim ersten Start, dass nichts von allein sein Gerät verlässt.
-Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar keine.
+sagt jedem beim ersten Start, was von allein sein Gerät verlässt und an wen –
+die Zahlen des Rückkanals und, verschlüsselt, die
+[automatische Sicherung](#automatische-sicherung) –, jeweils mit eigenem
+Schalter. Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar
+keine. Bis v239 lautete diese Zusage noch „von allein geht nichts irgendwohin";
+mit der automatischen Sicherung stimmte der Satz nicht mehr und ist deshalb aus
+dem Einstieg verschwunden, statt stehen zu bleiben.
 
 ### Die Testleichen wegräumen
 
@@ -4215,6 +9798,251 @@ und auf die Tabelle selbst hat außer ihr niemand ein Recht.
 Wer eine ältere Einrichtung mit Regeln statt Funktionen hat, muss nichts tun –
 die App fällt darauf zurück, wenn es `melde` nicht gibt.
 
+### Automatische Sicherung einrichten
+
+Die [automatische Sicherung](#automatische-sicherung) braucht eine eigene
+Tabelle, drei Funktionen und zwei kleine Tabellen für die Drossel je Quelle.
+Einmal im **SQL-Editor** ausführen – derselbe Text steht in
+[`tools/sicherung.sql`](tools/sicherung.sql). Ein Passwort braucht er
+nicht: Aus der Tabelle kommt nur Chiffrat, und lesbar ist es nur mit dem
+Schlüssel auf dem Gerät. Wie der Block oben ist er wiederholbar und löscht keine
+Sicherung.
+
+```sql
+create table if not exists sicherung (
+  id       text primary key,
+  w_hash   text not null,
+  daten    text not null,
+  iv       text not null,
+  groesse  int  not null,
+  stand    timestamptz not null default now(),
+  angelegt timestamptz not null default now()
+);
+
+-- Falls die Tabelle aus einer früheren Fassung dieses Blocks stammt.
+alter table sicherung add column if not exists angelegt timestamptz not null default now();
+
+-- Die Drossel je Quelle: wie viel eine Quelle an einem Tag neu angelegt hat und
+-- wie viele Daten dazukamen (Anlegen und Wachsen). Die Quelle ist ein Hash aus
+-- IP-Adresse und Tagessalz – die Adresse selbst steht nirgends.
+create table if not exists sicherung_quelle (
+  quelle text   not null,
+  tag    date   not null,
+  neu    int    not null default 0,
+  bytes  bigint not null default 0,
+  primary key (quelle, tag)
+);
+create table if not exists sicherung_salz (
+  tag  date primary key,
+  salz text not null
+);
+
+alter table sicherung enable row level security;
+alter table sicherung_quelle enable row level security;
+alter table sicherung_salz enable row level security;
+
+-- Erst weg, dann neu: Ändert sich eine Signatur oder ein Rückgabetyp,
+-- verweigert "create or replace" den Dienst.
+drop function if exists sicherung_schreiben(text, text, text, text, timestamptz);
+drop function if exists sicherung_lesen(text);
+drop function if exists sicherung_loeschen(text, text);
+
+-- Anlegen oder ersetzen – Ersetzen nur mit passender Schreibmarke und nur, wenn
+-- `p_vorher` der Stand ist, der dort gerade liegt. Sonst hat dazwischen ein
+-- anderes Gerät mit demselben Schlüssel geschrieben ('veraltet'), oder die
+-- Sicherung wurde inzwischen gelöscht ('geloescht'). Die App hört dann auf und
+-- fragt, statt den anderen Stand still zu überschreiben.
+create or replace function sicherung_schreiben(
+  p_id text, p_w text, p_daten text, p_iv text, p_vorher timestamptz default null)
+returns timestamptz
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  marke    text;
+  alt      sicherung%rowtype;
+  jetzt    timestamptz := now();
+  heute    date := (now() at time zone 'utc')::date;
+  v_ip     text;
+  v_salz   text;
+  v_quelle text;
+  v_neu    int;
+  v_bytes  bigint;
+  zuwachs  bigint;
+begin
+  -- Schreiben darf jeder, der den Link hat. Was er schreibt, hat trotzdem eine
+  -- Form zu haben – und eine Größe, die der kostenlose Tarif verträgt.
+  if p_id is null or p_id !~ '^[0-9a-f]{64}$' then raise exception 'ungueltige Kennung'; end if;
+  if p_w is null or p_w !~ '^[0-9a-f]{64}$' then raise exception 'ungueltige Schreibmarke'; end if;
+  if p_iv is null or p_iv !~ '^[A-Za-z0-9+/]{16}$' then raise exception 'ungueltiger IV'; end if;
+  if p_daten is null or length(p_daten) < 24 then raise exception 'leere Sicherung'; end if;
+  if length(p_daten) > 2 * 1024 * 1024 then raise exception 'Sicherung zu gross'; end if;
+  marke := encode(sha256(convert_to(p_w, 'UTF8')), 'hex');
+
+  -- Aufräumen nebenbei: Was 400 Tage niemand erneuert hat, gehört zu keinem
+  -- Gerät mehr. Die App erneuert spätestens alle 30 Tage, solange sie benutzt
+  -- wird – hier verschwindet also nur Verwaistes. Und von der Drossel je
+  -- Quelle bleibt kein Tag über seinen Tag hinaus: Ohne das Salz lässt sich
+  -- aus einem alten Hash auch durch Durchprobieren keine Adresse gewinnen.
+  delete from sicherung where stand < now() - interval '400 days';
+  delete from sicherung_quelle where tag < heute;
+  delete from sicherung_salz where tag < heute;
+
+  -- Die Quelle: der erste Eintrag in X-Forwarded-For, den PostgREST als
+  -- request.headers weiterreicht. Die Grenzen für alle zusammen (unten) waren
+  -- allein von jedem ausschöpfbar, der den öffentlichen Schlüssel hat – hundert
+  -- Kleinstanfragen, und kein neues Gerät kam mehr hinein. Fehlt der Kopf
+  -- (SQL-Editor, Aufruf ohne Proxy), gibt es keine Grenze je Quelle, nur die
+  -- für alle. Wer den Kopf fälscht, landet ebenfalls dort: Die Grenze je Quelle
+  -- hält die einfache Flut auf, die Grenzen für alle bleiben die letzte Wand.
+  v_ip := nullif(btrim(split_part(coalesce(
+    nullif(current_setting('request.headers', true), '')::json ->> 'x-forwarded-for', ''), ',', 1)), '');
+  if v_ip is not null then
+    insert into sicherung_salz (tag, salz)
+      values (heute, encode(sha256(convert_to(gen_random_uuid()::text || gen_random_uuid()::text, 'UTF8')), 'hex'))
+      on conflict (tag) do nothing;
+    select s.salz into v_salz from sicherung_salz s where s.tag = heute;
+    v_quelle := encode(sha256(convert_to(left(v_ip, 64) || v_salz, 'UTF8')), 'hex');
+    select q.neu, q.bytes into v_neu, v_bytes
+      from sicherung_quelle q where q.quelle = v_quelle and q.tag = heute;
+  end if;
+  v_neu := coalesce(v_neu, 0);
+  v_bytes := coalesce(v_bytes, 0);
+
+  select * into alt from sicherung where id = p_id for update;
+  if not found then
+    if p_vorher is not null then raise exception 'geloescht'; end if;
+    zuwachs := length(p_daten);
+    -- Je Quelle und Tag: fünf neue Sicherungen und 8 MB. Ein Umzug, ein
+    -- Rückweg und ein frischer Schlüssel nach einem Link passen an einem Tag
+    -- bequem hinein; eine Flut nicht.
+    if v_quelle is not null and v_neu >= 5 then
+      raise exception 'zu viele neue Sicherungen von hier';
+    end if;
+    if v_quelle is not null and v_bytes + zuwachs > 8 * 1024 * 1024 then
+      raise exception 'zu viele Daten von hier';
+    end if;
+    -- Für alle zusammen: nicht beliebig viele neue Sicherungen je Stunde,
+    -- nicht mehr als 200 MB insgesamt.
+    if (select count(*) from sicherung where angelegt > now() - interval '1 hour') >= 100 then
+      raise exception 'zu viele neue Sicherungen';
+    end if;
+    if (select coalesce(sum(groesse), 0) from sicherung) + zuwachs > 200 * 1024 * 1024 then
+      raise exception 'Server voll';
+    end if;
+    insert into sicherung (id, w_hash, daten, iv, groesse, stand, angelegt)
+      values (p_id, marke, p_daten, p_iv, length(p_daten), jetzt, jetzt);
+    if v_quelle is not null then
+      insert into sicherung_quelle (quelle, tag, neu, bytes) values (v_quelle, heute, 1, zuwachs)
+        on conflict (quelle, tag) do update
+          set neu = sicherung_quelle.neu + excluded.neu, bytes = sicherung_quelle.bytes + excluded.bytes;
+    end if;
+    return jetzt;
+  end if;
+
+  if alt.w_hash is distinct from marke then raise exception 'Schreibmarke passt nicht'; end if;
+  if p_vorher is distinct from alt.stand then raise exception 'veraltet'; end if;
+  if alt.stand > now() - interval '10 seconds' then raise exception 'zu oft'; end if;
+  -- Wachsen zählt wie Anlegen: Sonst legte man klein an und blähte danach auf.
+  zuwachs := greatest(length(p_daten) - alt.groesse, 0);
+  if v_quelle is not null and zuwachs > 0 and v_bytes + zuwachs > 8 * 1024 * 1024 then
+    raise exception 'zu viele Daten von hier';
+  end if;
+  if (select coalesce(sum(groesse), 0) from sicherung) - alt.groesse + length(p_daten)
+       > 200 * 1024 * 1024 then
+    raise exception 'Server voll';
+  end if;
+  update sicherung
+     set daten = p_daten, iv = p_iv, groesse = length(p_daten), stand = jetzt
+   where id = p_id;
+  if v_quelle is not null and zuwachs > 0 then
+    insert into sicherung_quelle (quelle, tag, neu, bytes) values (v_quelle, heute, 0, zuwachs)
+      on conflict (quelle, tag) do update
+        set neu = sicherung_quelle.neu + excluded.neu, bytes = sicherung_quelle.bytes + excluded.bytes;
+  end if;
+  return jetzt;
+end $$;
+
+-- Lesen mit der Kennung allein: Ohne den Schlüssel ist das Chiffrat Rauschen,
+-- und die Kennung ist eine 256-Bit-Zufallszahl – erraten lässt sie sich nicht.
+create or replace function sicherung_lesen(p_id text)
+returns table (daten text, iv text, groesse int, stand timestamptz)
+language sql security definer set search_path = public, pg_temp as $$
+  select s.daten, s.iv, s.groesse, s.stand from sicherung s where s.id = p_id;
+$$;
+
+-- Der Weg zurück. Gibt zurück, wie viele Zeilen weggingen – sonst müsste die
+-- App "Gelöscht" sagen, ohne es zu wissen.
+create or replace function sicherung_loeschen(p_id text, p_w text)
+returns int
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare weg int;
+begin
+  delete from sicherung
+   where id = p_id
+     and w_hash = encode(sha256(convert_to(coalesce(p_w, ''), 'UTF8')), 'hex');
+  get diagnostics weg = row_count;
+  return weg;
+end $$;
+
+-- Nur die drei Funktionen sind erreichbar, die Tabellen selbst nicht.
+revoke all on table sicherung, sicherung_quelle, sicherung_salz from anon, authenticated;
+revoke all on function sicherung_schreiben(text, text, text, text, timestamptz),
+                       sicherung_lesen(text), sicherung_loeschen(text, text)
+  from public, anon, authenticated;
+grant execute on function sicherung_schreiben(text, text, text, text, timestamptz),
+                          sicherung_lesen(text), sicherung_loeschen(text, text)
+  to anon;
+
+-- PostgREST die neuen Funktionen sofort zeigen, statt auf den nächsten
+-- Neustart seines Zwischenspeichers zu warten.
+notify pgrst, 'reload schema';
+```
+
+**Die Drossel je Quelle.** Die Grenzen für alle zusammen – 100 neue
+Sicherungen je Stunde, 200 MB insgesamt – konnte jeder ausschöpfen, der den
+öffentlichen Schlüssel hat, und der steht in `js/config.js`: hundert
+Kleinstanfragen, und kein neues Gerät kam mehr hinein; hundert Mal 2 MB, und
+die nächste, etwas größere Sicherung eines echten Geräts endete mit `Server
+voll`. Die Fremdzeilen hätten 400 Tage dort gestanden. Jetzt gilt zusätzlich je
+Quelle und Tag: höchstens fünf neue Sicherungen und 8 MB neue Daten, Wachsen
+einer bestehenden Sicherung mitgezählt – ein Umzug, ein Rückweg und ein
+frischer Schlüssel nach einem Link passen bequem hinein, eine Flut nicht.
+Schrumpfen und gleich groß bleiben kosten nichts. Die Quelle ist der erste
+Eintrag in `X-Forwarded-For`, wie PostgREST ihn als `request.headers`
+weiterreicht, gespeichert nur als SHA-256 über Adresse und ein Salz, das jeden
+Tag neu gewürfelt wird; Zähler und Salz eines Tages löscht der erste Aufruf am
+Tag danach (sonst `tools/aufraeumen.sql`, Schritt 6). Ehrlich dazugesagt: Mit
+dem Salz des Tages ließe sich eine IPv4-Adresse durch Durchprobieren
+zurückrechnen – wer die Datenbank hat, also der Betreiber, sieht die Adressen
+in den Protokollen von Supabase aber ohnehin. Deshalb bleibt beides nicht
+länger als den Tag. Fehlt der Kopf (SQL-Editor), gilt nur die Grenze für alle;
+wer ihn fälscht, ebenso. Die Grenze je Quelle hält die einfache Flut auf, die
+Grenzen für alle bleiben die letzte Wand vor dem kostenlosen Tarif.
+
+Nachgestellt mit PostgreSQL 16, als Rolle `anon`: Direktzugriff auf die drei
+Tabellen → `permission denied`; neu anlegen geht, Ersetzen ohne Vorgänger →
+`veraltet`, mit falscher Schreibmarke → `Schreibmarke passt nicht`, unter zehn
+Sekunden → `zu oft`, mit richtigem Vorgänger → neuer Stand; Lesen mit fremder
+Kennung → keine Zeile; Löschen mit falscher Marke → 0, mit richtiger → 1;
+gespeichert ist der Hash der Marke, nicht die Marke; was älter als 400 Tage ist,
+verschwindet beim nächsten Schreiben. Je Quelle: fünf neue gehen, die sechste →
+`zu viele neue Sicherungen von hier`, auch hinter einem anderen Proxy (zählt der
+linke Eintrag); eine andere Quelle geht weiter; viermal 2 MB gehen, danach →
+`zu viele Daten von hier`; Wachsen über das Budget → dieselbe Ablehnung, von
+einer anderen Quelle geht es; in `sicherung_quelle` steht keine Adresse, nur ihr
+Hash; nach einem Tageswechsel sind Zähler und Salz des Vortags weg; ohne Kopf
+keine Grenze je Quelle. Ein zweiter Lauf des Blocks geht durch und lässt die
+Sicherungen stehen.
+
+`sha256()` ist seit PostgreSQL 11 eingebaut – die Funktion braucht kein
+`pgcrypto`, das bei Supabase im Schema `extensions` läge und am Suchpfad
+`public, pg_temp` vorbei nicht zu finden wäre.
+
+Wie viel Platz die Sicherungen belegen und wie alt sie sind, zeigt
+[`tools/aufraeumen.sql`](tools/aufraeumen.sql), Schritt 4, die Drossel je Quelle
+Schritt 6. Von Hand löschen muss dort niemand etwas: `sicherung_schreiben()`
+räumt bei jedem Aufruf ab, was 400 Tage niemand erneuert hat, und den Vortag
+der Drossel.
+
 ### Wenn nichts ankommt
 
 Unter *Mehr → Nutzung teilen* steht **Jetzt melden**. Der Knopf schickt sofort
@@ -4306,6 +10134,86 @@ Das ist übrigens die ehrlichere Zahl als die des Handys: Androids *Digitales
 Wohlbefinden* zählt, wie lange die App offen war, diese Uhr zählt, wie lange
 trainiert wurde.
 
+### Zurück in der App: weiter bei der nächsten Übung
+
+> „Immer wenn ich kurz aus der app rausgeh und wieder rein komm dann kommt das.
+> Aber eigentlich sollte ja einfach die Übung kommen die jetzt als nächstes
+> ansteht"
+
+Das Handy beendet eine Web-App im Hintergrund gern ganz, und beim Zurückkommen
+lädt sie neu – nach einer neuen Fassung sowieso. Die Fokusansicht war dann weg,
+und man stand mitten im Training vor „Training fortsetzen" auf dem Dashboard.
+Seit v217 öffnet die App eine laufende Einheit direkt in der Fokusansicht, seit
+v219 bei der Übung, die zuletzt zu sehen war, solange dort noch ein Satz offen
+ist, sonst bei der, die als Nächstes dran ist. So, wie der Knopf es getan
+hätte.
+
+Das gilt, wenn beim Verlassen die Fokusansicht offen war – die App merkt sich
+das (`fokusOffen`). Wer mitten im Training bewusst zurück aufs Dashboard oder
+in die Übungsliste gegangen ist, landet wieder dort. Dazu eine Ausnahme, mit
+Absicht: Hat der Start etwas zu sagen (Planwechsel, Aufstieg, Zusatztag, ein
+geschickter Stand, ein Tagesabschluss), bleibt das Dashboard, wo der Hinweis
+steht. Bis v241 gab es eine zweite: Eine Einheit, deren Uhr nicht heute
+gestartet war, öffnete nicht von selbst, sie „wartete auf dem Dashboard, wo man
+sie abschließt oder bewusst weitermacht". Seit dem Tagesabschluss (unten,
+*Liegen geblieben: am nächsten Tag abgeschlossen*) ist eine Sitzung, die seit
+gestern liegt, beim Laden schon beendet – was dann noch läuft, ist ein Training
+über Mitternacht, und das geht in der Fokusansicht weiter wie jedes andere.
+
+**Mit Supersätzen beim Partner.** „Eigentlich sollte ja einfach die Übung
+kommen die jetzt als nächstes ansteht" – mit Supersätzen stimmte genau das
+nicht. Nach A1 springt die App zum Partner B, nach dem Neuladen stand aber
+wieder A da: `firstOpenExercise()` kannte nur die Planreihenfolge, und A hatte
+noch Sätze offen. Wer dem folgte, machte A2 vor B1, und der Wechsel geriet
+durcheinander. Dasselbe passierte, wenn man oben in der Übersicht bewusst zu
+einer späteren Übung gesprungen war – aus den Haken lässt sich das nicht
+ablesen. Jetzt merkt sich die App neben der Einheit auch die angezeigte Übung
+(`fokusOffen` ist `{ n, id }`; der alte Stand mit der bloßen Nummer gilt
+weiter). Hat die keinen offenen Satz mehr, fragt sie `naechsterOffen()` aus
+`js/supersatz.js`: die erste Gruppe in Planreihenfolge, in der noch etwas offen
+ist, und darin der Schritt, der dran ist – mit derselben Prüfung, die
+`superWeiter()` nach jedem Haken macht. „Training fortsetzen" und das
+Weiterrücken nach einer fertigen Übung fragen dasselbe, damit alle Wege an
+derselben Stelle landen.
+
+Eine Übung, die über beide Modi fertig ist, gilt dabei als fertig.
+Umschalten geht auch mitten in der Einheit, und die Karte zählt die Sätze aus
+Hanteln und Bodyweight zusammen. Die Prüfung im Wechsel sah anfangs nur den
+gerade eingestellten Modus: Paar 1 mit Hanteln durch, dann auf Bodyweight
+umgestellt, und „Training fortsetzen", das Neuladen und das Weiterrücken nach
+Paar 2 führten zurück zu Paar 1 – zu Übungen, deren Karte längst „fertig"
+sagte. Welcher Satz innerhalb einer halb fertigen Übung dran ist, bleibt die
+Frage des eingestellten Modus. Dasselbe galt für den Haken selbst: Fertig war
+eine Übung bis v219 erst mit dem Haken auf ihrem letzten Satz im eingestellten
+Modus. Stand B mit Hanteln bei 2 von 3, lief nach dem Umschalten mit dem
+fehlenden Satz eine Pause „1/3", und die App blieb bei B. Jetzt zählt beim
+Abhaken dieselbe Frage wie auf der Karte (`saetzeErledigt()`), und es geht
+weiter zum nächsten Paar.
+
+**Ein Zurück reicht, auch nach dem Neuladen.** Ein Neuladen behält den Verlauf
+des Browsers – nach einer neuen Fassung (`location.reload()`) ebenso wie bei
+einem wiederhergestellten Tab. Der Eintrag der Fokusansicht stand also schon
+da, und die App legte trotzdem bei jedem Neuladen einen weiteren an: Nach
+zweimal Neuladen zeigte Zurück zweimal unverändert dieselbe Übung, erst der
+dritte Druck kam aufs Dashboard. Jetzt übernimmt sie den vorhandenen Eintrag.
+Kalt gestartet, mit frischem Verlauf, legt sie weiter genau einen an – sonst
+führte Zurück aus der App hinaus statt aufs Dashboard.
+
+Und umgekehrt: Bleibt die App nach dem Neuladen auf dem Dashboard (ein Hinweis
+beim Start, eine Sitzung, die seit gestern liegt), obwohl der Verlauf noch auf der
+Fokusansicht oder der Liste stand, saß das Dashboard auf diesem Eintrag. Der
+erste Druck auf Zurück führte zum Eintrag darunter – wieder das Dashboard, es
+sah aus, als täte Zurück nichts. Jetzt geht der Start selbst so weit zurück,
+bis die Ebene erreicht ist, aus der man hineingegangen war, und der erste Druck
+auf Zurück führt dorthin, wo man vor dem Dashboard war.
+
+`tests/test-fortsetzen.mjs` prüft das: den Partner nach dem Neuladen (auch aus
+dem alten Stand) und über „Training fortsetzen", den bewussten Sprung zu einer
+späteren Übung, ein Umschalten mitten in einer Einheit mit Supersätzen, dass
+nach zweimal Neuladen wie nach einem Kaltstart ein einziges Zurück aufs
+Dashboard führt, und dass schon der erste Druck etwas tut, wenn die App nach
+dem Neuladen auf dem Dashboard bleibt.
+
 ### Die Zeitschätzung wird an der eigenen Uhr geeicht
 
 An jeder Planvariante steht eine Dauer, und nach dieser Zahl sucht man sich den
@@ -4356,7 +10264,9 @@ dazu `id` als feste Kennung – ohne die leitet der Browser die Identität aus
 
 **Der Haken beim Umzug:** Der Speicher gehört dem Browser. Wer von Firefox nach
 Chrome wechselt, startet mit leerem Protokoll. Der Weg dazwischen führt über
-*Mehr → Daten → Als Datei sichern* und drüben über *Importieren*.
+die [automatische Sicherung](#automatische-sicherung) – drüben im Einstieg
+*Sicherung zurückholen*, mit dem Schlüssel aus dem Passwortmanager oder dem Link
+– oder von Hand über *Mehr → Daten → Als Datei sichern* und drüben *Datei laden*.
 
 ## Weitergeben
 
@@ -4369,14 +10279,19 @@ Wer den Link öffnet, hat dieselbe App: denselben Plan, dieselben Bewegungen,
 offline. Beim ersten Start kommt eine Seite, die in vier Sätzen erklärt, was das
 ist, und nach dem Namen fragt.
 
-**Der Name ist kein Konto.** Es gibt keinen Server, keine Anmeldung und nichts,
-was im Hintergrund abgleicht. Was jemand einträgt, bleibt auf seinem Gerät – bis
-er selbst etwas verschickt: Für den Vergleich unter *Statistik* schickt man
-seinen Stand als Link, und wer ihn bekommt, sieht die Zahlen darin.
+**Der Name ist kein Konto.** Es gibt keine Anmeldung und nichts, was zwischen
+Menschen im Hintergrund abgleicht. Was jemand einträgt, liegt auf seinem Gerät
+und wird – wo ein Server eingetragen ist – verschlüsselt gesichert, lesbar nur
+mit seinem eigenen Schlüssel ([Automatische Sicherung](#automatische-sicherung)).
+Für den Vergleich unter *Statistik* schickt man seinen Stand als Link, und wer
+ihn bekommt, sieht die Zahlen darin.
 
 Genau so steht es auch auf der Seite. Vorher stand dort „niemand sonst sieht es",
-und das stimmte nicht mehr, seit es den Vergleich gibt – eine Zusage, die die App
-an einer anderen Stelle bricht, ist schlimmer als gar keine.
+und das stimmte nicht mehr, seit es den Vergleich gibt; danach „von allein geht
+nichts irgendwohin", und das stimmte nicht mehr, seit es die automatische
+Sicherung gibt – eine Zusage, die die App an einer anderen Stelle bricht, ist
+schlimmer als gar keine. Ohne Server in `js/config.js` steht der alte Satz noch
+da, denn dann stimmt er.
 
 Wer schon Daten hat, wird nicht begrüßt: Fehlt im gespeicherten Stand der
 Schlüssel `greeted`, stammt er aus einer Fassung vor der Willkommensseite – und

@@ -7,10 +7,10 @@
  * laufende Runde mit allen abgelegten zusammengezählt.
  */
 import * as store from './store.js';
-import { EX_BY_ID, gezaehlteReps, stufenWerte } from './uebung.js';
+import { EX_BY_ID, gezaehlteReps, satzKilo, stufenWerte } from './uebung.js';
 import { FOKUS_ERSATZ, PLANS } from './data.js';
 import { RANG, leistungsStand, naechsteStufe } from './stufen.js';
-import { sammleStats } from './plan.js';
+import { sammleStats, zusatzIds } from './plan.js';
 import { todayISO } from './dates.js';
 
 /**
@@ -102,6 +102,10 @@ export function bilanzAus(runde) {
   Object.entries(runde.log || {}).forEach(([n, e]) => {
     if (!e) return;
     const soll = geplant && geplant.get(String(n));
+    // Die Übungen eines eingefügten Zusatztags zählen bei Sätzen und Volumen,
+    // aber nicht beim Abzählen der Planübungen: Sonst wäre eine Einheit mit
+    // drei von fünf Planübungen und zwei Zusatzübungen „fertig".
+    const zus = zusatzIds(e);
     let fertig = null;
     ['db', 'bw'].forEach((m) => {
       let mitSatz = 0;
@@ -114,10 +118,9 @@ export function bilanzAus(runde) {
           if (!s.done) return;
           saetze++;
           hier++;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volumen += kg * gezaehlteReps(s, reps);
+          if (m === 'db') volumen += satzKilo(s, reps);
         });
-        if (hier) mitSatz++;
+        if (hier && !zus.has(id)) mitSatz++;
       });
       // "Von Hand abgeschlossen" gilt auch ohne den letzten Satz – genau wie in
       // completedMode(). Sonst fehlte jede Einheit, die jemand bewusst beendet
@@ -165,8 +168,7 @@ export function protokollWerte(log) {
           const geplant = gezaehlteReps(s, reps);
           w.saetze += 1;
           w.reps += geplant;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) w.volumen += kg * geplant;
+          if (m === 'db') w.volumen += satzKilo(s, reps);
           w.perEx.set(id, (w.perEx.get(id) || 0) + 1);
         });
       });

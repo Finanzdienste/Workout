@@ -24,18 +24,28 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'dist' / 'workout.html'
 
 # Reihenfolge = Abhaengigkeitsreihenfolge
-MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js',
+MODULES = ['js/dates.js',
+           # diagnose.js importiert nichts; audio.js, sicherung.js und app.js
+           # benutzen es (notieren) - es muss vor ihnen stehen.
+           'js/diagnose.js',
+           'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js',
            'js/injuries.js', 'js/audio.js', 'js/config.js', 'js/telemetry.js',
-           # Fehlte hier jahrelang: js/app.js importiert buildICS, im Buendel
-           # war die Funktion nie definiert. Der Kalenderexport der Ein-Datei-
-           # Fassung endete deshalb in einem ReferenceError, waehrend er unter
-           # index.html lief. Gefunden von tools/pruefung/schichten.py.
-           'js/ics.js',
+           # sicherung.js nach telemetry.js: Es nimmt denselben Weg zum Server
+           # (rpcAufruf, grund, fehltFunktion).
+           'js/sicherung.js',
            'js/store.js',
            # Die Rechenschicht, in Abhaengigkeitsreihenfolge: jedes Modul
            # benutzt nur die vor ihm. Wer das aendert, merkt es hier zuerst –
            # im Buendel gibt es keine Importe, die eine Reihenfolge erzwingen.
-           'js/text.js', 'js/uebung.js', 'js/stufen.js', 'js/scheiben.js', 'js/gewichte.js',
+           'js/text.js', 'js/uebung.js',
+           # Fehlte hier jahrelang: js/app.js importiert buildICS, im Buendel
+           # war die Funktion nie definiert. Der Kalenderexport der Ein-Datei-
+           # Fassung endete deshalb in einem ReferenceError, waehrend er unter
+           # index.html lief. Gefunden von tools/pruefung/schichten.py. Seit
+           # v255 hinter uebung.js: Die Dauer eines Termins fragt dort, ob
+           # eine Uebung einseitig ist.
+           'js/ics.js',
+           'js/stufen.js', 'js/scheiben.js', 'js/gewichte.js',
            'js/supersatz.js',
            # vorrat.js vor plan.js: exBasis() filtert damit, was gerade an
            # Geraet fehlt.
@@ -48,6 +58,14 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            'js/termine.js',
            # muster.js nach plan.js: Es liest exOf() und resolve() von dort.
            'js/plan.js', 'js/muster.js', 'js/bilanz.js',
+           # tagstart.js nach bilanz.js: Die Folge des Tages (Tagesabschluss,
+           # Runde weiter, Aufstieg, Zusatztag) rechnet mit allem davor.
+           # kalender.js danach: Es fragt naechsteEinheit() von dort.
+           'js/tagstart.js', 'js/kalender.js',
+           # kalender-sync.js danach: Es fragt abschlussWartetAm() von dort und
+           # den Store. In der Einzeldatei schaltet es sich selbst ab (kein
+           # Modul-Worker aus einer Datei) - die Karte sagt das dort.
+           'js/kalender-sync.js',
            # Ansichten zuletzt: Sie haengen an der Rechenschicht, nie umgekehrt.
            'js/anzeige.js', 'js/ansicht-scheiben.js', 'js/ansicht-kalender.js',
            'js/ansicht-vorrat.js', 'js/ansicht-statistik.js',

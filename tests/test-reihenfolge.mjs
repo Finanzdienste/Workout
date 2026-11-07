@@ -7,7 +7,8 @@
  */
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
-import { URL } from './umgebung.mjs';
+import { execFileSync } from 'node:child_process';
+import { URL, ROOT } from './umgebung.mjs';
 
 const EINHEITEN = 84;
 
@@ -135,6 +136,55 @@ for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
   }, fokus);
 }
 console.log('     Rüstvorgänge je Einheit:', JSON.stringify(gemessen), ' Stand:', JSON.stringify(STAND));
+
+// --- 4. Der Generator zählt Einheit für Einheit wie die App ----------------
+// tools/build-plan.py verteilt die Übungen so auf die Tage, dass möglichst
+// wenig umgebaut wird. Bis zum 03.10. zählte er dabei Gerätefamilien je Tag –
+// ohne Gewicht, die SZ-Stange als Langhantel – und optimierte damit eine
+// andere Zahl als die, die hier oben steht: im Aufbau 2,39 gegen 3,55. Hier
+// steht seine Zählung (ruest_zaehlen()) neben der der App, für jede Einheit
+// jedes Plans.
+const generator = JSON.parse(execFileSync('python3', ['-c', `
+import importlib.util, json, sys
+sys.argv = ['build-plan.py']
+spec = importlib.util.spec_from_file_location('bp', 'tools/build-plan.py')
+bp = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(bp)
+info = bp.ruest_info_aus(json.load(open('tools/exercise-meta.json', encoding='utf-8')))
+out = {}
+for v, f in [('standard', 'plan.json'), ('bbp', 'plan-bbp.json'), ('cut', 'plan-cut.json'), ('oberkoerper', 'plan-oberkoerper.json')]:
+    plan = json.load(open('tools/' + f, encoding='utf-8'))['plan']
+    out[v] = [bp.ruest_zaehlen([it['id'] for it in e['ex']], info) for e in plan]
+print(json.dumps(out))
+`], { cwd: ROOT, encoding: 'utf8' }));
+for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
+  await page.evaluate(async (f) => {
+    const s = await import('./js/store.js');
+    s.setSetting('focus', f);
+    s.flush();
+  }, fokus);
+  await page.reload({ waitUntil: 'networkidle' });
+  const app = await page.evaluate(async () => {
+    const d = await import('./js/data.js');
+    const { exOf } = await import('./js/plan.js');
+    const { setupOf, workingWeight } = await import('./js/gewichte.js');
+    return d.PLAN.map((w) => {
+      let vorher = null;
+      let n = 0;
+      exOf(w, 'db').forEach((it) => {
+        const cur = setupOf(it.id, workingWeight(it.id));
+        if (!cur) return;
+        if (!vorher || vorher.fam !== cur.fam || Math.abs(vorher.kg - cur.kg) > 0.01) n += 1;
+        vorher = cur;
+      });
+      return n;
+    });
+  });
+  const anders = app.map((n, i) => [i + 1, n, generator[fokus][i]]).filter(([, a, g]) => a !== g);
+  check(app.length === generator[fokus].length && !anders.length,
+    `${fokus}: Generator und App zählen in jeder Einheit gleich viele Rüstvorgänge`
+    + (anders.length ? ` – anders in ${anders.length}, etwa Einheit ${anders[0][0]}: App ${anders[0][1]}, Generator ${anders[0][2]}` : ''));
+}
 Object.entries(gemessen).forEach(([f, wert]) => {
   check(wert !== null && typeof STAND[f] === 'number' && wert <= STAND[f] + 0.005,
     `${f}: ${wert} Rüstvorgänge je Einheit, nicht mehr als festgehalten (${STAND[f]})`);
@@ -142,6 +192,73 @@ Object.entries(gemessen).forEach(([f, wert]) => {
     console.log(`     ${f} ist besser geworden – tests/ruestaufwand-stand.json auf ${wert} nachziehen`);
   }
 });
+
+// --- Im Supersatz folgt die Rüstzeile dem Ablauf, nicht der Liste ---------
+// Gefunden auf dem Weg durch Workout 3 des Aufbau-Plans: Liegestütze ↔ RDL,
+// Floor Press ↔ Crunches, Goblet Squat allein. Die Rüstzeile nahm die Übung
+// darüber in der Liste als Vorgänger – vor dem ersten RDL-Satz stand „Stange
+// bleibt bei 40 kg" (leer, die 40 kg waren die des Floor Press, der danach
+// kommt), bei den Crunches „Umbauen von 20" (der Goblet Squat, noch nicht dran).
+// Mit dem Vorrat aus dem Fund: Er trennt Floor Press und Goblet Squat (beide
+// bräuchten die 5er), deshalb wechselt der Floor Press mit den Crunches.
+const ruestIn = async (supersatz) => {
+  const c = await browser.newContext({ viewport: { width: 414, height: 896 } });
+  await c.route('**/rest/v1/**', (r) => r.fulfill({ status: 204, body: '' }));
+  const page = await c.newPage();
+  page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.evaluate((s) => {
+    localStorage.setItem('workout.state.v1', JSON.stringify({
+      greeted: true, name: 'Tobi', mode: 'db', focus: 'standard', level: 'geuebt', log: {}, supersatz: s,
+      weights: { 'rumaenisches-kreuzheben': 40, 'floor-press': 40, 'fersenerhoehter-goblet-squat': 20, 'gewichtete-crunches': 5 },
+      scheiben: { stange: { kh: null, sz: null, lh: null }, scheiben: [[1.25, 4], [2.5, 4], [5, 4], [10, 2]] },
+    }));
+  }, supersatz);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(300);
+  for (let i = 0; i < 100; i++) {
+    if (/Workout 3\b/.test(await page.locator('#view').textContent())) break;
+    await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+    await page.waitForTimeout(60);
+  }
+  await page.locator('[data-act="start-session"]').first().click();
+  await page.waitForTimeout(400);
+  const namen = await page.evaluate(async () => {
+    const { EX_BY_ID } = await import('./js/uebung.js');
+    return Object.fromEntries(['rumaenisches-kreuzheben', 'floor-press', 'fersenerhoehter-goblet-squat', 'gewichtete-crunches']
+      .map((id) => [id, EX_BY_ID.get(id).db.name]));
+  });
+  const out = {};
+  for (const [id, nm] of Object.entries(namen)) {
+    const idx = await page.evaluate((x) => [...document.querySelectorAll('.prog-ex')]
+      .findIndex((b) => b.getAttribute('aria-label').includes(x)), nm);
+    await page.locator(`[data-act="focus-goto"][data-i="${idx}"]`).click();
+    await page.waitForTimeout(250);
+    out[id] = {
+      ruest: (await page.locator('.ruest').first().textContent()).replace(/\s+/g, ' ').trim(),
+      hin: (await page.locator('.super-hin').allTextContents()).join(' | '),
+    };
+  }
+  await c.close();
+  return out;
+};
+const mitSuper = await ruestIn(true);
+console.log('     Rüstzeilen W3 mit Supersatz:', JSON.stringify(mitSuper, null, 1));
+check(/Im Wechsel mit Gewichtete Crunches/.test(mitSuper['floor-press'].hin)
+  && /Im Wechsel mit/.test(mitSuper['rumaenisches-kreuzheben'].hin) && !mitSuper['fersenerhoehter-goblet-squat'].hin,
+  'W3 läuft wie im Fund: RDL im Paar, Floor Press mit den Crunches, Goblet Squat allein');
+check(/^Aufbauen: Stange auf 40 kg/.test(mitSuper['rumaenisches-kreuzheben'].ruest),
+  `RDL kommt als erste Übung an die Stange: aufbauen, nicht „bleibt" (${mitSuper['rumaenisches-kreuzheben'].ruest})`);
+check(/^✓ Stange bleibt bei 40 kg/.test(mitSuper['floor-press'].ruest),
+  `Floor Press direkt nach dem RDL mit 40 kg: bleibt (${mitSuper['floor-press'].ruest})`);
+check(/^Aufbauen: Kurzhantel auf 5 kg/.test(mitSuper['gewichtete-crunches'].ruest),
+  `Crunches: aufbauen, kein Umbau von einer Hantel, die noch keiner angefasst hat (${mitSuper['gewichtete-crunches'].ruest})`);
+check(/^Umbauen: Kurzhantel von 5 auf 20 kg/.test(mitSuper['fersenerhoehter-goblet-squat'].ruest),
+  `Goblet Squat zum Schluss: von den 5 kg der Crunches auf 20 (${mitSuper['fersenerhoehter-goblet-squat'].ruest})`);
+const ohneSuper = await ruestIn(false);
+check(/^✓ Stange bleibt bei 40 kg/.test(ohneSuper['rumaenisches-kreuzheben'].ruest)
+  && /^Aufbauen: Stange auf 40 kg/.test(ohneSuper['floor-press'].ruest),
+  `ohne Supersatz gilt die Liste wie bisher (Floor Press: ${ohneSuper['floor-press'].ruest})`);
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

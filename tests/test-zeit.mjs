@@ -119,6 +119,85 @@ check(zurueck >= vorWeg + 2 && zurueck <= vorWeg + 4,
 await page.locator('[data-act="finish-session"]').first().click();
 await page.waitForTimeout(300);
 
+// --- Eine zweite Einheit starten, während eine läuft --------------------
+// Auf der Übersicht der nächsten Einheit stand „▶︎ Start", und ein Tipp
+// ersetzte die Uhr der laufenden: Ihre Zeit seit dem letzten Wegschalten war
+// weg. Jetzt führt der erste Knopf zurück, und wer doch wechselt, wechselt
+// mit gebuchter Zeit.
+await page.evaluate(() => localStorage.setItem('workout.state.v1',
+  JSON.stringify({ greeted: true, name: 'T', restSeconds: 0, useExerciseRest: false })));
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(2500);
+await page.locator('.focus-set').first().click();
+await page.waitForTimeout(300);
+// Aus der Fokusansicht in die Liste und dort eine Einheit weiter.
+const zumBrett = async () => {
+  await page.locator('[data-act="focus-list"]').click();
+  await page.waitForTimeout(200);
+  await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+  await page.waitForTimeout(200);
+};
+await zumBrett();
+const andere = await page.evaluate(() => ({
+  kopf: (document.querySelector('.hero-eyebrow') || {}).textContent || '',
+  start: [...document.querySelectorAll('[data-act="start-session"]')].map((b) => b.textContent.replace(/\s+/g, ' ').trim()),
+  zurueck: (document.querySelector('[data-act="zur-laufenden"]') || {}).textContent || '',
+}));
+check(/Workout 2/.test(andere.kopf) && /Workout 1/.test(andere.zurueck),
+  `auf Workout 2 führt der erste Knopf zurück zur laufenden (${andere.zurueck.replace(/\s+/g, ' ').trim()})`);
+check(andere.start.length === 1 && /wird beendet/.test(andere.start[0]),
+  `und wer hier startet, liest, dass Workout 1 dabei endet (${andere.start.join(' | ')})`);
+await page.locator('[data-act="zur-laufenden"]').click();
+await page.waitForTimeout(200);
+const zurueckIn = await page.evaluate(async () => ({
+  fokus: !!document.querySelector('.focus-cue'),
+  n: (await import('./js/store.js')).getState().session?.n,
+}));
+check(zurueckIn.fokus && zurueckIn.n === 1, `„Zurück" landet in der laufenden Einheit, die weiterläuft (${JSON.stringify(zurueckIn)})`);
+
+// Dieselbe Weiche in der Übungsliste von Workout 2. Dort stand bisher der
+// schlichte Knopf „▶︎ Workout starten", und ein Tipp beendete Workout 1 ohne
+// ein Wort davor. Und „‹ Zurück" führte in die Fokusansicht einer Einheit,
+// die hier gar nicht gezeigt wird – `ui.focus` blieb hängen.
+await zumBrett();
+await page.locator('[data-act="show-list"]').first().click();
+await page.waitForTimeout(200);
+const inListe = await page.evaluate(() => ({
+  start: [...document.querySelectorAll('[data-act="start-session"]')].map((b) => b.textContent.replace(/\s+/g, ' ').trim()),
+  zurueck: !!document.querySelector('[data-act="zur-laufenden"]'),
+  hinweis: !!document.querySelector('.laeuft-woanders'),
+  back: (document.querySelector('.back-link') || { dataset: {} }).dataset.act,
+}));
+check(inListe.zurueck && inListe.hinweis,
+  `auch die Liste von Workout 2 sagt, dass Workout 1 läuft, und führt zurück (${JSON.stringify(inListe)})`);
+check(inListe.start.length === 1 && /wird beendet/.test(inListe.start[0]),
+  `wer dort startet, liest vorher, dass Workout 1 endet (${inListe.start.join(' | ')})`);
+check(inListe.back === 'hide-list', `„‹ Zurück" führt zur Übersicht von Workout 2 (${inListe.back})`);
+await page.locator('.back-link').first().click();
+await page.waitForTimeout(200);
+const nachZurueck = await page.evaluate(async () => ({
+  kopf: (document.querySelector('.hero-eyebrow') || {}).textContent || '',
+  fokusOffen: (await import('./js/store.js')).getState().fokusOffen,
+  session: (await import('./js/store.js')).getState().session?.n,
+}));
+check(/Workout 2/.test(nachZurueck.kopf) && nachZurueck.session === 1
+  && !(nachZurueck.fokusOffen && nachZurueck.fokusOffen.n === 2),
+  `danach steht die Übersicht von Workout 2 da, ohne hängende Fokusansicht (${JSON.stringify(nachZurueck)})`);
+await page.locator('[data-act="zur-laufenden"]').click();
+await page.waitForTimeout(1000);
+await zumBrett();
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(300);
+const gewechselt = await page.evaluate(async () => {
+  const s = (await import('./js/store.js')).getState();
+  return { n: s.session?.n, secs1: (s.log[1] || {}).secs || 0, uhr: s.clock?.n };
+});
+check(gewechselt.n === 2 && gewechselt.uhr === 2, `gewechselt wird erst auf ausdrücklichen Tipp (${JSON.stringify(gewechselt)})`);
+check(gewechselt.secs1 >= 3, `und die Zeit von Workout 1 ist gebucht (${gewechselt.secs1} s)`);
+await page.locator('[data-act="finish-session"]').first().click().catch(() => {});
+await page.waitForTimeout(300);
+
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

@@ -13,8 +13,8 @@ const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { 
 
 /**
  * Modus umschalten – über den Store, weil diese Tests ihn ohnehin dabei haben.
- * In der App steht der Umschalter über dem Startknopf und gilt für die Einheit,
- * die man ansieht: *„Hier schaltet man immer zwischen Hanteln und bodyweight hin
+ * In der App steht die Wahl unter Mehr und gilt für die laufende und alle
+ * folgenden Einheiten: *„Hier schaltet man immer zwischen Hanteln und bodyweight hin
  * und her je nachdem was man grad hat. Nichts davon ist Standard."*
  */
 const modus = async (m) => {

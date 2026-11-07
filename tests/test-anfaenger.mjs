@@ -159,7 +159,10 @@ const text = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 console.log(`     Workout ${zielN}, Liste:`,
   (/Knieheben[^▼]{0,80}/.exec(text) || ['(nicht gefunden)'])[0].trim());
 check(/Knieheben im Liegen/.test(text), 'im Training steht die Bodenfassung');
-check(!/Hängendes Knieheben 2 ×|Hängendes Knieheben \d/.test(text),
+// Gezählt an den Übungsnamen, nicht im ganzen Text: Seit v224 steht die
+// hängende als Ziel auf dem +-Knopf, und dahinter folgen die Satzknöpfe 1 2 3.
+const namen = await page.locator('.ex-name').allTextContents();
+check(namen.length > 0 && !namen.some((x) => x.trim() === 'Hängendes Knieheben'),
   'und die hängende nicht als eigene Übung daneben');
 // Der Tausch muss sichtbar sein und einen Weg zurück haben. Bis v183 war das
 // eine Zeile „Statt Hängendes Knieheben – die Anfängerfassung. Höhere
@@ -286,6 +289,19 @@ check(!(await plus.isDisabled()) && (await plus.getAttribute('data-v')) === 'hae
   'das + führt zur hängenden Fassung');
 check(/leicht/.test(await karte.locator('.fassung-row .kg-val').textContent()),
   'und die Zeile sagt „leicht"');
+// „Bei schwerer kann ruhig die Übung stehen und so" – auf dem Knopf steht,
+// wohin er führt, und der Name bleibt im Knopf, statt über den Rand zu laufen.
+const plusText = (await plus.locator('.kg-step-d').textContent()).trim();
+check(plusText === 'Hängendes Knieheben', `auf dem + steht die Übung, zu der es führt (${plusText})`);
+const ueberlauf = await plus.evaluate((b) => {
+  const k = b.getBoundingClientRect();
+  const d = b.querySelector('.kg-step-d').getBoundingClientRect();
+  return d.left < k.left - 0.5 || d.right > k.right + 0.5 || d.bottom > k.bottom + 0.5;
+});
+check(!ueberlauf, 'der Name passt in den Knopf');
+check(!/statt Hängendes Knieheben/.test(await karte.locator('.fassung-row .kg-unit').textContent()),
+  'und „statt …" steht nicht noch einmal daneben, wenn es schon auf dem Knopf steht');
+await karte.screenshot({ path: process.env.FASSUNG_BILD || '/dev/null' }).catch(() => {});
 
 // Und nach dem Tippen steht wirklich die andere Übung da – mit ihrem eigenen
 // Wiederholungsbereich, nicht nur mit einem anderen Namen.

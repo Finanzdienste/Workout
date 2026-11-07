@@ -4,7 +4,11 @@
  * Warum eine Datei und keine Anbindung: Die App kennt keine Konten, spricht mit
  * keinem Server und läuft offline. Direkt in einen Google-Kalender zu schreiben
  * hieße OAuth, ein Google-Cloud-Projekt und eine Netzverbindung – drei Dinge,
- * die diese App bewusst nicht hat.
+ * die diese App bewusst nicht hat. Der Kalender „Workout", der sich auch bei
+ * geschlossener App verschiebt, geht deshalb einen anderen Weg: Die App
+ * rechnet die Termine der nächsten Wochen vor und schickt sie an ein Skript in
+ * Tobis eigenem Google-Konto, das selbst schreibt (js/kalender-vorschau.js).
+ * Titel, Übungsliste und Dauer kommen für beide Wege von hier (terminText()).
  *
  * Was die Datei dafür kann: Sie bringt den Kalender jedes Mal auf denselben
  * Stand wie den Plan. Termine, die es nicht mehr gibt, kommen als STATUS:
@@ -23,6 +27,7 @@
  * Zeitumstellung falsch wäre.
  */
 import { pad } from './dates.js';
+import { einseitig, seitenPause } from './uebung.js';
 
 const NL = '\r\n';
 
@@ -82,8 +87,27 @@ function nowUTC() {
  * Sekunden versprechen.
  */
 export function duration(items) {
-  const secs = items.reduce((a, it) => a + it.sets * 45 + (it.sets - 1) * (it.rest || 90) + 45, 0);
+  const secs = items.reduce((a, it) => a + it.sets * 45 + (it.sets - 1) * (it.rest || 90) + 45
+    // Einseitig („je Bein"): je Satz die zweite Seite und die Pause dazwischen.
+    + (einseitig(it) ? it.sets * (45 + seitenPause(it.rest || 90)) : 0), 0);
   return Math.max(30, Math.ceil(secs / 60 / 5) * 5);
+}
+
+/**
+ * Titel, Beschreibung und Dauer eines Termins – für die Kalenderdatei und für
+ * den Kalender „Workout", der sich selbst angleicht (kalenderTermine() in
+ * js/kalender.js). Eine Stelle für beide, damit sie dasselbe sagen.
+ *
+ * `name` ist „Workout 12" oder der Name eines Zusatztags, `items` sind die
+ * Übungen in der Variante, in der trainiert wird (resolve() in js/plan.js).
+ */
+export function terminText(name, items) {
+  const saetze = items.reduce((a, it) => a + it.sets, 0);
+  return {
+    titel: `${name} · ${items.length} Übungen · ${saetze} Sätze`,
+    beschreibung: items.map((it) => `• ${it.sets} × ${it.reps} ${it.name}`).join('\n'),
+    dauer: duration(items),
+  };
 }
 
 /**
@@ -107,9 +131,7 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', 
   plan.forEach((w) => {
     const items = resolve(w);
     if (!items.length) return;          // ein leerer Tag ist kein Termin
-    const dauer = duration(items);
-    const liste = items.map((it) => `• ${it.sets} × ${it.reps} ${it.name}`).join('\n');
-    const saetze = items.reduce((a, it) => a + it.sets, 0);
+    const { titel, beschreibung, dauer } = terminText(`Workout ${w.n}`, items);
     zeilen.push(
       'BEGIN:VEVENT',
       // Feste Kennung je Workout: dieselbe Datei später erneut eingelesen
@@ -121,8 +143,8 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', 
       `SEQUENCE:${seq}`,
       `DTSTART:${stamp(w.date, hour * 60)}`,
       `DTEND:${stamp(w.date, hour * 60 + dauer)}`,
-      fold(`SUMMARY:${escIcs(`Workout ${w.n} · ${items.length} Übungen · ${saetze} Sätze`)}`),
-      fold(`DESCRIPTION:${escIcs(liste)}`),
+      fold(`SUMMARY:${escIcs(titel)}`),
+      fold(`DESCRIPTION:${escIcs(beschreibung)}`),
       'END:VEVENT',
     );
   });

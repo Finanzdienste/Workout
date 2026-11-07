@@ -67,7 +67,11 @@ for v in [a for a in ARGV if not a.startswith('-')] or VARIANTEN:
 
     vorher = abweichung(bp, plan, 'sets', weeks)
     total, rest, ganz = bp.bw_saetze(plan, weeks)
-    bp.bw_verteilen(plan, total)
+    # Der fertige Plan ist sein eigener Vergleichsplan – also dieselbe Grenze
+    # und derselbe Gleichstand wie im Generator mit WK_NUR_TAGE, sonst käme
+    # hier etwas anderes heraus.
+    bp.bw_verteilen(plan, total, woche_max=bp.bw_woche_max(),
+                    vergleich=json.loads(json.dumps(plan)))
     nachher = abweichung(bp, plan, 'bwSets', weeks)
 
     auftritte = sum(len(e['ex']) for e in plan)

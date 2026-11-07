@@ -158,7 +158,17 @@ const klein = await page.evaluate(() => import('./js/data.js').then(({ PLAN, EXE
   return { name: e.db.name, rest: e.db.rest };
 }));
 const kleinIdx = names.findIndex((t) => t.includes(klein.name));
-await ex(kleinIdx).locator('.set-btn').first().click();
+const ersterKnopf = ex(kleinIdx).locator('.set-btn').first();
+const einseitigKlein = (await ersterKnopf.getAttribute('data-act')) === 'toggle-side';
+await ersterKnopf.click();
+if (einseitigKlein) {
+  // Einseitig („je Bein", seit v255): Die erste Seite startet die Seitenpause,
+  // die halbe – erst mit der zweiten steht der Satz und läuft die volle.
+  const tS = await page.locator('#restTime').textContent();
+  const sekS = Number(tS.split(':')[0]) * 60 + Number(tS.split(':')[1]);
+  check(sekS < klein.rest, `${klein.name}: nach der ersten Seite die Seitenpause (${tS})`);
+  await ex(kleinIdx).locator('[data-act="toggle-side"][data-i="0"][data-seite="r"]').click();
+}
 const t1 = await page.locator('#restTime').textContent();
 const sek1 = Number(t1.split(':')[0]) * 60 + Number(t1.split(':')[1]);
 console.log(`     ${klein.name} (kürzeste Pause): ${t1}`);
@@ -213,6 +223,22 @@ await page.waitForTimeout(250);
 check((await state()).useExerciseRest === true, 'und zurück auf die Pause je Übung');
 check(await page.locator('[data-act="set-pause"][data-v="je"][aria-pressed="true"]').count() === 1,
   'der gewählte Knopf ist als gewählt ausgewiesen');
+
+// Die Spanne kommt aus den Daten. Hier stand fest „0:45 – 2:30 min, 0:45 bei
+// Crunches" – drei Wochen, nachdem die Pausen auf 1:30 bis 3:00 angehoben
+// worden waren.
+const spanne = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { exOf, resolve } = await import('./js/plan.js');
+  const r = PLAN.flatMap((w) => exOf(w, 'db').map((it) => resolve(it, 'db').rest)).filter((x) => x > 0);
+  const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  return `${mmss(Math.min(...r))} – ${mmss(Math.max(...r))} min`;
+});
+const pausenText = (await page.locator('.card', { has: page.locator('[data-act="set-pause"]') }).textContent())
+  .replace(/\s+/g, ' ');
+console.log('     Pausenkarte:', pausenText.slice(0, 160));
+check(pausenText.includes(spanne), `die Spanne steht so da, wie sie in den Daten ist (${spanne})`);
+check(!/0:45/.test(pausenText), 'und nicht mehr die alte 0:45 bei Crunches');
 
 // --- Kein Steigerungsvorschlag, nirgends und nie ---
 //

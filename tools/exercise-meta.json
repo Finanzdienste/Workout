@@ -146,8 +146,8 @@
     "tier": 2,
     "dbEquip": "Handtuch, glatter Boden",
     "bwEquip": "Handtuch, glatter Boden",
-    "dbCue": "Rücken am Boden, Fersen auf je einem Handtuch, glatter Boden. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
-    "bwCue": "Rücken am Boden, Fersen auf je einem Handtuch. Hüfte oben halten und die Fersen langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken, etwa drei Sekunden. Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+    "dbCue": "Rücken am Boden, Fersen auf je einem Handtuch, glatter Boden. Hüfte oben halten und beide Fersen zugleich langsam wegschieben, dann kontrolliert heranziehen – einmal hin und zurück mit beiden Beinen ist eine Wiederholung. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
+    "bwCue": "Rücken am Boden, Fersen auf je einem Handtuch. Hüfte oben halten und beide Fersen zugleich langsam wegschieben, dann kontrolliert heranziehen – einmal hin und zurück mit beiden Beinen ist eine Wiederholung. Die Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken, etwa drei Sekunden. Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
     "detail": [
       [
         "Untergrund",
@@ -256,7 +256,12 @@
     "detail": [
       [
         "Aufbau",
-        "Das Sofa muss an der Wand stehen, sonst wandert es beim ersten Satz weg. Ein Stuhl kippt nach hinten, sobald die Hüfte hochdrückt; das Sofa steht, seine Kante ist gepolstert, und die Sitzhöhe von 40 bis 45 cm ist genau die, bei der die Oberschenkel oben waagerecht stehen. Die Kante liegt unter den Schulterblättern, nicht im Nacken. Füße so weit vorn, dass die Schienbeine oben senkrecht stehen – zu nah, und es wird eine Quadrizepsübung; zu weit, und der Beinbeuger krampft."
+        "Das Sofa muss an der Wand stehen, sonst wandert es beim ersten Satz weg. Ein frei stehender Stuhl kippt nach hinten, sobald die Hüfte hochdrückt; das Sofa steht, seine Kante ist gepolstert, und die Sitzhöhe von 40 bis 45 cm ist genau die, bei der die Oberschenkel oben waagerecht stehen. Die Kante liegt unter den Schulterblättern, nicht im Nacken. Füße so weit vorn, dass die Schienbeine oben senkrecht stehen – zu nah, und es wird eine Quadrizepsübung; zu weit, und der Beinbeuger krampft."
+      ],
+      [
+        "Kein Platz für die Stange",
+        "Die Stange ist länger als jedes Sofa breit. Steht es in einer Nische, schlägt sie links oder rechts an die Wand. Dann geht ein stabiler Stuhl ohne Rollen, die Lehne fest an einer freien Wand, links und rechts je gut ein Meter Platz: Beim Hochdrücken wird er gegen die Wand geschoben und kann nicht kippen. Ein gefaltetes Handtuch auf die Sitzkante. Geht auch das nicht, unter Mehr → Übungen den Hip Thrust ausschalten – dann tritt das Beckenheben mit Langhantel an seine Stelle, vom Boden aus, mit derselben Stange und demselben Gewicht.",
+        "db"
       ],
       [
         "Polster",
@@ -347,7 +352,16 @@
         "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
         "verletzung": [
           "handgelenk-reizung"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Handgelenk",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ],
+        "modus": "bw"
       }
     ],
     "dbRest": 150,
@@ -393,7 +407,16 @@
         "text": "Mit erhöhten Füßen liegt mehr Gewicht auf den Händen als beim gewöhnlichen Liegestütz, und das Handgelenk steht dabei fast im rechten Winkel. Das ist die unbequemste Stellung, die es kennt.\n\nDer Reihe nach: Hände etwas weiter auseinander, Finger leicht nach außen gedreht. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab: Damit steht das Handgelenk gerade. Runde Scheibenhanteln nicht – die rollen unter Last weg. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse, wo die Hand hält statt zu stützen.",
         "verletzung": [
           "handgelenk-reizung"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Handgelenk",
+        "text": "Mit erhöhten Füßen liegt mehr Gewicht auf den Händen als beim gewöhnlichen Liegestütz, und das Handgelenk steht dabei fast im rechten Winkel. Das ist die unbequemste Stellung, die es kennt.\n\nDer Reihe nach: Hände etwas weiter auseinander, Finger leicht nach außen gedreht. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab: Damit steht das Handgelenk gerade. Runde Scheibenhanteln nicht – die rollen unter Last weg. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ],
+        "modus": "bw"
       },
       {
         "ort": "Schulter vorn",
@@ -490,7 +513,7 @@
       },
       {
         "ort": "Handgelenk",
-        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
         "verletzung": [
           "handgelenk-reizung"
         ],
@@ -598,7 +621,7 @@
     "tier": 1,
     "dbEquip": "Klimmzugstange + Rucksack",
     "bwEquip": "Klimmzugstange (+ Stuhl)",
-    "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, dass du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Hantelscheiben, in ein Handtuch gewickelt) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
+    "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Erst die sauberen, so viele gehen. Reicht es nicht bis zur unteren Zahl des Bereichs, die Füße auf einem Stuhl abstützen und mit den Beinen nur so viel nachhelfen, wie nötig – eine einzelne Wiederholung ist ein Maximalversuch, kein Trainingssatz. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Hantelscheiben, in ein Handtuch gewickelt) und in den Schritten deiner Scheiben hoch. Bis dahin bleibt das Feld auf 0.",
     "dbHeben": "Rucksack im Stehen aufsetzen, Gurte fest, dann vom Stuhl aus an die Stange – nicht hochspringen, der Rucksack schwingt sonst. Am Ende zurück auf den Stuhl, dort erst loslassen, Rucksack abnehmen. Solange das Feld auf 0 steht, gibt es nichts zu tragen.",
     "bwCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Die Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, wie nötig ist – der ganze Weg bleibt, und die Hilfe wird von Woche zu Woche kleiner.",
     "detail": [
@@ -664,14 +687,12 @@
     "equip": "backpack",
     "dbStufen": {
       "anfaenger": {
-        "reps": "1–3",
-        "rest": 120
+        "reps": "3–10"
       }
     },
     "bwStufen": {
       "anfaenger": {
-        "reps": "1–3",
-        "rest": 120
+        "reps": "3–10"
       }
     },
     "bewegung": "klimmzug"
@@ -1217,17 +1238,44 @@
     "tier": 4,
     "dbEquip": "Kurzhantel",
     "bwEquip": "Ohne Gerät",
-    "dbCue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
-    "dbHeben": "Die Hantel steht neben dem Fuß. In die Hocke, greifen, mit den Beinen aufstehen. Am Ende in die Hocke und abstellen.",
-    "bwCue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
+    "dbCue": "Auf einen Stuhl setzen, Knie 90° gebeugt, Schienbeine senkrecht. Fußballen auf ein dickes Buch, die Fersen ragen frei darüber hinaus. Die Kurzhantel liegt quer über beiden Oberschenkeln direkt hinter den Knien, beide Hände halten sie fest. Fersen so hoch es geht, oben 1 s halten, dann langsam ganz tief unter die Buchkante.",
+    "dbHeben": "Die Hantel steht vor dem Stuhl neben dem Buch. In die Hocke, mit beiden Händen am Griff fassen und mit den Beinen aufstehen – nicht im Sitzen zur Seite nach ihr greifen. Mit der Hantel vor dem Bauch hinsetzen, sie quer auf die Oberschenkel direkt hinter den Knien legen, dann die Ballen aufs Buch. Am Ende umgekehrt: Füße vom Buch, die Hantel mit beiden Händen vor den Bauch nehmen, aufstehen, in die Hocke und abstellen.",
+    "bwCue": "Stehend, eine Hand flach an der Wand fürs Gleichgewicht – sie hält nur, sie drückt nicht. Knie etwa 30° beugen und dort halten, die Bewegung kommt allein aus dem Sprunggelenk. Fersen so hoch es geht, oben 1 s halten, in 3 s absenken.",
     "detail": [
       [
+        "Warum sitzend",
+        "Mit 90° im Knie ist die Zwillingswade entspannt: Sie läuft über das Knie, und so weit gebeugt kann sie kaum noch Kraft aufbauen. Die ganze Arbeit macht der Schollenmuskel darunter, um den es hier geht – er gibt der Wade ihren Umfang. Stehend mit nur leicht gebeugtem Knie arbeitet die Zwillingswade noch mit. Dazu liegt die Last gleichmäßig auf beiden Beinen statt in einer Hand, es gibt kein Gleichgewicht zu halten, und es geht deutlich mehr Gewicht.",
+        "db"
+      ],
+      [
+        "Hantel und Knie",
+        "Die Hantel liegt quer auf den Oberschenkeln, direkt hinter den Knien – nicht auf der Kniescheibe, dort drückt sie auf Knochen und rollt, und nicht weiter zur Hüfte hin, dort trägt der Stuhl mit und die Wade weniger. Beide Hände halten den Griff, damit sie liegen bleibt; drücken müssen sie nicht. Drückt das Eisen, ein gefaltetes Handtuch darunter.",
+        "db"
+      ],
+      [
+        "Ein Buch, keine Scheibe",
+        "Unter die Ballen gehört ein dickes Buch: Es ist fest, rutscht nicht und ist hoch genug, dass die Ferse unten frei darunter sinkt – genau diese Dehnung ist die halbe Übung. Keine Hantelscheibe aus dem Vorrat: Die stecken an den Hanteln, und abschrauben lohnt sich dafür nicht. Nur eine Scheibe, die ohnehin frei herumliegt, kann das Buch ersetzen.",
+        "db"
+      ],
+      [
+        "Wie schwer",
+        "So schwer, dass die letzten zwei Wiederholungen eines Satzes hart werden – mit 1 s oben und ganz tief unten. Das ist mehr, als man erwartet: Der Schollenmuskel ist kräftig, und im Sitzen bremst kein Gleichgewicht. Geht der ganze Satz leicht, ist die Hantel zu leicht; das Gewicht stellst du an der Gewichtszeile mit + ein.",
+        "db"
+      ],
+      [
         "Warum gebeugt",
-        "Der Zwillingsmuskel läuft über das Knie und ist bei gebeugtem Knie erschlafft. Was dann noch drückt, ist der Schollenmuskel darunter – der macht den Umfang der Wade und wird sonst nie direkt getroffen."
+        "Der Zwillingsmuskel läuft über das Knie; je weiter es gebeugt ist, desto weniger kann er mitarbeiten. Was dann drückt, ist der Schollenmuskel darunter – der macht den Umfang der Wade und wird sonst nie direkt getroffen.",
+        "bw"
       ],
       [
         "Winkel",
-        "Etwa 30 Grad Kniebeugung und dort halten. Beugt sich das Knie während des Satzes weiter, wird die Bewegung zur Mini-Kniebeuge."
+        "Etwa 30 Grad Kniebeugung und dort halten. Beugt sich das Knie während des Satzes weiter, wird die Bewegung zur Mini-Kniebeuge.",
+        "bw"
+      ],
+      [
+        "Die Hand an der Wand",
+        "Sie hält nur das Gleichgewicht und drückt nicht mit. Ohne sie geht die halbe Aufmerksamkeit ins Wackeln statt in die Wade, und beim Ausgleichen wandert das Knie.",
+        "bw"
       ]
     ],
     "schmerz": [
@@ -1237,6 +1285,11 @@
         "verletzung": [
           "wadenzerrung"
         ]
+      },
+      {
+        "ort": "Oberschenkel über dem Knie",
+        "text": "Die Hantel liegt mit ihrem ganzen Gewicht auf einer kleinen Fläche, und je schwerer sie wird, desto mehr drückt das Eisen in den Oberschenkel. Das ist Druck, kein Schaden.\n\nEin gefaltetes Handtuch zwischen Hantel und Bein löst es fast immer. Liegt sie auf der Kniescheibe statt dahinter, ein Stück zur Hüfte hin schieben – auf dem Knie drückt sie auf Knochen und rollt leichter weg.",
+        "modus": "db"
       }
     ],
     "dbRest": 90,
@@ -1244,7 +1297,7 @@
     "dbWeight": 12,
     "dbStep": 2,
     "weightNote": "eine Hantel",
-    "dbPattern": "calfbent",
+    "dbPattern": "calfseated",
     "dbShares": {
       "calves": 1.0
     },
@@ -1252,7 +1305,8 @@
     "bwShares": {
       "calves": 1.0
     },
-    "equip": "onehand"
+    "equip": "onehand",
+    "name": "Sitzendes Wadenheben"
   },
   "sitzendes-schulterdruecken": {
     "group": "Schulter",
@@ -1292,7 +1346,7 @@
       }
     ],
     "dbRest": 150,
-    "bwRest": 180,
+    "bwRest": 150,
     "dbWeight": 10,
     "dbStep": 2,
     "weightNote": "je Hand",
@@ -1656,7 +1710,7 @@
     "bwName": "Einbeiniges Kreuzheben",
     "bwReps": "10–20 je Bein",
     "dbEquip": "Kurzhantel",
-    "bwEquip": "ohne",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Eine Kurzhantel in der Hand der freien Seite. Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden. Zurück über das Gesäß, nicht über den unteren Rücken.",
     "dbHeben": "Die Hantel steht vor dem Standbein. Auf beiden Beinen mit geradem Rücken in die Hocke, greifen, aufstehen, dann erst auf ein Bein. Am Ende auf beiden Beinen in die Hocke und abstellen.",
     "bwCue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen locker nach unten. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
@@ -1743,7 +1797,16 @@
         "text": "Im Pike steht der Körper steil über den Händen, und dadurch knickt das Handgelenk stärker ab als beim gewöhnlichen Liegestütz. Es trägt dabei einen großen Teil des Gewichts.\n\nWas hilft: die Hände etwas weiter vorn aufsetzen, sodass der Winkel flacher wird, und über die Fingerknöchel drücken statt über den Handballen. Auf den Fäusten oder auf Liegestützgriffen steht das Handgelenk gerade; auf Kurzhanteln nur, wenn sie sechseckig sind – runde rollen weg.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse.",
         "verletzung": [
           "handgelenk-reizung"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Handgelenk",
+        "text": "Im Pike steht der Körper steil über den Händen, und dadurch knickt das Handgelenk stärker ab als beim gewöhnlichen Liegestütz. Es trägt dabei einen großen Teil des Gewichts.\n\nWas hilft: die Hände etwas weiter vorn aufsetzen, sodass der Winkel flacher wird, und über die Fingerknöchel drücken statt über den Handballen. Auf den Fäusten oder auf Liegestützgriffen steht das Handgelenk gerade; auf Kurzhanteln nur, wenn sie sechseckig sind – runde rollen weg.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ],
+        "modus": "bw"
       },
       {
         "ort": "Schulter",
@@ -1773,8 +1836,8 @@
       "traps": 0.35
     },
     "equip": null,
-    "dbEquip": "ohne",
-    "bwEquip": "ohne",
+    "dbEquip": "Ohne Gerät",
+    "bwEquip": "Ohne Gerät",
     "bewegung": "ueberkopfdruecken"
   },
   "kurzhantel-bodenpresse": {
@@ -1785,7 +1848,7 @@
     "bwName": "Enge Liegestütze",
     "bwReps": "8–20",
     "dbEquip": "Kurzhanteln",
-    "bwEquip": "ohne",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Rücken am Boden, Knie angewinkelt, in jeder Hand eine Kurzhantel. Oberarme etwa 45 Grad vom Rumpf, bis die Ellenbogen den Boden berühren – dort kurz halten, dann drücken. Der Boden ist die Bremse: Er begrenzt die Tiefe und nimmt der Schulter den Bereich, in dem sie ungeschützt ist.",
     "dbHeben": "Hinsetzen, Hanteln auf den Oberschenkeln, dann mit ihnen zurücklegen – sie folgen auf die Brust. Am Ende zur Brust ablassen, Oberarme am Boden, und seitlich neben dich auf den Boden legen. Nicht über dem Gesicht loslassen, nicht mit gestreckten Armen aufsetzen.",
     "bwCue": "Liegestütze mit engem Handabstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
@@ -1839,7 +1902,7 @@
       },
       {
         "ort": "Handgelenk",
-        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
         "verletzung": [
           "handgelenk-reizung"
         ],
@@ -1848,7 +1911,7 @@
     ],
     "dbRest": 150,
     "bwRest": 150,
-    "dbWeight": 12,
+    "dbWeight": 12.5,
     "dbStep": 2.5,
     "weightNote": "je Hand",
     "dbPattern": "press",
@@ -1876,8 +1939,8 @@
     "reps": "10–20",
     "bwName": "Reverse Snow Angel",
     "bwReps": "10–20",
-    "dbEquip": "ohne",
-    "bwEquip": "ohne",
+    "dbEquip": "Ohne Gerät",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf.",
     "bwCue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf; das nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
     "detail": [
@@ -1935,8 +1998,8 @@
     "reps": "10–20",
     "bwName": "Knieheben im Liegen",
     "bwReps": "10–20",
-    "dbEquip": "ohne Gerät",
-    "bwEquip": "ohne Gerät",
+    "dbEquip": "Ohne Gerät",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
     "bwCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
     "detail": [
@@ -1956,7 +2019,7 @@
     "schmerz": [
       {
         "ort": "Rücken beim Einrollen",
-        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt“ ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
+        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt\" ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
       }
     ],
     "dbRest": 120,
@@ -2090,8 +2153,8 @@
         "Dicht geführt trifft es den Latissimus; weit abgespreizt wandert die Last in die hintere Schulter. Beides ist eine Übung, aber nur eine davon ist diese."
       ]
     ],
-    "dbRest": 120,
-    "bwRest": 120,
+    "dbRest": 150,
+    "bwRest": 150,
     "dbWeight": 8,
     "dbStep": 1,
     "weightNote": "im Rucksack",
@@ -2248,6 +2311,77 @@
     "equip": null,
     "nurErsatz": true
   },
+  "langhantel-beckenheben": {
+    "group": "Gesäß",
+    "tier": 1,
+    "name": "Beckenheben mit Langhantel",
+    "reps": "8–15",
+    "bwName": "Beckenheben",
+    "bwReps": "15–25",
+    "dbEquip": "Langhantel + Polster",
+    "bwEquip": "Ohne Gerät",
+    "dbCue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen so nah, dass du sie mit den Fingerspitzen fast berührst. Die Stange liegt auf der Hüftbeuge, ein dick gefaltetes Handtuch darunter, die Hände halten sie außen fest. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
+    "dbHeben": "Die Stange mit Verschlüssen quer auf den Boden legen, dort, wo links und rechts Platz ist. Davorsetzen, die Beine gestreckt darunter, die Stange über die Schienbeine und Oberschenkel bis auf die Hüftbeuge rollen; Handtuch darunter. Erst dann hinlegen und die Füße aufstellen. Am Ende das Gesäß ablegen, die Beine strecken und die Stange denselben Weg zurück über die Beine rollen. Nie mit der Stange auf der Hüfte aufstehen wollen.",
+    "bwCue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es einbeinig.",
+    "detail": [
+      [
+        "Wozu, wenn es den Hip Thrust gibt",
+        "Für eine Wohnung, in der die Stange am Sofa nicht passt. Der Hip Thrust braucht eine Kante an der Wand und links und rechts so viel Platz, wie die Stange lang ist – steht das Sofa in einer Nische, schlägt sie an die Wand. Am Boden liegt sie dort, wo du auch sonst mit ihr trainierst. Der Weg ist kürzer als beim Hip Thrust, die Last bleibt: dieselbe Stange, dasselbe Gewicht. Im Plan steht die Übung nicht; sie springt ein, wenn der Hip Thrust unter Mehr → Übungen ausgeschaltet ist.",
+        "db"
+      ],
+      [
+        "Polster",
+        "Ein dick gefaltetes Handtuch, mehrmals gelegt. Ohne ist bei 40 kg der Hüftknochen die Grenze, nicht das Gesäß – du hörst dann früher auf, als du müsstest.",
+        "db"
+      ],
+      [
+        "Die Fersen nah",
+        "Je weiter die Füße vorn stehen, desto mehr zieht die Oberschenkelrückseite und desto weniger arbeitet das Gesäß. Fersen dicht ans Gesäß, Schienbeine oben etwa senkrecht – dann kommt der Zug von hinten oben."
+      ],
+      [
+        "Oben ist die Arbeit",
+        "Ein bis zwei Sekunden halten, Gesäß fest, Rippen unten. Der Körper bildet oben eine Linie von Knie bis Schulter; weiter ins Hohlkreuz zu drücken sieht nach mehr aus, kommt aber aus dem unteren Rücken."
+      ],
+      [
+        "Typische Fehler",
+        "Mit den Fersen wegdrücken statt mit dem Gesäß anzuheben. Den Kopf mitheben. Die Stange auf dem Bauch statt auf der Hüftbeuge liegen haben.",
+        "db"
+      ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Hüftknochen drückt",
+        "text": "Die Stange oder die Hantel liegt direkt auf den Beckenknochen, und das tut ohne Polster fast allen weh. Das ist kein Schaden und kein Zeichen von etwas – es ist Druck auf Knochen.\n\nEin zusammengerolltes Handtuch, eine Yogamatte doppelt gelegt oder ein dickes Kissen zwischen Last und Hüfte lösen es vollständig. Wer nichts zur Hand hat: Die Last etwas höher legen, näher an die Bauchdecke, nimmt schon einiges.",
+        "modus": "db"
+      },
+      {
+        "ort": "Tief seitlich über dem Gesäß",
+        "text": "Ein Schmerz tief seitlich über der Gesäßhälfte, oft nur auf einer Seite: Dort sitzt das Kreuz-Darmbein-Gelenk. Kräftige Hüftstreckung reizt es, und mit der Langhantel ist das Beckenheben genau das – mit derselben Last wie der Hip Thrust.\n\nErst die einfache Ursache: Schieben beide Seiten gleich? Wer unbewusst über ein Bein drückt, belastet das Gelenk einseitig. Füße gleich weit weg, gleich weit auseinander, und oben bewusst beide Gesäßhälften anspannen.\n\nSitzt der Punkt trotzdem fest, hier anhaken – dann tritt das Beckenheben mit der Scheibe an diese Stelle, dieselbe Bewegung mit weniger Last.",
+        "verletzung": [
+          "isg"
+        ],
+        "modus": "db"
+      }
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 40,
+    "dbStep": 5,
+    "weightNote": "Stange gesamt",
+    "dbPattern": "bridge",
+    "dbShares": {
+      "glutes": 1.0,
+      "hamstringsHip": 0.5
+    },
+    "bwPattern": "bridge",
+    "bwShares": {
+      "glutes": 1.0,
+      "hamstringsHip": 0.5
+    },
+    "equip": "hipbar",
+    "nurErsatz": true,
+    "bewegung": "hueftstreckung"
+  },
   "beckenheben": {
     "group": "Gesäß",
     "tier": 2,
@@ -2256,7 +2390,7 @@
     "bwName": "Beckenheben",
     "bwReps": "15–25",
     "dbEquip": "Scheibe",
-    "bwEquip": "ohne Gerät",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen so nah, dass du sie mit den Fingerspitzen fast berührst. Scheibe flach auf die Hüftbeuge, Handtuch darunter – sie liegt auf, eine Kurzhantel rollt. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen.",
     "dbHeben": "Erst hinlegen, dann die Scheibe: Sie liegt neben der Hüfte, mit beiden Händen auf die Hüftbeuge ziehen. Am Ende zur Seite ablegen, dann erst aufsetzen.",
     "bwCue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es einbeinig.",

@@ -7,18 +7,20 @@
  *
  * exOf() ist die eine Stelle, an der Modus und Stufe über die Satzzahl
  * entscheiden. Alles danach – Protokoll, Fortschritt, Wochenvolumen,
- * Zeitschätzung – rechnet mit dem, was von dort kommt.
+ * Zeitschätzung – rechnet mit dem, was von dort kommt. Die Einheit, wie sie
+ * trainiert wird, legt darauf noch die Übungen eines Zusatztags (einheitEx()).
  */
 import * as store from './store.js';
-import { EXERCISES, PLAN, REST } from './data.js';
-import { EX_BY_ID, directOf, directSets, gezaehlteReps, stufenWerte } from './uebung.js';
+import { EXERCISES, FOKUS_ERSATZ, PLAN, PLANS, REST } from './data.js';
+import { EX_BY_ID, directOf, directSets, gezaehlteReps, satzKilo, stufenWerte } from './uebung.js';
 import { addDays, daysBetween, plural, todayISO } from './dates.js';
 import { INJURIES, applyInjuries, gesperrt, modusTausch } from './injuries.js';
-import { faelltAus, termine } from './termine.js';
+import { WIRKT_AN, faelltAus, termine } from './termine.js';
 import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
-import { nichtsAbgewaehlt, vorratFassung } from './vorrat.js';
-import { satzZahl } from './stufen.js';
+import { nichtsAbgewaehlt, uebungGeht, vorratFassung } from './vorrat.js';
+import { satzZahlIm } from './stufen.js';
+import { figurGeraet } from './figure.js';
 
 /**
  * Wie viele Wochen ein ganzer Durchlauf dauert.
@@ -66,6 +68,224 @@ export function catchUpPlan() {
   return missed;
 }
 
+/**
+ * Tage von Einheit n bis n+1 im Rhythmus des Plans – aus den Plandaten. Nach
+ * der letzten Einheit der übliche Abstand, wie beim Weiterrollen der Runde
+ * (rundeWeiter() in js/tagstart.js). Reihum, damit auch Nummern jenseits des Plans
+ * einen Rhythmus haben.
+ */
+export function rhythmusLuecke(n) {
+  const L = PLAN.length;
+  const i = (((n - 1) % L) + L) % L;
+  if (i === L - 1) return Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  return Math.max(1, daysBetween(PLAN[i].date, PLAN[i + 1].date));
+}
+
+/**
+ * Ausgefallene Trainingstage – gerechnet aus dem Protokoll, kein Schnappschuss.
+ *
+ *     „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+ *      Trainings hab ausfallen lassen"
+ *
+ * Stimmte. catchUpPlan() schiebt den Restplan, sobald der Termin der nächsten
+ * offenen Einheit verstrichen ist, bis sie auf heute fällt – jeden Tag aufs
+ * Neue. Eine Einheit liegt deshalb nie unbegonnen in der Vergangenheit, und
+ * dayState() in js/ansicht-kalender.js kam nie zu 'miss'. Die Legende kannte
+ * „ausgefallen", gezeigt wurde es nur in den Minuten nach Mitternacht, bis
+ * das Nachrücken lief. Wer Sa und Mo nicht trainiert hatte, sah am Di einen
+ * leeren Sa, einen leeren Mo und „heute · geplant".
+ *
+ * **Was ausgefallen heißt.** Ein Trainingstag im Rhythmus des Plans, der
+ * verstrich, ohne dass bis zum nächsten Trainingstag trainiert wurde.
+ *
+ *   Rhythmus  gerechnet ab dem letzten tatsächlich trainierten Tag d mit
+ *             Einheit k: d + Lücke(k), dann + Lücke(k+1) und so weiter – genau
+ *             der Plan, den der Kalender direkt nach dem Training zeigte. Die
+ *             Nummer im Rhythmus läuft je Trainingstag weiter, auch wenn die
+ *             fällige Einheit dieselbe bleibt; so bleibt die Woche (bei Tobi
+ *             Do/Sa/Mo/Di) erhalten, und die Ruhetage dazwischen sind nie
+ *             ausgefallen. Das Nachrücken machte ja jeden Tag zum „heute" –
+ *             das soll nicht als Dutzend Ausfälle erscheinen.
+ *   Fenster   jeder Trainingstag t gilt bis zum nächsten: Wer im Fenster
+ *             trainiert (Planeinheit, eigene Einheit, Zusatztag), hat
+ *             verschoben, nicht ausfallen lassen – W10 am So statt am Sa ist
+ *             kein Ausfall. Ist das Fenster noch offen, gilt der Tag noch nicht
+ *             als ausgefallen; heute nie.
+ *   fällig    die erste Einheit des Verlaufs, die an dem Tag noch nicht
+ *             angefangen war – die, die nach hinten rückte.
+ *
+ * Der Rhythmus nach einem Training ist der, den die App danach zeigte – auch
+ * wenn früher trainiert wurde als geplant: Dann zieht die App den Restplan
+ * vor, beim Start ebenso wie beim ersten Haken ohne Start (planVorziehen() in
+ * js/app.js). Vorher tat das nur der Start: Wer W10 am Fr
+ * in „Übungen & Gewichte" abhakte, sah W11 weiter am Mo, und diese Rechnung
+ * meldete den So dazwischen als ausgefallen – einen Tag, an dem die App
+ * „morgen · Workout 11" gezeigt hatte.
+ *
+ * Kein Ausfall ist ein Tag, an dem eingetragene Termine der fälligen Einheit
+ * jede Übung nehmen (ein Turnier, das alles schont): Es gab nichts zu
+ * trainieren, die App selbst hat sie weitergeschoben. Das gilt mit dem Plan des
+ * Verlaufs, auch wenn der inzwischen in der Ablage liegt – sonst kippte
+ * derselbe Tag beim Fokuswechsel oder Rundenende zu „ausgefallen". Sport
+ * außerhalb des Plans ist dagegen kein Plantraining – der Tag bleibt
+ * ausgefallen, der Kalender zeigt den Sport daneben.
+ *
+ * **Verläufe.** Abgelegte Runden (Fokuswechsel, Neustart, weitergerollte
+ * Runde) zählen mit, wie in fruehereTage(): Ein Trainingstag gehört dem Tag,
+ * nicht dem Plan. Bis zum Wechseltag (finishedOn) läuft der alte Rhythmus,
+ * danach beginnt Workout 1 dort, wo die App es hinlegt – der übliche Abstand
+ * nach dem letzten Eintrag des alten Verlaufs (frischerStart() zählt dabei
+ * auch eigene Einheiten und den Zusatztag), frühestens am Wechseltag. Sonst
+ * stünden nach einem Wechsel Tage als ausgefallen da, an denen der Kalender
+ * gar kein Workout 1 zeigte.
+ *
+ * **Gerechnet, nicht gespeichert** – wie behalteProtokolliertes(): Gelesen
+ * werden nur startedOn je Einheit, die Plandaten und die Termine, nie `shift`.
+ * Damit wirkt es auch für jede Woche, die vor dieser Fassung trainiert wurde,
+ * und wer die App tagelang nicht geöffnet hat, sieht dasselbe wie jemand, der
+ * jeden Tag hineinschaute (gemessen: beide Wege ergeben am Di dieselben Tage,
+ * bei verschiedenem shift-Verlauf). Nicht rekonstruierbar ist, was gelöscht
+ * wurde (es gilt das heutige Protokoll), und der Tag, an dem ein Verlauf
+ * verlassen wurde, der später zurückkam: wechsleFokus() holt ihn aus der
+ * Ablage, und sein finishedOn ging dabei verloren. Dafür – und nur dafür –
+ * gibt es eine gespeicherte Spur, `verlassen` (js/store.js): ein ISO-Tag je
+ * Rückkehr, 12–13 Byte. Ohne sie rutschte nach Cut → Aufbau → Cut der Wechsel
+ * auf den Tag des letzten Cut-Trainings, Workout 1 (Aufbau) erschien auf einem
+ * Cut-Ruhetag, an dem es den Aufbau-Plan noch gar nicht gab, und die echten
+ * Ausfälle davor verschwanden. Zurückgeholt vor dieser Fassung, fehlt die
+ * Spur; dann gilt als Wechsel spätestens das erste Training im anderen Plan –
+ * bis dahin läuft der alte Rhythmus, und kein Tag wird einem Plan
+ * zugeschrieben, den es an dem Tag noch nicht gab.
+ *
+ * Alles in lokalen ISO-Tagen (todayISO, startedOn): Ein Training nach
+ * Mitternacht gehört zum Tag des ersten Satzes. Einmal je Kalender-Zeichnung
+ * aufgerufen, nie je Kachel (gemessen 2 ms bei drei abgelegten Runden mit
+ * 140 Einheiten, 10 ms mit 40 Terminen dazu).
+ *
+ * @returns {Map<string, {n:number, aktuell:boolean, focus:string|null, seit:string, spaeter:string|null}>}
+ *   Schlüssel ISO-Tag (vor heute). n: fällige Einheit; aktuell: aus dem
+ *   laufenden Verlauf (sonst aus der Ablage); focus: dessen Fokus; seit: Tag
+ *   des letzten Trainings davor; spaeter: Tag, an dem n dann angefangen wurde
+ *   (null = noch offen).
+ */
+export function ausfallTage(heute = todayISO()) {
+  const s = store.getState();
+  const TAG = /^\d{4}-\d{2}-\d{2}$/;
+  const tagVon = (e) => (e && TAG.test(e.startedOn || '') ? e.startedOn : null);
+  const planNr = (k) => /^\d+$/.test(k);
+  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  // Jeder Tag mit einem Eintrag, auch eigene Einheiten – so zählt frischerStart().
+  const tageIn = (log) => Object.values(log).map(tagVon).filter(Boolean).sort();
+  // Die Tage, an denen ein zurückgeholter Verlauf früher schon verlassen wurde
+  // (wechsleFokus() in js/store.js).
+  const spur = (x) => (Array.isArray(x) ? x.filter((d) => TAG.test(d || '')).sort() : []);
+  const verlaeufe = (s.rounds || []).map((r) => {
+    const log = r.log || {};
+    const tage = tageIn(log);
+    // Alte Runden ohne finishedOn: Wechsel direkt nach ihrem letzten Training.
+    return { log, tage, focus: r.focus || null, bis: r.finishedOn || tage[tage.length - 1] || null,
+      verlassen: spur(r.verlassen), aktuell: false };
+  });
+  const aktuell = { log: s.log || {}, tage: tageIn(s.log || {}), focus: s.focus || 'standard', bis: null,
+    verlassen: spur(s.verlassen), aktuell: true };
+  verlaeufe.push(aktuell);
+  // Tage, an denen überhaupt ein Termin wirkt. Nur dort fragt die Rechnung
+  // faelltAus() – sonst kostete jeder Rhythmus-Tag einen Gang durch alle
+  // Termine (gemessen: drei Runden, 40 Termine, 10 statt 20 ms je Aufruf).
+  const terminNah = new Set(termine().flatMap((t) => WIRKT_AN.map((d) => addDays(t.datum, d))));
+  /** Der Plan eines Verlaufs: der laufende, sonst der seines Fokus (abgeschafft: der Nachfolger). */
+  const planVon = (v) => (v.aktuell ? PLAN
+    : (PLANS[v.focus] || PLANS[(FOKUS_ERSATZ[v.focus] || {}).nach] || PLANS.standard || {}).plan || PLAN);
+
+  // Jeder Tag mit Training: Planeinheit (auch angefangen), eigene Einheit oder
+  // Zusatztag mit mindestens einem abgehakten Satz, Ablage. Anker sind nur die
+  // Planeinheiten – von ihnen aus läuft der Rhythmus.
+  const trainiert = new Set();
+  const anker = [];
+  verlaeufe.forEach((v, vi) => Object.entries(v.log).forEach(([k, e]) => {
+    const tag = tagVon(e);
+    if (!tag) return;
+    if (planNr(k)) {
+      trainiert.add(tag);
+      anker.push({ tag, n: Number(k), v, vi });
+      // Der Rest einer abgeschlossenen Einheit, an einem späteren Tag gemacht
+      // („Doch noch weitermachen", `weiterAm` in js/store.js): An dem Tag wurde
+      // trainiert – verschoben, nicht ausgefallen. Ein Anker ist er nicht, der
+      // Rhythmus läuft weiter ab dem Tag der Einheit.
+      if (TAG.test(e.weiterAm || '') && e.weiterAm > tag) trainiert.add(e.weiterAm);
+    } else if (['db', 'bw'].some((m) => Object.values(e[m] || {})
+      .some((arr) => Array.isArray(arr) && arr.some((x) => x && x.done)))) {
+      trainiert.add(tag);
+    }
+  }));
+  anker.sort((a, b) => a.tag.localeCompare(b.tag) || a.vi - b.vi || a.n - b.n);
+  // Je Tag das letzte Training: Wer zwei Einheiten an einem Tag nachholt,
+  // rechnet ab der zweiten weiter.
+  const A = anker.filter((a, i) => !anker[i + 1] || anker[i + 1].tag !== a.tag);
+
+  /** Die erste Einheit des Verlaufs, die am Tag `iso` noch nicht angefangen war – oder null. */
+  const faellig = (v, iso) => {
+    const N = v.aktuell ? PLAN.length : Math.max(PLAN.length, ...Object.keys(v.log).filter(planNr).map(Number));
+    for (let n = 1; n <= N; n++) {
+      const t = tagVon(v.log[n]);
+      if (!t || t > iso) return n;
+    }
+    return null;
+  };
+  const aktuellLeer = !Object.keys(aktuell.log).some((k) => planNr(k) && tagVon(aktuell.log[k]));
+
+  const aus = new Map();
+  A.forEach((a, i) => {
+    const nach = A[i + 1] || null;
+    const bis = nach && nach.tag < heute ? nach.tag : heute;
+    const neu = nach ? nach.v : aktuell;
+    // Beginnt danach ein frischer Verlauf (Workout 1 nach Fokuswechsel, Rundenende, Neustart)?
+    const frisch = nach ? nach.n === 1 && (nach.v !== a.v || a.n > 1) : a.v !== aktuell && aktuellLeer;
+    // Wann der alte Verlauf verlassen wurde: der vermerkte Tag eines
+    // zurückgeholten Verlaufs, sonst finishedOn der Runde. Fehlt beides
+    // (zurückgeholt vor dieser Fassung), spätestens am ersten Training im
+    // anderen Plan.
+    const wechsel = a.v.verlassen.find((x) => x >= a.tag) || a.v.bis || (frisch && nach ? nach.tag : null);
+    let tag = addDays(a.tag, rhythmusLuecke(a.n));
+    let r = a.n + 1;
+    let umgestellt = false;
+    while (tag < bis) {
+      if (wechsel && tag >= wechsel && !umgestellt) {
+        umgestellt = true;
+        if (frisch) {
+          // Workout 1 liegt, wo die App es hinlegt: frischerStart()/rundeWeiter(),
+          // der übliche Abstand nach dem letzten Eintrag – auch einer eigenen
+          // Einheit am Wechseltag –, frühestens am Wechseltag.
+          const vorher = a.v.tage.filter((x) => x <= wechsel);
+          const letzter = vorher.length && vorher[vorher.length - 1] > a.tag ? vorher[vorher.length - 1] : a.tag;
+          const start = addDays(letzter, abstand);
+          tag = start > wechsel ? start : wechsel;
+          r = 1;
+          continue;
+        }
+      }
+      const ende = addDays(tag, rhythmusLuecke(r));   // der nächste Trainingstag schließt das Fenster
+      // Im Fenster nachgeholt: verschoben. Fenster noch offen: noch nicht ausgefallen.
+      if (nach ? nach.tag < ende : heute < ende) break;
+      let selbst = false;
+      for (let t = tag; t < ende; t = addDays(t, 1)) if (trainiert.has(t)) selbst = true;
+      let v = umgestellt ? neu : a.v;
+      let n = faellig(v, tag);
+      if (n === null && v !== neu) { v = neu; n = faellig(v, tag); }   // alter Verlauf war fertig
+      // Mit dem Plan des Verlaufs – ein Turnier bleibt frei, auch nachdem die
+      // Runde in die Ablage gewandert ist.
+      const w = n === null ? null : planVon(v)[n - 1] || PLAN[(n - 1) % PLAN.length];
+      const frei = !!w && terminNah.has(tag) && faelltAus(w.ex, tag).items.length === 0;
+      if (!selbst && n !== null && !frei) {
+        aus.set(tag, { n, aktuell: v.aktuell, focus: v.focus, seit: a.tag, spaeter: tagVon(v.log[n]) });
+      }
+      tag = ende;
+      r += 1;
+    }
+  });
+  return aus;
+}
+
 /** Die erste Einheit, die noch nicht angefangen wurde – die, die dran wäre. */
 export function firstOpen() {
   return PLAN.find((w) => !store.isStarted(w.n)) || PLAN[PLAN.length - 1];
@@ -108,6 +328,94 @@ export function defaultWorkoutNo() {
   return open ? open.n : PLAN[PLAN.length - 1].n;
 }
 
+/**
+ * Ab wie vielen abgehakten Sätzen sich eine liegen gebliebene Einheit selbst
+ * abschließt: zwei.
+ *
+ * Ein Fehltipp ist *ein* Tipp. Wer auf der Startseite zur nächsten Einheit
+ * vorblättert und dort aus Versehen einen Satz abhakt, hat sie angefangen –
+ * planVorziehen() in js/app.js legt sie sogar auf heute. Am nächsten Tag hieße
+ * sie sonst „trainiert mit 1 von 18", und der Plan ginge an ihr vorbei. Mit
+ * zwei Sätzen hat jemand zweimal entschieden, dass er trainiert.
+ *
+ * Nicht die gebuchte Zeit (`secs`) und nicht, ob eine Sitzung lief: Wer in
+ * „Übungen & Gewichte" abhakt, ohne auf Start zu tippen, trainiert ohne Uhr –
+ * mit zehn Sätzen und null Sekunden. Gezählt wird wie im Kopf der Einheit
+ * („4/17 Sätze", progressOf()). Was darunter liegt, bleibt offen wie bisher.
+ */
+export const ABSCHLUSS_AB = 2;
+
+/**
+ * Was der Tagesabschluss jetzt abschließt (tagAbschliessen() in js/tagstart.js):
+ * { einheiten: [n], sitzung: { n, bis } | null, spaeter: ms | null }.
+ *
+ *   einheiten  Planeinheiten, an einem früheren Tag angefangen, nicht
+ *              abgeschlossen, mit mindestens ABSCHLUSS_AB Sätzen, und seit
+ *              LIEGT_AB_MS ohne Lebenszeichen (store.lebenszeichen()) – an
+ *              einer Einheit, an der über Mitternacht weiter trainiert wird,
+ *              ändert sich nichts. Und nicht die Einheit einer Sitzung von
+ *              heute (siehe unten).
+ *   sitzung    die laufende Sitzung, wenn sie an einem früheren Tag gestartet
+ *              wurde und ebenso lange liegt; `bis` ist ihr letztes
+ *              Lebenszeichen – bis dahin wird gebucht.
+ *   spaeter    wann die nächste dieser Einheiten liegen wird, die jetzt noch
+ *              zu frisch ist – für die Uhr, die bei offener App nachsieht.
+ *
+ * **Der Tag einer Sitzung ist der ihrer Uhr** (`clock.on`, startSession() in
+ * js/store.js) – der Tag, an dem auf Start getippt wurde. Erst ohne Uhr der
+ * Tag ihrer Einheit. Bis zur Nachbesserung war es umgekehrt, und „Rest heute
+ * machen" (bis v242; jetzt „Doch noch weitermachen" auf der Einheit) hatte
+ * eine Sitzung von heute auf einer Einheit vom Samstag: Nach drei Stunden
+ * Mittagessen war sie um 13:30 still beendet, die Fokusansicht
+ * weg, kein Wort – jede andere Sitzung von heute läuft nach einer langen
+ * Pause weiter. Liegen geblieben ist eine Sitzung erst ab dem nächsten Tag.
+ *
+ * Und ihre Einheit bleibt so lange offen: Wer am Sonntag um 0:10 eine Einheit
+ * vom Samstag fortsetzt, trainiert heute an ihr – wie über Mitternacht. Am
+ * Montag liegt die Sitzung seit gestern; dann endet sie, und die Einheit
+ * schließt ab. Beides zusammen, nie eine Sitzung auf einer Einheit, die sich
+ * eben abgeschlossen hat.
+ *
+ * Eigene Workouts und Zusatztage (istCustom) schließt das nicht ab: Sie
+ * schieben keinen Plan, holen keinen Rückstand nach und stehen nie als nächste
+ * Einheit da, sobald sie angefangen sind – eine liegen gebliebene blockiert
+ * also nichts. Ihr Abschluss hieße nur, ihnen ein „trainiert" anzuheften, das
+ * niemand gesagt hat. Eine liegen gebliebene *Sitzung* auf ihnen endet aber
+ * (`sitzung`): Sonst stünde über der Einheit von heute „Eigenes Workout läuft
+ * noch" statt des Startknopfs.
+ */
+export function liegenGeblieben(heute = todayISO(), jetzt = Date.now()) {
+  const ab = (n) => store.lebenszeichen(n, jetzt) + store.LIEGT_AB_MS;
+  let spaeter = null;
+  const frisch = (n) => {
+    const t = ab(n);
+    if (t <= jetzt) return false;
+    spaeter = spaeter === null ? t : Math.min(spaeter, t);
+    return true;
+  };
+  const s = store.getState();
+  const k = s.session ? s.session.n : null;
+  const c = k !== null && s.clock && String(s.clock.n) === String(k) ? s.clock : null;
+  const sitzungTag = k === null ? null
+    : ((c && /^\d{4}-\d{2}-\d{2}$/.test(c.on || '') ? c.on : null) || store.startedOn(k));
+  const sitzungVonHeute = !!sitzungTag && !(sitzungTag < heute);
+  const einheiten = PLAN.filter((w) => {
+    const tag = store.startedOn(w.n);
+    // `done` zuerst: Was einmal abgeschlossen ist, trägt es, und completedMode()
+    // kostet je Einheit eine ganze Übungsliste – gefragt wird bei jedem
+    // Zurückkommen in die App.
+    if (!tag || !(tag < heute) || store.getState().log[w.n].done || completedMode(w.n)) return false;
+    if (sitzungVonHeute && String(w.n) === String(k)) return false;
+    if (progressOf(w.n, store.workoutMode(w.n)).done < ABSCHLUSS_AB) return false;
+    return !frisch(w.n);
+  }).map((w) => w.n);
+  // Schließt sich ihre Einheit eben ab, ist auch die Sitzung nicht frisch
+  // (dasselbe Lebenszeichen) – sie endet mit.
+  const sitzung = sitzungTag && sitzungTag < heute && !frisch(k)
+    ? { n: k, bis: store.lebenszeichen(k, jetzt) || undefined } : null;
+  return { einheiten, sitzung, spaeter };
+}
+
 /** Angehakte Verletzungen. */
 export function activeInjuries() { return store.getState().injuries || []; }
 
@@ -128,7 +436,7 @@ export const planCache = { key: null, list: null, notes: null };
 // wird – das ließe sich am Schlüssel kaum zuverlässig ablesen. Ein Neuaufbau
 // kostet unter einer Millisekunde, die Ersparnis liegt in den vielen Aufrufen
 // innerhalb *eines* Renderdurchlaufs.
-store.subscribe(() => { planCache.key = null; });
+store.subscribe(() => { planCache.key = null; bindung.key = null; });
 
 export function adjustedPlan() {
   const act = activeInjuries();
@@ -143,38 +451,108 @@ export function adjustedPlan() {
   const list = [];
   const notes = [];
   PLAN.forEach((w, i) => {
-    if (!act.length && !term.length) {
-      list.push(w.ex);
-      notes.push({ dropped: [], swapped: [], termin: [] });
-      return;
-    }
-    if (!act.length) {
-      // Nur Termine, keine Beschwerden: Der teure Teil oben (Nachbartage,
-      // Tabuliste, Ersatzsuche) hat dann nichts zu tun.
-      const t = faelltAus(w.ex, effDate(w));
-      list.push(t.items);
-      notes.push({ dropped: t.dropped, swapped: [], termin: t.namen });
-      return;
-    }
-    const eng = (a, b) => a && b && Math.abs(daysBetween(effDate(a), effDate(b))) < REST.days;
-    const meide = new Set();
-    if (eng(PLAN[i - 1], w)) directSets(list[i - 1]).forEach((m) => meide.add(m));
-    if (eng(w, PLAN[i + 1])) directSets(PLAN[i + 1].ex).forEach((m) => meide.add(m));
-    const taboo = new Set(EXERCISES
-      .filter((e) => directOf(e.id).some((m) => meide.has(m)))
-      .map((e) => e.id));
-    const r = applyInjuries(w.ex, act, taboo);
-    // Termine kommen *nach* den Verletzungen: Was ohnehin schon getauscht ist,
-    // wird an seiner neuen Stelle geprüft. Ein Ersatz, der die geschonte Gruppe
-    // trifft, fällt dann genauso weg wie das Original.
-    const t = faelltAus(r.items, effDate(w));
-    list.push(t.items);
-    notes.push({ dropped: r.dropped.concat(t.dropped), swapped: r.swapped, termin: t.namen });
+    const r = tagAnpassen(w, w.ex, list[i - 1], act, term);
+    list.push(r.items);
+    notes.push(r.notiz);
   });
   planCache.key = key;
   planCache.list = list;
   planCache.notes = notes;
   return list;
+}
+
+/**
+ * Ein Plantag unter Beschwerden und Terminen, mit der Übungsliste `ex` an
+ * seiner Stelle. Das ist sonst w.ex – vorherFassung() reicht hier die Liste aus
+ * dem Plan davor durch, damit sie genauso angepasst wird wie ein gewöhnlicher
+ * Tag. `vortag` ist die schon angepasste Liste des Tages davor.
+ */
+function tagAnpassen(w, ex, vortag, act, term) {
+  if (!act.length && !term.length) {
+    return { items: ex, notiz: { dropped: [], swapped: [], termin: [] } };
+  }
+  if (!act.length) {
+    // Nur Termine, keine Beschwerden: Der teure Teil unten (Nachbartage,
+    // Tabuliste, Ersatzsuche) hat dann nichts zu tun.
+    const t = faelltAus(ex, effDate(w));
+    return { items: t.items, notiz: { dropped: t.dropped, swapped: [], termin: t.namen } };
+  }
+  const i = w.n - 1;
+  const eng = (a, b) => a && b && Math.abs(daysBetween(effDate(a), effDate(b))) < REST.days;
+  const meide = new Set();
+  if (eng(PLAN[i - 1], w)) directSets(vortag).forEach((m) => meide.add(m));
+  if (eng(w, PLAN[i + 1])) directSets(PLAN[i + 1].ex).forEach((m) => meide.add(m));
+  const taboo = new Set(EXERCISES
+    .filter((e) => directOf(e.id).some((m) => meide.has(m)))
+    .map((e) => e.id));
+  const r = applyInjuries(ex, act, taboo);
+  // Termine kommen *nach* den Verletzungen: Was ohnehin schon getauscht ist,
+  // wird an seiner neuen Stelle geprüft. Ein Ersatz, der die geschonte Gruppe
+  // trifft, fällt dann genauso weg wie das Original.
+  const t = faelltAus(r.items, effDate(w));
+  return { items: t.items, notiz: { dropped: r.dropped.concat(t.dropped), swapped: r.swapped, termin: t.namen } };
+}
+
+/**
+ * Die Notiz des Tages um das ergänzt, was der Modus noch sperrt – und dabei
+ * die Kette zu Ende gelesen.
+ *
+ * Gefunden am Handgelenkbruch im Hantel-Modus: Die Beschwerde tauscht den
+ * Goblet Squat auf den Hip Thrust, sperrt den Hip Thrust mit Hanteln aber
+ * selbst (avoidDb – mit der Stange auf der Hüfte trägt die Hand). Die Notiz
+ * hängte beides aneinander, „Goblet Squat → Hip Thrust" und gleich daneben
+ * „Hip Thrust fällt aus", und die Beschwerden-Übersicht zählte die
+ * Goblet-Sätze als getauscht, obwohl keiner davon stattfand. Dasselbe Muster
+ * steht an mehr als einer Stelle: Die Handgelenksüberlastung tauscht
+ * Liegestütze auf die Floor Press und sperrt sie ohne Hanteln, und viele
+ * Beschwerden tauschen auf Übungen, die eine *andere* angehakte nur in einem
+ * Modus sperrt. Deshalb hier allgemein und nicht an der einen Regel:
+ *
+ *   A → X, und X fällt im Modus weg    → A fällt aus
+ *   A → X, und X wird im Modus zu Y    → A → Y
+ *
+ * Nicht in applyInjuries(): Dessen Ergebnis ist für beide Modi dasselbe und
+ * gemerkt (adjustedPlan()), der Modus kommt erst danach.
+ *
+ * Stand X auch selbst im Plan, hat applyInjuries() beide Einträge zu einem
+ * zusammengelegt, und der Modus nennt nur noch die Summe. Die wird nach den
+ * Satzzahlen des Plans aufgeteilt: X behält seinen eigenen Teil, A bekommt
+ * den getauschten.
+ */
+function modusNotiz(roh, r, w) {
+  let swapped = roh.swapped.slice();
+  const dropped = roh.dropped.slice();
+  const eigen = (id) => w.ex.filter((it) => it.id === id).reduce((a, it) => a + (it.sets || 0), 0);
+  // `summe` auf X selbst und die Tausche davor verteilen, in ganzen Sätzen.
+  const verteile = (summe, x, davor) => {
+    const gewichte = [eigen(x), ...davor.map((s) => s.sets || 0)];
+    const alle = gewichte.reduce((a, b) => a + b, 0) || 1;
+    let vergeben = 0;
+    return gewichte.map((g, i) => {
+      if (i === gewichte.length - 1) return Math.max(0, summe - vergeben);
+      const t = Math.round((summe * g) / alle);
+      vergeben += t;
+      return t;
+    });
+  };
+  r.dropped.forEach((d) => {
+    const davor = swapped.filter((s) => s.to === d.id);
+    if (!davor.length) { dropped.push(d); return; }
+    swapped = swapped.filter((s) => s.to !== d.id);
+    const [selbst, ...teile] = verteile(d.sets, d.id, davor);
+    davor.forEach((s, i) => dropped.push({ id: s.from, sets: teile[i], reason: d.reason }));
+    if (selbst > 0) dropped.push({ ...d, sets: selbst });
+  });
+  const weiter = [];
+  r.swapped.forEach((m) => {
+    const davor = swapped.filter((s) => s.to === m.from);
+    if (!davor.length) { weiter.push(m); return; }
+    swapped = swapped.filter((s) => s.to !== m.from);
+    const [selbst, ...teile] = verteile(m.sets, m.from, davor);
+    davor.forEach((s, i) => weiter.push({ from: s.from, to: m.to, sets: teile[i] }));
+    if (selbst > 0) weiter.push({ ...m, sets: selbst });
+  });
+  return { dropped, swapped: swapped.concat(weiter) };
 }
 
 /** Was an einem Plantag getauscht wurde und was wegfiel. */
@@ -186,7 +564,7 @@ export function injuryNotes(n, mode) {
   const w = PLAN[n - 1];
   if (mode && w) {
     const r = modusTausch(vorratFassung(gestufteSaetze(w, mode), mode).items, activeInjuries(), mode);
-    roh = { ...roh, dropped: roh.dropped.concat(r.dropped), swapped: roh.swapped.concat(r.swapped) };
+    roh = { ...roh, ...modusNotiz(roh, r, w) };
   }
   // Was protokolliert ist, ist weder ausgefallen noch getauscht worden – es
   // steht wieder da (behalteProtokolliertes). Ohne diesen Filter hieß es an
@@ -406,22 +784,121 @@ export function planSaetze(w, mode) {
 }
 
 function gestufteSaetze(w, m) {
-  // Festgeschrieben bei einem Planwechsel (planWechsel() in js/app.js): Diese
+  // Festgeschrieben bei einem Planwechsel (planWechsel() in js/tagstart.js): Diese
   // Einheit war schon angefangen oder trainiert, und hinter ihrer Nummer steht
   // im neuen Plan etwas anderes. Sie bleibt, wie sie war – samt der Satzzahl
   // jenes Tages, deshalb hier vor der Stufe und ohne sie.
+  //
+  // Die Satzzahl des Modus, in dem sie gerade steht: `bwSets` für Bodyweight,
+  // sonst `sets` (siehe festEintrag() in js/store.js). Listen von vor dieser
+  // Angabe haben nur `sets` – die Zahl des Modus, in dem damals trainiert
+  // wurde – und behalten sie in beiden Modi, wie bisher.
   const fest = (store.getState().log[w.n] || {}).fest;
   if (Array.isArray(fest) && fest.length) {
-    return fest.filter((it) => EX_BY_ID.has(it.id)).map((it) => ({ id: it.id, sets: it.sets, bwSets: it.sets }));
+    return fest.filter((it) => EX_BY_ID.has(it.id)).map((it) => {
+      const sets = m === 'bw' ? (it.bwSets ?? it.sets) : it.sets;
+      return { id: it.id, sets, bwSets: sets };
+    });
   }
+  return stufenFassung(adjustedPlan()[w.n - 1] || w.ex, m, w.n);
+}
+
+/**
+ * Erfahrungsstufe und eigene Wahl auf einer Tagesliste: erst die Fassung der
+ * Übung, dann die Satzzahl – die der Stufe für genau diesen Auftritt im Plan
+ * (satzZahlIm(), `n` ist die Nummer der Einheit).
+ */
+function stufenFassung(ex, m, n) {
   // Erst die Stufe, dann der Vorrat. Die Anfängerfassung einer Übung braucht
   // oft weniger Gerät – das hängende Knieheben die Klimmzugstange, das liegende
   // nichts. Andersherum fiele sie weg, statt getauscht zu werden.
-  const geplant = anfaengerFassung(adjustedPlan()[w.n - 1] || w.ex, m);
+  const geplant = anfaengerFassung(ex, m);
   return geplant.map((it) => {
     const roh = m === 'bw' && it.bwSets ? it.bwSets : it.sets;
-    const sets = satzZahl(roh);
+    // Getauscht wird über `from` (Beschwerde) und `statt` (Stufe); die
+    // Satzzahl gehört zum Eintrag im Plan, also zu dessen Übung.
+    const sets = satzZahlIm(PLAN, n, it.from || it.statt || it.id, roh, m);
     return sets === it.sets ? it : { ...it, sets };
+  });
+}
+
+/**
+ * Die Liste der Einheit n aus dem Plan davor – so, wie sie an jenem Tag
+ * dastand. `liste` ist der Eintrag aus PLANS[f].vorher.ex: [id, sets, bwSets].
+ *
+ * planWechsel() und festReparieren() in js/tagstart.js schreiben damit eine
+ * angefangene Einheit fest, und gestufteSaetze() gibt eine feste Liste
+ * unverändert zurück. Bis v218 ging sie roh hinein – Plan-IDs, Plan-Sätze –,
+ * und was hier fehlt, fehlt danach für immer. Gemessen an einer angefangenen
+ * BBP-Einheit: Als Anfänger, und genauso mit der eigenen Wahl, stand danach
+ * wieder das hängende Knieheben da, also genau die Übung, die laut
+ *
+ *     „wenn man Anfänger ausgewählt hat soll auch nur die Boden Variante
+ *      kommen"
+ *
+ * nicht mehr kommen sollte. Fortgeschritten bekam drei Sätze statt vier, und
+ * was eine Beschwerde oder ein Termin gestrichen hatte, kam zurück.
+ *
+ * Deshalb derselbe Weg wie ein gewöhnlicher Plantag: Beschwerden und Termine
+ * (tagAnpassen), dann Stufe und eigene Wahl (stufenFassung). Vorrat und
+ * Modus-Sperren nicht – die rechnet exBasis() auch über einer festen Liste.
+ *
+ * Und was schon im Protokoll steht, hat Vorrang: Eine angefasste Übung dort
+ * war die trainierte, `soll` die Satzzahl jenes Tages. Hat sich die Stufe
+ * seither geändert, steht sonst eine andere Fassung fest als die, die
+ * trainiert wurde. Bloß angezeigte Übungen zählen dafür nicht (siehe unten),
+ * ihr `soll` schon.
+ */
+export function vorherFassung(n, liste, mode) {
+  const roh = liste.filter(([id]) => EX_BY_ID.has(id))
+    .map(([id, sets, bwSets]) => ({ id, sets, bwSets }));
+  const w = PLAN[n - 1];
+  const tag = w ? tagAnpassen(w, roh, adjustedPlan()[n - 2], activeInjuries(), termine()).items : roh;
+  const items = stufenFassung(tag, mode, n);
+  // Dieselbe Liste im anderen Modus, für dessen Satzzahl. stufenFassung()
+  // tauscht Stelle für Stelle, die beiden Listen liegen also übereinander.
+  const andere = stufenFassung(tag, mode === 'bw' ? 'db' : 'bw', n);
+  const e = store.getState().log[n] || {};
+  const soll = e.soll || {};
+  const nach = e.nach || {};
+  // Nur angefasste Einträge (abgehakt, Gewicht, Rückmeldung) – dieselbe Regel
+  // wie protokolliert() unten. Einen Eintrag legt die App schon beim Anzeigen
+  // an, die Fokusansicht seit v216 für die ganze Einheit. Zählte jeder, holte
+  // die Zuordnung über `from` eine Übung zurück, die eine danach angehakte
+  // Beschwerde gesperrt hat: Gemessen an BBP Einheit 1 mit Schulter-Impingement
+  // stand der liegende Trizepsstrecker wieder fest statt des Ersatzes, obwohl
+  // nur der Split Squat abgehakt war. Gesehen heißt nicht gemacht – was nur
+  // angezeigt war, bleibt beweglich wie an jedem anderen Tag.
+  // Ohne die eingefügten Übungen eines Zusatztags: Sie gehören nicht zum Plan
+  // jenes Tages und dürfen keine seiner Stellen übernehmen (zusatzIds()).
+  const zus = zusatzIds(e);
+  const da = Object.entries(e[mode] || {})
+    .filter(([id, arr]) => EX_BY_ID.has(id) && !zus.has(id) && Array.isArray(arr)
+      && arr.some((x) => x && (x.done || !!x.w || !!x.wie || !!x.seite)))
+    .map(([id]) => id);
+  const frei = da.filter((id) => !items.some((it) => it.id === id));
+  return items.map((it, k) => {
+    let id = it.id;
+    if (!da.includes(id)) {
+      const x = frei.find((y) => nah(it, y));
+      if (x) {
+        frei.splice(frei.indexOf(x), 1);
+        id = x;
+      }
+    }
+    // `soll` dagegen für jede Übung, die an jenem Tag so dastand – auch nur
+    // angezeigt. Es ist die Satzzahl, mit der die App sie gezeigt hat, und
+    // damit samt „+1 nachgeholt". Die feste Liste ist aber die Basis, auf die
+    // exOf() die Nacharbeit erst legt; stünde sie hier mit drin, käme sie
+    // doppelt (siehe merkeNach() in js/store.js). Fehlt der Vermerk, weil
+    // `soll` älter ist, schätzt festNachReparieren() in js/tagstart.js nach.
+    const eigen = soll[id] ? Math.max(1, soll[id] - (nach[id] || 0)) : it.sets;
+    // Der andere Modus war an jenem Tag nicht zu sehen – für ihn gilt die
+    // Satzzahl, die der Plan dort hatte. Bis hierher bekam er die des
+    // trainierten Modus: hängendes Knieheben im Bodyweight-Modus mit den drei
+    // Sätzen des Hantel-Tages statt mit vier.
+    const fremd = (andere[k] || it).sets;
+    return { ...it, id, sets: mode === 'bw' ? fremd : eigen, bwSets: mode === 'bw' ? eigen : fremd };
   });
 }
 
@@ -490,12 +967,24 @@ function verwandte(id) {
   return verwandtCache.get(id) || new Set();
 }
 
+/** Ist `x` aus dieser Stelle geworden – über höchstens zwei Schritte (siehe oben)? */
+function nah(it, x) {
+  return [it.id, it.statt, it.from].filter(Boolean).some((y) => y === x
+    || verwandte(y).has(x) || [...verwandte(y)].some((z) => verwandte(z).has(x)));
+}
+
 function protokolliert(n) {
   const e = store.getState().log[n];
   const ids = new Set();
   if (!e) return ids;
+  // Die eingefügten Übungen eines Zusatztags stehen im selben Eimer, gehören
+  // aber nicht zum Plan dieser Einheit (einheitEx()). Hielte diese Stelle sie,
+  // stünden sie als „gehalten" in exBasis() – und damit im Maßstab für
+  // Rückstand und Nacharbeit, als hätte der Plan sie verlangt.
+  const zus = zusatzIds(e);
   ['db', 'bw'].forEach((m) => Object.entries(e[m] || {}).forEach(([id, arr]) => {
-    if (Array.isArray(arr) && arr.some((x) => x.done || !!x.w || !!x.wie)) ids.add(id);
+    if (zus.has(id)) return;
+    if (Array.isArray(arr) && arr.some((x) => x.done || !!x.w || !!x.wie || !!x.seite)) ids.add(id);
   }));
   return ids;
 }
@@ -506,8 +995,6 @@ function behalteProtokolliertes(n, items) {
   const fehlen = [...da].filter((id) => EX_BY_ID.has(id) && !items.some((it) => it.id === id));
   if (!fehlen.length) return items;
   const out = items.map((it) => ({ ...it }));
-  const nah = (it, x) => [it.id, it.statt, it.from].filter(Boolean).some((y) => y === x
-    || verwandte(y).has(x) || [...verwandte(y)].some((z) => verwandte(z).has(x)));
   const soll = (store.getState().log[n] || {}).soll || {};
   fehlen.forEach((x) => {
     const ziel = out.find((it) => !da.has(it.id) && !it.gehalten && nah(it, x));
@@ -559,6 +1046,18 @@ export function exBasis(w, mode) {
  * (exBasis). Wer die nachgetragenen Sätze auch liegen lässt, bekommt sie nicht
  * ein zweites Mal obendrauf.
  *
+ * **Und ohne Doppelung.** Das galt lange nur für die liegen gelassenen
+ * Nachholsätze, nicht für die gemachten:
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * Der am Samstag gemachte Nachholsatz wurde nirgends gutgeschrieben, und der
+ * Montag forderte denselben Rückstand noch einmal ein. Seitdem zählt jeder
+ * Haken einer früheren Einheit entweder zu ihrer Grundzahl oder zu ihrer
+ * angesagten Nacharbeit, und die gemachte Nacharbeit schließt den Rückstand
+ * (offenInWoche()).
+ *
  * **Nur nach oben.** Hier stand einmal auch die Gegenrichtung: Wer über Wochen
  * nur einen Teil schafft, dem hätte die App die Einheiten von selbst gekürzt.
  * Das ist wieder raus, auf ausdrücklichen Wunsch – die Erfahrungsstufe gehört
@@ -575,6 +1074,16 @@ export function exBasis(w, mode) {
 // nicht initialisiert – und der Fehler zeigt sich erst, sobald ein Protokoll
 // da ist, weil completedMode() ohne Protokoll vorher aussteigt.
 export const WEEK_SESSIONS = 4;
+
+// Der Zusatztag (siehe zusatzListe() unten und den Abschnitt in js/tagstart.js).
+// Aus demselben Grund hier oben und hier im Modul: naechsteEinheit() läuft in
+// js/app.js schon bei der Modulauswertung (`ui.workoutNo`), und von dort geht
+// es über completedMode() bis in die Liste des Zusatztags. Standen die Zahlen
+// weiter unten in js/app.js, waren sie dort noch nicht initialisiert.
+export const ZUSATZ_UEBUNGEN = 5;      // allein so lang wie eine gewöhnliche Einheit
+export const ZUSATZ_AB = 6;            // unter sechs Sätzen Rückstand lohnt es nicht
+export const ZUSATZ_IN_EINHEIT = 2;    // in eine Planeinheit eingefügt höchstens zwei
+export const ZUSATZ_NAME = /^Zusatztag Woche (\d+)$/;
 
 export const NACH_JE_EINHEIT = 3;
 
@@ -642,23 +1151,140 @@ export function fertigOhneNacharbeit(n) {
   return null;
 }
 
-/** Was in dieser Woche vor `w` liegen geblieben ist, je Muskelgruppe. */
+/**
+ * Was in dieser Woche vor `w` liegen geblieben ist, je Muskelgruppe.
+ *
+ * `herkunft` sagt, woher der Rückstand kommt – je abgeschlossener Einheit und
+ * Übung mit offenen Sätzen { n, id, m, abgehakt, von, offen }. Die Anzeige
+ * schreibt daraus an jeden Nachholsatz, wofür er ist (nacharbeitPlan()).
+ *
+ * **Gemachte Nacharbeit zählt.** Jeder abgehakte Satz einer früheren Einheit
+ * zählt entweder zur Grundzahl jenes Tages oder zu der Nacharbeit, die an dem
+ * Tag angesagt war – nie zu beiden. Was an Nacharbeit gemacht ist, schließt
+ * den Rückstand, aus dem sie gerechnet wurde:
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * Vorher wurde eine frühere Einheit nur an ihrer Grundliste gemessen, und
+ * saetzeErledigt() deckelte die Haken auf die Grundzahl. Ein Kreuzheben-Satz
+ * blieb am Donnerstag liegen, am Samstag stand dafür der Goblet Squat mit
+ * „+1 nachgeholt" da, und Tobi machte alle vier – der vierte Haken fiel unter
+ * den Deckel, das Loch vom Donnerstag blieb offen, und am Montag stand
+ * derselbe Goblet Squat wieder mit „+1 nachgeholt" da. Derselbe Rückstand,
+ * zweimal eingefordert.
+ *
+ * Erkannt wird der Nachholsatz am gespeicherten Vermerk (`nach`, ersatzweise
+ * `nachFest`), nicht an „soll minus heutige Satzzahl": Eine Einheit, die an
+ * ihrem Tag mit einer höheren Stufe stand (vier Grundsätze, heute drei), hätte
+ * ihren vierten *Grund*satz sonst als Nacharbeit gutgeschrieben und echten
+ * Rückstand weggerechnet. Ohne Vermerk keine Gutschrift. Und die Gutschrift
+ * endet bei der angesagten Zahl – frei hinzugefügte Sätze zählen nicht.
+ */
 export function offenInWoche(w) {
   const start = Math.floor((w.n - 1) / WEEK_SESSIONS) * WEEK_SESSIONS;
+  return offenImBlock(start, w.n - 1);
+}
+
+/**
+ * Dieselbe Rechnung über die Plan-Indizes [von, bis) – die Einheiten einer
+ * Woche vor `w` (offenInWoche()) oder eine ganze Woche. Die ganze braucht der
+ * Zusatztag, um an seiner Übung zu sagen, woher sie kommt (zusatztagEx() in
+ * js/app.js) – mit derselben Rechnung wie die Nacharbeit, nicht mit einer
+ * zweiten daneben.
+ */
+export function offenImBlock(von, bis) {
   const fehlt = {};
-  let summe = 0;
-  for (let i = start; i < w.n - 1 && i < PLAN.length; i++) {
+  // Geleistete Nacharbeit je Muskelgruppe – wird am Ende vom Rückstand abgezogen.
+  const plus = {};
+  const herkunft = [];
+  for (let i = Math.max(0, von); i < bis && i < PLAN.length; i++) {
     const x = PLAN[i];
     const mx = fertigOhneNacharbeit(x.n);
-    if (!mx) continue;   // noch offen – das ist kein Rückstand, das ist Zukunft
+    // Eine angefangene, noch offene Einheit trägt keinen Rückstand bei – das
+    // ist Zukunft. Die Nacharbeit, die in ihr schon gemacht ist, zählt aber:
+    // Wer am Samstag das +1 macht und die Einheit offen lässt, hat es gemacht.
+    const m = mx || (store.isStarted(x.n) ? store.workoutMode(x.n) : null);
+    if (!m) continue;
     const eintrag = store.getState().log[x.n] || {};
     // Ohne Stempel: ein Stand aus der Zeit vor dieser Rechnung. Dann bleibt die
     // Einheit draußen, statt an der heutigen Satzzahl gemessen zu werden – die
     // App erfindet lieber keinen Rückstand, als einen zu behaupten, den sie
     // nicht belegen kann.
     if (!eintrag.soll) continue;
-    exBasis(x, mx).forEach((it) => {
-      const done = saetzeErledigt(x.n, it.id, it.sets);
+    const liste = exBasis(x, m);
+    // Stempel, die schon einer Übung von heute gehören – unter ihrer eigenen
+    // Kennung oder über einen Tausch (`from`, `statt`). Und die Stempel der
+    // eingefügten Übungen eines Zusatztags (zusatzIds()): Die sind weder
+    // Rückstand noch gemachte Nacharbeit dieser Einheit und dürfen auch nicht
+    // als Stempel einer verwandten Planübung gelesen werden.
+    const belegt = new Set([...liste.flatMap((it) => [it.id, it.from, it.statt]).filter(Boolean),
+      ...zusatzIds(eintrag)]);
+    liste.forEach((it) => {
+      // Unter welcher Kennung der Stempel jenes Tages liegt. Gestempelt wird
+      // die Übung, die an dem Tag *dastand* – gesucht wird mit der von heute.
+      // Dazwischen kann eine Einstellung liegen:
+      //
+      //   - Eine Beschwerde, die erst danach angehakt wird, tauscht das
+      //     Hängende Knieheben heute gegen das Liegende (`from`). Der Stempel
+      //     liegt unter dem Hängenden.
+      //   - Andersherum: Am Tag war die Beschwerde angehakt, heute ist sie
+      //     ausgeheilt. Dann stand das Liegende da, heute steht wieder das
+      //     Hängende – ohne Tauschvermerk. Der Stempel liegt unter dem
+      //     Liegenden, das heute in keiner Zeile mehr vorkommt.
+      //   - Dasselbe mit der Stufe und der Ausführung (`statt`).
+      //
+      // Ohne diese Suche las sich der fehlende Stempel unten als „stand an dem
+      // Tag nicht da", und eine Einstellung hätte echten Rückstand gelöscht –
+      // das Gegenstück zu dem Fall, den die Regel dort verhindern soll. Für
+      // die zweite Richtung zählt nur ein Stempel, den heute keine andere Zeile
+      // trägt, und nur von einer direkt verwandten Übung (Beschwerdetausch,
+      // Anfängerfassung, gleiche Anteile – verwandte()).
+      const tausch = [it.from, it.statt].filter(Boolean);
+      const key = [it.id, ...tausch].find((k) => eintrag.soll[k] !== undefined)
+        || Object.keys(eintrag.soll).find((k) => !belegt.has(k) && verwandte(it.id).has(k))
+        || it.id;
+      if (key !== it.id) belegt.add(key);
+      const soll = eintrag.soll[key];
+      const alle = saetzeErledigt(x.n, it.id, Infinity);
+      // Wie viele der `soll` Sätze an jenem Tag Nacharbeit waren – aus dem
+      // Vermerk, sonst aus der festgehaltenen Nacharbeit des Modus.
+      const vermerk = (eintrag.nach || {})[key] ?? ((eintrag.nachFest || {})[m] || {})[key] ?? 0;
+      const nachTag = soll === undefined ? 0 : Math.min(soll, Number(vermerk) || 0);
+      const basisTag = soll === undefined ? it.sets : Math.min(soll - nachTag, it.sets);
+      // Was über die Grundsätze jenes Tages hinaus abgehakt ist, war seine
+      // Nacharbeit – höchstens so viel, wie angesagt war.
+      //
+      // Gemessen an der Grundzahl *jenes Tages*, nicht an der auf heute
+      // gekappten `basisTag`. Stand die Einheit mit „fortgeschritten" da (4 +
+      // 1) und ist die Stufe heute „geübt" (3), wäre der vierte Haken sonst
+      // als gemachter Nachholsatz gezählt worden – obwohl er ein Grundsatz war
+      // und das +1 ausgelassen wurde. Wer die angesagte Nacharbeit auslässt,
+      // bekam damit mehr gutgeschrieben als jemand, dem gar keine angesagt war.
+      // Das Kappen auf heute gehört nur zur Rückstandsseite unten.
+      const basisDamals = soll === undefined ? it.sets : soll - nachTag;
+      const mehr = Math.min(nachTag, Math.max(0, alle - basisDamals));
+      if (mehr > 0) {
+        Object.entries(EX_BY_ID.get(it.id)[m].shares).forEach(([mus, share]) => {
+          plus[mus] = (plus[mus] || 0) + mehr * share;
+        });
+      }
+      if (!mx) return;   // noch offen – das ist kein Rückstand, das ist Zukunft
+      // Eine Übung ohne Stempel in einer Einheit mit `nachFest` stand an dem
+      // Tag nicht auf dem Bildschirm. Seit v216 legt die Fokusansicht beim
+      // Öffnen die ganze Einheit an und die Liste jede Karte, und `nachFest`
+      // setzt die App ab v233 mit dem ersten Satz – eine solche Einheit stammt
+      // also sicher aus der Zeit, in der jede angezeigte Übung gestempelt
+      // wird. Fehlt der Stempel, hatte eine Beschwerde, ein Termin oder der
+      // Plan davor die Übung gestrichen. Fällt der Grund später weg (Termin
+      // gelöscht, Zerrung ausgeheilt), stand sie plötzlich rückwirkend „ganz
+      // offen" in der Rechnung, und die nächste Einheit holte sie nach.
+      // Eine Einstellung darf keine Arbeit erzeugen.
+      //
+      // Ältere Einheiten ohne `nachFest` behalten die Lesart unten: Aus der
+      // Zeit vor dem vollständigen Stempeln heißt ein fehlender Eintrag
+      // wirklich „stand da, nicht angefasst".
+      if (soll === undefined && eintrag.nachFest) return;
       // Gemessen wird an der Satzzahl, die an *diesem* Tag galt, nicht an der
       // von heute. Das ist der ganze Punkt:
       //
@@ -680,18 +1306,99 @@ export function offenInWoche(w) {
       //
       // Eine Uebung ohne Eintrag hat keine Zahl: Sie stand da und wurde gar
       // nicht angefasst, also zaehlt sie ganz als offen.
-      const soll = eintrag.soll[it.id];
-      const offen = (soll === undefined ? it.sets : Math.min(soll, it.sets)) - done;
+      //
+      // Und von dieser Zahl nur die Grundsätze (`basisTag`): Eine an dem Tag
+      // angesagte Nacharbeit, die liegen blieb, wird nicht noch einmal
+      // nachgeholt – sonst schaukelte sich der Rückstand auf.
+      const abgehakt = Math.min(alle, basisTag);
+      const offen = basisTag - abgehakt;
       if (offen <= 0) return;
-      const shares = EX_BY_ID.get(it.id)[mx].shares;
+      // Gerechnet und genannt wird die Übung, die an dem Tag dastand (`key`) –
+      // die liegen gebliebene Arbeit ist ihre. Gibt es sie im Modus jenes Tages
+      // nicht (mehr), die von heute.
+      const quelle = (EX_BY_ID.get(key) || {})[mx] ? key : it.id;
+      herkunft.push({ n: x.n, id: quelle, m: mx, abgehakt, von: basisTag, offen });
+      const shares = EX_BY_ID.get(quelle)[mx].shares;
       Object.entries(shares).forEach(([mus, share]) => {
         fehlt[mus] = (fehlt[mus] || 0) + offen * share;
-        summe += offen * share;
       });
     });
   }
-  return { fehlt, summe };
+  // Geleistete Nacharbeit schließt den Rückstand, aus dem sie gerechnet wurde.
+  Object.entries(plus).forEach(([mus, v]) => {
+    if (fehlt[mus] === undefined) return;
+    fehlt[mus] = Math.max(0, fehlt[mus] - v);
+  });
+  Object.keys(fehlt).forEach((mus) => { if (fehlt[mus] < 1e-9) delete fehlt[mus]; });
+  const summe = Object.values(fehlt).reduce((a, v) => a + v, 0);
+  return { fehlt, summe, herkunft };
 }
+
+/**
+ * Der Rückstand, wie v233 bis v235 ihn gerechnet haben – unverändert seit
+ * lange vor v233: nur abgeschlossene Einheiten, die Haken auf die heutige
+ * Satzzahl gedeckelt, keine Gutschrift für gemachte Nacharbeit. Dazu dieselbe
+ * `herkunft` wie offenInWoche().
+ *
+ * Gebraucht nur, um festgehaltene Nacharbeit aus dieser Zeit zu *erklären*
+ * (nachWarumJe()). Wer Workout 7 noch unter v235 angefangen hat, trägt dort
+ * die Nacharbeit, die v235 gerechnet hat – samt dem Goblet Squat, den v237
+ * nicht mehr ansagen würde:
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * Die heutige Rechnung kommt für diese Einheit nie auf dieselben Sätze, und
+ * die Zeile darunter fiel dann auf „Rest aus Workout 5–6" zurück – genau an
+ * der Übung, bei der die Frage entstand. Mit der Rechnung von damals lässt sich
+ * ehrlich sagen, woher der Satz stammt: aus dem Rückstand, den v235 gesehen hat.
+ */
+function offenInWocheAlt(w) {
+  const start = Math.floor((w.n - 1) / WEEK_SESSIONS) * WEEK_SESSIONS;
+  const fehlt = {};
+  const herkunft = [];
+  for (let i = start; i < w.n - 1 && i < PLAN.length; i++) {
+    const x = PLAN[i];
+    const mx = fertigOhneNacharbeit(x.n);
+    if (!mx) continue;
+    const eintrag = store.getState().log[x.n] || {};
+    if (!eintrag.soll) continue;
+    exBasis(x, mx).forEach((it) => {
+      const done = saetzeErledigt(x.n, it.id, it.sets);
+      const soll = eintrag.soll[it.id];
+      const von = soll === undefined ? it.sets : Math.min(soll, it.sets);
+      const offen = von - done;
+      if (offen <= 0) return;
+      herkunft.push({ n: x.n, id: it.id, m: mx, abgehakt: done, von, offen });
+      Object.entries(EX_BY_ID.get(it.id)[mx].shares).forEach(([mus, share]) => {
+        fehlt[mus] = (fehlt[mus] || 0) + offen * share;
+      });
+    });
+  }
+  const summe = Object.values(fehlt).reduce((a, v) => a + v, 0);
+  return { fehlt, summe, herkunft };
+}
+
+/**
+ * Ab welchem Anteil ein Nachholsatz sich lohnt: Mindestens die Hälfte dessen,
+ * was er direkt trainiert, muss in den Rückstand gehen.
+ *
+ * Vorher genügte ein Viertelsatz Rückstand, egal wie groß der Satz drumherum
+ * war. Gemessen im Cut: In Workout 3 blieben Rudern, Goblet Squat und
+ * Hammercurls liegen – Rücken, Beine, Bizeps –, und Workout 4 bekam „+1
+ * nachgeholt" beim Sitzenden Schulterdrücken. Von dessen Anteilen (vordere
+ * Schulter 1, Trizeps 0,6, seitliche Schulter 0,45, Nacken 0,3) traf nur der
+ * Nacken eine Lücke. Ein ganzer Satz samt 2:30 Pause für 0,3 Nacken, und vorn
+ * und am Trizeps Volumen, das dort niemand vermisst hat.
+ *
+ * Gemessen wird an den *direkten* Anteilen (ab REST.direct, wie in der
+ * Erholungsregel): Das sind die Gruppen, für die man den Satz macht. Die
+ * Mitläufer bleiben im Nenner draußen, sonst fiele jede Grundübung mit vielen
+ * kleinen Nebenanteilen durch, obwohl ihre Hauptarbeit genau die Lücke trifft.
+ * Die Hälfte heißt: Der Satz schließt überwiegend Rückstand und nicht
+ * überwiegend Volumen, das ohnehin schon steht.
+ */
+export const NACH_ANTEIL = 0.5;
 
 /**
  * Wie viele Sätze diese Einheit obendrauf bekommt, je Übung.
@@ -699,19 +1406,104 @@ export function offenInWoche(w) {
  * Verteilt wird gierig: Immer der Satz, der vom Rückstand am meisten wegnimmt.
  * Eine Übung zählt dabei mit ihren Anteilen – ein Satz Kniebeugen schließt
  * etwas beim Oberschenkel *und* beim Gesäß.
+ *
+ * **Einmal angefangen, steht die Nacharbeit fest** (`nachFest` im Protokoll,
+ * siehe nachFesthalten() in js/app.js). Hier stand die Regel „ist die Einheit
+ * fertig ohne Nacharbeit, gibt es keine": gedacht für abgeschlossene
+ * Einheiten, gegriffen hat sie aber schon mitten im Training. Lag die Übung
+ * mit „+1 nachgeholt" am Ende, machte ihr letzter *Grundsatz* die Einheit
+ * „fertig ohne Nacharbeit" – das +1 verschwand, die Einheit endete von selbst
+ * bei 16 von 17 und meldete „Alle 15 Sätze stehen". Ob ein angesagter Satz
+ * überhaupt drankam, hing davon ab, wo seine Übung in der Reihenfolge stand.
+ * Mit Supersätzen ist der Nachholsatz in der letzten Gruppe immer der letzte
+ * Schritt.
+ *
+ * Eine abgeschlossene Einheit bekommt deshalb nur keine *neue* Nacharbeit
+ * mehr; was an ihr festgehalten ist, bleibt ihr – sonst zählte der Abschluss
+ * „alle 18 Sätze", wenn 19 abgehakt sind.
  */
 export function nacharbeit(w, m) {
   if (istCustom(w.n) || !PLAN[w.n - 1]) return null;
-  // Eine abgeschlossene Einheit ist Geschichte. Ihr nachträglich Sätze
-  // hinzuzufügen, hieße, sie rückwirkend für unfertig zu erklären.
+  const fest = festeNacharbeit(w, m);
+  if (fest !== undefined) return fest;
+  // Ohne Vermerk: ein Stand aus der Zeit davor. Eine Einheit, deren Grundsätze
+  // alle stehen, ist dann abgeschlossen – ihr nachträglich Sätze hinzuzufügen,
+  // hieße, sie rückwirkend für unfertig zu erklären.
   if (fertigOhneNacharbeit(w.n)) return null;
-  const { fehlt, summe } = offenInWoche(w);
+  return nacharbeitRechnen(w, m);
+}
+
+/**
+ * Die festgehaltene Nacharbeit einer Einheit, oder `undefined`, wenn keine
+ * festgehalten ist. Übungen, die seither weggefallen sind (eine Beschwerde
+ * tauscht sie), tragen keinen Satz mehr.
+ */
+function festeNacharbeit(w, m) {
+  const e = store.getState().log[w.n];
+  if (!e || !e.nachFest || typeof e.nachFest !== 'object') return undefined;
+  const je = e.nachFest[m] || {};
+  const da = new Set(exBasis(w, m).map((it) => it.id));
+  const extra = new Map(Object.entries(je)
+    .filter(([id, k]) => da.has(id) && Number(k) > 0).map(([id, k]) => [id, Number(k)]));
+  return extra.size ? extra : null;
+}
+
+/** Die Nacharbeit, wie sie jetzt gerechnet würde – ohne festgehaltenen Stand. */
+export function nacharbeitRechnen(w, m) {
+  const p = nacharbeitPlan(w, m);
+  return p ? p.extra : null;
+}
+
+/**
+ * Die Nacharbeit samt ihrer Herkunft: { extra: Map<id, k>, warum: Map<id,
+ * { g, q }> } oder null.
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * An der Übung stand nur „+1 nachgeholt" – wofür, stand nirgends. Und dann
+ * sucht man den Grund bei dem, was man zuletzt gemacht hat. Deshalb merkt sich
+ * die Verteilung je gewähltem Satz, was er schließt:
+ *
+ *   g  die Muskelgruppen, für die man ihn macht – die direkten Anteile der
+ *      Übung (ab REST.direct), die wirklich Rückstand schließen, die größten
+ *      zuerst, höchstens zwei. Trifft keine direkte, die zwei größten.
+ *   q  die Übungen, die diesen Rückstand hinterlassen haben: Einträge aus
+ *      offenInWoche().herkunft, deren Übung die Hauptgruppe g[0] direkt trifft,
+ *      als [n, id, abgehakt, von, m], die schwersten zuerst, höchstens drei.
+ *      Nur zur Hauptgruppe – über alle Gruppen gesammelt, stand beim Rudern
+ *      der Reverse Fly, nur weil beide den Nacken streifen. `m` ist der Modus,
+ *      in dem die Quelle trainiert wurde: Wer am Donnerstag ohne Hanteln
+ *      trainiert hat, hat die Standwaage gemacht und kein Rumänisches
+ *      Kreuzheben, und so muss es an der Übung auch heißen. Altbestand mit
+ *      vier Einträgen nennt die Übung im Modus von heute.
+ *
+ * Dieselbe Schleife wie die Verteilung selbst, nicht eine zweite Rechnung
+ * daneben, die irgendwann etwas anderes sagt als die Satzzahl.
+ *
+ * `alt` rechnet den Rückstand so, wie v233 bis v235 ihn gerechnet haben
+ * (offenInWocheAlt()) – nur für die Erklärung festgehaltener Nacharbeit aus
+ * dieser Zeit (nachWarumJe()), nie für die Satzzahl.
+ */
+export function nacharbeitPlan(w, m, { alt = false } = {}) {
+  if (istCustom(w.n) || !PLAN[w.n - 1]) return null;
+  const { fehlt, summe, herkunft } = alt ? offenInWocheAlt(w) : offenInWoche(w);
   // Unter einem halben Satz lohnt die Unruhe nicht.
   if (summe < 0.5) return null;
+  const p = nacharbeitVerteilen({ ...fehlt }, exBasis(w, m), m, herkunft);
+  return p.extra.size ? p : null;
+}
 
-  const rest = { ...fehlt };
-  const items = exBasis(w, m);
+/**
+ * Die Verteilung selbst: höchstens NACH_JE_EINHEIT Sätze auf `items`, gierig
+ * gegen den Rückstand `rest` – der dabei um das kleiner wird, was die
+ * gewählten Sätze schließen. Ausgelagert aus nacharbeitPlan(), damit die
+ * Vorschau am Ruhetag (nacharbeitVorschau()) mit genau dieser Schleife
+ * rechnet und nicht mit einer zweiten daneben.
+ */
+function nacharbeitVerteilen(rest, items, m, herkunft) {
   const extra = new Map();
+  const warum = new Map();
   for (let k = 0; k < NACH_JE_EINHEIT; k++) {
     let beste = null;
     let bestWert = 0;
@@ -722,15 +1514,158 @@ export function nacharbeit(w, m) {
       // offen ist, kann er nicht schließen.
       const wert = Object.entries(shares)
         .reduce((a, [mus, share]) => a + Math.min(share, rest[mus] || 0), 0);
+      // Und ob das den Satz trägt (siehe NACH_ANTEIL).
+      const direkt = Object.values(shares).filter((s) => s >= REST.direct)
+        .reduce((a, s) => a + s, 0);
+      if (direkt > 0 && wert < NACH_ANTEIL * direkt) return;
       if (wert > bestWert) { bestWert = wert; beste = it; }
     });
     if (!beste || bestWert < 0.25) break;
     extra.set(beste.id, (extra.get(beste.id) || 0) + 1);
-    Object.entries(EX_BY_ID.get(beste.id)[m].shares).forEach(([mus, share]) => {
+    const shares = EX_BY_ID.get(beste.id)[m].shares;
+    // Was dieser Satz schließt, je Gruppe – vor dem Abziehen gemessen.
+    const zu = Object.entries(shares)
+      .map(([mus, s]) => ({ mus, s, zu: Math.min(s, rest[mus] || 0) }))
+      .filter((x) => x.zu > 0);
+    const direkt = zu.filter((x) => x.s >= REST.direct);
+    const g = (direkt.length ? direkt : zu).sort((a, b) => b.zu - a.zu).slice(0, 2).map((x) => x.mus);
+    const anteil = (h) => ((EX_BY_ID.get(h.id) || {})[h.m] || { shares: {} }).shares[g[0]] || 0;
+    const q = herkunft
+      .filter((h) => anteil(h) >= REST.direct)
+      .sort((a, b) => (b.offen * anteil(b) - a.offen * anteil(a)) || (b.n - a.n))
+      .slice(0, 3)
+      .map((h) => [h.n, h.id, h.abgehakt, h.von, h.m]);
+    if (!warum.has(beste.id)) warum.set(beste.id, { g, q });
+    Object.entries(shares).forEach(([mus, share]) => {
       rest[mus] = Math.max(0, (rest[mus] || 0) - share);
     });
   }
-  return extra.size ? extra : null;
+  return { extra, warum };
+}
+
+/**
+ * Wohin der Rückstand dieser Woche noch geht – von heute aus, Einheit für
+ * Einheit. Für die Zeile am Ruhetag (ruhetagZeile() in js/app.js):
+ *
+ *     „Hab gestern nicht vollständig trainiert. Trotzdem soll ich heute
+ *      nichts nachholen?"
+ *
+ * `w` ist die nächste, noch nicht angefangene Einheit. Sie und jede weitere
+ * der Woche bekommt ihre Nacharbeit aus derselben Verteilung wie an ihrem Tag
+ * (nacharbeitVerteilen()), und was eine Einheit schließt, geht vom Rückstand
+ * ab, bevor die nächste rechnet. Genau so rechnet offenInWoche() an deren
+ * Tag: Die gemachte Nacharbeit wird je Muskelgruppe abgezogen (`plus`), und
+ * max(0, max(0, a − s1) − s2) ist max(0, a − s1 − s2). Angenommen ist nur,
+ * dass die Einheiten davor so gemacht werden, wie sie dann dastehen – mehr
+ * weiß heute niemand. tests/test-nacharbeit-ruhetag.mjs spielt die Woche
+ * durch und vergleicht mit dem, was Sa, Mo und Di dann wirklich zeigen.
+ *
+ * **Festgehaltene Nacharbeit gilt auch hier.** Eine Einheit trägt `nachFest`
+ * schon, wenn in ihr ein Satz an- und wieder abgetippt wurde – angefangen ist
+ * sie dann nicht. nacharbeit() nimmt an ihrem Tag die festgehaltene, und so
+ * auch die Vorschau: Sonst stand im Kopf „15 + 2 Sätze" und darunter „morgen
+ * +1", nachdem in Workout 9 ein vergessener Satz nachgetragen war. Was die
+ * festgehaltenen Sätze schließen, geht ab wie bei der Verteilung – so zieht
+ * offenInWoche() sie an den folgenden Tagen ab (`nach`/`nachFest`).
+ *
+ * Gibt { einheiten: [{ n, saetze, quellen }], rest, herkunft, letzte } zurück,
+ * oder null. `quellen` sind die Einheiten, die die Zeilen an den Nachholsätzen
+ * nennen werden (warum.q bzw. nachWarumJe()), sonst die mit offenen Sätzen.
+ * `rest` ist, was nach der letzten Einheit der Woche noch offen ist, je
+ * Muskelgruppe; `herkunft` wie in offenInWoche(); `letzte` die Nummer der
+ * letzten Einheit der Woche.
+ */
+export function nacharbeitVorschau(w) {
+  if (istCustom(w.n) || !PLAN[w.n - 1] || store.isStarted(w.n)) return null;
+  const ende = Math.min((Math.floor((w.n - 1) / WEEK_SESSIONS) + 1) * WEEK_SESSIONS, PLAN.length);
+  const { fehlt, herkunft } = offenInWoche(w);
+  const rest = { ...fehlt };
+  const einheiten = [];
+  for (let i = w.n - 1; i < ende; i++) {
+    const u = PLAN[i];
+    // Eine schon angefangene Einheit hat Haken – ab da wüsste die Vorschau
+    // nicht mehr, was an ihrem Tag noch offen ist.
+    if (store.isStarted(u.n)) break;
+    const m = store.workoutMode(u.n);
+    const fest = festeNacharbeit(u, m);
+    let extra;
+    let q;
+    if (fest !== undefined) {
+      extra = fest || new Map();
+      extra.forEach((k, id) => Object.entries(EX_BY_ID.get(id)[m].shares).forEach(([mus, share]) => {
+        rest[mus] = Math.max(0, (rest[mus] || 0) - k * share);
+      }));
+      q = Object.values(nachWarumJe(u, m) || {}).flatMap((x) => (Array.isArray(x.q) ? x.q : []).map(([nq]) => nq));
+    } else {
+      // Wie nacharbeitPlan(): Unter einem halben Satz gibt es keine.
+      if (Object.values(rest).reduce((a, v) => a + v, 0) < 0.5) continue;
+      const p = nacharbeitVerteilen(rest, exBasis(u, m), m, herkunft);
+      extra = p.extra;
+      q = [...p.warum.values()].flatMap((x) => x.q.map(([nq]) => nq));
+    }
+    const saetze = [...extra.values()].reduce((a, k) => a + k, 0);
+    if (!saetze) continue;
+    einheiten.push({ n: u.n, saetze, quellen: q.length ? q : herkunft.map((h) => h.n) });
+  }
+  return { einheiten, rest, herkunft, letzte: ende };
+}
+
+/**
+ * Der Rückstand, der einen Zusatztag trägt: die Gruppen mit mehr als einem
+ * halben Satz Lücke, zusammen mindestens ZUSATZ_AB – sonst null. Eine Stelle
+ * für beide, die es wissen müssen: den Zusatztag selbst (zusatztagEx() in
+ * js/app.js) und die Zeile am Ruhetag, die „der Rest nach der Woche" nur sagt,
+ * wenn er so gerechnet wird.
+ */
+export function zusatzRueckstand(luecke) {
+  const rest = {};
+  let summe = 0;
+  Object.entries(luecke).forEach(([m, v]) => {
+    if (v > 0.5) { rest[m] = v; summe += v; }
+  });
+  return summe < ZUSATZ_AB ? null : { rest, summe };
+}
+
+/**
+ * Woher die Nacharbeit einer Übung kommt – { g, q } wie in nacharbeitPlan(),
+ * oder null, wenn es sich nicht ehrlich sagen lässt.
+ *
+ * Wie die Nacharbeit selbst: Ab dem ersten Satz gilt, was beim Start galt
+ * (`nachWarum`, mit `nachFest` zusammen festgehalten). Wird danach in der
+ * Einheit, aus der der Rückstand stammt, noch ein Satz nachgetragen, bleibt die
+ * Zeile, wie sie war – genau wie die Sätze selbst.
+ *
+ * Einheiten aus v233 bis v235 haben `nachFest`, aber noch kein `nachWarum`.
+ * Für die wird neu gerechnet – und nur benutzt, wenn die Neurechnung *genau*
+ * die festgehaltene Nacharbeit ergibt. Sonst erklärte die Zeile einen Satz mit
+ * einem Rückstand, aus dem er nicht stammt. Zuerst mit der Rechnung von damals
+ * (offenInWocheAlt()), denn die hat diese Sätze festgehalten; erst dann mit
+ * der von heute – für eine Einheit, deren Vorgänger damals noch offen waren
+ * und erst später nachgetragen wurden. Ältere angefangene Einheiten ohne
+ * `nachFest` bekommen keine Erklärung (die Anzeige nennt dann nur die Tage,
+ * aus denen sie stammen kann).
+ */
+export function nachWarumJe(w, m) {
+  if (istCustom(w.n) || !PLAN[w.n - 1]) return null;
+  const e = store.getState().log[w.n];
+  if (e && e.nachWarum && typeof e.nachWarum === 'object') return e.nachWarum[m] || null;
+  const alsObjekt = (p) => (p ? Object.fromEntries(p.warum) : null);
+  if (e && e.nachFest && typeof e.nachFest === 'object') {
+    const fest = Object.entries(e.nachFest[m] || {}).filter(([, k]) => Number(k) > 0);
+    const gleich = (p) => p && fest.length === p.extra.size
+      && fest.every(([id, k]) => p.extra.get(id) === Number(k));
+    const damals = nacharbeitPlan(w, m, { alt: true });
+    if (gleich(damals)) return alsObjekt(damals);
+    const jetzt = nacharbeitPlan(w, m);
+    return gleich(jetzt) ? alsObjekt(jetzt) : null;
+  }
+  if (store.isStarted(w.n)) return null;
+  return alsObjekt(nacharbeitPlan(w, m));
+}
+
+export function nachWarum(w, m, exId) {
+  const je = nachWarumJe(w, m);
+  return (je && je[exId]) || null;
 }
 
 /** Wie viele Sätze einer Einheit aus der Nacharbeit stammen. */
@@ -741,9 +1676,15 @@ export function nachSumme(items) {
 /**
  * Übungsliste eines Plantags – Verletzungen, Modus, Erfahrung und Nacharbeit.
  *
- * Alles in der App geht durch diese Stelle. Die nachgetragenen Sätze stehen
- * deshalb schon hier drin und nicht erst in der Anzeige: Protokoll,
- * Fortschritt, Wochenvolumen und Zeitschätzung rechnen dann von selbst mit.
+ * Plan dieser Einheit – Maßstab für Woche, Plan, Muster und Kalenderdatei.
+ * Die Einheit, wie sie trainiert wird, ist einheitEx(). Ein neuer Aufrufer
+ * nimmt im Zweifel exOf().
+ *
+ * Die nachgetragenen Sätze stehen deshalb schon hier drin und nicht erst in
+ * der Anzeige: Wochenvolumen, Rückstand und Zeitschätzung rechnen dann von
+ * selbst mit. Die Übungen eines Zusatztags dagegen nicht – sie gehören der
+ * Woche, aus der sie nachgeholt werden, und nicht dem Plan dieser Einheit
+ * (siehe einheitEx()).
  */
 export function exOf(w, mode) {
   if (istCustom(w.n)) return w.ex;
@@ -756,21 +1697,337 @@ export function exOf(w, mode) {
     : it));
 }
 
+/* ------------------------------------------------------------------ *
+ * Der Zusatztag in der Einheit des Tages
+ *
+ *     „Was soll das mit zweite Einheit. Wenn heute Übungen dazu kommen dann
+ *      soll alles flüssig in EINE Einheit"
+ *
+ * Und am Tag davor, über denselben Zusatztag allein auf der Startseite:
+ *
+ *     „Check ich nicht. Wann soll ich das machen?"
+ *
+ * Bis v238 stand der Zusatztag als eigene Einheit neben dem Plan, an einem
+ * Tag mit fälliger Planeinheit als Zeile darunter („Als zweite Einheit heute").
+ * Zwei Starts, zwei Übungslisten, zwei Abschlüsse – und an seinem Tag auf der
+ * Startseite stand nirgends, warum und wann er dran ist.
+ *
+ * Jetzt gehören seine Übungen zu der Einheit, die heute fällig ist: ein
+ * Start, eine Liste, eine Fokusansicht, ein Fortschritt, Supersätze und
+ * Rüst-Reihenfolge über alle Übungen, ein Abschluss. An jeder eingefügten
+ * Übung steht, woher sie kommt (zusatzText() in js/app.js).
+ *
+ * **Drei Schichten, und jede Rechnung nimmt die, die sie meint:**
+ *
+ *   exBasis()    der Plan ohne Nacharbeit und Zusatz – Maßstab für Rückstand,
+ *                „fertig ohne Nacharbeit" und die Erholungsregel
+ *   exOf()       der Plan der Einheit, mit Nacharbeit – Maßstab für die
+ *                Woche, die Kalenderdatei, die Muster
+ *   einheitEx()  die Einheit, wie sie trainiert wird: exOf() und dahinter die
+ *                Übungen des Zusatztags – Ablauf, Fortschritt, Abschluss,
+ *                Anzeige, Statistik
+ *
+ * Bewusst so herum: workoutByNo() geht über einheitEx(), alles Buchhalterische
+ * über exOf(). Ein Aufrufer, der die falsche Schicht erwischt, zeigt dann
+ * höchstens eine Übung zu wenig an – statt still die Wochenbilanz der Woche
+ * aufzublähen, in deren Tage der Zusatz fällt.
+ *
+ * **Live, dann fest.** Bis zum ersten Eintrag in der Einheit kommen die Übungen
+ * aus dem Zusatztag in `customs` (dem Träger) und werden mit ihm neu gerechnet
+ * (pruefeZusatztag() in js/tagstart.js). Mit dem ersten Eintrag stehen sie in
+ * log[n].zusatz fest, und der Träger ist verbraucht – wie die Nacharbeit
+ * (nachFest) und die Paarung, die ab dem ersten Satz auch nicht mehr wandern.
+ * ------------------------------------------------------------------ */
+
+/** Der unberührte Zusatztag, wenn einer bereitsteht. */
+export function offenerZusatztag() {
+  return store.customs().find((c) => ZUSATZ_NAME.test(c.name) && !store.isStarted(c.id)) || null;
+}
+
 /**
- * Ein Plantag mit den Satzzahlen des gewünschten Modus.
+ * Die Planeinheit, die heute einen Zusatztag aufnimmt – oder null.
+ *
+ * Die erste noch nicht angefangene, wenn sie heute (oder schon früher) fällig
+ * ist. Und nur, wenn heute noch keine Planeinheit angefangen wurde: Wer heute
+ * schon trainiert hat, bekommt keine zweite Einheit mit Zusatz obendrauf, der
+ * Zusatztag wartet bis morgen.
+ *
+ * Fragt nie completedMode(), progressOf() oder naechsteEinheit() – die gehen
+ * über workoutByNo() und einheitEx() bis hierher zurück.
+ *
+ * `heute` ist nur für die Zeile am Ruhetag ein anderer Tag: Sie fragt, ob der
+ * Zusatztag morgen in die Einheit von morgen kommt (zusatzMorgen() in
+ * js/app.js) – dieselbe Frage, die morgen früh gestellt wird.
+ */
+export function zusatzEinheit(heute = todayISO()) {
+  const w = PLAN.find((x) => !store.isStarted(x.n));
+  if (!w || effDate(w) > heute) return null;
+  // Heute trainiert heißt auch: den Rest einer abgeschlossenen Einheit von
+  // gestern heute gemacht (store.trainiertAm()).
+  if (PLAN.some((x) => store.trainiertAm(x.n, heute))) return null;
+  return w;
+}
+
+/**
+ * Wo der bereitstehende Zusatztag heute hingehört: { w, c, woche } oder null.
+ * Gemerkt je Tag und bei jeder Zustandsänderung verworfen, wie planCache –
+ * gefragt wird bei jedem Zeichnen viele Male.
+ *
+ * **Nur hinter seiner Woche, und nur, wenn es die im Protokoll gibt.** Ein
+ * Träger „Zusatztag Woche 2" gehört zu einem Protokoll, in dem Woche 2
+ * trainiert ist. Nach „Von vorn beginnen" war das Protokoll leer, der Träger
+ * stand noch da (aufgeräumt wird erst in pruefeZusatztag()), und hier hing er
+ * sich an Workout 1 der neuen Runde: „5 + 1 Übungen", an der Übung „Nachgeholt
+ * aus Woche 2: am Do 15.10. keinen von 3 Sätzen abgehakt" – ein Tag in der
+ * Zukunft. Mit dem ersten Haken stand er dort fest, und die neue Runde bekam
+ * für ihre Woche 2 nie einen eigenen. Deshalb bindet er nur an eine Einheit
+ * hinter seiner Woche, und nur, wenn jede Einheit dieser Woche angefangen ist.
+ * Gefragt wird isStarted() und nicht completedMode(): Das ginge über
+ * workoutByNo() und einheitEx() bis hierher zurück. Für eine fertige Woche
+ * folgt das eine aus dem anderen – fertig heißt mindestens angefangen.
+ */
+const bindung = { key: null, wert: null };
+export function zusatzBindung() {
+  const heute = todayISO();
+  if (bindung.key === heute) return bindung.wert;
+  const c = offenerZusatztag();
+  const woche = c ? Number(ZUSATZ_NAME.exec(c.name)[1]) : 0;
+  const w = c ? zusatzEinheitFuer(woche) : null;
+  bindung.key = heute;
+  bindung.wert = c && w ? { w, c, woche } : null;
+  return bindung.wert;
+}
+
+/**
+ * Die Einheit, die heute den Zusatztag der Woche `woche` aufnimmt – oder null
+ * (siehe zusatzBindung()). Dieselbe Frage stellt pruefeZusatztag() in
+ * js/app.js, bevor es den Träger rechnet: für eine Einheit oder für sich allein.
+ */
+export function zusatzEinheitFuer(woche, heute = todayISO()) {
+  const w = zusatzEinheit(heute);
+  if (!w || !(w.n > woche * WEEK_SESSIONS)) return null;
+  const block = PLAN.slice((woche - 1) * WEEK_SESSIONS, woche * WEEK_SESSIONS);
+  return block.length === WEEK_SESSIONS && block.every((x) => store.isStarted(x.n)) ? w : null;
+}
+
+/** Eine Satzzahl aus fremder Hand: ganz, 1 bis 10, sonst `rueck`. */
+function satzAus(v, rueck) {
+  if (v === undefined || v === null || v === '') return rueck;
+  const k = Math.round(Number(v));
+  return Number.isFinite(k) ? Math.min(10, Math.max(1, k)) : rueck;
+}
+
+/**
+ * Der festgehaltene Zusatz einer Einheit, nachgezählt: { woche, ex, warum }
+ * oder null.
+ *
+ * importJSON() übernimmt `log` ungeprüft (js/store.js), und eine Sicherung ist
+ * eine Datei von irgendwoher. Deshalb wird beim Lesen geprüft, nicht geglaubt:
+ * nur bekannte Übungen, keine doppelt, höchstens ZUSATZ_UEBUNGEN, Satzzahlen
+ * von 1 bis 10, die Herkunft über store.normWarum().
+ */
+export function festerZusatz(e) {
+  const z = e && e.zusatz;
+  if (!z || typeof z !== 'object' || Array.isArray(z)) return null;
+  if (!Number.isInteger(z.woche) || z.woche < 1) return null;
+  const ex = [];
+  (Array.isArray(z.ex) ? z.ex : []).forEach((x) => {
+    if (ex.length >= ZUSATZ_UEBUNGEN) return;
+    if (!x || typeof x.id !== 'string' || !EX_BY_ID.has(x.id) || ex.some((y) => y.id === x.id)) return;
+    const sets = satzAus(x.sets, 3);
+    ex.push({ id: x.id, sets, bwSets: satzAus(x.bwSets, sets) });
+  });
+  if (!ex.length) return null;
+  return { woche: z.woche, ex, warum: store.normWarum(z.warum, ex.map((x) => x.id)) };
+}
+
+/**
+ * Die Kennungen, die in dieser Einheit dem Zusatz gehören – großzügig: jede
+ * bekannte aus e.zusatz.ex, auch wenn der Rest des Eintrags kaputt ist. Die
+ * Leser des rohen Eimers (protokolliert(), vorherFassung(), offenImBlock(),
+ * festeListen() in js/tagstart.js, bilanzAus() in js/bilanz.js) lassen sie aus.
+ * Lieber eine Übung zu viel draußen als ein Zusatz-Satz in der Grundlast.
+ */
+export function zusatzIds(e) {
+  const out = new Set();
+  const z = e && e.zusatz;
+  if (!z || typeof z !== 'object' || !Array.isArray(z.ex)) return out;
+  z.ex.forEach((x) => { if (x && typeof x.id === 'string' && EX_BY_ID.has(x.id)) out.add(x.id); });
+  return out;
+}
+
+/**
+ * Zählt dieser festgehaltene Zusatz für seine Woche? Nur in einer Einheit
+ * *hinter* ihr – eine Woche holt nichts in ihren eigenen Tagen oder davor
+ * nach. Seit zusatzBindung() das prüft, entsteht so etwas nicht mehr; eine
+ * Sicherung kann es aber mitbringen (siehe festerZusatz()), und dann soll sie
+ * weder eine Woche gutschreiben, die noch gar nicht begonnen hat, noch ihr den
+ * eigenen Zusatztag wegnehmen (zusatzVergeben()).
+ */
+export function zusatzZaehlt(n, z) {
+  return !!z && Number.isInteger(n) && n > z.woche * WEEK_SESSIONS;
+}
+
+/**
+ * Ist der Zusatztag dieser Woche schon in einer Einheit aufgegangen?
+ *
+ * Dann ist er verbraucht – gemacht oder liegen gelassen. Ein liegen
+ * gelassener Zusatz wird nicht noch einmal angeboten, aus demselben Grund, aus
+ * dem liegen gelassene Nacharbeit nicht noch einmal nachgeholt wird: Sonst
+ * schaukelte sich der Rückstand auf.
+ */
+export function zusatzVergeben(nr) {
+  return Object.entries(store.getState().log || {}).some(([k, e]) => {
+    const z = festerZusatz(e);
+    return !!z && z.woche === nr && zusatzZaehlt(Number(k), z);
+  });
+}
+
+/** Hat in dieser Einheit diese Übung schon etwas – abgehakt, Gewicht, Rückmeldung? */
+function angefasst(e, id) {
+  return ['db', 'bw'].some((m) => {
+    const arr = ((e && e[m]) || {})[id];
+    return Array.isArray(arr) && arr.some((x) => x && (x.done || !!x.w || !!x.wie || !!x.seite));
+  });
+}
+
+/**
+ * Warum eine noch unberührte Zusatzübung heute nicht geht – oder null.
+ *
+ *   beschwerde  eine angehakte Beschwerde sperrt sie im Modus
+ *   geraet      ihr Gerät fehlt, oder sie ist abgewählt (uebungGeht())
+ *   termin      ein Termin schont an diesem Tag eine Gruppe, die sie direkt
+ *               trifft – dieselbe Regel, mit der der Plan seine eigenen
+ *               Übungen wegnimmt (faelltAus() in js/termine.js)
+ *
+ * Der Termin fehlte zuerst: Mit Bouldern am Freitag nahm der Plan am
+ * Donnerstag den Reverse Fly heraus („Heute fällt deshalb weg: Hängendes
+ * Knieheben · Reverse Fly"), und darunter stand als Zusatz die Inverted Row –
+ * Rücken, Nacken, Bizeps, hintere Schulter, genau die geschonten Gruppen.
+ *
+ * Dieselbe Prüfung wählt die Übungen aus (zusatztagEx() in js/tagstart.js) – sonst
+ * käme in den Träger, was hier gleich wieder herausfällt.
+ */
+export function zusatzGrund(id, m, tag, sperre) {
+  if (sperre.has(id)) return 'beschwerde';
+  if (!uebungGeht(id, m)) return 'geraet';
+  if (faelltAus([{ id }], tag).dropped.length) return 'termin';
+  return null;
+}
+
+/**
+ * Die Übungen des Zusatztags in dieser Einheit – oder [].
+ *
+ * Fest, wenn log[n].zusatz steht: dieselben Kennungen, die Satzzahl des Modus.
+ * Eine noch unberührte Übung fällt dabei weg, wenn eine Beschwerde sie im
+ * Modus sperrt, das Gerät fehlt oder ein Termin ihre Gruppen schont
+ * (zusatzGrund()); eine angefasste bleibt (dieselbe Regel wie
+ * behalteProtokolliertes()). Was so wegfällt, nennt die Notiz über der Liste
+ * (zusatzWeg()). Sonst live aus dem Träger, solange er an diese Einheit
+ * gebunden ist (zusatzBindung()) – dort fällt nichts weg, was die Notiz nennen
+ * müsste: Jede dieser Änderungen rechnet den Träger neu (pruefeZusatztag() in
+ * js/app.js), und was dann nicht geht, wird ersetzt. Was schon im Plan der
+ * Einheit steht, kommt nie ein zweites Mal dazu.
+ */
+function zusatzListe(w, m, plan) {
+  const e = store.getState().log[w.n];
+  const drin = new Set(plan.map((it) => it.id));
+  const z = festerZusatz(e);
+  const tag = effDate(w);
+  if (z) {
+    const sperre = gesperrt(activeInjuries(), m);
+    return z.ex
+      .filter((x) => !drin.has(x.id)
+        && (angefasst(e, x.id) || !zusatzGrund(x.id, m, tag, sperre)))
+      .map((x) => ({
+        id: x.id, sets: m === 'bw' ? x.bwSets : x.sets, bwSets: x.bwSets,
+        zusatz: { woche: z.woche, warum: z.warum[x.id] || null, live: false },
+      }));
+  }
+  if (!store.customs().some((c) => ZUSATZ_NAME.test(c.name)) || store.isStarted(w.n)) return [];
+  const b = zusatzBindung();
+  if (!b || b.w.n !== w.n) return [];
+  const sperre = gesperrt(activeInjuries(), m);
+  return b.c.ex
+    .filter((x) => EX_BY_ID.has(x.id) && !drin.has(x.id) && !zusatzGrund(x.id, m, tag, sperre))
+    .map((x) => ({
+      id: x.id, sets: x.sets, bwSets: x.sets,
+      zusatz: { woche: b.woche, warum: (b.c.warum || {})[x.id] || null, live: true },
+    }));
+}
+
+/**
+ * Was vom festgehaltenen Zusatz dieser Einheit heute wegfällt, und warum:
+ * [{ id, sets, woche, grund }] – oder [].
+ *
+ * Planübungen, die eine Beschwerde, das Gerät oder ein Termin herausnimmt,
+ * nennt die Notiz über der Liste („… fällt aus", „Heute fällt deshalb weg:
+ * …"). Eine Zusatzübung verschwand dabei bis hierhin wortlos: Tennisarm
+ * angehakt, und aus „5 + 1 Übungen · 1/18 Sätze" wurde „5 Übungen · 1/15
+ * Sätze", die Chin-ups standen nirgends mehr. Ersetzt wird sie nicht – der
+ * Zusatz ist mit dem ersten Satz vergeben (zusatzVergeben()), wie die
+ * Nacharbeit –, aber gesagt wird es, in derselben Zeile wie beim Plan.
+ */
+export function zusatzWeg(w, mode) {
+  if (istCustom(w.n)) return [];
+  const m = mode || store.workoutMode(w.n);
+  const e = store.getState().log[w.n];
+  const z = festerZusatz(e);
+  if (!z) return [];
+  const drin = new Set(exOf(w, m).map((it) => it.id));
+  const sperre = gesperrt(activeInjuries(), m);
+  const tag = effDate(w);
+  return z.ex.flatMap((x) => {
+    if (drin.has(x.id) || angefasst(e, x.id)) return [];
+    const grund = zusatzGrund(x.id, m, tag, sperre);
+    return grund ? [{ id: x.id, sets: m === 'bw' ? x.bwSets : x.sets, woche: z.woche, grund }] : [];
+  });
+}
+
+/**
+ * Die Einheit, wie sie trainiert wird: exOf() und dahinter der Zusatz.
+ *
+ * Ohne Zusatz kommt exOf() unverändert zurück – dieselbe Liste, dieselbe
+ * Reihenfolge. Mit Zusatz wird im Hantel-Modus über alle Übungen nach
+ * Rüstaufwand geordnet (eine Kurzhantel-Übung des Zusatzes rückt zu den
+ * anderen Kurzhanteln, statt am Ende einen zweiten Aufbau zu kosten); ohne
+ * Hanteln steht er hinten.
+ */
+export function einheitEx(w, mode) {
+  if (istCustom(w.n)) return w.ex;
+  const m = mode || store.workoutMode(w.n);
+  const plan = exOf(w, m);
+  const zus = zusatzListe(w, m, plan);
+  if (!zus.length) return plan;
+  return m === 'db' ? ruestOrderStabil([...plan, ...zus], w.n, 'db') : [...plan, ...zus];
+}
+
+/**
+ * Ein Plantag mit den Satzzahlen des gewünschten Modus – so, wie er trainiert
+ * wird (einheitEx()).
  *
  * `mode` ist optional und heißt "der Modus, in dem diese Einheit gerade steht".
  * Wer über *beide* Modi rechnet – completedMode(), die Statistik – muss ihn
  * ausdrücklich mitgeben, sonst bekommt er zweimal dieselben Zahlen und misst
  * den einen Modus am Soll des anderen.
+ *
+ * Ein Zusatztag, der allein steht (an einem Tag ohne Planeinheit), trägt an
+ * jeder Übung dieselbe Marke wie ein eingefügter – damit auch dort an der
+ * Übung steht, woher sie kommt.
  */
 export function workoutByNo(n, mode) {
   if (istCustom(n)) {
     const c = store.customById(n);
-    if (c) return { n, date: todayISO(), name: c.name, ex: c.ex, custom: true };
+    if (c) {
+      const z = ZUSATZ_NAME.exec(c.name);
+      const ex = z ? c.ex.map((x) => ({
+        ...x, zusatz: { woche: Number(z[1]), warum: (c.warum || {})[x.id] || null, live: false },
+      })) : c.ex;
+      return { n, date: todayISO(), name: c.name, ex, custom: true };
+    }
   }
   const w = PLAN.find((x) => x.n === n) || PLAN[0];
-  const ex = exOf(w, mode);
+  const ex = einheitEx(w, mode);
   return ex === w.ex ? w : { ...w, ex };
 }
 
@@ -785,6 +2042,10 @@ export function resolve(item, mode) {
     // Muss mitwandern: Ab hier sieht die Anzeige nur noch das, was hier steht,
     // und eine Einheit, die kommentarlos wächst, ist eine Zumutung.
     nach: item.nach || 0,
+    // Aus welchem Zusatztag diese Übung in die Einheit kam – { woche, warum,
+    // live } oder null (siehe einheitEx()). Wandert aus demselben Grund mit:
+    // Ohne sie stünde die Übung ohne Herkunft da, und genau das war die Frage.
+    zusatz: item.zusatz || null,
     // Wofür diese Übung eingesprungen ist, wenn die Anfängerstufe getauscht hat.
     // Muss mitwandern wie `nach`: Ab hier sieht die Anzeige nur noch das, was
     // hier steht – und ein stiller Tausch wäre genau die Sorte Änderung, die
@@ -814,8 +2075,10 @@ export function resolve(item, mode) {
     // Gerät der Figur. Bodyweight heißt nicht gerätelos: Ein Loop-Band ist in
     // beiden Varianten dasselbe Gerät, und seit die Bodyweight-Fassungen von
     // Curls, Trizepsdrücken und Schulterdrücken am Band hängen, wäre eine Figur
-    // ohne Band schlicht falsch.
-    gear: mode === 'db' ? ex.equip : (/band/i.test(v.equip) ? 'band' : null),
+    // ohne Band schlicht falsch. Dasselbe gilt für den Rucksack und die
+    // Flaschen, die auch im Hantel-Modus nur im Gerätetext stehen – siehe
+    // figurGeraet() in js/figure.js.
+    gear: figurGeraet(ex, mode),
     weightNote: ex.weightNote,
   };
 }
@@ -872,7 +2135,7 @@ export function completedMode(n) {
 export function hasAnyEntry(n, mode) {
   const w = workoutByNo(n, mode);
   return w.ex.some((item) => (store.peekSets(n, mode, item.id) || [])
-    .some((s) => s.done || s.w !== ''));
+    .some((s) => s.done || s.w !== '' || !!s.seite));
 }
 
 /**
@@ -897,7 +2160,10 @@ export function sammleStats() {
     const entry = log[w.n];
     if (!entry) return;
     ['db', 'bw'].forEach((m) => {
-      exOf(w, m).forEach((item) => {
+      // Die ganze Einheit, samt eingefügtem Zusatztag: Trainiert ist trainiert,
+      // und dessen Träger ist mit dem ersten Satz verbraucht – unter „eigene"
+      // weiter unten zählt er dann nicht mehr.
+      einheitEx(w, m).forEach((item) => {
         const arr = entry[m] && entry[m][item.id];
         if (!Array.isArray(arr)) return;
         // Gerechnet wird mit gezaehlteReps(): der unteren Grenze des Bereichs,
@@ -909,8 +2175,7 @@ export function sammleStats() {
           const planned = gezaehlteReps(s, reps);
           setsDone++;
           repsTotal += planned;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          if (m === 'db') volume += satzKilo(s, reps);
           perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
         });
       });
@@ -922,11 +2187,19 @@ export function sammleStats() {
 
   const workoutsDone = doneDb + doneBw;
 
-  // Aktuelle Serie: rückwärts ab dem letzten fälligen Workout
+  // Aktuelle Serie: rückwärts ab dem letzten fälligen Workout.
+  //
+  // Die Einheit von heute bricht sie nicht, solange sie offen ist – der Tag
+  // ist noch nicht vorbei. Vorher stand an jedem Trainingstag vor dem Start
+  // „0 Serie in Folge": Der Plan rückt Verpasstes nach (catchUpPlan()), die
+  // nächste offene Einheit liegt also immer auf heute, und die Schleife brach
+  // genau an ihr ab. Gemessen: 4 → 0 → 5 über Ruhetag, Trainingstag vor und
+  // nach dem Training. Eine Lücke ist erst eine Einheit, deren Tag vorbei ist.
   let streak = 0;
   const past = PLAN.filter((w) => effDate(w) <= today);
   for (let i = past.length - 1; i >= 0; i--) {
     if (completedMode(past[i].n)) streak++;
+    else if (effDate(past[i]) === today) continue;
     else break;
   }
 
@@ -958,8 +2231,7 @@ export function sammleStats() {
           setsDone++;
           customSets++;
           repsTotal += planned;
-          const kg = parseFloat(String(x.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          if (m === 'db') volume += satzKilo(x, reps);
           perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
         });
       });

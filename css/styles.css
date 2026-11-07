@@ -69,6 +69,13 @@ button { font: inherit; color: inherit; }
   gap: 12px;
   flex-wrap: wrap;
 }
+/* Ein Sprung auf einen Abschnitt („Ansehen" auf der Startseite: #kalenderJahr,
+   #kalender, #daten; „Anderen Plan wählen": #fokus-wahl) endet unter der
+   Kopfleiste, nicht dahinter – sie klebt oben und ist rund 47 px hoch. Bis
+   zur Prüfung des Entwurfs lagen nach „Ansehen" Überschrift und erster Satz
+   der Bitte um neuen Code für den Kalender darunter, und beim Kalender und
+   bei den Daten die Überschrift des Abschnitts. */
+html { scroll-padding-top: calc(56px + env(safe-area-inset-top, 0px)); }
 .brand {
   margin: 0;
   font-size: 18px;
@@ -329,7 +336,17 @@ button { font: inherit; color: inherit; }
 .kg-fest { width: auto; border-bottom-color: transparent; white-space: nowrap; }
 /* − und + für die Ausführung (leichter/schwerer), in derselben Zeile wie sonst
    Gewicht oder Band. Unter dem Zeichen steht, was es tut. */
-.fassung-row .kg-step-d { font-size: 10px; letter-spacing: 0; }
+/* Mit dem Namen der Übung darunter: so breit wie nötig, höchstens gut ein
+   Drittel der Zeile, und der Name bricht um statt über den Rand zu laufen. */
+.fassung-row .fassung-knopf {
+  width: auto; min-width: 46px; max-width: 36%;
+  height: auto; min-height: 46px;
+  padding: 5px 8px 6px;
+}
+.fassung-row .kg-step-d {
+  font-size: 10.5px; letter-spacing: 0; line-height: 1.15;
+  white-space: normal; overflow-wrap: anywhere; hyphens: auto;
+}
 .kg-unit { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .kg-next {
   margin: -4px 14px 10px;
@@ -377,6 +394,24 @@ button { font: inherit; color: inherit; }
   color: #0d1b14;
 }
 .set-btn:active { transform: scale(.97); }
+
+/* Einseitig („je Bein"): ein Satz, zwei Hälften – links und rechts, jede mit
+   eigenem Haken. Dicht beieinander, damit sie als ein geteilter Satz lesen und
+   nicht als zwei Sätze. */
+.set-paar { flex: 1 1 0; min-width: 0; display: flex; gap: 3px; }
+.set-paar .set-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0;
+  line-height: 1;
+}
+.set-paar .set-btn:first-child { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+.set-paar .set-btn:last-child { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+.set-seite small { font-size: 11px; font-weight: 700; letter-spacing: .04em; opacity: .75; }
+.focus-set.set-seite small { font-size: 12px; }
 
 .ex-body {
   display: none;
@@ -697,11 +732,18 @@ button { font: inherit; color: inherit; }
    fiel das nie auf, weil die schmal sind; beim Namensfeld der Termine sofort.
    Gefunden von tests/test-weights.mjs, nicht mit dem Auge. */
 .zeit { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.zeit input {
+.zeit input, .zeit select {
   width: 100%; box-sizing: border-box;
   padding: 10px; font: inherit; color: var(--text);
   background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: 10px;
 }
+/* Die Schritte zum Einrichten des Google-Kalenders (Mehr → Kalender): eine
+   nummerierte Liste, eng genug für sechs Schritte auf einem Bildschirm. */
+.kalender-schritte { margin: 6px 0 0; padding-left: 20px; line-height: 1.45; }
+.kalender-schritte li { margin-top: 4px; }
+/* Was an Google geht · Grenzen und „Neues Skript-Projekt?": zugeklappt am
+   Ende der Karte, damit die Schritte gleich oben stehen. */
+#kalenderAuto .detail-toggle { margin: 12px 0 0; }
 
 /* ------------------------------------------------------------------ *
  * Sport außerhalb des Plans: Aktivität suchen und auswählen
@@ -785,6 +827,8 @@ button { font: inherit; color: inherit; }
 .ruest.gleich { color: var(--ok); }
 /* Welche Scheiben draufkommen – die Zahl ist wichtiger als der Rest der Zeile. */
 .ruest-lade { color: var(--text); font-weight: 700; }
+/* Ein Gewicht, das sich mit dem Vorrat nicht stecken lässt: eine Warnung, keine Anweisung. */
+.ruest-lade.knapp { color: var(--warn, #e0a33e); }
 
 /* Der eigene Scheibensatz unter Mehr: schmale Felder in einer Zeile, damit
    „2,5 kg × 4 Stück" auch auf einem Telefon nebeneinander bleibt. */
@@ -812,6 +856,8 @@ button { font: inherit; color: inherit; }
 .prog-sets { display: flex; gap: 2px; width: 100%; }
 .prog-sets i { flex: 1 1 0; height: 10px; border-radius: 3px; background: var(--line); }
 .prog-sets i.on { background: var(--ok); }
+/* Eine Seite steht, die andere fehlt: halb gefüllt, gezählt wird noch nicht. */
+.prog-sets i.halb { background: linear-gradient(90deg, var(--ok) 50%, var(--line) 50%); }
 /* Die laufende Übung: ihre offenen Felder sind umrandet. Ein eigener Balken
    darüber sagte nichts, was die Felder nicht schon sagen. */
 .prog-ex.cur .prog-sets i { box-shadow: inset 0 0 0 1.5px var(--accent); }
@@ -844,6 +890,17 @@ button { font: inherit; color: inherit; }
   line-height: 1.15;
 }
 .focus-meta { font-size: 13.5px; color: var(--muted); margin-bottom: 14px; }
+/* Woher ein Nachholsatz kommt („+1 nachgeholt: am Sa nur 2 von 3 Sätzen
+   abgehakt"). Leise und klein, direkt unter der Satzzahl, die sie erklärt:
+   eine Auskunft, keine Aufgabe. Sie bricht um, statt abgeschnitten zu werden –
+   ein halber Grund ist keiner. Der Wortlaut ist auf höchstens zwei Zeilen
+   gebaut (nachText() in js/app.js). */
+.nach-warum {
+  font-size: .82em; line-height: 1.35; color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.focus-meta + .nach-warum { margin: -11px 0 12px; }
+.ex > .nach-warum { margin: -9px 14px 10px 54px; }
 .focus-weight { padding: 0 0 10px; }
 .focus-next { margin: -4px 0 10px; }
 .focus-sets { display: flex; gap: 10px; margin-bottom: 14px; }
@@ -1004,6 +1061,11 @@ button { font: inherit; color: inherit; }
 .ov-top { flex: none; }
 .ov-top .hero-title { font-size: 28px; margin: 2px 0 3px; }
 .ov-prog { font-size: 12.5px; color: var(--muted); margin-top: 6px; font-weight: 600; }
+/* Am Ruhetag, wohin der Rückstand der Woche geht („Heute frei. Was am Do
+   liegen blieb, kommt dazu: morgen +2, Mo +1, Di +1, der Rest entfällt.").
+   Leise wie die Herkunftszeile an der Übung: eine Auskunft, keine Aufgabe
+   (ruhetagZeile() in js/app.js). */
+.ov-frei { font-size: 12.5px; line-height: 1.35; color: var(--muted); margin-top: 6px; }
 
 .ov-body {
   flex: 1 1 auto;
@@ -1052,7 +1114,7 @@ button { font: inherit; color: inherit; }
   display: block;
   width: 100%;
   height: 100%;
-  touch-action: none;    /* Ziehen dreht die Figur, in jede Richtung */
+  touch-action: pan-y;   /* senkrecht scrollt die Liste, waagerecht dreht */
   cursor: grab;
   user-select: none;
 }
@@ -1080,15 +1142,48 @@ button { font: inherit; color: inherit; }
 }
 .fig-limb, .fig-spine, .fig-head {
   stroke: var(--bg-elev);
-  stroke-width: .9;
+  stroke-width: var(--rand, .9);   /* mountFigure skaliert ihn mit der Figur */
   stroke-linejoin: round;
 }
+/* Arme wie die Hand: Flächen ohne Strich, der Rand eigens dahinter – ringsum
+   beim hinteren Glied (fig-arm-rand), als offene Kante ohne das Stück im
+   Ellenbogen beim vorderen (fig-arm-kante). So gibt es keinen Ring am
+   Ellenbogen und keine Naht an der Schulter. */
+.fig-limb.fig-arm {
+  stroke: none;
+  /* abgedunkelt nach der Tiefe des ganzen Arms (--tief aus figure.js) */
+  fill: color-mix(in srgb, var(--accent), #000 calc(var(--tief, 0) * 100%));
+}
+.fig-arm-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; }
+.fig-arm-kante { fill: none; stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; stroke-linecap: round; }
+/* Innenkante eines hängenden Oberarms über dem Rumpf (siehe innenkante() in
+   figure.js): schon um einen halben Rand nach außen versetzt, daher nur
+   einfach breit. */
+.fig-arm-innen { fill: none; stroke: var(--bg-elev); stroke-width: var(--rand, .9); stroke-linejoin: round; stroke-linecap: round; }
 
 /* Schatten-Auflage: dieselbe Form noch einmal in Schwarz, so durchsichtig, wie
    das Glied weit weg ist. Ersetzt die halbdurchsichtigen Glieder von früher. */
 .fig-schatten { fill: #000; stroke: none; pointer-events: none; }
+/* Rumpfflächen: die Abdunklung nach der Tiefe in der Füllung (--tief aus
+   figure.js), dazu ein Strich in derselben Farbe, damit die Flächen sich um
+   einen Hauch überlappen – sonst zeigte jede Fuge, was darunter liegt
+   (Begründung bei face() in figure.js). Ohne color-mix bleibt es bei der
+   Akzentfarbe ohne Abdunklung. */
+.fig-torso {
+  stroke: var(--accent);
+  fill: color-mix(in srgb, var(--accent), #000 calc(var(--tief, 0) * 100%));
+  stroke: color-mix(in srgb, var(--accent), #000 calc(var(--tief, 0) * 100%));
+  stroke-width: calc(var(--rand, .9) / 3);
+  stroke-linejoin: round;
+}
 .fig-plate { fill: #e8eaed; }
+/* Die Kante der Hantelscheibe unterm Fuß (squatheel) – dieselbe Scheibe, nur
+   dunkler, wie die Seite jeder Scheibe im Schlagschatten. */
+.fig-plate-seite { fill: #b7bcc4; stroke: #b7bcc4; stroke-width: .25; stroke-linejoin: round; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }
+/* Stangenende hinter der äußeren Scheibe: gerade abgeschnitten, sonst sitzt
+   dort wieder ein runder Knopf – genau die „Kugel“, die weg sollte. */
+.fig-bar-stummel { stroke-linecap: butt; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
 .fig-ground { fill: var(--line); opacity: .55; }
 .fig-bench { fill: #4a5468; }
@@ -1228,6 +1323,38 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
   border-color: color-mix(in srgb, #ffb020 50%, var(--line));
 }
 
+/* Ein Hinweis mit dem Knopf rechts daneben – „Schlüssel sichern" auf dem
+   Dashboard. Das Dashboard kommt ohne Scrollen aus; ein Kasten mit Knopf
+   darunter kostete eine Zeile mehr, als der Hinweis wert ist. */
+.notice.zeile { display: flex; align-items: center; gap: 10px; }
+.notice.zeile > span { flex: 1 1 auto; }
+.notice.zeile .btn { flex: none; padding: 8px 12px; font-size: 13px; }
+
+/* Die Zeile zum Tagesabschluss (abschlussHinweis() in js/app.js): „Workout 12
+   vom Samstag ist abgeschlossen …". Klein gesetzt – als Kasten mit voller
+   Knopfreihe schob sie bei 360×740 Start und Fuß 52 px unter die Leiste. Seit
+   v244 ohne Knöpfe („Rest heute machen" und „OK" sind weg), nur noch die
+   Auskunft. Die Karte gibt dafür an diesen Tagen etwas Höhe ab. */
+.notice.abschluss { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
+/* Die stille Zeile zum Ton auf der Startseite (tonHinweis(true) in
+   js/app.js): kurz und so klein gesetzt wie die zum Abschluss. In voller Länge
+   waren es bei 360×740 vier Zeilen, 116 px, und der Fuß lag unter der Leiste.
+   Und die Karte gibt auch für sie Höhe ab: Am Samstag mit angefangener
+   Einheit (Fortschritt, „Training fortsetzen", „Als trainiert markieren")
+   lag der Fuß mit der kurzen Zeile allein noch 13 px unter der Leiste. */
+.notice.kurz { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
+.ov:has(> .notice.abschluss) .ov-body,
+.ov:has(> .notice.kurz) .ov-body { min-height: 120px; }
+
+/* Mehr → Töne und Hinweise, unter „Töne anhören": erst das Urteil in
+   Textfarbe, darunter grau die Ursachen am Handy als Liste. Ein Absatz
+   kleines Grau, in dem die Antwort im dritten Satz stand, liest niemand bis
+   dorthin. */
+.ton-stand { font-size: 13px; margin-top: 8px; }
+.ton-urteil { color: var(--text); margin-bottom: 4px; }
+.ton-stand ul { margin: 2px 0 0; padding-left: 18px; color: var(--muted); }
+.ton-stand li { margin-bottom: 2px; }
+
 .empty {
   text-align: center;
   color: var(--muted);
@@ -1246,6 +1373,39 @@ textarea.io {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   resize: vertical;
+}
+
+/* Das Diagnoseprotokoll unter Mehr → Daten: der Kasten zum Abfotografieren
+   (Lage und letzte acht Einträge) bricht lange Zeilen um, statt seitlich zu
+   rollen – sonst stünde auf dem Foto nur der Anfang jeder Zeile.
+   Umbrochen wird an Wortgrenzen und nur ein Wort, das allein nicht in die
+   Zeile passt, mittendrin (overflow-wrap: anywhere). Und der Kasten hat keine
+   feste Höhe: Gefunden beim Gegenlesen – mit word-break: break-all („Ti pp",
+   „Ablag e") und max-height 260px endete er bei 414 px noch im Kopf, die
+   letzten acht Einträge lagen unsichtbar darunter, und ein Foto zeigte keinen
+   davon. Jetzt zeigt er alles; bei 414 × 896 und Einträgen üblicher Länge
+   ist er rund 560 px hoch, passt also auf einen Bildschirm
+   (tests/test-diagnose.mjs, Fall 7). Sehr lange Zeilen machen ihn höher,
+   verstecken aber nichts. */
+pre.io {
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  margin: 10px 0 0;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.diagnose-lage {
+  font-size: 11px;
+  line-height: 1.35;
+}
+textarea.diagnose-text {
+  min-height: 260px;
+  font-size: 11.5px;
 }
 
 .switch-row {
@@ -1359,6 +1519,12 @@ textarea.io {
 .fig.hurt-mode .fig-spine,
 .fig.hurt-mode .fig-torso,
 .fig.hurt-mode .fig-head { fill: #56607a; }
+.fig.hurt-mode .fig-limb.fig-arm { fill: color-mix(in srgb, #56607a, #000 calc(var(--tief, 0) * 100%)); }
+.fig.hurt-mode .fig-torso {
+  stroke: #56607a;
+  fill: color-mix(in srgb, #56607a, #000 calc(var(--tief, 0) * 100%));
+  stroke: color-mix(in srgb, #56607a, #000 calc(var(--tief, 0) * 100%));
+}
 .fig-hurt { fill: #ff3b30; stroke: #fff; stroke-width: .5; }
 .fig-hurt-halo { fill: rgba(255, 59, 48, .26); }
 .fig-hurt-crack { fill: none; stroke: #fff; stroke-width: .9; stroke-linejoin: round; stroke-linecap: round; }
@@ -1492,7 +1658,14 @@ textarea.io {
 .cal-cell.part { border-color: var(--accent); background: rgba(255, 122, 69, .16); }
 .cal-cell.part.bw { border-color: var(--accent-2); background: rgba(78, 161, 255, .16); }
 .cal-cell.plan { border-color: var(--line); background: var(--bg-elev-2); }
-.cal-cell.miss { border: 1px dashed var(--line); color: var(--muted); }
+/* Ausgefallen: gestrichelt in --muted, nicht in --line. Die Regel stammt aus
+   der Zeit, als 'miss' praktisch nie gezeichnet wurde; mit --line (1,3:1 auf
+   der Karte) waren die Ausfälle die blassesten Kacheln des Monats, blasser als
+   jeder leere Ruhetag – und genau sie sind die Antwort auf „Im Kalender ist
+   aktuell nichts unter ausgefallen obwohl ich mehrere Trainings hab ausfallen
+   lassen". --muted hat 6,8:1 (WCAG 1.4.11 verlangt 3:1) und bleibt farblos:
+   Das Merkmal ist weiter die Strichelung. */
+.cal-cell.miss { border: 1.5px dashed var(--muted); color: var(--muted); }
 /* Sport außerhalb des Plans: ein Streifen am unteren Rand, keine eigene
    Sorte Tag.
 
@@ -1527,7 +1700,7 @@ textarea.io {
 .cal-legend .dot.done { background: var(--accent); border-color: var(--accent); }
 .cal-legend .dot.part { background: rgba(255, 122, 69, .16); border-color: var(--accent); }
 .cal-legend .dot.plan { background: var(--bg-elev-2); }
-.cal-legend .dot.miss { border-style: dashed; }
+.cal-legend .dot.miss { border: 1.5px dashed var(--muted); }
 
 .cal-detail { margin-top: 12px; }
 .cal-det-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -1559,12 +1732,25 @@ textarea.io {
    ist und kein Klotz. */
 .fig-pack { fill: #e8eaed; }
 .fig-pack-tasche { fill: #c9ced6; }
+/* Seiten, Deckel und Boden des Kastens: dunkler als die Außenseite, damit die
+   Kanten zu sehen sind – wie die Kante einer Hantelscheibe (fig-plate-seite). */
+.fig-pack-seite { fill: #b7bcc4; stroke: #b7bcc4; stroke-width: .25; stroke-linejoin: round; }
 .fig-strap { fill: none; stroke: #d5d9df; stroke-linecap: round; }
-/* Finger und Daumen: Linien in Körperfarbe mit einem Rand in Hintergrundfarbe,
-   damit sie auch vor dem Rumpf zu sehen sind. */
-.fig-finger { stroke: var(--accent); fill: none; stroke-linecap: round; }
-.fig-finger-rand { stroke: var(--bg-elev); fill: none; stroke-linecap: round; }
-.fig.hurt-mode .fig-finger { stroke: #56607a; }
+/* Flaschen beim Seitheben: hell wie die Scheiben, aber blau wie Wasser, damit
+   man sie nicht für Kurzhanteln hält; der Deckel dunkel. Seiten wie bei der
+   Scheibe dunkler, damit die Flasche Tiefe hat. */
+.fig-flasche-flaeche { fill: #b9dcf2; }
+.fig-flasche-seite { fill: #84b8de; stroke: #84b8de; stroke-width: .25; stroke-linejoin: round; }
+.fig-deckel { fill: #3b78c2; }
+.fig-deckel-seite { fill: #2c5e9c; stroke: #2c5e9c; stroke-width: .25; stroke-linejoin: round; }
+/* Hände: ein Umriss um die ganze Hand statt um jeden Finger. Einzeln umrandet
+   lagen die Finger von der Seite gesehen hintereinander, und aus den Rändern
+   wurde ein Kringel – „Die Hände sehen nicht so richtig händig aus". Also erst
+   die ganze Hand breit in Hintergrundfarbe, darüber dieselbe Form ohne Rand in
+   Körperfarbe; übrig bleibt der Rand um die Hand als Ganzes. */
+.fig-hand { fill: var(--accent); stroke: none; }
+.fig-hand-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; }
+.fig.hurt-mode .fig-hand { fill: #56607a; }
 
 /* Supersätze: der Wechselhinweis in der Fokus-Ansicht und die Vorschau unter
    Mehr. Bewusst leise – es ist eine Ansage über den Ablauf, keine Aufgabe. */
@@ -1578,6 +1764,10 @@ textarea.io {
 }
 .super-paar.allein { color: var(--muted); font-weight: 500; }
 .super-mit { color: var(--muted); font-weight: 500; }
+/* Ein festes Paar, für das die Scheiben nach einer Erhöhung nicht mehr reichen:
+   Das ist dann doch eine Aufgabe – umstecken. */
+.super-hin.knapp { color: var(--warn, #e0a33e); font-weight: 600; }
+.super-paar .knapp { color: var(--warn, #e0a33e); font-weight: 600; }
 
 /* Der Abschluss einer fertigen Einheit. Bewusst kein Knopf: Hier ist nichts
    mehr zu tun, und ein Knopf würde etwas anderes behaupten. */

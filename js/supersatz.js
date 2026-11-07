@@ -21,7 +21,11 @@
  *   Nicht dasselbe Gerät. Sonst müsste zwischen jedem Satz umgebaut werden, und
  *   der gewonnene Zeitvorteil ginge in Scheibenwechseln wieder drauf. Umgekehrt
  *   ist der Fall, in dem sich zwei *verschiedene* Geräte treffen, der beste:
- *   Beide Aufbauten bleiben stehen, es wird gar nichts gewechselt.
+ *   Beide Aufbauten bleiben stehen, es wird gar nichts gewechselt – sofern
+ *   die Scheiben für beide zugleich reichen. Zwei Stangen, die dieselben
+ *   Scheiben brauchen, sind beim Umstecken dasselbe Gerät. Zwei Übungen mit je
+ *   einer Kurzhantel sind dagegen zwei Geräte: Es liegen zwei Griffe da
+ *   (GRIFFE unten).
  *
  * **Warum Paare und nicht sechs im Kreis.** Der Vorschlag war ein Rundlauf über
  * alle Übungen. Der Gedanke stimmt, die Zahl nicht: Ab drei Übungen im Wechsel
@@ -38,7 +42,9 @@
  */
 
 import { EX_BY_ID } from './uebung.js';
-import { RUEST_FAM } from './gewichte.js';
+import { RUEST_FAM, meinSatz, workingWeight } from './gewichte.js';
+import { RASTER, zusammen, zusammenBelegung } from './scheiben.js';
+import { bwGeraet } from './figure.js';
 
 /** Ab diesem Anteil gilt ein Muskel als von der Übung getroffen. */
 export const DIREKT = 0.5;
@@ -55,10 +61,21 @@ function direkteMuskeln(id, mode) {
  *
  * Klimmzugstange, Band und Körpergewicht kosten keinen Umbau. Sie sind deshalb
  * die dankbarsten Partner: Sie kollidieren mit gar nichts.
+ *
+ * **Und zwar das Gerät der Fassung, die gerade trainiert wird.** Hier stand
+ * immer das der Hantel-Fassung, auch ohne Hanteln. Dann trennte die Regel
+ * Band-Reverse-Fly und Wadenheben, weil Kurzhantel und einarmige Kurzhantel
+ * dieselben Griffe sind – obwohl ohne Hanteln weder Griff noch Scheibe im Spiel
+ * ist. Über die 336 Einheiten blieben so ohne Hanteln 99 Paare liegen (gefunden
+ * bei der Durchsicht). Ohne Hanteln ist nur der Rucksack ein Aufbau: Er wird
+ * gepackt, und es gibt einen. Das Band liegt nur da (bwGeraet() in
+ * js/figure.js liest das Gerät der Bodyweight-Fassung).
  */
-const geraet = (id) => {
+const geraet = (id, mode) => {
   const ex = EX_BY_ID.get(id);
-  return (ex && STANGE[RUEST_FAM[ex.equip]]) || null;
+  if (!ex) return null;
+  if (mode === 'bw') return bwGeraet(ex.bw && ex.bw.equip) === 'backpack' ? 'ruck' : null;
+  return STANGE[RUEST_FAM[ex.equip]] || null;
 };
 
 /**
@@ -75,14 +92,129 @@ const geraet = (id) => {
  */
 const STANGE = { lh: 'lh', sz: 'sz', kh1: 'kh', kh2: 'kh', ruck: 'ruck' };
 
+/**
+ * Wie viele der beiden Kurzhantelgriffe eine Übung belegt.
+ *
+ *     „Wieso sind heute die letzten beiden Übungen nicht im Wechsel?"
+ *     „Ich hab ja zwei kurzhanteln"
+ *
+ * Fersenerhöhter Goblet Squat und Wadenheben (gebeugtes Knie) liefen am Ende
+ * der Einheit einzeln: Beide zählen zur einzelnen Kurzhantel, und die
+ * Geräteregel oben sah dieselbe Stange. Jede der beiden braucht aber nur *eine*
+ * Hantel, und es liegen zwei da. Die eine bleibt für den Goblet Squat geladen,
+ * die andere fürs Wadenheben – im Wechsel wird nichts umgesteckt, solange die
+ * Scheiben für beide zugleich reichen (scheibenReichen(), genau wie bei zwei
+ * verschiedenen Stangen). Ein Kurzhantel-Paar (Seitheben, Bodenpresse) belegt
+ * dagegen beide Griffe; daneben bleibt keiner frei, und dabei bleibt es.
+ *
+ * Die Scheibe auf der Brust zählt hier nicht mit: Sie hängt an keinem Griff,
+ * kommt im Zweifel aber von einer Hantel – für sie gilt freieScheibeReicht().
+ */
+const GRIFFE = { dumbbells: 2, goblet: 1, onehand: 1 };
+
+/**
+ * Brauchen beide je eine Kurzhantel – also jede ihre eigene? Nur mit Hanteln:
+ * Ohne sind Griffe gar nicht im Spiel (geraet()).
+ */
+export function eigeneGriffe(a, b, mode) {
+  if (mode === 'bw') return false;
+  const griffe = (x) => GRIFFE[(EX_BY_ID.get(x.id) || {}).equip] || 0;
+  return griffe(a) === 1 && griffe(b) === 1;
+}
+
+/**
+ * [Gerät, kg], mit dem diese Übung heute aufgebaut wird – Scheiben gibt es nur
+ * mit Hanteln. Ohne steht hier kein Gerät, und zusammen() hat nichts zu rechnen.
+ */
+const last = (x, mode) => {
+  const ex = EX_BY_ID.get(x.id);
+  if (mode === 'bw') return [null, 0];
+  return [ex ? ex.equip : x.equip, ex ? workingWeight(x.id) || 0 : 0];
+};
+
+/**
+ * Reichen die Scheiben, damit beide Aufbauten zugleich stehen bleiben?
+ *
+ * Zwei Stangen, ein Scheibenvorrat: Im Wechsel bleiben beide geladen, also
+ * müssen die Scheiben für beide zugleich da sein (zusammen() in
+ * js/scheiben.js). Goblet und Floor Press mit je zwei 5ern bei zwei 5ern im
+ * Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
+ * Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat weiß
+ * die App es nicht und sagt ja; ebenso, wenn eine der beiden gar keinen Aufbau
+ * hat – und ohne Hanteln immer: Da liegt keine Scheibe auf.
+ *
+ * Eigens herausgezogen für die laufende Einheit: Dort steht die Paarung fest
+ * (superGruppen() in js/app.js), und wer mittendrin so weit erhöht, dass es
+ * nicht mehr reicht, behält sein Paar – bekommt aber gesagt, dass er umstecken
+ * muss.
+ */
+export function scheibenReichen(a, b, mode) {
+  if (mode === 'bw' || !geraet(a.id, mode) || !geraet(b.id, mode)) return true;
+  return zusammen([last(a, mode), last(b, mode)], meinSatz()) !== false;
+}
+
+/**
+ * Womit die beiden eines Paars zu laden sind, damit beide stehen bleiben –
+ * als Map von der Übung auf ihre Belegung (wie belegung() in js/scheiben.js).
+ *
+ * Für die Rüstzeile beider Übungen. Rechnete jede für sich, kam beim Floor
+ * Press „je Seite 1× 10 + 2× 5 kg" heraus und beim Crunch „1× 5 kg" – zwei
+ * Anweisungen, die zusammen mehr 5er brauchen, als daliegen, obwohl die
+ * Paarung gerade deshalb gilt, weil es anders geht. Gefragt wird in einer
+ * festen Reihenfolge (nach der Kennung der Übung), damit beide Karten dieselbe
+ * Antwort bekommen. null, wenn es nichts gemeinsam zu laden gibt oder die
+ * Scheiben nicht für beide reichen – dann steht bei jeder ihre eigene.
+ */
+export function paarBelegung(a, b, mode) {
+  if (mode === 'bw' || !geraet(a.id, mode) || !geraet(b.id, mode)) return null;
+  const beide = [a, b].sort((x, y) => (x.id < y.id ? -1 : 1));
+  const lasten = beide.map((x) => last(x, mode));
+  const b2 = zusammenBelegung(lasten, meinSatz());
+  if (!b2) return null;
+  return new Map(beide.map((x, i) => [x.id, b2[i]]));
+}
+
+/**
+ * Hält eine der beiden nur eine freie Scheibe – und ist bewiesen, dass sie
+ * übrig ist, während die andere geladen bleibt?
+ *
+ *     „Wieso gibts heute keinen supersatz mit kurzhantel bodenpresse?"
+ *
+ * Cut, Einheit 8: Bodenpresse, Pike-Liegestütze, Seitheben, Gewichtete
+ * Crunches, Wadenheben. Die Crunches zählen zur einzelnen Kurzhantel
+ * (RUEST_FAM in js/gewichte.js), weil die Scheibe für die Brust im Zweifel von
+ * der Hantel kommt – dann wäre der Wechsel ein Umbau je Satz, und so zählt auch
+ * die Planrechnung. Damit blieb die Bodenpresse heute ohne Partner: Der
+ * Seitheben braucht dieselben Hanteln, die Pike-Liegestütze den Trizeps.
+ *
+ * Eine Scheibe auf der Brust hängt aber an keiner Stange (RASTER in
+ * js/scheiben.js). Liegt eine übrig, während die Hanteln geladen bleiben, ist
+ * nichts umzubauen. Das gilt nur, wenn der eingetragene Vorrat es *beweist* –
+ * zusammen() sagt ja, nicht bloß „weiß nicht". Ohne Vorrat bleibt es bei der
+ * Annahme, die Scheibe komme von der Hantel.
+ */
+function freieScheibeReicht(a, b, mode) {
+  if (mode === 'bw') return false;
+  const frei = (x) => {
+    const ex = EX_BY_ID.get(x.id);
+    const r = ex && RASTER[ex.equip];
+    return !!r && !r.stange;
+  };
+  if (!frei(a) && !frei(b)) return false;
+  return zusammen([last(a, mode), last(b, mode)], meinSatz()) === true;
+}
+
 /** Dürfen diese beiden im Wechsel laufen? */
 export function passtZusammen(a, b, mode) {
   if (a.id === b.id) return false;
-  const ga = geraet(a.id);
-  const gb = geraet(b.id);
+  const ga = geraet(a.id, mode);
+  const gb = geraet(b.id, mode);
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
-  // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
-  if (ga && gb && ga === gb) return false;
+  // dürfen sich dagegen treffen – da gibt es nichts zu wechseln. Und zwei mit
+  // je einer Kurzhantel auch: Jede nimmt ihre eigene. Ob die Scheiben für
+  // beide reichen, fragt die nächste Zeile.
+  if (ga && gb && ga === gb && !eigeneGriffe(a, b, mode) && !freieScheibeReicht(a, b, mode)) return false;
+  if (!scheibenReichen(a, b, mode)) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
 }
@@ -97,23 +229,74 @@ export function passtZusammen(a, b, mode) {
  * hin. Eine optimale Paarung, die den Floor Press ans Ende schiebt, wäre auf
  * dem Papier besser und im Training schlechter.
  *
- * Der Partner wird zusätzlich nur unter den nächsten `FENSTER` Übungen gesucht:
- * Ein Paar aus Übung 1 und Übung 6 hieße, zwischen beiden durch den halben Raum
- * zu laufen.
+ * Der Partner wird zuerst unter den nächsten `FENSTER` Übungen gesucht: Ein
+ * Paar aus Übung 1 und Übung 6 hieße, zwischen beiden durch den halben Raum zu
+ * laufen. Weiter hinten nur, wenn das nicht weniger Paare ergibt (paareGierig()).
+ *
+ * **Die zweite Kurzhantel nur, wo sie ein Paar mehr bringt** (eigeneGriffe()).
+ * Gierig hieß sonst: Wer vorn steht, greift sich die erste passende Übung –
+ * und seit zwei Übungen mit je einer Hantel zusammen dürfen, ist das manchmal
+ * die falsche. Bauch, Beine, Po, Einheit 62: Goblet Squat ↔ Pike-Liegestütze,
+ * Wadenheben ↔ RDL, Crunches ↔ Rudern, drei Paare. Mit der zweiten Hantel nahm
+ * sich der Goblet Squat das Wadenheben, und am Ende standen RDL und Rudern
+ * allein da, beide an der Langhantel. Deshalb wird zuerst gepaart wie vorher
+ * und mit der zweiten Hantel nur dann, wenn das mehr Paare ergibt. Bei gleich
+ * vielen bleibt es bei der Paarung, die es schon gab. Mit `griffe = false`
+ * kommt genau die heraus – tests/test-supersatz.mjs vergleicht damit.
  *
  * Gibt eine Liste von Gruppen zurück – jede mit einer oder zwei Übungen.
  */
 export const FENSTER = 3;
 
-export function paare(items, mode) {
+export function paare(items, mode, griffe = true) {
+  const zahl = (g) => g.filter((x) => x.length === 2).length;
+  // Bis zu vier Durchgänge fragen dieselben Paare – gerechnet wird jedes einmal
+  // (passtZusammen() fragt den Vorrat, und das ist der teure Teil).
+  const gemerkt = new Map();
+  const passt = (i, j) => {
+    const k = i * 1000 + j;
+    if (!gemerkt.has(k)) gemerkt.set(k, passtZusammen(items[i], items[j], mode));
+    return gemerkt.get(k);
+  };
+  const waehle = (zweite) => {
+    const p = zweite ? passt : (i, j) => !eigeneGriffe(items[i], items[j], mode) && passt(i, j);
+    const nah = paareGierig(items, false, p);
+    const weit = paareGierig(items, true, p);
+    // Über die Lücke nur, wenn es nicht weniger Paare ergibt. Bei gleich vielen
+    // gewinnt das Paar für die frühere Übung: Vorn stehen die Grundübungen mit
+    // den langen Pausen, dort spart ein Partner am meisten Zeit.
+    return zahl(weit) >= zahl(nah) ? weit : nah;
+  };
+  const ohne = waehle(false);
+  if (!griffe || !items.some((a, i) => items.some((b, j) => j > i && eigeneGriffe(a, b, mode)))) return ohne;
+  const mit = waehle(true);
+  return zahl(mit) > zahl(ohne) ? mit : ohne;
+}
+
+/**
+ * Gierig in Reihenfolge, Partner zuerst im Fenster.
+ *
+ * Mit `weit` wird dahinter weitergesucht, wenn im Fenster keiner passt:
+ *
+ *     „Wieso gibts heute keinen supersatz mit kurzhantel bodenpresse?"
+ *
+ * Cut, Einheit 8, in Rüst-Reihenfolge: Bodenpresse, Pike-Liegestütze,
+ * Seitheben, Wadenheben, Gewichtete Crunches. Der einzige Partner der
+ * Bodenpresse stand an fünfter Stelle, eine Übung hinter dem Fenster – und
+ * die schwerste Übung des Tages lief allein mit 2:30 Pause.
+ *
+ * `passt(i, j)` sagt, ob die Übungen an diesen Plätzen ein Paar sein dürfen.
+ */
+function paareGierig(items, weit, passt) {
   const frei = items.map(() => true);
   const gruppen = [];
   items.forEach((a, i) => {
     if (!frei[i]) return;
     frei[i] = false;
     let partner = -1;
-    for (let j = i + 1; j < items.length && j <= i + FENSTER; j++) {
-      if (frei[j] && passtZusammen(a, items[j], mode)) { partner = j; break; }
+    const bis = weit ? items.length - 1 : i + FENSTER;
+    for (let j = i + 1; j < items.length && j <= bis; j++) {
+      if (frei[j] && passt(i, j)) { partner = j; break; }
     }
     if (partner < 0) { gruppen.push([a]); return; }
     frei[partner] = false;
@@ -149,10 +332,32 @@ export function schritte(gruppe) {
  * stumpf „der danach". Wer einen Satz überspringt oder einen Haken wieder
  * wegnimmt, soll trotzdem an der richtigen Stelle landen.
  *
- * `erledigt(id, satz)` sagt, ob ein Satz schon steht.
+ * `erledigt(id, satz)` sagt, ob ein Satz schon steht. Eine Übung, die schon
+ * ganz fertig ist, muss dabei für jeden ihrer Sätze „ja" sagen – auch wenn die
+ * Sätze im anderen Modus abgehakt wurden (satzSteht() in js/app.js). Sonst
+ * führte der Wechsel nach einem Umschalten mitten in der Einheit zurück zu
+ * einer Übung, deren Karte längst „fertig" sagt.
  */
 export function naechsterSchritt(gruppe, erledigt) {
   return schritte(gruppe).find((s) => !erledigt(s.id, s.satz)) || null;
+}
+
+/**
+ * Der nächste Schritt der ganzen Einheit – gefragt, wo kein gerade abgehakter
+ * Satz die Gruppe vorgibt: beim Öffnen der App, bei „Training fortsetzen" und
+ * wenn die Gruppe des letzten Satzes durch ist.
+ *
+ * Die erste Gruppe in Planreihenfolge, in der noch etwas offen ist, und darin
+ * der Schritt, der dran ist. Nach A1 ist das B1 und nicht A2, obwohl A noch
+ * Sätze offen hat. Für eine Gruppe aus einer einzigen Übung ist es schlicht
+ * deren erster offener Satz – also dasselbe wie ohne Supersätze.
+ */
+export function naechsterOffen(gruppen, erledigt) {
+  for (const g of gruppen) {
+    const s = naechsterSchritt(g, erledigt);
+    if (s) return s;
+  }
+  return null;
 }
 
 /** Zu welcher Gruppe gehört diese Übung? */

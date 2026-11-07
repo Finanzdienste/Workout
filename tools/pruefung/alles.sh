@@ -3,16 +3,8 @@
 # Reihenfolge – damit "alles grün" vor dem Push dasselbe heißt wie danach.
 set -e
 cd "$(git rev-parse --show-toplevel)"
-python3 tools/pruefung/plan-pruefen.py --bericht >/dev/null
-python3 tools/pruefung/weg-nach-unten.py >/dev/null
-python3 tools/pruefung/geraete.py >/dev/null
-python3 tools/pruefung/wochen-cap.py >/dev/null
-python3 tools/pruefung/plan-frisch.py >/dev/null
-python3 tools/pruefung/schichten.py >/dev/null
-python3 tools/pruefung/bewegung.py >/dev/null
-python3 tools/pruefung/versionspflicht.py
-echo "✓ Tore"
+sh tools/pruefung/tore.sh
 sh tools/pruefung/erzeugt.sh
-npx --no-install eslint js sw.js tests tools schilddruese
+npx --no-install eslint js sw.js tests tools schilddruese kalender
 echo "✓ Linter"
 node tests/lauf.mjs

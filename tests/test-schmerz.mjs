@@ -284,6 +284,92 @@ check(!/Obergriff|Wohnung/.test(abschnitte.rdlBw) && /Wippe/.test(abschnitte.rdl
 check(!/1½/.test(abschnitte.gobletDb) && /1½/.test(abschnitte.gobletBw) && !/Hantel hältst/.test(abschnitte.gobletBw),
   'Goblet Squat: 1½-Wiederholung nur ohne Hantel, Hantelhaltung nur mit');
 
+// --- Der Text sagt, was im Modus wirklich passiert ----------------------
+//
+// „Hält es an, hier anhaken. Dann geht es auf die Bodenpresse" – ohne
+// Hanteln stimmte das nie: Dort ist die Bodenpresse selbst ein Liegestütz,
+// die Handgelenksüberlastung sperrt sie mit (avoidBw), und die Übung fällt
+// ersatzlos weg. Geprüft wird jeder Eintrag in jedem Modus, in dem er steht:
+// Kündigt er einen Ersatz an, muss es dort einen geben.
+const zusagen = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const { INJURIES, gesperrt } = await import('./js/injuries.js');
+  const inj = new Map(INJURIES.map((i) => [i.id, i]));
+  const falsch = [];
+  let geprueft = 0;
+  EXERCISES.forEach((e) => (e.schmerz || []).forEach((s) => {
+    (s.modus ? [s.modus] : ['db', 'bw']).forEach((m) => (s.verletzung || []).forEach((v) => {
+      if (!/geht es auf/.test(s.text)) return;
+      geprueft += 1;
+      const ziel = (inj.get(v) || { swap: {} }).swap[e.id];
+      if (!ziel || gesperrt([v], m).has(ziel)) falsch.push(`${e.id}/${s.ort} (${m})`);
+    }));
+  }));
+  return { falsch, geprueft };
+});
+check(zusagen.geprueft > 0, `Einträge, die einen Ersatz ankündigen, werden geprüft (${zusagen.geprueft})`);
+check(zusagen.falsch.length === 0,
+  `kein Eintrag verspricht einen Ersatz, den es im Modus nicht gibt (${zusagen.falsch.join(', ') || 'keiner'})`);
+
+// --- Nach dem Anhaken geht es bei einer offenen Übung weiter ------------
+//
+// Ohne Hanteln fällt die Liegestütze ersatzlos weg, die Liste wird um eins
+// kürzer, und die Fokusansicht blieb auf derselben Position stehen – bei der
+// nächsten Übung, auch wenn die längst fertig war (Knieheben 4/4 statt
+// Band-Seitheben). Hier: die Übung nach der Liegestütze ist schon fertig.
+const aufbau = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { exOf } = await import('./js/plan.js');
+  const w = PLAN.find((x) => {
+    const ex = exOf(x, 'bw');
+    const k = ex.findIndex((it) => it.id === 'gewichtete-liegestuetze');
+    return k >= 0 && k < ex.length - 2;
+  });
+  const ex = exOf(w, 'bw');
+  const k = ex.findIndex((it) => it.id === 'gewichtete-liegestuetze');
+  return { n: w.n, k, danach: ex[k + 1].id, saetze: ex[k + 1].sets };
+});
+await page.evaluate(() => localStorage.setItem('workout.state.v1', JSON.stringify(
+  { greeted: true, name: 'T', level: 'geuebt', mode: 'bw', shift: 0, log: {} })));
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+await page.evaluate(async (a) => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const { workoutByNo } = await import('./js/plan.js');
+  // Alles davor fertig, damit die Einheit vorn steht; in ihr die Übung nach
+  // der Liegestütze schon ganz abgehakt.
+  PLAN.filter((w) => w.n < a.n).forEach((w) => store.completeWorkout(w.n, 'bw', workoutByNo(w.n, 'bw').ex));
+  for (let i = 0; i < a.saetze; i++) store.updateSet(a.n, 'bw', a.danach, a.saetze, i, { done: true });
+}, aufbau);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(400);
+await page.locator(`[data-act="focus-goto"][data-i="${aufbau.k}"]`).first().click();
+await page.waitForTimeout(300);
+const vorAnhaken = (await page.locator('.focus-name').textContent()).trim();
+await page.locator('.schmerz-h').filter({ hasText: 'Handgelenk' }).first().click();
+await page.waitForTimeout(200);
+const bwText = (await page.locator('.schmerz-b p').first().textContent()).replace(/\s+/g, ' ');
+check(/fällt die Übung dann weg/.test(bwText) && !/geht es auf die Bodenpresse/.test(bwText),
+  `ohne Hanteln sagt der Text, dass die Übung wegfällt (…${bwText.slice(-90)})`);
+await page.locator('[data-act="schmerz-anhaken"]').first().click();
+await page.waitForTimeout(400);
+const nachAnhaken = await page.evaluate(async (a) => {
+  const { workoutByNo, saetzeErledigt } = await import('./js/plan.js');
+  const name = document.querySelector('.focus-name').textContent.trim();
+  const ex = workoutByNo(a.n, 'bw').ex;
+  const { resolve } = await import('./js/plan.js');
+  const hier = ex.find((it) => resolve(it, 'bw').name === name);
+  return { name, offen: hier ? saetzeErledigt(a.n, hier.id, hier.sets) < hier.sets : null,
+           liegestuetze: ex.some((it) => it.id === 'gewichtete-liegestuetze') };
+}, aufbau);
+console.log(`     vor dem Anhaken: ${vorAnhaken} → danach: ${nachAnhaken.name}`);
+check(!nachAnhaken.liegestuetze, 'die Liegestütze ist ohne Hanteln weg');
+check(nachAnhaken.offen === true,
+  `die Ansicht steht danach bei einer offenen Übung (${nachAnhaken.name})`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

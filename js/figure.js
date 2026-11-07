@@ -8,8 +8,9 @@
  *
  * Koordinaten: x nach rechts, y nach oben, z nach vorn (zum Betrachter); die
  * Figur schaut nach +z. Gezeichnet wird mit schwacher Perspektive und
- * Maleralgorithmus – was hinten liegt, kommt zuerst. Ziehen dreht frei:
- * waagerecht um die Hochachse, senkrecht um die Querachse, beides unbegrenzt.
+ * Maleralgorithmus – was hinten liegt, kommt zuerst. Ziehen dreht:
+ * waagerecht um die Hochachse (unbegrenzt), senkrecht um die Querachse in
+ * Grenzen (siehe mountFigure).
  * Auch Boden und Klimmzugstange liegen im Raum und kippen deshalb mit.
  *
  * Winkel in Grad:
@@ -23,6 +24,8 @@
  *   leg.p     Hüfte gebeugt (Knie nach vorn)
  *   leg.a     Bein zur Seite
  *   leg.k     Knie gebeugt (Ferse nach hinten)
+ *   fuss      Fuß gestreckt (Zehen vom Schienbein weg) – nur beim Wadenheben
+ *             im Sitzen, siehe calfseated
  */
 
 export const RIG = {
@@ -30,23 +33,55 @@ export const RIG = {
   chestY: 0.28, neckY: 0.47, headY: 0.63, headR: 0.115,
   upperArm: 0.27, foreArm: 0.25, hand: 0.06,
   thigh: 0.44, shin: 0.42, foot: 0.15,
+  /*
+   * Wie dick der Arm gezeichnet wird: je Glied ein Verlauf [Anteil der
+   * Länge, halbe Breite in Zeicheneinheiten wie bei limb()], dazu der
+   * Maßstab der Hand.
+   *
+   *     „Die Arme sehen echt immer komisch aus"
+   *
+   * Bis v235 waren es gerade Kegel 3,4 → 2,5 → 1,8: Der Oberarm war 1,6-mal
+   * so lang wie an der Schulter dick (echt gut dreimal), im Mittel 1,8-mal,
+   * ein Würstchen, das bei jeder Verkürzung zur Scheibe wurde. Jetzt hat er
+   * seine Masse im oberen Drittel (Delta, Bizeps) und läuft zum Ellenbogen
+   * schmal zu; der Unterarm hat seinen Bauch kurz unter dem Ellenbogen und
+   * wird zum Handgelenk dünn. Länge zu mittlerer Dicke: Oberarm 2,34 (vorher
+   * 1,83), Unterarm 2,84 (vorher 2,33) – tests/test-figur.mjs hält das bei
+   * mindestens 2,3 und 2,8. Schmaler als 1,35 am Handgelenk geht nicht: In
+   * der Karte verliert die Hand sonst ihren Ansatz.
+   */
+  armOben: [[0, 2.35], [0.25, 2.6], [0.6, 2.3], [1, 1.85]],
+  armUnten: [[0, 1.85], [0.25, 2.0], [0.7, 1.65], [1, 1.4]],
+  handS: 0.88,
 };
 
 const rad = (d) => (d * Math.PI) / 180;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (v, s) => [v[0] * s, v[1] * s, v[2] * s];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const skalar = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm = (v) => {
+  const n = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / n, v[1] / n, v[2] / n];
+};
 
+// Drehungen mit schon gerechnetem Kosinus und Sinus: Wo alle Gelenke um
+// denselben Winkel gedreht werden (Hinlegen, Kippen, Becken), rechnete solve()
+// beide für jedes der 18 Gelenke neu – beim Liegestütz, der je Bild gut
+// hundertmal gelöst wird, ein großer Posten. Dieselbe Rechnung, nur einmal.
+const drehX = (v, c, s) => [v[0], v[1] * c - v[2] * s, v[1] * s + v[2] * c];
+const drehZ = (v, c, s) => [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]];
+const cs = (deg) => [Math.cos(rad(deg)), Math.sin(rad(deg))];
 function rotX(v, deg) {
-  const c = Math.cos(rad(deg)); const s = Math.sin(rad(deg));
-  return [v[0], v[1] * c - v[2] * s, v[1] * s + v[2] * c];
+  return drehX(v, Math.cos(rad(deg)), Math.sin(rad(deg)));
 }
 function rotY(v, deg) {
   const c = Math.cos(rad(deg)); const s = Math.sin(rad(deg));
   return [v[0] * c + v[2] * s, v[1], -v[0] * s + v[2] * c];
 }
 function rotZ(v, deg) {
-  const c = Math.cos(rad(deg)); const s = Math.sin(rad(deg));
-  return [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]];
+  return drehZ(v, Math.cos(rad(deg)), Math.sin(rad(deg)));
 }
 
 /** Punkt zwischen zwei projizierten Punkten. */
@@ -60,8 +95,13 @@ const L = (p = 0, a = 0, k = 0) => ({ p, a, k });
  * Ausgeführt, weil sich Stellungen sonst nur am fertigen Bild beurteilen
  * lassen: tools/pose.mjs rechnet damit nach, ob Schultern, Hüfte und Füße dort
  * liegen, wo die Übung sie verlangt.
+ *
+ * `nur` beschränkt das Ergebnis auf einige Gelenke – für die Suchen beim
+ * Stütz, die je Bild hundertmal lösen und nur Hände und Zehen brauchen. Jedes
+ * Gelenk wird für sich gedreht, die Werte sind also dieselben wie im ganzen
+ * Skelett; gespart wird nur das Drehen der übrigen.
  */
-export function solve(pose) {
+export function solve(pose, nur = GELENKE) {
   const R = RIG;
   const lean = pose.lean || 0;
   const up = rotX([0, 1, 0], lean);           // Rumpfachse, +lean = nach vorn
@@ -73,13 +113,12 @@ export function solve(pose) {
   const head = mul(up, R.headY);
   const shoulderMid = mul(up, R.shoulderY);
 
-  const joints = { hipC, chest, neck, head };
-
-  ['L', 'R'].forEach((s) => {
-    const sign = s === 'L' ? -1 : 1;
-
+  // Eine Seite, Arm und Bein. Die Gelenke kommen danach in ein Objekt mit
+  // festen Namen: Mit zusammengesetzten Schlüsseln (`hand${s}`) und
+  // Object.assign brauchte ein Skelett beim Liegestütz gut doppelt so lang –
+  // und der löst je Bild gut hundertmal (siehe naechsteNull).
+  const seite = (sign, arm, leg) => {
     // Arm: Richtung aus Neigung und Abspreizung, dann Ellenbogen beugen
-    const arm = pose[`arm${s}`] || pose.arm || A();
     const shoulder = add(shoulderMid, mul(side, sign * R.shoulderW));
     const upperDir = rotX(rotZ([0, -1, 0], sign * arm.a), -arm.p + lean);
     const elbow = add(shoulder, mul(upperDir, R.upperArm));
@@ -89,19 +128,27 @@ export function solve(pose) {
     const hand = add(elbow, mul(foreDir, R.foreArm));
 
     // Bein: Hüfte beugen, dann Knie
-    const leg = pose[`leg${s}`] || pose.leg || L();
     const hip = add(hipC, mul(side, sign * R.hipW));
     const thighDir = rotX(rotZ([0, -1, 0], sign * leg.a), -leg.p);
     const knee = add(hip, mul(thighDir, R.thigh));
     const shinDir = rotX(thighDir, leg.k);
     const ankle = add(knee, mul(shinDir, R.shin));
-    const toe = add(ankle, mul(rotX(shinDir, -80 - leg.k * 0.25), R.foot));
-
-    Object.assign(joints, {
-      [`shoulder${s}`]: shoulder, [`elbow${s}`]: elbow, [`hand${s}`]: hand,
-      [`hip${s}`]: hip, [`knee${s}`]: knee, [`ankle${s}`]: ankle, [`toe${s}`]: toe,
-    });
-  });
+    // `fuss` streckt den Fuß im Sprunggelenk. Im Stehen braucht es das nicht:
+    // Dort hebt `heel` den ganzen Körper über die liegenden Zehen (siehe
+    // unten). Im Sitzen bleibt das Gesäß auf der Bank – gehoben werden nur
+    // Knie und Ferse, und der Fuß dreht sich um den Ballen.
+    const toe = add(ankle, mul(rotX(shinDir, -80 - leg.k * 0.25 + (pose.fuss || 0)), R.foot));
+    return [shoulder, elbow, hand, hip, knee, ankle, toe];
+  };
+  const [shoulderL, elbowL, handL, hipL, kneeL, ankleL, toeL] = seite(-1, pose.armL || pose.arm || A(), pose.legL || pose.leg || L());
+  const [shoulderR, elbowR, handR, hipR, kneeR, ankleR, toeR] = seite(1, pose.armR || pose.arm || A(), pose.legR || pose.leg || L());
+  const joints = {
+    hipC, chest, neck, head,
+    shoulderL, elbowL, handL, hipL, kneeL, ankleL, toeL,
+    shoulderR, elbowR, handR, hipR, kneeR, ankleR, toeR,
+  };
+  // Alle Gelenke auf einmal umrechnen, in derselben Reihenfolge wie die Namen.
+  const alle = (f) => { for (const k of nur) joints[k] = f(joints[k], k); };
 
   // Wadenheben: der Körper steigt, die Zehen bleiben liegen. Nur so sieht man
   // die Ferse abheben – hebt man alles zusammen an, wandert bloß die ganze
@@ -110,10 +157,7 @@ export function solve(pose) {
     // stance nennt das Standbein: beim einbeinigen Wadenheben darf nur dessen
     // Zeh liegen bleiben, sonst zieht sich das freie Bein in die Länge.
     const planted = pose.stance ? [`toe${pose.stance}`] : ['toeL', 'toeR'];
-    Object.keys(joints).forEach((k) => {
-      if (planted.includes(k)) return;
-      joints[k] = [joints[k][0], joints[k][1] + pose.heel * 0.16, joints[k][2]];
-    });
+    alle((q, k) => (planted.includes(k) ? q : [q[0], q[1] + pose.heel * 0.16, q[2]]));
   }
 
   /*
@@ -142,10 +186,10 @@ export function solve(pose) {
    */
   if (pose.becken) {
     const p = shoulderMid;
-    Object.keys(joints).forEach((k) => {
-      const v = rotX([joints[k][0] - p[0], joints[k][1] - p[1], joints[k][2] - p[2]],
-                     -pose.becken);
-      joints[k] = [v[0] + p[0], v[1] + p[1], v[2] + p[2]];
+    const [c, s] = cs(-pose.becken);
+    alle((q) => {
+      const v = drehX([q[0] - p[0], q[1] - p[1], q[2] - p[2]], c, s);
+      return [v[0] + p[0], v[1] + p[1], v[2] + p[2]];
     });
   }
 
@@ -155,16 +199,24 @@ export function solve(pose) {
   // des Körpers zeigt nach links (Kopf links, Füße rechts), der Bauch nach oben
   // (Rücklage) oder nach unten (Bauchlage).
   if (pose.lie) {
-    const belly = pose.lie === 'prone' ? 90 : -90;
-    Object.keys(joints).forEach((k) => { joints[k] = rotX(rotZ(joints[k], 90), belly); });
+    const [cx, sx] = cs(pose.lie === 'prone' ? 90 : -90);
+    const [cz, sz] = cs(90);
+    alle((q) => drehX(drehZ(q, cz, sz), cx, sx));
   }
   // Neigung der ganzen Figur um die Blickachse: bei liegenden Übungen hebt ein
   // positiver Wert das Fußende, so entsteht die Brücke beim Hip Thrust.
   if (pose.tilt) {
-    Object.keys(joints).forEach((k) => { joints[k] = rotZ(joints[k], pose.tilt); });
+    const [c, s] = cs(pose.tilt);
+    alle((q) => drehZ(q, c, s));
   }
-  return joints;
+  if (nur === GELENKE) return joints;
+  const teil = {};
+  for (const k of nur) teil[k] = joints[k];
+  return teil;
 }
+const GELENKE = ['hipC', 'chest', 'neck', 'head',
+  'shoulderL', 'elbowL', 'handL', 'hipL', 'kneeL', 'ankleL', 'toeL',
+  'shoulderR', 'elbowR', 'handR', 'hipR', 'kneeR', 'ankleR', 'toeR'];
 
 /* ------------------------------------------------------------------ *
  * Stellung zwischen Start und Ende – und wo sie steht
@@ -190,6 +242,7 @@ export function mische(spec, t) {
     lean: mix(a.lean || 0, b.lean || 0),
     tilt: mix(a.tilt || 0, b.tilt || 0),
     heel: mix(a.heel || 0, b.heel || 0),
+    fuss: mix(a.fuss || 0, b.fuss || 0),
     becken: mix(a.becken || 0, b.becken || 0),
     armL: mixA(a.armL || a.arm, b.armL || b.arm),
     armR: mixA(a.armR || a.arm, b.armR || b.arm),
@@ -199,6 +252,8 @@ export function mische(spec, t) {
 }
 
 const BODEN = -0.62;
+// Dicke des Buchs unter den Ballen beim Wadenheben (`stufe`, siehe dort).
+const BUCH = 0.055;
 const tiefster = (j, keys) => Math.min(...keys.map((k) => j[k][1]));
 const verschiebe = (j, d) => {
   Object.keys(j).forEach((k) => { j[k] = [j[k][0] + d[0], j[k][1] + d[1], j[k][2] + d[2]]; });
@@ -216,21 +271,39 @@ const abstand = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
  * Nullstelle, und die Hände standen 0,4 über dem Boden. Also: in Schritten
  * abtasten, den Vorzeichenwechsel nahe 0 nehmen und nur dort halbieren. Ohne
  * Vorzeichenwechsel gilt die Stelle mit dem kleinsten Betrag.
+ *
+ * Abgetastet wird von 0 nach außen, nicht von −weite nach +weite. Gesucht ist
+ * ohnehin der Wechsel, der 0 am nächsten liegt – sobald er gefunden ist, kann
+ * kein näherer mehr kommen. Vorher wurde immer das ganze Raster gerechnet,
+ * 61 Stellen, und beim Liegestütz kostete das je Bild über 400 Aufrufe von
+ * solve(): mit vierfach gedrosselter CPU 12–13 ms je Bild, eine einzige Figur
+ * also schon fast das ganze Bildbudget. Gefunden bei der Durchsicht der
+ * Figuren. Das Ergebnis ist dasselbe, Stelle für Stelle: dieselben
+ * Rasterpunkte, dieselbe Reihenfolge bei gleich nahen Wechseln (der negative
+ * zuerst, wie beim Abtasten von links), dieselbe Halbierung. Nur wo es gar
+ * keinen Wechsel gibt, braucht es wie früher das ganze Raster.
  */
-function naechsteNull(g, weite = 30, schritt = 1) {
-  let best = { x: 0, v: Math.abs(g(0)) };
-  let prev = null;
-  const kandidaten = [];
-  for (let x = -weite; x <= weite + 1e-9; x += schritt) {
-    const v = g(x);
-    if (Math.abs(v) < best.v) best = { x, v: Math.abs(v) };
-    if (prev && Math.sign(prev.v) !== Math.sign(v)) kandidaten.push([prev.x, x]);
-    prev = { x, v };
+function naechsteNull(g, weite = 30) {
+  const werte = new Map();
+  const bei = (x) => {
+    if (!werte.has(x)) werte.set(x, g(x));
+    return werte.get(x);
+  };
+  const wechsel = (lo) => Math.sign(bei(lo)) !== Math.sign(bei(lo + 1));
+  let klammer = null;
+  for (let m = 0; m < weite && !klammer; m++) {
+    if (wechsel(-1 - m)) klammer = [-1 - m, -m];
+    else if (wechsel(m)) klammer = [m, m + 1];
   }
-  if (!kandidaten.length) return best.x;
-  kandidaten.sort((p, q) => Math.abs(p[0] + p[1]) - Math.abs(q[0] + q[1]));
-  let [lo, hi] = kandidaten[0];
-  const glo = g(lo) > 0;
+  if (!klammer) {
+    let best = { x: 0, v: Math.abs(bei(0)) };
+    for (let x = -weite; x <= weite; x++) {
+      if (Math.abs(bei(x)) < best.v) best = { x, v: Math.abs(bei(x)) };
+    }
+    return best.x;
+  }
+  let [lo, hi] = klammer;
+  const glo = bei(lo) > 0;
   for (let i = 0; i < 30; i++) {
     const m = (lo + hi) / 2;
     if ((g(m) > 0) === glo) lo = m; else hi = m;
@@ -274,26 +347,58 @@ function loese(J, f) {
  *     Zehen so hoch über den Händen stehen wie am Start, also auf dem Kasten.
  * Dann sinkt der Körper, weil er muss.
  */
+const HAENDE = ['handL', 'handR'];
+const ZEHEN = ['toeL', 'toeR'];
+// Mehr brauchen die Suchen nicht – siehe `nur` bei solve().
+const STUETZ_TEIL = [...HAENDE, ...ZEHEN];
+const fussMitte = (j) => mitte(j.toeL, j.toeR);
+const handMitte = (j) => mitte(j.handL, j.handR);
+const flach = (u, v) => Math.hypot(u[0] - v[0], u[2] - v[2]);
+/*
+ * Was am Start eines Musters feststeht – einmal je Muster gerechnet.
+ *
+ * Startstellung, Griffweite, Zehenhöhe und der Abstand Hände–Füße hängen nur
+ * am Muster, nicht an t. Sie wurden trotzdem in jedem Bild neu gelöst, dazu in
+ * skelett() noch einmal der ganze Stütz bei t = 0 für den festen Punkt. Die
+ * Muster ändern sich nach dem Laden nicht mehr; wer eins für eine Suche
+ * abwandelt, legt eine Kopie an – sonst gälte der Start des Originals.
+ */
+const stuetzStart = new WeakMap();
+function stuetzVorgaben(spec) {
+  let s = stuetzStart.get(spec);
+  if (!s) {
+    const start = solve(mische(spec, 0));
+    s = {
+      breite0: abstand(start.handL, start.handR),
+      // Höhe der Zehen über den Händen: beim Kasten so hoch wie am Start,
+      // sonst null – beide am Boden. Beim Pike standen die Hände schon am
+      // Start nicht auf (0,055 über dem Boden), also gilt dort nicht „wie am
+      // Start".
+      ziel: spec.step ? tiefster(start, ZEHEN) - tiefster(start, HAENDE) : 0,
+      abst0: flach(handMitte(start), fussMitte(start)),
+    };
+    stuetzStart.set(spec, s);
+  }
+  return s;
+}
 function stuetz(spec, t) {
   const pose = mische(spec, t);
-  const HAENDE = ['handL', 'handR'];
-  const ZEHEN = ['toeL', 'toeR'];
-  const start = solve(mische(spec, 0));
-  const breite0 = abstand(start.handL, start.handR);
+  const { breite0, ziel, abst0 } = stuetzVorgaben(spec);
   // Griffweite halten: die Abspreizung beider Arme gleich verschieben.
   const mitArm = (da) => ({
     ...pose,
     armL: { ...pose.armL, a: pose.armL.a + da },
     armR: { ...pose.armR, a: pose.armR.a + da },
   });
-  const da = t === 0 ? 0 : naechsteNull((d) => abstand(solve(mitArm(d)).handL, solve(mitArm(d)).handR) - breite0);
+  // Je Auswertung einmal lösen – vorher zweimal, einmal für jede Hand.
+  const da = t === 0 ? 0 : naechsteNull((d) => {
+    const j = solve(mitArm(d), STUETZ_TEIL);
+    return abstand(j.handL, j.handR) - breite0;
+  });
   const p1 = mitArm(da);
-  // Höhe der Zehen über den Händen: beim Kasten so hoch wie am Start, sonst
-  // null – beide am Boden. Beim Pike standen die Hände schon am Start nicht
-  // auf (0,055 über dem Boden), also gilt dort nicht „wie am Start".
-  const ziel = spec.step ? tiefster(start, ZEHEN) - tiefster(start, HAENDE) : 0;
   const feld = spec.stuetz === 'lean' ? 'lean' : 'tilt';
-  const g = (q) => { const j = solve(q); return (tiefster(j, ZEHEN) - tiefster(j, HAENDE)) - ziel; };
+  const hoehe = (j) => (tiefster(j, ZEHEN) - tiefster(j, HAENDE)) - ziel;
+  const g = (q) => hoehe(solve(q, STUETZ_TEIL));
   let q = p1;
   q = { ...q, [feld]: q[feld] + naechsteNull((d) => g({ ...q, [feld]: q[feld] + d })) };
   // Zusätzlich: Hände und Füße stehen, also bleibt ihr Abstand. Die Suchen
@@ -305,10 +410,6 @@ function stuetz(spec, t) {
   // Ableitung und begrenzten Schritten. Der zweite Winkel ist beim Pike der
   // Hüftwinkel (die Beine), beim Liegestütz die Schulter (die Arme): Dort ist
   // der Körper ein Brett, und nur der Oberarm kann den Abstand ausgleichen.
-  const fuss = (j) => mitte(j.toeL, j.toeR);
-  const hand = (j) => mitte(j.handL, j.handR);
-  const flach = (u, v) => Math.hypot(u[0] - v[0], u[2] - v[2]);
-  const abst0 = flach(hand(start), fuss(start));
   const glied = feld === 'lean' ? ['legL', 'legR'] : ['armL', 'armR'];
   const stell = (x) => {
     const r = { ...q, [feld]: q[feld] + x[0] };
@@ -316,10 +417,10 @@ function stuetz(spec, t) {
     ['armL', 'armR'].forEach((k) => { r[k] = { ...r[k], a: r[k].a + x[2] }; });
     return r;
   };
+  // Ein Skelett je Auswertung für alle drei Bedingungen (vorher zwei).
   const F = (x) => {
-    const q2 = stell(x);
-    const j = solve(q2);
-    return [g(q2), flach(hand(j), fuss(j)) - abst0, abstand(j.handL, j.handR) - breite0];
+    const j = solve(stell(x), STUETZ_TEIL);
+    return [hoehe(j), flach(handMitte(j), fussMitte(j)) - abst0, abstand(j.handL, j.handR) - breite0];
   };
   let x = [0, 0, 0];
   for (let i = 0; i < 16; i++) {
@@ -340,6 +441,137 @@ function stuetz(spec, t) {
   return solve(q);
 }
 
+/*
+ * Arme zwischen den Endstellungen in Richtungen mischen, nicht in Winkeln.
+ *
+ * mische() mischt p, a, e und i einzeln. Das trifft die Endstellungen genau,
+ * dazwischen aber nimmt der Arm Umwege: Beim Face Pull sackte der Ellenbogen
+ * mitten im Zug 0,10 unter die Schulter – genau der Fehler, vor dem der Text
+ * der Übung warnt –, beim Pull-Apart fielen die Hände auf Bauchhöhe, und die
+ * Griffweite lief 0,65 → 1,18 → 0,76. Hier schwenkt der Oberarm auf dem
+ * kürzesten Weg (Slerp im Rahmen des Rumpfes). Der Unterarm bleibt, wie
+ * mische() ihn zum Oberarm stellt, und wird nur mit dem Oberarm auf dessen
+ * neue Richtung mitgedreht.
+ *
+ * Die erste Fassung mischte auch den Unterarm als Richtung (Slerp im Rahmen
+ * des Oberarms). Liegen beide Endstellungen weit auseinander – Trizeps über
+ * Kopf beugt um 117 Grad, der Curl um 118 –, hebt ein Slerp alles, was
+ * beiden gemeinsam ist, mitten im Weg auf fast das Doppelte: Beim Trizeps
+ * über Kopf stand der Unterarm bei t 0,5 mit −0,48 zur Seite statt −0,22,
+ * im Vorgabeblick waagerecht wie beim Schulterdrücken. Die Winkel aus
+ * mische() führen den Ellenbogen dagegen so, wie die Übung ihn beschreibt;
+ * schief lief dort nur der Oberarm. Die Endstellungen bleiben bitgenau,
+ * was dort gilt (Griff, Anker, Goblet), bleibt also auch. Nicht für Stütz und
+ * Stange: dort rechnet skelett() den Arm ohnehin nach.
+ */
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm3 = (v) => { const n = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / n, v[1] / n, v[2] / n]; };
+const rodrigues = (v, k, c, s) => add(add(mul(v, c), mul(cross(k, v), s)), mul(k, dot3(k, v) * (1 - c)));
+function rumpfRahmen(j) {
+  const side = norm3(sub3(j.shoulderR, j.shoulderL));
+  const up = norm3(sub3(j.neck, j.hipC));
+  return [side, up, cross(side, up)];
+}
+const lokal = (F, v) => F.map((a) => dot3(a, v));
+const welt = (F, v) => add(add(mul(F[0], v[0]), mul(F[1], v[1])), mul(F[2], v[2]));
+function slerp(a, b, t) {
+  const w = Math.acos(Math.max(-1, Math.min(1, dot3(a, b))));
+  if (w < 1e-4) return a;
+  return norm3(add(mul(a, Math.sin((1 - t) * w) / Math.sin(w)), mul(b, Math.sin(t * w) / Math.sin(w))));
+}
+// Der kürzeste Schwenk, der die Richtung von nach zu dreht, angewandt auf v.
+function schwenk(v, von, zu) {
+  const ax = cross(von, zu); const sl = Math.hypot(...ax);
+  return sl < 1e-6 ? v : rodrigues(v, mul(ax, 1 / sl), dot3(von, zu), sl);
+}
+const armEnden = new WeakMap();   // je Muster einmal: beide Endstellungen
+function armeRichtung(spec, t, j) {
+  if (!armEnden.has(spec)) armEnden.set(spec, [solve(mische(spec, 0)), solve(mische(spec, 1))]);
+  const [j0, j1] = armEnden.get(spec);
+  const F = rumpfRahmen(j); const F0 = rumpfRahmen(j0); const F1 = rumpfRahmen(j1);
+  ['L', 'R'].forEach((s) => {
+    const m = s === 'L' ? [-1, 1, 1] : [1, 1, 1];      // links gespiegelt
+    const lok = (FF, jj, a, b) => lokal(FF, norm3(sub3(jj[b], jj[a]))).map((x, i) => x * m[i]);
+    const u0 = lok(F0, j0, `shoulder${s}`, `elbow${s}`); const u1 = lok(F1, j1, `shoulder${s}`, `elbow${s}`);
+    if (spec.armweg === 'hand') {
+      // Die Hand führt (siehe facepull): Richtung Schulter→Hand per Slerp,
+      // Abstand linear, der Ellenbogen per Zwei-Glieder-Rechnung zur
+      // gemischten Seite hin. Die Hand läuft so fast gerade zum Ziel.
+      const lk = (FF, jj, a, b) => lokal(FF, sub3(jj[b], jj[a])).map((x, i) => x * m[i]);
+      const h0 = lk(F0, j0, `shoulder${s}`, `hand${s}`); const h1 = lk(F1, j1, `shoulder${s}`, `hand${s}`);
+      const e0 = lk(F0, j0, `shoulder${s}`, `elbow${s}`); const e1 = lk(F1, j1, `shoulder${s}`, `elbow${s}`);
+      const d0 = Math.hypot(...h0); const d1 = Math.hypot(...h1);
+      const r0 = norm3(h0); const r1 = norm3(h1);
+      const quer = (e, r) => sub3(e, mul(r, dot3(e, r)));
+      let q0 = quer(e0, r0); let q1 = quer(e1, r1);
+      if (Math.hypot(...q0) < 1e-3) q0 = quer(e1, r0);
+      if (Math.hypot(...q1) < 1e-3) q1 = quer(e0, r1);
+      const r = slerp(r0, r1, t); const d = d0 + (d1 - d0) * t;
+      const pol = norm3(quer(slerp(norm3(q0), norm3(q1), t), r));
+      const a = RIG.upperArm; const b = RIG.foreArm;
+      const x = (a * a - b * b + d * d) / (2 * d); const y = Math.sqrt(Math.max(0, a * a - x * x));
+      const el = add(mul(r, x), mul(pol, y));
+      const W = (v) => welt(F, v.map((c, i) => c * m[i]));
+      j[`elbow${s}`] = add(j[`shoulder${s}`], W(el));
+      j[`hand${s}`] = add(j[`shoulder${s}`], W(mul(r, d)));
+      return;
+    }
+    const u = slerp(u0, u1, t);
+    const f = schwenk(lok(F, j, `elbow${s}`, `hand${s}`), lok(F, j, `shoulder${s}`, `elbow${s}`), u);
+    const uw = welt(F, u.map((x, i) => x * m[i])); const fw = welt(F, f.map((x, i) => x * m[i]));
+    j[`elbow${s}`] = add(j[`shoulder${s}`], mul(uw, RIG.upperArm));
+    j[`hand${s}`] = add(j[`elbow${s}`], mul(fw, RIG.foreArm));
+  });
+  return j;
+}
+
+/*
+ * Im Sitzen auf den Ballen: Gesäß auf der Bank, Ballen auf dem Buch – und
+ * dazwischen gehen Knie und Fersen hoch (calfseated).
+ *
+ *     „Ist nicht bisschen merkwürdig für Hantel nur in einer Hand zu halten?"
+ *
+ * Seitdem wird das Wadenheben mit gebeugtem Knie mit Hantel im Sitzen gemacht.
+ * Stehend hob `heel` den ganzen Körper über die liegenden Zehen; sitzend hieße
+ * das, die Figur samt Bank stiege in die Luft. Hier streckt `fuss` den Fuß, und
+ * Hüft- und Kniewinkel werden je Bild so nachgestellt, dass die Zehen genau da
+ * bleiben, wo sie am Start standen. Mit den beiden Endstellungen allein liefen
+ * sie auf halbem Weg 0,018 nach vorn und 0,003 nach unten – und weil skelett()
+ * an ihnen festhält, wäre stattdessen das Gesäß über die Bank gerutscht. Zwei
+ * Bedingungen (Höhe und Tiefe der Zehen), zwei Winkel, Newton – wie an der
+ * Stange.
+ */
+const ballenStart = new WeakMap();
+function ballenSitz(spec, t) {
+  if (!ballenStart.has(spec)) ballenStart.set(spec, solve(mische(spec, 0), ['toeR']).toeR);
+  const ziel = ballenStart.get(spec);
+  const pose = mische(spec, t);
+  const stell = (x) => ({
+    ...pose,
+    legL: { ...pose.legL, p: pose.legL.p + x[0], k: pose.legL.k + x[1] },
+    legR: { ...pose.legR, p: pose.legR.p + x[0], k: pose.legR.k + x[1] },
+  });
+  const F = (x) => {
+    const zeh = solve(stell(x), ['toeR']).toeR;
+    return [zeh[1] - ziel[1], zeh[2] - ziel[2]];
+  };
+  let x = [0, 0];
+  for (let i = 0; i < 16; i++) {
+    const f = F(x);
+    if (f.every((v) => Math.abs(v) < 1e-9)) break;
+    const h = 0.05;
+    const spalten = [0, 1].map((k) => {
+      const y = x.slice(); y[k] += h;
+      return F(y).map((v, r) => (v - f[r]) / h);
+    });
+    const dx = loese([0, 1].map((r) => spalten.map((c) => c[r])), f);
+    if (!dx) break;
+    x = x.map((v, n) => v - dx[n]);
+  }
+  return solve(stell(x));
+}
+
 /**
  * Skelett einer Stellung, auf den Boden gesetzt und an Ort und Stelle.
  *
@@ -351,8 +583,56 @@ function stuetz(spec, t) {
  * stehen, worauf der Körper steht: bei stehenden Figuren die Füße (beim
  * einbeinigen Stand der Standfuß), beim Stütz die Hände.
  */
+const festerPunkt = new WeakMap();
 export function skelett(spec, t) {
-  let j = spec.stuetz ? stuetz(spec, t) : solve(mische(spec, t));
+  let j = spec.stuetz ? stuetz(spec, t) : spec.ballen && t !== 0 ? ballenSitz(spec, t) : solve(mische(spec, t));
+  if (!spec.stuetz && spec.anchor !== 'bar' && t > 0 && t < 1) j = armeRichtung(spec, t, j);
+  // An der Stange, die Füße am Boden (Inverted Row, Trizeps an der Stange):
+  // Die Fersen stehen, und der Körper dreht sich um sie. Mit den beiden
+  // Endstellungen allein wanderte der tiefste Punkt – bei der Inverted Row
+  // steckten die Fersen bei t≈0,25 0,010 im Boden und schwebten oben 0,045
+  // darüber, beim Trizeps hoben sie auf halbem Weg 0,038 ab. Der Boden wird
+  // aber einmal aus der Startstellung gezeichnet (fit.groundY). Also wie beim
+  // Stütz je Bild nachrechnen: den ganzen Körper starr drehen (lean und Hüfte
+  // gegenläufig – das ist dieselbe Drehung wie tilt, nur auch im Stehen) und
+  // den Schulterwinkel nachstellen, bis der Fuß, der am Start unten war, so
+  // tief und so weit von der Stange steht wie dort. Nur die Neigung zu suchen
+  // hielt die Höhe, ließ die Fersen aber 0,08 zur Stange rutschen; zwei
+  // Bedingungen brauchen zwei Winkel, gelöst gemeinsam mit Newton.
+  if (spec.anchor === 'bar' && !spec.float && t !== 0) {
+    const start = solve(mische(spec, 0));
+    const fussName = ['ankleL', 'ankleR', 'toeL', 'toeR'].reduce((a, b) => (start[b][1] < start[a][1] ? b : a));
+    const lage = (q) => {
+      const h = mitte(q.handL, q.handR);
+      const f = q[fussName];
+      return [f[1] - h[1], Math.hypot(f[0] - h[0], f[2] - h[2])];
+    };
+    const ziel = lage(start);
+    const pose = mische(spec, t);
+    const stell = (x) => ({
+      ...pose, lean: pose.lean + x[0],
+      legL: { ...pose.legL, p: pose.legL.p - x[0] },
+      legR: { ...pose.legR, p: pose.legR.p - x[0] },
+      armL: { ...pose.armL, p: pose.armL.p + x[1] },
+      armR: { ...pose.armR, p: pose.armR.p + x[1] },
+    });
+    const F = (x) => lage(solve(stell(x))).map((v, i) => v - ziel[i]);
+    let x = [0, 0];
+    for (let i = 0; i < 16; i++) {
+      const f = F(x);
+      if (f.every((v) => Math.abs(v) < 1e-6)) break;
+      const h = 0.05;
+      const spalten = [0, 1].map((k) => {
+        const y = x.slice(); y[k] += h;
+        return F(y).map((v, r) => (v - f[r]) / h);
+      });
+      const dx = loese([0, 1].map((r) => spalten.map((c) => c[r])), f);
+      if (!dx) break;
+      const k = Math.min(1, 10 / Math.max(...dx.map(Math.abs), 1e-9));
+      x = x.map((v, n) => v - k * dx[n]);
+    }
+    j = solve(stell(x));
+  }
   // An der Stange festhalten. Beim Griff an eine Stange bleiben die Hände
   // stehen und der Körper bewegt sich – andersherum wanderte die Stange mit
   // den Händen mit, was sofort als Fehler auffällt.
@@ -361,7 +641,14 @@ export function skelett(spec, t) {
     const hand = mitte(j.handL, j.handR);
     return verschiebe(j, [-hand[0], barY - hand[1], -hand[2]]);
   }
-  j = verschiebe(j, [0, -Math.min(...Object.values(j).map((q) => q[1])) + BODEN, 0]);
+  // Im Sitzen auf dem Buch (calfseated) stehen die Ballen nicht auf dem Boden,
+  // sondern auf der Buchoberkante – und darunter sinkt unten die Ferse. Mit
+  // dem tiefsten Punkt am Boden lagen dort die Zehen, das Buch steckte darunter
+  // ganz im Boden, und unten stand der Fuß flach: die Dehnung, für die das
+  // Buch da ist, fehlte im Bild.
+  j = spec.ballen
+    ? verschiebe(j, [0, BODEN + BUCH + 0.01 - mitte(j.toeL, j.toeR)[1], 0])
+    : verschiebe(j, [0, -Math.min(...Object.values(j).map((q) => q[1])) + BODEN, 0]);
   // Was steht: beim Stütz die Hände, bei stehenden und sitzenden Figuren die
   // Füße. Liegende Figuren ohne Stütz bleiben, wie sie sind – dort liegt der
   // Rücken, und der Rücken ist lang genug, um nicht aufzufallen.
@@ -373,7 +660,12 @@ export function skelett(spec, t) {
   }
   if (fest && t !== 0) {
     const jetzt = fest(j);
-    const start = fest(skelett(spec, 0));
+    // Der Punkt am Start steht je Muster fest – siehe stuetzVorgaben().
+    let start = festerPunkt.get(spec);
+    if (!start) {
+      start = fest(skelett(spec, 0));
+      festerPunkt.set(spec, start);
+    }
     j = verschiebe(j, [start[0] - jetzt[0], 0, start[2] - jetzt[2]]);
   }
   return j;
@@ -399,10 +691,52 @@ export function skelett(spec, t) {
  * Das ist Anatomie, keine Zeichenkonvention: Bei hängenden Armen und nach vorn
  * gedrehten Handflächen stehen die Daumen außen; wer die Hand eindreht
  * (Obergriff), dreht den Daumen nach innen. `finger: 'boden'` für Hände, die
- * flach aufliegen – dort zeigen die Finger zum Kopf –, `finger: 'oben'` für den
- * Griff unter die Goblet-Hantel. `hantelLaengs` legt die Kurzhantel in
- * Blickrichtung, wie sie bei neutralem Griff liegt.
+ * flach aufliegen – dort zeigen die Finger zum Kopf –, `finger: 'schale'` für
+ * die Hände unter der Goblet-Hantel (Handflächen oben, Finger außen um die
+ * Scheibe, Daumen hinten um den Griff; siehe GOBLET_SCHALE). `hantelLaengs`
+ * legt die Kurzhantel längs in die Faust, wie sie bei neutralem Griff liegt –
+ * quer zum Unterarm, siehe laengsAchse().
  */
+
+/*
+ * Füße aufgestellt – für alles, was mit angewinkelten Beinen auf dem Rücken
+ * liegt: Bodenpresse, Bodenpresse an der Stange, Trizeps im Liegen, Crunch.
+ *
+ * Vorher stand hier L(56, 9, 100), bzw. beim Crunch L(58, 9, 104). Der tiefste
+ * Punkt war damit in jeder Stellung die Hüfte, und Knöchel wie Zehen hingen
+ * 0,07 Körperlängen darüber – die Füße schwebten, während der Hinweis „Füße
+ * aufstellen" sagt. Gefunden bei der Durchsicht der Figuren.
+ *
+ * Bei p 56 legt erst k 116 die Ferse auf Hüfthöhe (nachgerechnet mit solve(),
+ * Knöchel 0,001 über der Hüfte). Das ist dieselbe Abmachung wie bei
+ * Beckenheben, Hip Thrust und Beinbeuger: Steht der Fuß, liegt der Knöchel
+ * auf dem Boden.
+ */
+const AUFGESTELLT = L(56, 9, 116);
+
+/*
+ * Arme beim Goblet Squat – oben und unten.
+ *
+ *     „Findest du seine handpositionen sehen gesund aus?"
+ *
+ * Taten sie nicht. Mit A(26, -18, 130, 32) zog die Adduktion die Arme über die
+ * Mitte hinaus: Die linke Hand stand 0,04 rechts der Mitte, die rechte ebenso
+ * weit links, die Unterarme kreuzten sich vor der Brust, und mit `finger:
+ * 'oben'` standen die Hände hochkant vor dem Kinn – wie zum Beten. So hält
+ * niemand eine Hantel, und wer es nachmacht, verdreht sich die Handgelenke.
+ *
+ * Die zweite Fassung (v228, A(18, -18, 145, -2) und A(34, -20, 155, -6))
+ * stellte die Arme richtig hin, aber die Hände nicht an die Hantel: Sie saßen
+ * in der Scheibe statt darunter – siehe GOBLET_SCHALE, dort steht der ganze
+ * Griff und wie er gefunden wurde. Arme und Schale sind zusammen gesucht,
+ * gegen dieselben Ziele: Oben stehen die Handgelenke 0,067 neben der Achse und
+ * 0,15 vor der Brust, die Ellenbogen zeigen bei ±0,13 nach unten, eng am
+ * Rumpf; unten in der Hocke bei ±0,17. Die Unterarme stehen steil (mindestens 82 %
+ * senkrecht) und öffnen sich nach unten leicht zum V – so laufen sie außen an
+ * der unteren Scheibe vorbei statt durch sie hindurch.
+ */
+const GOBLET_ARM = [A(10.3, -17.6, 146.7, -2.6), A(26.5, -10, 152, 14.8)];
+
 export const PATTERNS = {
   // Ruhig stehende Figur ohne Bewegung – Grundlage für die Verletzungskarte.
   // Die Arme stehen etwas ab, sonst verschwindet die Schultermarke im Rumpf.
@@ -414,13 +748,13 @@ export const PATTERNS = {
     ],
   },
   squat: {
-    daumen: 'innen', finger: 'oben',
+    daumen: 'hinten', finger: 'schale',
     label: 'Kniebeuge',
     poses: [
       // lean unten bewusst moderat: mit 42° klappte die Figur zusammen und der
       // Kopf stand auf Kniehöhe. Beim Goblet Squat bleibt der Rumpf aufrecht.
-      { lean: 6, arm: A(26, -18, 130, 32), leg: L(2, 5, 4) },
-      { lean: 24, arm: A(34, -18, 126, 32), leg: L(100, 9, 118) },
+      { lean: 6, arm: GOBLET_ARM[0], leg: L(2, 5, 4) },
+      { lean: 24, arm: GOBLET_ARM[1], leg: L(100, 9, 118) },
     ],
   },
   legcurl: {
@@ -575,8 +909,8 @@ export const PATTERNS = {
     // Boden – nachgesehen an gerenderten Bildern, nicht geschätzt.
     label: 'Drücken im Liegen', lie: 'supine', view: [25, -12],
     poses: [
-      { arm: A(10, 33, 104), leg: L(56, 9, 100) },
-      { arm: A(90, 10, 0), leg: L(56, 9, 100) },
+      { arm: A(10, 33, 104), leg: AUFGESTELLT },
+      { arm: A(90, 10, 0), leg: AUFGESTELLT },
     ],
   },
   pressbar: {
@@ -614,8 +948,8 @@ export const PATTERNS = {
     // stärker verkürzt erscheint – das ist der billigere Preis.
     label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [20, -10],
     poses: [
-      { arm: A(9, 15, 110), leg: L(56, 9, 100) },
-      { arm: A(90, 14, 0), leg: L(56, 9, 100) },
+      { arm: A(9, 15, 110), leg: AUFGESTELLT },
+      { arm: A(90, 14, 0), leg: AUFGESTELLT },
     ],
   },
   row: {
@@ -680,6 +1014,16 @@ export const PATTERNS = {
     // der Kopf senkt sich zwischen die Hände. Die Arme zeigen senkrecht nach
     // unten, dafür muss arm.p der Rumpfneigung folgen (-p + lean = 0).
     label: 'Überkopf-Drücken', stuetz: 'lean',
+    // Von der Seite, nicht vom Standardblick fast von vorn. Der zeigte genau in
+    // die Achse des umgedrehten V: Hüfte, Rumpf, Kopf und beide Arme lagen
+    // hintereinander, und übrig blieb ein Knäuel –
+    //
+    //     „Sieht schon sehr unordentlich aus"
+    //
+    // Bei 75° steht das V da: Hüfte oben, Kopf zwischen den Armen, Hände und
+    // Füße am Boden, und die Arme liegen noch leicht versetzt statt deckungs-
+    // gleich wie bei 90°.
+    view: [75, 12],
     poses: [
       // lean 146 legte den Kopf zwischen die Hände auf den Boden. Bei 126 ist
       // die Hüfte klar der höchste Punkt und der Kopf bleibt darüber.
@@ -810,8 +1154,12 @@ export const PATTERNS = {
      * längs, y hoch):
      *
      *                Knie          Knöchel
-     *   Start    x 0.24 y 0.36   x 0.54 y 0.07   Füße stehen am Boden
-     *   Ende     x −0.18 y 0.39  x 0.23 y 0.43   Knie über dem Bauch, Füße frei
+     *   Start    x 0.28 y 0.33   x 0.53 y 0.00   Füße stehen am Boden
+     *   Ende     x −0.18 y 0.40  x 0.23 y 0.46   Knie über dem Bauch, Füße frei
+     *
+     * Am Start stand hier bis zur Durchsicht der Figuren L(50, 9, 95), und
+     * der Knöchel lag 0,04 über der Hüfte, also in der Luft – dieselbe Sache
+     * wie bei AUFGESTELLT oben. Mit k 103 steht er.
      *
      * Das negative x am Ende ist der Punkt: Die Knie kommen über die Hüfte
      * hinaus Richtung Brust, und genau dieses letzte Stück ist das Einrollen
@@ -825,7 +1173,7 @@ export const PATTERNS = {
      */
     label: 'Knieheben im Liegen', lie: 'supine', view: [20, -30],
     poses: [
-      { arm: A(0, 17, 6), leg: L(50, 9, 95) },
+      { arm: A(0, 17, 6), leg: L(50, 9, 103) },
       { arm: A(0, 17, 6), leg: L(98, 9, 105), becken: 15 },
     ],
   },
@@ -835,7 +1183,9 @@ export const PATTERNS = {
     // stehen – zieht er mit, wird daraus ein Rudern.
     // band: 'hands' – hier hält man das Band wirklich zwischen beiden Händen,
     // anders als bei allen übrigen Bandübungen, wo man darauf steht.
-    label: 'Band auseinanderziehen', band: 'hands', view: [16, -6],
+    // Blick schräg von oben statt [16, -6]: Fast von vorn war der nahe Unterarm
+    // am Start auf ein Siebtel verkürzt, die Hand ein Klecks vor der Brust.
+    label: 'Band auseinanderziehen', band: 'hands', view: [35, 12],
     poses: [
       { lean: 3, arm: A(86, 8, 8), leg: L(2, 5, 4) },
       { lean: 3, arm: A(8, 86, 8), leg: L(2, 5, 4) },
@@ -906,7 +1256,26 @@ export const PATTERNS = {
      * erste der drei Wege, die der Hinweis nennt, und der einzige, der sich
      * zeichnen laesst, ohne die Stange woanders hinzuhaengen.
      */
-    label: 'Face Pull', band: 'bar', ueberkopf: 0.89, ueberkopfZ: 0.85, view: [20, -8],
+    /*
+     * Und der Weg dazwischen. Mit Winkeln oder Gliedrichtungen gemischt lief
+     * die Hand in einem weiten Bogen nach außen (bei t 0,5 0,59 neben der
+     * Mitte, Griffweite 1,18 statt 0,65 und 0,76) – ein Auseinanderziehen,
+     * kein Zug zum Gesicht. armweg 'hand' lässt die Hand führen: Sie kommt
+     * fast gerade nach hinten (seitlich 0,32 → 0,42 → 0,38), der Ellenbogen
+     * bleibt dabei über der Schulter (Elevation 104 → 92 → 84 Grad).
+     */
+    armweg: 'hand',
+    // Blick etwas schräger als früher [20, -8]: Der Zug läuft in die Tiefe,
+    // und fast von vorn war davon nur ein verkürzter Unterarm zu sehen. Von 25
+    // Grad sieht man die Arme nach vorn greifen und die Ellenbogen nach hinten
+    // oben kommen. Nicht 40 (so ein Zwischenstand): Dort lag der nahe Oberarm
+    // von t 0 bis 0,2 genau vor dem Gesicht – das Startbild jeder
+    // Wiederholung war eine Figur ohne Kopf, ausgerechnet bei der Übung,
+    // über die es hieß „Die Arme sehen echt immer komisch aus". Weiter
+    // seitlich liefe außerdem das ferne Band am Ende quer durchs Gesicht.
+    // tests/test-rotate.mjs prüft, dass vom Kopf mindestens die Hälfte frei
+    // bleibt.
+    label: 'Face Pull', band: 'bar', ueberkopf: 0.89, ueberkopfZ: 0.85, view: [25, -6],
     poses: [
       { lean: 4, arm: A(104, 12, 8), leg: L(2, 5, 4) },
       { lean: 4, arm: A(8, 84, 4, 120), leg: L(2, 5, 4) },
@@ -948,8 +1317,8 @@ export const PATTERNS = {
     // Oberarm bleibt senkrecht stehen, nur der Ellenbogen arbeitet
     label: 'Trizeps-Strecken', lie: 'supine', view: [20, -30],
     poses: [
-      { arm: A(84, 8, 112), leg: L(56, 9, 100) },
-      { arm: A(90, 8, 4), leg: L(56, 9, 100) },
+      { arm: A(84, 8, 112), leg: AUFGESTELLT },
+      { arm: A(90, 8, 4), leg: AUFGESTELLT },
     ],
   },
   tricepsoh: {
@@ -998,7 +1367,8 @@ export const PATTERNS = {
     ],
   },
   reversefly: {
-    daumen: 'vorn', hantelLaengs: true,
+    // Längs zum Kopf, nicht in Blickrichtung – siehe laengsAchse().
+    daumen: 'vorn', hantelLaengs: 'kopf',
     // Wie beim Pull-Apart: Das Band liegt zwischen den Händen, nicht unter dem Fuß.
     label: 'Reverse Fly', band: 'hands',
     poses: [
@@ -1012,8 +1382,8 @@ export const PATTERNS = {
     poses: [
       // Unterarme längs am Rumpf statt quer darüber: eng gefaltet verdeckten
       // sie die Scheibe und alles verschmolz zu einem Knäuel.
-      { lean: 0, arm: A(46, -6, 120, 26), leg: L(58, 9, 104) },
-      { lean: 34, arm: A(46, -6, 120, 26), leg: L(58, 9, 104) },
+      { lean: 0, arm: A(46, -6, 120, 26), leg: AUFGESTELLT },
+      { lean: 34, arm: A(46, -6, 120, 26), leg: AUFGESTELLT },
     ],
   },
   legcurl1: {
@@ -1070,6 +1440,44 @@ export const PATTERNS = {
       { tilt: 8, arm: A(40, 42, 100), leg: L(0, 6, 4) },
     ],
   },
+  calfseated: {
+    /*
+     * Wadenheben mit gebeugtem Knie, mit Hantel – im Sitzen.
+     *
+     *     „Ist nicht bisschen merkwürdig für Hantel nur in einer Hand zu halten?"
+     *
+     * War es. Bis v239 stand die Hantelfassung wie `calfbent` da: stehend, Knie
+     * 30° gebeugt, die Kurzhantel hing in der rechten Hand. Jetzt sitzt die
+     * Figur, Knie und Hüfte rechtwinklig, das Schienbein senkrecht, die Ballen
+     * auf einem Buch (`stufe: 'beide'`), und die Hantel liegt quer über beiden
+     * Oberschenkeln direkt hinter den Knien (`hantelAuf: 'knie'`, siehe
+     * knieHantel()), beide Hände am Griff. Gehoben werden nur Knie und Fersen:
+     * `fuss` streckt den Fuß, skelett() hält Gesäß und Ballen fest (`ballen`,
+     * siehe ballenSitz()).
+     *
+     * Unten sinkt die Ferse 0,032 unter den Ballen, also unter die Buchkante –
+     * das ist die Dehnung, für die das Buch da ist („dann langsam ganz tief
+     * unter die Buchkante"). Oben ist der Fuß um 59° weiter gestreckt, die
+     * Ferse steht 0,092 über dem Ballen; der Hub ist 0,124. Dafür stehen die
+     * Zehen nicht wie sonst als tiefster Punkt auf dem Boden, sondern auf der
+     * Buchoberkante (skelett(), `ballen`), und das Buch auf dem Boden. Bis zur
+     * Prüfung stand hier ein flacher Fuß (`fuss: 14`), weil der tiefste Punkt
+     * auf den Boden kam – die Zehen, mit dem Buch darunter im Boden.
+     *
+     * Die Arme sind gesucht, nicht geschätzt: In beiden Endstellungen sitzt
+     * jede Hand im Obergriff auf dem Griff, 0,062 neben der Mitte – die
+     * Fäuste berühren sich nicht und nicht die Scheiben; dazwischen führt die
+     * Hand (`armweg: 'hand'`) und bleibt höchstens 0,0045 neben der Achse,
+     * während die Knie die Hantel anheben. Von der Seite, wie `calfbent` –
+     * sonst ist die Ferse nicht zu sehen.
+     */
+    daumen: 'innen', hantelAuf: 'knie', armweg: 'hand',
+    label: 'Wadenheben im Sitzen', seat: true, ballen: true, stufe: 'beide', view: [62, 8],
+    poses: [
+      { lean: 6, arm: A(23.5, -17.1, 68), leg: L(90, 4, 90), fuss: 0 },
+      { lean: 6, arm: A(23.5, -17.1, 92.75), leg: L(106.1, 4, 99.9), fuss: 59 },
+    ],
+  },
   calfbent: {
     daumen: 'vorn', hantelLaengs: true,
     // Mit gebeugtem Knie: trifft den flachen Wadenmuskel statt der Zwillingswade.
@@ -1118,14 +1526,25 @@ export const PATTERNS = {
    * Tiefe ist der Grund, warum man die Fersen überhaupt erhöht.
    */
   squatheel: {
-    daumen: 'innen', finger: 'oben',
-    // Mehr von der Seite als die freie Kniebeuge (Vorgabe yaw 25): Ein Keil
-    // unter der Ferse steht von vorn gesehen hochkant hinter dem Fuß und ist
-    // damit genau das, was er nicht sein soll – unsichtbar.
-    label: 'Kniebeuge, Fersen erhöht', keil: true, view: [62, -4],
+    daumen: 'hinten', finger: 'schale',
+    // Mehr von der Seite als die freie Kniebeuge (Vorgabe yaw 25): Sonst
+    // steht die Erhöhung von vorn gesehen hochkant hinter dem Fuß und ist
+    // damit genau das, was sie nicht sein soll – unsichtbar.
+    //
+    // Zwei Hantelscheiben, kein Keil – seit dem 25.09. steht „Fersen auf je
+    // einer Hantelscheibe, 2–4 cm hoch" im Hinweis (siehe scheiben unten):
+    //
+    //     „Die Hantelscheibe auf dem Boden sieht noch nicht so hantelscheibig
+    //      aus"
+    //
+    // Ein einzelner Keil über beide Füße war weder eine Scheibe (rund, hell,
+    // metallisch) noch zwei (er saß als eine Brücke unter beiden Fersen
+    // zugleich) – er hatte dieselbe grau-blaue Farbe wie die Bank, also wie
+    // ein Möbelstück, nicht wie Eisen.
+    label: 'Kniebeuge, Fersen erhöht', fersenscheiben: true, view: [62, -4],
     poses: [
-      { lean: 6, arm: A(26, -18, 130, 32), leg: L(2, 5, 4), heel: 0.16 },
-      { lean: 20, arm: A(34, -18, 126, 32), leg: L(104, 9, 126), heel: 0.16 },
+      { lean: 6, arm: GOBLET_ARM[0], leg: L(2, 5, 4), heel: 0.16 },
+      { lean: 20, arm: GOBLET_ARM[1], leg: L(104, 9, 126), heel: 0.16 },
     ],
   },
   squatheelbw: {
@@ -1170,6 +1589,13 @@ export const PATTERNS = {
      * allein in den Winkeln.
      */
     label: 'Trizeps an der Stange', anchor: 'bar', barY: 0.02, bar: true,
+    // Von der Seite, wie beim Pike und aus demselben Grund. Im Standardblick
+    // (yaw 25) neigt sich der Körper fast genau auf die Kamera zu: Rumpf und
+    // Kopf deckten beide Beine bis auf zwei Stummel unter der Stange, und die
+    // schräge Linie von der Ferse bis zum Kopf, die der Hinweis verlangt, war
+    // in keinem Bild zu sehen. Bei 70° steht sie da, die Hände an der Kante,
+    // und die Arme liegen noch leicht versetzt statt deckungsgleich.
+    view: [70, 8],
     // leg.p spiegelt lean: nur so bleibt der Körper eine gerade Linie von den
     // Fersen bis zum Kopf. Mit senkrechten Beinen wurde daraus ein Hüftknick.
     poses: [
@@ -1180,11 +1606,29 @@ export const PATTERNS = {
   snowangel: {
     // Bauchlage, Arme angehoben, vom Kopf bis zur Hüfte und zurück
     label: 'Reverse Snow Angel', lie: 'prone',
+    /*
+     * Der Bogen geht seitlich, nicht durch den Boden.
+     *
+     * Vorher liefen die Arme über arm.p von 164 auf 26, also über die
+     * Beugung nach vorn – und „vorn" ist in Bauchlage der Boden. Auf halbem
+     * Weg zeigte der Arm senkrecht nach unten, die Hand wurde ab t≈0,45 zum
+     * tiefsten Punkt, und weil skelett() den tiefsten Punkt auf den Boden
+     * setzt, hob die ganze liegende Figur ab (Füße bis 0,10 über dem Boden)
+     * und sank zum Ende wieder. Ein Snow Angel ist aber ein Bogen in der
+     * Rumpfebene: von über dem Kopf über die Seite an die Hüfte, die Hände
+     * dabei vom Boden gelöst.
+     *
+     * Also über die Abspreizung (160 → 14), und arm.p leicht negativ: Das
+     * hebt die Arme in Bauchlage zur Decke. Nachgerechnet bleibt die Hand
+     * über den ganzen Weg 0,11 bis 0,46 über dem Boden, die Zehen liegen in
+     * jedem Bild auf, und am Ende steht die Hand neben der Hüfte (x 0,09 bei
+     * Hüfte 0) statt im Boden.
+     */
     poses: [
       // Brust deutlich angehoben: liegt der Rumpf flach, liegen auch die Arme
       // am Boden und von der Bewegung ist nichts zu sehen.
-      { lean: -24, arm: A(164, 32, 10), leg: L(0, 6, 4) },
-      { lean: -24, arm: A(26, 46, 10), leg: L(0, 6, 4) },
+      { lean: -24, arm: A(-8, 160, 10), leg: L(0, 6, 4) },
+      { lean: -24, arm: A(-8, 14, 10), leg: L(0, 6, 4) },
     ],
   },
   calf: {
@@ -1198,6 +1642,476 @@ export const PATTERNS = {
 };
 
 
+/**
+ * Gerät der Figur in der Bodyweight-Fassung, aus deren Gerätetext.
+ *
+ * Bodyweight heißt nicht gerätelos: Ein Loop-Band ist in beiden Fassungen
+ * dasselbe Gerät, und ein Rucksack auch – Rucksack-Curls und Rucksack-Rudern
+ * heißen in beiden so und sagen „beide Hände in die Trageschlaufen". Abgeleitet
+ * wurde aber nur das Band, und die Figur curlte und ruderte mit leeren Fäusten.
+ * Gefunden bei der Durchsicht der Figuren. Hier steht die Ableitung einmal;
+ * resolve() in js/plan.js und die Übersicht figuren.html benutzen sie beide,
+ * statt sie abzuschreiben.
+ */
+export function bwGeraet(equipText) {
+  if (/band/i.test(equipText || '')) return 'band';
+  if (/rucksack/i.test(equipText || '')) return 'backpack';
+  // Flaschen-Seitheben, stehend und sitzend: „je eine gefüllte Flasche in die
+  // Hand". Ohne die Ableitung hob die Figur leere Fäuste – in beiden
+  // Fassungen, denn im Hantel-Modus nennt die Übung kein Gerät (siehe
+  // figurGeraet).
+  if (/flasche/i.test(equipText || '')) return 'bottles';
+  return null;
+}
+
+/**
+ * Gerät der Figur zu einer Übung in einer Fassung – für resolve() in
+ * js/plan.js und die Übersicht figuren.html.
+ *
+ * Im Hantel-Modus das Gerät der Übung. Nennt sie keins (equip null), steht
+ * das Hilfsmittel nur im Gerätetext – bei den Flaschen-Übungen „zwei volle
+ * Flaschen" –, und dann gilt dieselbe Ableitung wie im Bodyweight-Modus.
+ * Vorher hieß null dort „ohne Gerät", auch wo die Übung eins verlangt.
+ */
+export function figurGeraet(ex, modus) {
+  if (modus === 'db' && ex.equip) return ex.equip;
+  return bwGeraet(ex[modus] && ex[modus].equip);
+}
+
+/* ------------------------------------------------------------------ *
+ * Hände und Gerät im Raum
+ *
+ * Bis zur Durchsicht der Figuren stand das alles mitten in draw(), zwischen
+ * den Zeichenbefehlen. Ob eine Hand in der Hantelscheibe steckt, ließ sich
+ * deshalb nur am Bild erraten – und beim Goblet Squat hat das Bild genau das
+ * verborgen: Mit der Frage
+ *
+ *     „Findest du seine handpositionen sehen gesund aus?"
+ *
+ * im Rücken war die zweite Fassung (v228) wieder falsch, und keine Prüfung hat
+ * es gemerkt, weil keine an die Hände herankam. Jetzt rechnen Zeichnung und
+ * tests/test-figur.mjs mit denselben Punkten: wo die Hantel liegt, wo jede
+ * Hand, jeder Finger und der Daumen.
+ * ------------------------------------------------------------------ */
+
+/** Achsen des Rumpfs: zur rechten Schulter, zum Hals, Blickrichtung. */
+export function achsen(j) {
+  const sideAxis = norm(sub(j.shoulderR, j.shoulderL));
+  const upAxis = norm(sub(j.neck, j.hipC));
+  // Blickrichtung des Rumpfes: gilt auch im Liegen, wo „vorn" nicht mehr zum
+  // Betrachter zeigt.
+  return { sideAxis, upAxis, frontAxis: norm(cross(sideAxis, upAxis)) };
+}
+
+/**
+ * Maße einer Hantel entlang ihrer Achse, ab der Mitte: Griff bis ±innen,
+ * dann je Seite eine große und eine kleinere Scheibe und der Stummel.
+ * `plate` ist der alte Kreisradius in Bildpunkten, plate / 40 derselbe Radius
+ * in Metern. `griffR` ist die halbe Strichstärke des Griffs.
+ */
+export function hantelTeile(plate, half) {
+  const r = plate / 40;
+  const dick = r * 0.42;
+  const innen = half - dick * 1.6;
+  return {
+    r, dick, innen, griffR: 1.1 / 40, stummel: innen + dick * 2.35,
+    scheiben: [[innen, innen + dick, r], [innen + dick, innen + dick * 1.75, r * 0.74]],
+  };
+}
+
+/**
+ * Achse einer längs gehaltenen Kurzhantel (neutraler Griff).
+ *
+ * Sie stand fest in Blickrichtung des Rumpfs, egal wohin der Unterarm zeigte.
+ * Das stimmt nur, solange der Arm am aufrechten Körper hängt. Beim Hammercurl
+ * zeigt der Unterarm mitten in der Wiederholung nach vorn, und die Hantel lag
+ * in seiner Verlängerung (18° statt 90°); beim Reverse Fly und beim
+ * einbeinigen Kreuzheben zeigt „vorn" zum Boden, und die Hantel hing senkrecht
+ * am Arm entlang (9° bzw. 15°). Eine Faust kann so nichts halten. Gefunden bei
+ * der Durchsicht der Figuren.
+ *
+ * Der Griff liegt quer in der Faust, also quer zum Unterarm, und beim
+ * neutralen Griff in der Ebene von vorn nach hinten. Zwei Richtungen erfüllen
+ * das, und jede versagt an einer Stelle: quer zu Unterarm und Schulterachse
+ * (kreuz(u, Schulterachse)) ist null, wenn der Arm seitlich ausgestreckt ist
+ * (Seitheben und Reverse Fly oben); die Vorzugsrichtung ohne ihren Anteil
+ * längs des Unterarms ist null, wenn der Unterarm in sie zeigt. Genommen wird
+ * deshalb die Hauptrichtung beider zusammen – gewichtet mit ihrer Länge, ohne
+ * Vorzeichen, denn eine Hantel hat kein Vorn und Hinten. Wo die eine
+ * verschwindet, trägt die andere, und weil beide quer zum Unterarm liegen,
+ * tut es das Ergebnis auch, in jeder Stellung.
+ *
+ * Vorzugsrichtung ist die Blickrichtung des Rumpfs: Beim Seitheben zeigen die
+ * Daumen oben nach vorn. Beim Reverse Fly (`hantelLaengs: 'kopf'`) ist es die
+ * Richtung zum Kopf – vorgebeugt zeigt „vorn" zum Boden, also den Arm entlang,
+ * und mit ihr als Vorzug drehte sich die Hantel mitten in der Bewegung um 60°
+ * in der Faust.
+ */
+function laengsAchse(u, ach, vorzug = ach.frontAxis) {
+  const c1 = cross(u, ach.sideAxis);
+  const c2 = sub(vorzug, mul(u, skalar(u, vorzug)));
+  // Hauptachse von c1·c1ᵀ + c2·c2ᵀ in der Ebene quer zu u. e1 ist nie null:
+  // |c1|² + |c2|² ≥ 1, und mit gleichem Vorzeichen addiert heben sie sich
+  // nicht auf.
+  const e1 = norm(add(c1, mul(c2, skalar(c1, c2) < 0 ? -1 : 1)));
+  const e2 = cross(u, e1);
+  let a = 0; let b = 0; let c = 0;
+  [c1, c2].forEach((v) => {
+    const x = skalar(v, e1); const y = skalar(v, e2);
+    a += x * x; b += x * y; c += y * y;
+  });
+  const w = 0.5 * Math.atan2(2 * b, a - c);
+  return norm(add(mul(e1, Math.cos(w)), mul(e2, Math.sin(w))));
+}
+/** Längsachse in der Hand `s` – mit der Vorzugsrichtung des Musters. */
+const laengsIn = (spec, j, s, ach) => laengsAchse(norm(sub(j[`hand${s}`], j[`elbow${s}`])), ach,
+  spec.hantelLaengs === 'kopf' ? ach.upAxis : ach.frontAxis);
+
+/*
+ * Der Goblet-Griff, als Maße statt als Bild.
+ *
+ *     „Findest du seine handpositionen sehen gesund aus?"
+ *
+ * Zweimal nicht. Bis v227 kreuzten sich die Unterarme vor der Brust, und die
+ * Hände standen hochkant vor dem Kinn. Die Fassung v228 legte die Hände unter
+ * die Hantel, aber nur dem Anschein nach: Nachgerechnet saßen sie 0,061 neben
+ * der Achse, bei einer Scheibe mit Radius 0,10 – also mitten in ihr. Die
+ * Finger zeigten nach innen oben, steckten ab der halben Handfläche in beiden
+ * oberen Scheiben und kreuzten sich 0,05 jenseits der Mitte; die Handflächen
+ * zeigten nach unten, das Handgelenk war gebeugt; die untere Scheibe lief
+ * durch die Unterarme, und weil die Hantel um 0,04 angehoben war, steckte die
+ * obere Scheibe unten in der Hocke 0,04 im Kinn. Von vorn sah man von den
+ * Händen nur grüne Schlitze, aus 45° gar nichts. Gefunden bei der Durchsicht
+ * der Figuren.
+ *
+ * Gehalten wird so: Die Hantel steht senkrecht vor dem Brustbein und liegt an.
+ * Beide Hände bilden unter der oberen Scheibe eine Schale – Handflächen nach
+ * oben und etwas zueinander, das Handgelenk gestreckt (nach hinten
+ * abgeknickt, nicht zur Handfläche hin), die Finger laufen außen um den Rand
+ * der Scheibe nach oben, die Daumen legen sich hinten um den Griff. Die
+ * Ellenbogen zeigen nach unten und bleiben eng, die Unterarme stehen steil
+ * und gehen außen an der unteren Scheibe vorbei.
+ *
+ * Die Zahlen sind gesucht, nicht geschätzt – gegen messbare Ziele, dieselben,
+ * die tests/test-figur.mjs (§17) über die ganze Bewegung prüft: keine Hand,
+ * kein Finger und kein Daumen in Scheibe oder Griff, aber die Hände nah an
+ * der Scheibe; Handflächen nach oben; Handgelenk gestreckt; keine
+ * Fingerspitze über der Mitte; Unterarme außerhalb der unteren Scheibe; die
+ * obere Scheibe mindestens einen Kopfradius vom Kopfmittelpunkt entfernt.
+ * Gesucht über die Armwinkel oben und unten (GOBLET_ARM) und die Maße hier
+ * zugleich, Zufallsstart und dann Nelder-Mead, für Kniebeuge und
+ * fersenerhöhte Kniebeuge. Ergebnis über die ganze Bewegung: Hände höchstens
+ * 0,01 unter bzw. neben der Scheibe und nirgends in ihr, Handflächen 45° zur
+ * Mitte geneigt, Handgelenk 55–68° gestreckt, Daumenspitzen 0,06 hinter der
+ * Achse, obere Scheibe mindestens 0,165 vom Kopfmittelpunkt (Kopfradius
+ * 0,115), die Hantel liegt an der Brust an.
+ *
+ * Die Hantel ist dafür schlanker als vorher – Scheibe 0,075 statt 0,10, Griff
+ * etwas länger. Mit Radius 0,10 fand die Suche keine Unterarme, die steil
+ * stehen und trotzdem an der unteren Scheibe vorbeigehen: Die Glieder der
+ * Figur sind gut doppelt so dick wie echte, die Hantel war es auch.
+ *
+ *   vor   die Achse liegt so weit vor der Mitte zwischen den Handgelenken
+ *   tief  die Unterseite der oberen Scheibe liegt so weit über ihr
+ *   kipp  die Handflächen sind um so viel Grad zur Mitte gekippt (0 = flach)
+ *   beug  die Finger krümmen sich um so viel Grad zur Handfläche hin
+ *   half, plate  Hantelmaße wie bei barAt()
+ */
+const GOBLET_SCHALE = { vor: 0.045, tief: 0.052, kipp: 45.2, beug: 59.3, half: 0.14, plate: 3.0 };
+
+/** Die Goblet-Hantel – aus den Händen, siehe GOBLET_SCHALE. */
+function gobletHantel(spec, j, ach) {
+  const G = spec.schale || GOBLET_SCHALE;
+  const { innen } = hantelTeile(G.plate, G.half);
+  const w = mitte(j.handL, j.handR);
+  return {
+    centre: add(add(w, mul(ach.frontAxis, G.vor)), mul(ach.upAxis, G.tief - innen)),
+    axis: ach.upAxis, half: G.half, plate: G.plate,
+  };
+}
+
+/*
+ * Die Kurzhantel quer über beiden Oberschenkeln, direkt hinter den Knien –
+ * beim Wadenheben im Sitzen (`hantelAuf: 'knie'`, siehe calfseated).
+ *
+ * Sie liegt auf den Beinen, nicht in der Hand: Achse parallel zur Linie von
+ * Knie zu Knie, Mitte zwischen den Oberschenkeln bei `bei` ihrer Länge, und so
+ * hoch, dass die große Scheibe jeder Seite oben auf ihrem Oberschenkel
+ * aufliegt – der Oberschenkel als Kegel mit den Breiten, mit denen er
+ * gezeichnet wird (limb(hip, knee, 4.6, 3.1)). Steigen die Knie, steigt sie
+ * mit. Die Höhe in vier Schritten nachgestellt: Neigt sich der Oberschenkel
+ * oben um 12°, liegt seine Oberkante über der Achse etwas höher als im
+ * Waagerechten.
+ *
+ * Der Griff ist länger als bei `kurz` in hanteln() (half 0,17 statt 0,13):
+ * Zwei Fäuste nebeneinander sind in dieser Figur 0,22 breit, der Griff bei
+ * 0,13 nur 0,17 – sie steckten in den Scheiben. Die Scheiben sind dafür
+ * kleiner (Radius 0,07 statt 0,085), sonst stünde der Griff so hoch über den
+ * Knien, dass die Hantel aus jedem schrägen Blick vor der Brust zu schweben
+ * schien.
+ */
+const KNIE_HANTEL = { bei: 0.82, half: 0.17, plate: 2.8 };
+const oberschenkel = (u) => (4.6 + (3.1 - 4.6) * u) / 40;
+function knieHantel(j) {
+  const K = KNIE_HANTEL;
+  const { r, dick, innen } = hantelTeile(K.plate, K.half);
+  const axis = norm(sub(j.kneeR, j.kneeL));
+  const bei = (s) => add(j[`hip${s}`], mul(sub(j[`knee${s}`], j[`hip${s}`]), K.bei));
+  const dir = norm(sub(j.kneeR, j.hipR));
+  const lang = abstand(j.kneeR, j.hipR);
+  let centre = add(mitte(bei('L'), bei('R')), [0, r + oberschenkel(K.bei), 0]);
+  for (let i = 0; i < 4; i++) {
+    // Der tiefste Punkt der großen Scheibe rechts, gegen den rechten Oberschenkel.
+    const v = sub(sub(add(centre, mul(axis, innen + dick / 2)), [0, r, 0]), j.hipR);
+    const s = skalar(v, dir);
+    centre = sub(centre, [0, Math.hypot(...sub(v, mul(dir, s))) - oberschenkel(s / lang), 0]);
+  }
+  return { centre, axis, half: K.half, plate: K.plate, teile: 8 };
+}
+
+/**
+ * Die Hanteln und Stangen, die die Figur hält: je eine mit Mitte, Achse,
+ * halber Länge, Scheibengröße und – wo sie quer über dem Körper liegt – der
+ * Zahl der Stücke für den Maleralgorithmus (siehe barAt()).
+ */
+export function hanteln(spec, j, equip) {
+  if (spec.hantelAuf === 'knie' && equip === 'onehand') return [knieHantel(j)];
+  const ach = achsen(j);
+  // Quer zum Körper liegt die Hantel bei aufgedrehtem Unterarm – so hält
+  // man sie beim Seitheben, beim Drücken, beim gewöhnlichen Curl. Zeigen
+  // die Handflächen dagegen zueinander (Hammercurl), liegt sie längs,
+  // siehe laengsAchse(). Das ist der einzige sichtbare Unterschied zwischen
+  // den beiden Curls, und ohne ihn wären es zwei gleiche Bilder.
+  // Quer gehalten ebenso quer zum Unterarm: die Schulterachse ohne ihren
+  // Anteil längs des Unterarms. Fest auf der Schulterachse stand die Hantel
+  // beim Bodendrücken unten 57° zum Unterarm – schräg in der Faust.
+  const querIn = (s) => {
+    const u = norm(sub(j[`hand${s}`], j[`elbow${s}`]));
+    const q = sub(ach.sideAxis, mul(u, skalar(u, ach.sideAxis)));
+    // Liegt der Unterarm selbst auf der Schulterachse (kommt in keinem
+    // Muster mit Kurzhanteln vor), bleibt es bei ihr.
+    return Math.hypot(...q) > 1e-6 ? norm(q) : ach.sideAxis;
+  };
+  const achse = (s) => (spec.hantelLaengs ? laengsIn(spec, j, s, ach) : querIn(s));
+  // 0.085 waren 19 cm – so kurz, dass sich die beiden Scheiben aus den
+  // meisten Blickwinkeln zu einem einzigen Fleck überdeckten.
+  const kurz = (s) => ({ centre: j[`hand${s}`], axis: achse(s), half: 0.13, plate: 3.4 });
+  const mitteH = mitte(j.handL, j.handR);
+  switch (equip) {
+    case 'dumbbells': return [kurz('L'), kurz('R')];
+    case 'onehand': return [kurz(spec.gewichtHand || 'R')];
+    case 'goblet': return [gobletHantel(spec, j, ach)];
+    // Eine Langhantel ist doppelt so breit wie die Schultern, und zwischen
+    // Hand und Scheibe liegt ein gutes Stück blanke Stange. Mit dem alten
+    // half = 0.34 war sie 75 cm lang: Die Scheiben klebten an den Händen und
+    // das Ganze sah aus wie eine Kurzhantelstange. 0.56 ist immer noch kürzer
+    // als in Wirklichkeit – weiter geht es nicht, ohne dass die Enden aus dem
+    // Kasten laufen, denn der Ausschnitt richtet sich nach der Figur.
+    case 'barbell': return [{ centre: mitteH, axis: ach.sideAxis, half: 0.56, plate: 4.4 }];
+    // Eine SZ-Stange ist etwa halb so lang wie eine Langhantel; ihre
+    // Ausbuchtungen fallen bei dieser Strichstärke ohnehin unter den Tisch.
+    // Was man sehen soll, ist der Unterschied zur grossen Stange – und der
+    // ist die Länge.
+    case 'szbar': return [{ centre: mitteH, axis: ach.sideAxis, half: 0.34, plate: 4.0 }];
+    // Auf der Hüftbeuge, nicht im Becken. Die Mitte lag bis zur Durchsicht
+    // der Figuren genau auf der Hüftmitte – dem Mittelpunkt des Beckenrings,
+    // 0,09 tief im Körper –, und zwischen den Scheiben war aus keinem Blick
+    // ein Stück Stange zu sehen: zwei Scheiben, die neben der Hüfte
+    // schweben. 0,11 nach vorn legt sie auf die Vorderseite des Beckens,
+    // wie die Scheibe beim Beckenheben (siehe 'plate'); dazu der Griff in
+    // Stücken, damit das Stück vor dem Körper auch vor ihm liegt.
+    case 'hipbar': return [{
+      centre: add(mitte(j.hipL, j.hipR), mul(ach.frontAxis, 0.11)), axis: ach.sideAxis, half: 0.56, plate: 4.4, teile: 12,
+    }];
+    default: return [];
+  }
+}
+
+/*
+ * Eine gefüllte Flasche je Hand – für das Seitheben mit Flaschen.
+ *
+ * Gehalten wie eine Kurzhantel im neutralen Griff, quer durch die Faust
+ * (laengsAchse), der Hals auf der Seite des Daumens, also vorn bzw. oben.
+ * Je Flasche Körper, Schulter, Hals und Deckel als Zylinder entlang der
+ * Achse, von der Faust aus gemessen: [von, bis, Radius, Teil].
+ */
+const FLASCHE = [[-0.17, 0.06, 0.05, 'koerper'], [0.06, 0.095, 0.036, 'koerper'],
+  [0.095, 0.125, 0.02, 'koerper'], [0.125, 0.155, 0.025, 'deckel']];
+export function flaschen(spec, j, equip) {
+  if (equip !== 'bottles') return [];
+  const ach = achsen(j);
+  const vorn = add(ach.frontAxis, mul(ach.upAxis, 0.3));
+  return ['L', 'R'].map((s) => {
+    const a = laengsIn(spec, j, s, ach);
+    return { centre: j[`hand${s}`], axis: skalar(a, vorn) < 0 ? mul(a, -1) : a, teile: FLASCHE };
+  });
+}
+
+/**
+ * Eine Hand im Raum: Rahmen (f Finger, t Daumen, n Handfläche), die Fläche
+ * als Vieleck und die Glieder als [von, bis, Breite, Breite] – Breiten wie
+ * bei limb(), also w / 40 Körperlängen als halbe Dicke.
+ *
+ * Zwei Haltungen:
+ *   aufliegend  flach, Finger gestreckt und leicht gespreizt – am Boden
+ *               (`finger: 'boden'`), unter der Goblet-Hantel
+ *               (`finger: 'schale'`, siehe GOBLET_SCHALE) und bei freien
+ *               Händen;
+ *   greifend    Faust um Stange, Hantel, Flasche oder Band: die Finger laufen
+ *               über den Griff und krümmen sich auf der Seite der Handfläche
+ *               zurück, der Daumen legt sich von der anderen Seite darum.
+ *
+ * Der Daumen zeigt weiter dorthin, wo das Muster es sagt (`daumen`, siehe
+ * PATTERNS) – im Obergriff zueinander, im Untergriff nach außen. Das ist
+ * der Unterschied zwischen Chin-ups und Pull-ups, und er bleibt sichtbar.
+ *
+ * Maße in Körperlängen, gut doppelt so groß wie echt: Die Glieder der
+ * Figur sind es auch, und eine Hand in echter Größe wäre am Handy ein
+ * Punkt.
+ */
+export function handForm(spec, j, seite, equip) {
+  const ach = achsen(j);
+  const { sideAxis, upAxis, frontAxis } = ach;
+  const weltOben = [0, 1, 0];
+  const hand = j[`hand${seite}`];
+  const ell = j[`elbow${seite}`];
+  const greifend = spec.daumen && !spec.finger;
+  // Einarmig: nur die Hand mit der Hantel greift, die andere liegt auf. Liegt
+  // die eine Hantel quer auf den Knien (calfseated), halten sie beide.
+  const faust = !!greifend && (equip !== 'onehand' || !!spec.hantelAuf || seite === (spec.gewichtHand || 'R'));
+  const innen = mul(sideAxis, seite === 'L' ? 1 : -1);
+  const richtung = faust || spec.finger ? spec.daumen : 'vorn';
+  // Zu jeder Daumenrichtung eine Ersatzrichtung quer dazu, für den Fall,
+  // dass der Wunsch längs des Unterarms liegt (siehe unten). Ein Wunsch
+  // und sein Gegenteil teilen sie sich – so bleibt „aussen" genau die
+  // umgedrehte Hand von „innen".
+  const hinten = mul(frontAxis, -1);
+  const [wunsch, ersatz] = ({
+    innen: [innen, hinten], aussen: [mul(innen, -1), hinten],
+    vorn: [frontAxis, innen], hinten: [hinten, innen],
+    oben: [weltOben, innen], unten: [mul(weltOben, -1), innen],
+  })[richtung] || [innen, hinten];
+  const unterarm = norm(sub(hand, ell));
+  let f = unterarm;
+  let t;
+  let n;
+  let schale = null;
+  if (spec.finger === 'schale') {
+    /*
+     * Schale unter der Goblet-Hantel. Erst die Handfläche: nach oben, um
+     * `kipp` zur Mitte geneigt. Die Finger zeigen dann dorthin, wohin der
+     * Unterarm in dieser Ebene zeigt – so knickt das Handgelenk nur nach
+     * hinten (Streckung), nicht zur Seite. Bis v228 standen die Finger fest
+     * „nach innen oben", unabhängig vom Arm, und mit dem Daumen „hinten"
+     * zeigte die Handfläche dabei nach unten: ein gebeugtes Handgelenk unter
+     * Last, das Gegenteil von gesund.
+     */
+    const G = spec.schale || GOBLET_SCHALE;
+    schale = { G, hantel: gobletHantel(spec, j, ach) };
+    const k = rad(G.kipp);
+    n = norm(add(mul(upAxis, Math.cos(k)), mul(innen, Math.sin(k))));
+    f = norm(sub(unterarm, mul(n, skalar(n, unterarm))));
+    t = seite === 'R' ? cross(n, f) : cross(f, n);
+  } else {
+    if (spec.finger === 'boden') f = norm([upAxis[0], 0, upAxis[2]]);
+    else if (spec.finger === 'oben') f = upAxis;
+    // Der Daumen steht quer zu den Fingern: die gewünschte Richtung ohne
+    // ihren Anteil längs des Arms. Liegt die gewünschte Richtung fast längs,
+    // bleibt die Hand trotzdem eine Hand: dann eben quer zum Arm.
+    //
+    // Bis v218 hieß „quer" ab einem Rest unter 0,2 hart sideAxis – für
+    // beide Hände dieselbe Achse, links also nach innen, rechts nach außen.
+    // Die rechte Hand klappte dadurch mitten in der Wiederholung um 180° um
+    // (Kniebeuge ohne Gewicht, Hammercurl, Pull-Apart, Reverse Fly), mit ihr
+    // die Handfläche und bei der Faust die sichtbaren Finger, also genau der
+    // Unterschied zwischen Ober- und Untergriff. Bei reduzierter Bewegung
+    // stand die Kniebeuge sogar dauerhaft mit zwei verschiedenen Händen da.
+    //
+    // Jetzt kommt der Ersatz weich dazu, umso mehr, je kürzer der Rest –
+    // keine Schwelle, an der etwas springt. Er ist gespiegelt wie die Hand
+    // (`innen` ist links und rechts eine andere Achse) und kehrt sich mit
+    // dem Arm um: skalar(f, wunsch) ist dort +1 oder −1, je nachdem, ob der
+    // Arm in Wunschrichtung zeigt oder ihr entgegen. So zeigt der Ersatz
+    // dorthin, wohin der Rest ohnehin zeigt, wenn der Arm wie fast immer
+    // etwas abgespreizt ist und etwas vor dem Körper liegt. Umklappen könnte
+    // die Hand nur noch, wo der Unterarm nach vorn oder hinten zeigt und
+    // dabei zur Körpermitte hin, oder quer zum Körper, nach außen oder nach
+    // innen, und dabei etwas hinter der Schulterlinie. Keins davon kommt in
+    // einem Muster vor: Über alle Muster bleibt der Vektor vor dem Normieren
+    // nie kürzer als 0,38 (gemessen 0,386), weit weg von der Stelle, an der
+    // er null wird.
+    const quer = (v) => add(v, mul(f, -skalar(v, f)));
+    const rest = quer(wunsch);
+    const kurz = Math.max(0, 1 - Math.hypot(...rest) / 0.5);
+    t = norm(add(rest, mul(quer(ersatz), kurz * kurz * skalar(f, wunsch))));
+    // Wohin die Handfläche zeigt. Welche Seite das ist, hängt an der Hand –
+    // eine linke ist das Spiegelbild einer rechten. Nachgeprüft am
+    // Liegestütz: Finger zum Kopf, Daumen nach innen, Handfläche zum Boden.
+    n = seite === 'R' ? cross(f, t) : cross(t, f);
+  }
+  // RIG.handS: die Hand passend zu den schmaleren Armen (siehe RIG.armOben).
+  // Nicht die Schale: Ihre Finger sind gegen die Goblet-Hantel gesucht, eine
+  // kleinere Hand griffe 0,003 in die Scheibe.
+  const hs = schale ? 1 : RIG.handS;
+  const at = (df, dt, dn) => add(add(add(hand, mul(f, df * hs)), mul(t, dt * hs)), mul(n, dn * hs));
+  const fingerAuf = [0.033, 0.011, -0.011, -0.033];   // Zeigefinger zuerst, am Daumen
+
+  const stuecke = [];
+  const glied = (a3, b3, w1, w2) => stuecke.push([a3, b3, w1 * hs, w2 * hs]);
+  const vorn = [];
+  // Die Handfläche zweimal: als Fläche, damit man von oben ihre Breite
+  // sieht, und als Glied, damit sie von der Seite eine Dicke hat und nicht
+  // zum Strich wird – bei den Liegestützen schaut man fast waagerecht auf
+  // den Boden.
+  let flaeche;
+  if (faust) {
+    // Die Handfläche liegt hinter dem Griff, der Griff quer über ihr.
+    const h = -0.04;
+    flaeche = [at(-0.06, 0.04, h), at(-0.015, 0.05, h), at(0.03, 0.048, h),
+      at(0.04, 0, h), at(0.03, -0.048, h), at(-0.015, -0.05, h), at(-0.06, -0.04, h)];
+    glied(at(-0.045, 0, h), at(0.025, 0, h), 1.25, 1.1);
+    fingerAuf.forEach((o, i) => {
+      const knoechel = at(0.032, o, h);
+      const ueber = at(0.052 - i * 0.003, o, 0.002);
+      const spitze = at(0.012, o * 0.92, 0.042);
+      glied(knoechel, ueber, 0.8, 0.74);
+      glied(ueber, spitze, 0.74, 0.64);
+      vorn.push([ueber, spitze, 0.74 * hs, 0.64 * hs]);
+    });
+    glied(at(-0.04, 0.046, h + 0.012), at(-0.004, 0.052, 0.03), 0.92, 0.76);
+    glied(at(-0.004, 0.052, 0.03), at(0.016, 0.03, 0.046), 0.76, 0.66);
+    vorn.push([at(-0.004, 0.052, 0.03), at(0.016, 0.03, 0.046), 0.76 * hs, 0.66 * hs]);
+  } else {
+    flaeche = [at(0, 0.04, 0), at(0.045, 0.051, 0), at(0.088, 0.048, 0),
+      at(0.097, 0, 0), at(0.088, -0.048, 0), at(0.045, -0.051, 0), at(0, -0.04, 0)];
+    glied(at(0.01, 0, 0), at(0.085, 0, 0), 1.2, 1.0);
+    // In der Schale krümmen sich die Finger zur Handfläche hin, um den Rand
+    // der Scheibe; sonst liegen sie gestreckt in ihrer Ebene.
+    const beug = schale ? Math.tan(rad(schale.G.beug)) : 0;
+    [0.068, 0.078, 0.072, 0.058].forEach((lang, i) => {
+      const o = fingerAuf[i];
+      const von = at(0.08, o, 0);
+      const dir = norm(add(add(f, mul(t, o * 1.6)), mul(n, beug)));
+      glied(von, add(von, mul(dir, lang * hs)), 0.78, 0.6);
+    });
+    const dvon = at(0.024, 0.036, 0);
+    if (schale) {
+      // Der Daumen legt sich hinten um den Griff: von seinem Ansatz zu einem
+      // Punkt knapp hinter der Achse, auf der eigenen Seite der Mitte – so
+      // treffen sich die beiden Daumen hinter dem Griff, ohne sich zu kreuzen.
+      const { hantel } = schale;
+      const { griffR } = hantelTeile(hantel.plate, hantel.half);
+      const aufAchse = add(hantel.centre, mul(hantel.axis, skalar(sub(dvon, hantel.centre), hantel.axis)));
+      const ziel = add(add(aufAchse, mul(hinten, griffR + 0.9 / 40 + 0.004)), mul(innen, -(0.66 / 40 + 0.004)));
+      const weg = sub(ziel, dvon);
+      glied(dvon, add(dvon, mul(norm(weg), Math.min(0.068 * hs, Math.hypot(...weg)))), 0.9, 0.66);
+    } else {
+      glied(dvon, add(dvon, mul(norm(add(mul(t, 0.78), mul(f, 0.62))), 0.068 * hs)), 0.9, 0.66);
+    }
+  }
+  return { faust, f, t, n, unterarm, flaeche, stuecke, vorn };
+}
+
 const NS = 'http://www.w3.org/2000/svg';
 const CYCLE_MS = 4200;   // eine Wiederholung; das Tempo darin ist unsymmetrisch
 const el = (name, attrs = {}) => {
@@ -1207,6 +2121,16 @@ const el = (name, attrs = {}) => {
 };
 
 const active = new Set();
+
+/**
+ * Halbe Länge der festen Stange, an der beim Face Pull das Band hängt.
+ *
+ * Bis zur Durchsicht der Figuren 0,9 – über zwei Meter bei einer Figur von
+ * 1,80 m, also breiter als jede Tür, in die man eine Klimmzugstange hängt.
+ * Seit der Ausschnitt die Stange mitzählt (fit), hätte diese Länge die ganze
+ * Figur klein gedrückt. 0,6 reicht gut über beide Bänder hinaus.
+ */
+const UEBERKOPF_HALB = 0.6;
 
 /**
  * Nur zeichnen, was zu sehen ist.
@@ -1297,7 +2221,7 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   // steht er im Fließtext daneben.
   const hint = document.createElement('span');
   hint.className = 'fig-hint';
-  hint.textContent = '↕↔ ziehen zum Drehen';
+  hint.textContent = '↔ ziehen zum Drehen';
   hint.setAttribute('aria-hidden', 'true');   // Drehen geht nur mit dem Finger
   if (!host.classList.contains('no-hint')) host.appendChild(hint);
 
@@ -1312,29 +2236,101 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   let lastY = 0;
   let lastT = 0;         // zuletzt gezeichneter Punkt der Bewegung
 
+  /*
+   * Drehen, ohne dass Scrollen die Figur umwirft.
+   *
+   *     „Die Arme sehen echt immer komisch aus"
+   *
+   * Das Bildschirmfoto dazu zeigte den Face Pull von hinten oben (yaw ≈ 130,
+   * pitch ≈ 75): zwei Arme, darunter der Kopf als Kreis, kein Rumpf. Dorthin
+   * kam die Figur beim Scrollen der Liste – `touch-action: none` und ein
+   * Kippen ohne Grenze machten aus jedem Wisch über die Figur eine Drehung,
+   * und zurück ging es nicht. Jetzt gehört senkrecht der Liste (pan-y),
+   * gedreht wird erst, wenn die Geste klar waagerecht ist, und gekippt nur
+   * von −35 (etwas von unten) bis 45 Grad (schräg von oben); liegende
+   * Figuren dürfen bis −65. Ein Doppeltipp holt den Vorgabeblick zurück.
+   * Von selbst federt nichts zurück: Wer eine Seite sucht, soll sie behalten.
+   * Der Hinweis „↔ ziehen zum Drehen" geht erst beim echten Drehen weg, nicht
+   * schon, wenn ein Finger zum Scrollen auf der Figur landet.
+   */
+  const home = [yaw, pitch];
+  const KIPP = spec.lie ? [-65, 45] : [-35, 45];
+  const kippMin = Math.min(KIPP[0], home[1]);
+  const kippMax = Math.max(KIPP[1], home[1]);
+  let zeiger = null;     // pointerId des drehenden Fingers
+  const finger = new Set();   // Finger auf der Figur; zwei heißt zoomen, nicht drehen
+  let startX = 0;
+  let startY = 0;
+  let entschieden = false;
+  let tippZeit = 0;
+  let federLauf = null;   // laufende Rückfahrt nach dem Doppeltipp
+  const federStop = () => {
+    if (federLauf) cancelAnimationFrame(federLauf);
+    federLauf = null;
+  };
+  const zurueck = (sofort) => {
+    federStop();
+    const y0 = yaw; const p0 = pitch;
+    const dy = ((((home[0] - y0) % 360) + 540) % 360) - 180;   // kürzester Weg
+    if (sofort || reduceMotion.matches || typeof requestAnimationFrame !== 'function') {
+      yaw = home[0]; pitch = home[1]; draw(lastT); return;
+    }
+    const t0 = performance.now();
+    const schritt = (jetzt) => {
+      const k = Math.min(1, (jetzt - t0) / 400);
+      const e = k * k * (3 - 2 * k);
+      yaw = y0 + dy * e; pitch = p0 + (home[1] - p0) * e;
+      draw(lastT);
+      federLauf = k < 1 ? requestAnimationFrame(schritt) : null;
+    };
+    federLauf = requestAnimationFrame(schritt);
+  };
   const onDown = (e) => {
-    dragging = true;
-    const t = e.touches ? e.touches[0] : e;
-    lastX = t.clientX;
-    lastY = t.clientY;
-    hint.classList.add('gone');
-    e.preventDefault();
+    finger.add(e.pointerId);
+    federStop();
+    if (zeiger !== null) { dragging = false; entschieden = true; return; }   // zweiter Finger
+    zeiger = e.pointerId;
+    startX = lastX = e.clientX;
+    startY = lastY = e.clientY;
+    entschieden = e.pointerType === 'mouse';
+    dragging = entschieden;
+    if (dragging) e.preventDefault();
   };
   const onMove = (e) => {
+    if (e.pointerId !== zeiger) return;
+    if (!entschieden) {
+      const dx = e.clientX - startX; const dy = e.clientY - startY;
+      if (Math.hypot(dx, dy) < 8) return;
+      entschieden = true;
+      dragging = finger.size === 1 && Math.abs(dx) > Math.abs(dy) * 1.2;
+      if (!dragging) return;
+      lastX = e.clientX; lastY = e.clientY;
+    }
     if (!dragging) return;
-    const t = e.touches ? e.touches[0] : e;
-    yaw = (yaw + (t.clientX - lastX) * 0.6) % 360;
-    pitch = (pitch + (t.clientY - lastY) * 0.6) % 360;   // bewusst ohne Grenze
-    lastX = t.clientX;
-    lastY = t.clientY;
+    hint.classList.add('gone');
+    yaw = (yaw + (e.clientX - lastX) * 0.6) % 360;
+    pitch = Math.max(kippMin, Math.min(kippMax, pitch + (e.clientY - lastY) * 0.3));
+    lastX = e.clientX;
+    lastY = e.clientY;
     draw(lastT);   // sofort neu zeichnen, statt auf die Animation zu warten
     e.preventDefault();
   };
-  const onUp = () => { dragging = false; };
+  const onUp = (e) => {
+    if (e.pointerId === zeiger) {
+      const tipp = !dragging && e.type === 'pointerup' && e.pointerType !== 'mouse'
+        && Math.hypot(e.clientX - startX, e.clientY - startY) < 8;
+      if (tipp && e.timeStamp - tippZeit < 350) { tippZeit = 0; zurueck(); } else if (tipp) tippZeit = e.timeStamp;
+      dragging = false;
+      zeiger = null;
+    }
+    finger.delete(e.pointerId);
+  };
 
   host.addEventListener('pointerdown', onDown);
+  host.addEventListener('dblclick', () => zurueck());
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
 
   /** Skelett einer Stellung, schon auf den Boden gesetzt – siehe skelett(). */
   const skeleton = (t) => skelett(spec, t);
@@ -1344,14 +2340,44 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   // stehen; ein Maß je Einzelbild würde die Figur beim Abspielen atmen lassen.
   // Radius statt Rechteck, damit auch das Drehen nichts daran ändert.
   const fit = (() => {
-    const all = [skeleton(0), skeleton(1)].flatMap((j) => Object.values(j));
+    // Was fest im Raum steht und zur Übung gehört, zählt mit: Beim Face Pull
+    // lag die Stange, an der das Band hängt, außerhalb des Kreises um die
+    // Gelenke – im Bild blieb von ihr ein Stummel am oberen Rand, und die
+    // Bänder liefen aus dem Kasten. Ein Band, das im Nichts endet, ist genau
+    // das, was die Stange verhindern soll (siehe unten bei ueberkopf).
+    const anker = spec.ueberkopf !== undefined
+      ? [-1, 1].map((s) => [s * UEBERKOPF_HALB, spec.ueberkopf, spec.ueberkopfZ]) : [];
+    const all = [...[skeleton(0), skeleton(1)].flatMap((j) => Object.values(j)), ...anker];
     const mid = [0, 1, 2].map((i) => (Math.min(...all.map((q) => q[i])) + Math.max(...all.map((q) => q[i]))) / 2);
     // Radius statt Rechteck: so ändert das Drehen die Größe nicht, und die
     // Figur kann in keiner Lage über den Rand ragen. Der Kopf zählt mit seinem
     // Radius, nicht nur mit dem Mittelpunkt – beim Liegestütz mit erhöhten
     // Füßen ist er der äußerste Punkt und ragte halb aus dem Bild.
     const weit = (q) => Math.hypot(q[0] - mid[0], q[1] - mid[1], q[2] - mid[2]);
-    const r = Math.max(...all.map(weit),
+    // Und was über die Gelenke hinausragt, mit seiner Dicke: Finger (seit
+    // v213 bis 0,16 über den Handpunkt hinaus), Hantelscheiben, Flaschen.
+    // Gezählt wurden nur die Gelenke, und im hochkantigen Kasten – auf dem
+    // Handy im Hochformat der Normalfall – schnitt der Rand beim Reverse Snow
+    // Angel die Fingerspitzen ab und beim sitzenden Seitheben ein Stück der
+    // Hantelscheibe. Gefunden bei der Durchsicht der Figuren. Nicht nur aus
+    // den Endstellungen: Eine Hand kann unterwegs weiter draußen liegen.
+    const aussen = [0, 0.25, 0.5, 0.75, 1].flatMap((t) => {
+      const j = skeleton(t);
+      const hand = ['L', 'R'].flatMap((s) => {
+        const h = handForm(spec, j, s, equip);
+        return [...h.flaeche.map((p) => weit(p) + 0.03),
+          ...h.stuecke.flatMap(([a, b, w1, w2]) => [weit(a) + w1 / 40, weit(b) + w2 / 40])];
+      });
+      const stangen = hanteln(spec, j, equip).flatMap((h) => {
+        const T = hantelTeile(h.plate, h.half);
+        const ende = (s, r2) => [weit(add(h.centre, mul(h.axis, s))) + r2, weit(add(h.centre, mul(h.axis, -s))) + r2];
+        return [...T.scheiben.flatMap(([a, b, r2]) => [...ende(a, r2), ...ende(b, r2)]), ...ende(T.stummel, T.griffR)];
+      });
+      const flaschenRand = flaschen(spec, j, equip).flatMap((fl) => fl.teile.flatMap(([von, bis, r2]) => [
+        weit(add(fl.centre, mul(fl.axis, von))) + r2, weit(add(fl.centre, mul(fl.axis, bis))) + r2]));
+      return [...hand, ...stangen, ...flaschenRand];
+    });
+    const r = Math.max(...all.map(weit), ...aussen,
       ...[skeleton(0), skeleton(1)].map((j) => weit(j.head) + RIG.headR));
     // Bodenhöhe einmal aus der Startstellung: bei einem Griff an die Stange
     // liegt der Körper nicht mehr fest auf dem Boden auf, der Boden darf aber
@@ -1363,16 +2389,22 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     // die mitfährt, ist keine.
     const oben = skeleton(1);
     const schulter = [0, 1, 2].map((i) => (oben.shoulderL[i] + oben.shoulderR[i]) / 2);
-    return { mid, groundY, bank: schulter,
+    // Wie weit die Figur in der Tiefe reicht – für die Bodenscheibe, siehe dort.
+    const tief = (Math.max(...all.map((q) => q[2])) - Math.min(...all.map((q) => q[2]))) / 2;
+    return { mid, groundY, bank: schulter, bodenZ: Math.max(0.34, tief + 0.1),
              scale: (Math.min(VBW, VBH) / 2) * 0.94 / Math.max(r, 0.1) };
   })();
   const gearScale = fit.scale / 40;
+  // Randstärke mit der Figur. Fest 0,9 war in kleinen Figuren (Face Pull,
+  // gearScale 0,6) ein Drittel der Figurfläche dunkle Linie – Gliederpuppe
+  // statt Körper. Bis gearScale 0,85 bleibt es bei 0,9.
+  const rand = 0.9 * Math.min(1, gearScale / 0.85);
+  svg.style.setProperty('--rand', rand.toFixed(2));
 
   const draw = (t) => {
     lastT = t;
     const j = skeleton(t);
 
-    scene.textContent = '';
     const P = (p) => project(
       [p[0] - fit.mid[0], p[1] - fit.mid[1], p[2] - fit.mid[2]], yaw, pitch, fit.scale, VBW / 2, VBH / 2,
     );
@@ -1381,23 +2413,18 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     Object.entries(j).forEach(([k, v]) => { pts[k] = P(v); });
 
     const parts = [];
+    // Die Teile eines Bildes erst als Beschreibung; eingesetzt wird am Ende,
+    // möglichst in die Teile des Bildes davor (siehe dort). Gleicher Name wie
+    // das el() draußen, damit jede Form unten so bleibt, wie sie war.
+    const el = (name, attrs = {}) => ({
+      name, attrs, kinder: [],
+      appendChild(k) { this.kinder.push(k); return k; },
+    });
 
     // Achsen des Skeletts selbst – schon gedreht und gekippt, anders als eine
     // nachgerechnete Näherung. Rumpf und Gerät richten sich danach aus.
-    const norm = (v) => {
-      const n = Math.hypot(v[0], v[1], v[2]) || 1;
-      return [v[0] / n, v[1] / n, v[2] / n];
-    };
     const midOf = (a2, b2) => [(a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2, (a2[2] + b2[2]) / 2];
-    const sideAxis = norm([j.shoulderR[0] - j.shoulderL[0], j.shoulderR[1] - j.shoulderL[1], j.shoulderR[2] - j.shoulderL[2]]);
-    const upAxis = norm([j.neck[0] - j.hipC[0], j.neck[1] - j.hipC[1], j.neck[2] - j.hipC[2]]);
-    // Blickrichtung des Rumpfes: gilt auch im Liegen, wo "vorn" nicht mehr zum
-    // Betrachter zeigt.
-    const frontAxis = norm([
-      sideAxis[1] * upAxis[2] - sideAxis[2] * upAxis[1],
-      sideAxis[2] * upAxis[0] - sideAxis[0] * upAxis[2],
-      sideAxis[0] * upAxis[1] - sideAxis[1] * upAxis[0],
-    ]);
+    const { sideAxis, upAxis, frontAxis } = achsen(j);
 
     // Tiefe als Helligkeit: was hinten liegt, wird etwas dunkler. Der
     // Maleralgorithmus allein sagt nur, was verdeckt – nicht, was weiter weg
@@ -1430,19 +2457,95 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
      * Bewusst ein Pfad und nicht Viereck plus zwei Kreise: nur so lässt sich
      * eine Trennlinie außen herum ziehen, ohne dass innen Nähte auftauchen.
      */
-    const limb = (from, to, w1, w2, cls = 'fig-limb') => {
+    const kapsel = (from, to, w1, w2) => {
       const dx = to.x - from.x; const dy = to.y - from.y;
       const len = Math.hypot(dx, dy) || 1;
       const nx = -dy / len; const ny = dx / len;
       const a = Math.max(0.4, w1 * gearScale * from.k);
       const b = Math.max(0.4, w2 * gearScale * to.k);
       const f = (v) => v.toFixed(1);
-      const d = `M${f(from.x + nx * a)} ${f(from.y + ny * a)}`
+      return `M${f(from.x + nx * a)} ${f(from.y + ny * a)}`
         + ` A${f(a)} ${f(a)} 0 0 1 ${f(from.x - nx * a)} ${f(from.y - ny * a)}`
         + ` L${f(to.x - nx * b)} ${f(to.y - ny * b)}`
         + ` A${f(b)} ${f(b)} 0 0 1 ${f(to.x + nx * b)} ${f(to.y + ny * b)} Z`;
-      const z = (from.z + to.z) / 2;
-      deckend(z, 'path', { d, class: cls });
+    };
+    const limb = (from, to, w1, w2, cls = 'fig-limb') => {
+      deckend((from.z + to.z) / 2, 'path', { d: kapsel(from, to, w1, w2), class: cls });
+    };
+    /**
+     * Umriss eines Armglieds mit Breitenverlauf (RIG.armOben, RIG.armUnten),
+     * im Drehsinn von kapsel(). Liefert den geschlossenen Pfad `d`, dazu
+     * `dSchulter` mit nach innen gewölbtem Anfang (für den Rand: Der läuft
+     * dann die Seiten entlang bis an die Schulter, aber ohne Bogen über den
+     * Rumpf, denn dort geht der Arm in den Rumpf über), und die beiden Seiten
+     * für eine offene Kante.
+     */
+    const f2 = (v) => v.toFixed(2);
+    const pt2 = (q) => `${f2(q[0])} ${f2(q[1])}`;
+    const glied = (a, b, profil) => {
+      const dx = b.x - a.x; const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1e-6;
+      const nx = -dy / len; const ny = dx / len;
+      const w0 = profil[0][1]; const wN = profil[profil.length - 1][1];
+      const breite = (t) => {
+        let i = 1;
+        while (i < profil.length - 1 && profil[i][0] < t) i += 1;
+        const [t0, v0] = profil[i - 1]; const [t1, v1] = profil[i];
+        return v0 + ((v1 - v0) * (t - t0)) / Math.max(1e-6, t1 - t0);
+      };
+      // Stark verkürzt wird aus dem Muskelbauch eine Kugel, keine Raute: Der
+      // Bauch wächst nur mit der sichtbaren Länge.
+      const bauch = Math.min(1, len / (2.5 * gearScale * Math.max(w0 * a.k, wN * b.k)));
+      const N = 12;
+      const proben = [];
+      for (let i = 0; i <= N; i += 1) {
+        const t = i / N;
+        const gerade = w0 + (wN - w0) * t;
+        const h = Math.max(0.4, (gerade + (breite(t) - gerade) * bauch) * gearScale * (a.k + (b.k - a.k) * t));
+        proben.push({ x: a.x + dx * t, y: a.y + dy * t, h });
+      }
+      const plus = proben.map((q) => [q.x + nx * q.h, q.y + ny * q.h]);
+      const minus = proben.map((q) => [q.x - nx * q.h, q.y - ny * q.h]);
+      const hA = proben[0].h; const hB = proben[N].h;
+      const rest = minus.slice(1).map((q) => ` L${pt2(q)}`).join('')
+        + ` A${f2(hB)} ${f2(hB)} 0 0 1 ${pt2(plus[N])}`
+        + plus.slice(0, N).reverse().map((q) => ` L${pt2(q)}`).join('') + ' Z';
+      const d = `M${pt2(plus[0])} A${f2(hA)} ${f2(hA)} 0 0 1 ${pt2(minus[0])}${rest}`;
+      const dSchulter = `M${pt2(plus[0])} A${f2(hA)} ${f2(hA)} 0 0 0 ${pt2(minus[0])}${rest}`;
+      return { d, dSchulter, plus, minus, hA, hB, a, b };
+    };
+    /**
+     * Rand eines Glieds als offene Kante: die beiden Seiten, je Ende erst ab
+     * dem Abstand rA bzw. rB vom Gelenkpunkt; `null` heißt dort die Kappe.
+     * Für das vordere Glied, das über dem hinteren liegt – so zeigt ein
+     * gebeugter Arm die Kante des Unterarms über dem Oberarm, wie man es
+     * zeichnen würde, aber keinen Ring am Gelenk.
+     */
+    const ab = (seite, c, r) => {   // Seite ab Abstand r von c, von c weg
+      const weit = (p) => Math.hypot(p[0] - c.x, p[1] - c.y);
+      const i = seite.findIndex((p) => weit(p) >= r);
+      if (i < 0) return [];
+      if (i === 0) return seite.slice();
+      const [p0, p1] = [seite[i - 1], seite[i]];
+      const u = (r - weit(p0)) / Math.max(1e-6, weit(p1) - weit(p0));
+      return [[p0[0] + (p1[0] - p0[0]) * u, p0[1] + (p1[1] - p0[1]) * u], ...seite.slice(i)];
+    };
+    const kante = (g, rA, rB) => {
+      let pl = g.plus; let mi = g.minus;
+      if (rA !== null) { pl = ab(pl, g.a, rA); mi = ab(mi, g.a, rA); }
+      if (rB !== null) {
+        pl = ab(pl.slice().reverse(), g.b, rB).reverse();
+        mi = ab(mi.slice().reverse(), g.b, rB).reverse();
+      }
+      if (pl.length < 2 || mi.length < 2) return '';
+      const linie = (q) => `M${pt2(q[0])}${q.slice(1).map((p) => ` L${pt2(p)}`).join('')}`;
+      if (rA !== null && rB !== null) return `${linie(mi)} ${linie(pl)}`;
+      if (rA !== null) {   // Kappe am Ende b: die eine Seite hin, die andere zurück
+        return `${linie(mi)} A${f2(g.hB)} ${f2(g.hB)} 0 0 1 ${pt2(pl[pl.length - 1])}`
+          + pl.slice(0, -1).reverse().map((p) => ` L${pt2(p)}`).join('');
+      }
+      return `${linie(pl.slice().reverse())} A${f2(g.hA)} ${f2(g.hA)} 0 0 1 ${pt2(mi[0])}`
+        + mi.slice(1).map((p) => ` L${pt2(p)}`).join('');
     };
 
     // Rumpf als Körper mit Tiefe. Eine einzelne Fläche zwischen Schultern und
@@ -1460,12 +2563,29 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     const zwischen = (f) => add(shoulderMid, mul(add(hipMid, mul(shoulderMid, -1)), f));
     const rings = [ring(shoulderMid, 0.190, 0.096), ring(zwischen(0.35), 0.190, 0.102),
       ring(zwischen(0.72), 0.148, 0.084), ring(hipMid, 0.156, 0.090)];
+    /*
+     * Die Rumpfflächen tragen ihre Abdunklung selbst (--tief, siehe
+     * .fig-torso), statt eine Auflage darüber zu bekommen, und haben einen
+     * Strich in ihrer eigenen Farbe.
+     *
+     * Ohne Strich stoßen die Flächen Kante an Kante, und die Kantenglättung
+     * lässt an jeder Fuge ein Viertel von dem durch, was darunter liegt – die
+     * Wirbelsäule mit ihrem dunklen Rand, eine verdeckte Armkante. Bis v235
+     * deckte der Steg das auf der Brust zu; ohne ihn standen dort feine
+     * Striche und Kreuze. Ein Strich in Körperfarbe schließt die Fugen, aber
+     * mit der Auflage obendrauf überlappten sich an jeder Fuge zwei
+     * Auflagen: ein dunkler Strich um die Taille (Face Pull). Mit der
+     * Abdunklung in der Füllung gibt es nichts mehr, das sich doppelt legt.
+     */
+    const rumpfZ = [];   // Tiefen der Rumpfflächen, für die Innenkante der Arme
     const face = (quad) => {
       const z = quad.reduce((acc, q) => acc + q.z, 0) / quad.length;
-      deckend(z, 'polygon', {
+      rumpfZ.push(z);
+      parts.push({ z, node: el('polygon', {
         points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
         class: 'fig-torso',
-      });
+        style: `--tief:${((1 - Number(depth(z))) * 0.9).toFixed(3)}`,
+      }) });
     };
     face(rings[0]);                                        // Schulterdeckel
     face(rings[3]);                                        // Beckenboden
@@ -1473,19 +2593,212 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       const d2 = (c + 1) % 4;
       face([rings[r][c], rings[r][d2], rings[r + 1][d2], rings[r + 1][c]]);
     }));
-    limb(pts.hipC, pts.neck, 4.2, 3.4, 'fig-spine');
-    limb(pts.neck, pts.head, 2.6, 2.2, 'fig-spine');   // Hals schließt die Lücke
+    /*
+     * Die Wirbelsäule: eine Kapsel mitten im Rumpf, einsortiert nach ihrer
+     * Mitte. Von vorn bei aufrechtem Rumpf liegt sie hinter der Vorderfläche,
+     * nur ihr unteres Ende zeigt sich als Bogen über dem Schritt. Neigt sich
+     * der Rumpf aber zur Kamera (Rudern, Hüftbeuge von vorn), liegt ihre
+     * Mitte vor der unteren Bauchfläche, und der Bogen stand auf Brusthöhe –
+     * eine Dekolleté-Linie. Bis v235 deckte das der Steg zu. Jetzt sortiert
+     * sie dann hinter den Rumpf, wo sie in Wahrheit liegt: Die Wirbelsäule
+     * ist der Rücken, und den sieht man von vorn nicht.
+     */
+    const spLen = Math.hypot(pts.neck.x - pts.hipC.x, pts.neck.y - pts.hipC.y, (pts.neck.z - pts.hipC.z) * fit.scale);
+    const zuMir = ((pts.neck.z - pts.hipC.z) * fit.scale) / Math.max(1e-6, spLen);
+    deckend(zuMir > 0.35 ? Math.min(pts.hipC.z, pts.neck.z) - 0.05 : (pts.hipC.z + pts.neck.z) / 2, 'path',
+      { d: kapsel(pts.hipC, pts.neck, 4.2, 3.4), class: 'fig-spine' });
+    /*
+     * Kopf und Hals in der richtigen Reihenfolge.
+     *
+     * Der Kopf wurde mit der Tiefe seines Mittelpunkts einsortiert, die
+     * Halskapsel mit der Mitte zwischen Hals und Kopfmittelpunkt. Schaut die
+     * Kamera leicht von unten (pitch < 0, so stehen zehn Muster im
+     * Standardblick), liegt der Hals näher als der Kopfmittelpunkt – die
+     * Kapsel wurde *nach* dem Kopf gezeichnet, und ihr runder Abschluss stand
+     * mit dunklem Rand mitten im Gesicht: ein Ring hinter einem Stummel, wie
+     * ein Heiligenschein. Gefunden bei der Durchsicht der Figuren.
+     *
+     * Der Kopf ist eine Kugel, und was von ihr zu sehen ist, ist ihre
+     * Oberfläche, nicht ihr Mittelpunkt. Hals und Schulterdeckel hängen unten
+     * an ihr: Was von ihnen innerhalb des Kopfumrisses liegt, verdeckt die
+     * Kugel. Also liegt der Kopf immer vor dem Hals und vor dem Schulterdeckel,
+     * und der Hals vor dem Deckel – sonst verschwände sein unteres Ende im
+     * Rumpf und es bliebe ein loser Kopf. Gegen alles andere – Hände, Hanteln,
+     * Stange – zählt weiter der Mittelpunkt: Eine Hand vor dem Gesicht soll
+     * davor bleiben.
+     */
+    const zDeckel = rings[0].reduce((acc, q) => acc + q.z, 0) / rings[0].length;
+    const zKopf = Math.max(pts.head.z + 0.001, zDeckel + 0.003);
+    const zHals = Math.min(Math.max((pts.neck.z + pts.head.z) / 2, zDeckel + 0.001), zKopf - 0.002);
+    // Hals schließt die Lücke
+    deckend(zHals, 'path', { d: kapsel(pts.neck, pts.head, 2.6, 2.2), class: 'fig-spine fig-hals' });
+
+    /*
+     * Ein Arm: zwei Glieder, aber ein Körper.
+     *
+     *     „Die Arme sehen echt immer komisch aus"
+     *
+     * Bis v235 hatte jedes Glied seinen eigenen Rand. Am Ellenbogen stand
+     * dadurch ein Ring oder ein U, an der Schulter eine Naht – eine
+     * Gliederpuppe. Dazu lief ein Steg von der Brust bis zur Hand, der jede
+     * Lücke zwischen Arm und Rumpf füllen sollte und dabei Flughäute und Keile
+     * malte, sobald der Arm abgespreizt war.
+     *
+     * Jetzt wie bei der Hand: die Flächen ohne Strich, der Rand eigens dahinter.
+     * Ober- und Unterarm behalten je ihre Tiefe – ein Unterarm vor dem Gesicht
+     * bleibt davor. Das hintere Glied bekommt einen Rand ringsum, nur an der
+     * Schulter eingezogen (dort geht der Arm in den Rumpf über); das vordere
+     * nur eine offene Kante, ohne das Stück im Ellenbogen. Ein Rand ringsum
+     * auch für das vordere Glied (so ein Zwischenstand) franste aus, sobald
+     * der Arm flach auf dem Rumpf lag (Bridge, Snow Angel): Rumpfflächen fast
+     * gleicher Tiefe schoben sich stückweise zwischen Rand und Arm.
+     */
+    /*
+     * Innenkante eines Oberarms, der neben dem Rumpf hängt.
+     *
+     * Der Rumpf ist ein Kasten, 0,19 breit, der Arm sitzt mit 0,065 Dicke bei
+     * 0,215 – von vorn liegt seine Innenseite also ein Stück über der
+     * Vorderfläche des Rumpfs, und die liegt in der Tiefe vor dem Arm. Bis zum
+     * ersten Entwurf ohne Steg verschwand die Innenkante dort unter dem Rumpf:
+     * Erst auf Brusthöhe, wo der Rumpf schmaler wird, kam sie wieder hervor.
+     * Hingen die Arme (Curl, Hammer-Curl, Wadenheben, Kniebeuge ohne Gewicht
+     * t0, von hinten genauso), war die Figur ein breiter Block mit Händen,
+     * ein Umhang statt zwei Armen. v235 hatte dort Kapseln mit Ringen – als
+     * Arme zu erkennen, wenn auch als Gliederpuppe.
+     *
+     * Jetzt zieht diese Linie die Innenseite des Oberarms über den Rumpf: ab
+     * gut einem Fünftel seiner Länge (darüber geht die Schulter ohne Naht in
+     * den Trapez über) bis kurz vor den Ellenbogen (dort übernimmt der
+     * Unterarm). Nur die äußere Hälfte, wie beim Rand sonst auch, damit sie
+     * nicht dicker wirkt als die übrigen Kanten. Und nur, wenn der Arm
+     * wirklich neben dem Rumpf hängt: nicht, wenn er dahinter liegt (der ferne
+     * Arm in der Schrägansicht, der Ellenbogen beim Rudern von vorn), und
+     * nicht vor einem Unterarm, der sich über den Oberarm legt (Curl oben).
+     */
+    /*
+     * Und der Arm hinter dem Rumpf (der ferne Arm in der Schrägansicht und
+     * von hinten, der Ellenbogen beim Rudern von vorn): Dort verdeckt zu
+     * Recht der Rumpf die Innenseite des Arms, aber ohne Linie floss beides
+     * ineinander, auf einer Seite fehlte jede Trennung. Hier zieht die Kante
+     * des Rumpfs selbst über den Arm – auf der Seite des Arms, von unterhalb
+     * der Schulter bis zur Taille, um einen halben Rand nach außen versetzt.
+     * Über dem Hintergrund ist sie unsichtbar (gleiche Farbe), zu sehen ist
+     * sie nur dort, wo sie über dem Arm liegt.
+     */
+    const rumpfkante = (s, zO) => {
+      const ax = pts.neck.x - pts.hipC.x; const ay = pts.neck.y - pts.hipC.y;
+      const al = Math.hypot(ax, ay) || 1;
+      const quer = (q) => ((q.x - pts.hipC.x) * ay - (q.y - pts.hipC.y) * ax) / al;
+      const sgn = Math.sign(quer(pts[`elbow${s}`]));
+      // Nur, wenn der Ellenbogen im Bild neben dem Rumpf liegt.
+      if (!sgn || Math.abs(quer(pts[`elbow${s}`])) < 0.12 * fit.scale) return;
+      const ecke = (r) => rings[r].reduce((m, q) => (sgn * quer(q) > sgn * quer(m) ? q : m));
+      const [e0, e1, e2] = [ecke(0), ecke(1), ecke(2)];
+      const ox = (ay / al) * sgn * rand * 0.5; const oy = (-ax / al) * sgn * rand * 0.5;
+      const q = [[e0.x + (e1.x - e0.x) * 0.4, e0.y + (e1.y - e0.y) * 0.4], [e1.x, e1.y], [e2.x, e2.y]]
+        .map(([x, y]) => [x + ox, y + oy]);
+      parts.push({ z: zO + 0.0006, node: el('path', {
+        d: `M${pt2(q[0])} L${pt2(q[1])} L${pt2(q[2])}`, class: 'fig-arm-innen',
+      }) });
+    };
+    const innenkante = (s, ober, zO, zU, rE) => {
+      const u3 = norm(sub(j[`elbow${s}`], j[`shoulder${s}`]));
+      if (skalar(u3, upAxis) > -0.5) return;                 // hängt nicht
+      const zRumpf = P(zwischen(0.35)).z;
+      if (zO < zRumpf - 0.04) { rumpfkante(s, zO); return; }  // liegt dahinter
+      let zI = Math.max(...rumpfZ) + 0.0008;                  // über Rumpf und Schatten
+      if (zI <= zO) return;                                   // der Rumpf deckt nichts zu
+      const f3 = norm(sub(j[`hand${s}`], j[`elbow${s}`]));
+      if (zU > zO && skalar(u3, f3) < 0.5) zI = Math.min(zI, zU - 0.0017);
+      // Die Seite näher an der Rumpfachse (im Bild) ist innen.
+      const ax = pts.neck.x - pts.hipC.x; const ay = pts.neck.y - pts.hipC.y;
+      const al = Math.hypot(ax, ay) || 1;
+      const abst = (q) => Math.abs((q[0] - pts.hipC.x) * ay - (q[1] - pts.hipC.y) * ax) / al;
+      const M = ober.plus.length >> 1;
+      const innenPlus = abst(ober.plus[M]) < abst(ober.minus[M]);
+      const seite = innenPlus ? ober.plus : ober.minus;
+      const gegen = innenPlus ? ober.minus : ober.plus;
+      const len = Math.hypot(ober.b.x - ober.a.x, ober.b.y - ober.a.y);
+      // Um einen halben Rand nach außen versetzt: Die Linie liegt dann genau
+      // dort, wo sonst die sichtbare Hälfte des Randes läge.
+      const raus = seite.map((q, i) => {
+        const nx = q[0] - gegen[i][0]; const ny = q[1] - gegen[i][1];
+        const nl = Math.hypot(nx, ny) || 1;
+        return [q[0] + (nx / nl) * rand * 0.5, q[1] + (ny / nl) * rand * 0.5];
+      });
+      let linie = ab(raus, ober.a, len * 0.22);
+      linie = ab(linie.slice().reverse(), ober.b, rE).reverse();
+      if (linie.length < 2) return;
+      parts.push({ z: zI, node: el('path', {
+        d: `M${pt2(linie[0])}${linie.slice(1).map((q) => ` L${pt2(q)}`).join('')}`,
+        class: 'fig-arm-innen',
+      }) });
+    };
+    const arm = (s) => {
+      // Schulter: vom Hals zum Schultergelenk fällt der Trapezmuskel ab, und
+      // die Kappe des Oberarms sitzt am Ende dieser Linie. Ohne ihn lief der
+      // Schulterdeckel waagerecht, und die Oberarme standen an seinen Ecken
+      // hoch wie an einem Kleiderbügel. Randlos, denn er gehört zum Rumpf.
+      // Am Hals setzt er höher an (0,005 über dem Halsansatz, 1,9 breit) als
+      // im ersten Entwurf (0,015 darunter, 1,75): Dort fiel die Linie zur
+      // Schulter nur um 7 Grad, und mit der Kappe des Oberarms obenauf sah es
+      // nach Schulterpolstern aus. Jetzt fällt sie wie beim Menschen.
+      const seite = s === 'L' ? -1 : 1;
+      const trapez = P(add(add(j.neck, mul(sideAxis, seite * 0.045)), mul(upAxis, 0.005)));
+      const sh = pts[`shoulder${s}`]; const ew = pts[`elbow${s}`]; const hw = pts[`hand${s}`];
+      const zO = (sh.z + ew.z) / 2; const zU = (ew.z + hw.z) / 2;
+      // Über dem Ansatz des Oberarms einsortiert: Lag er darunter, stand die
+      // Kappe des Oberarms mit ihrer eigenen Abdunklung als Scheibe auf der
+      // Schulter. Aber hinter Hals und Kopf – sonst schob er sich von vorn
+      // über das Kinn.
+      // Abgedunkelt wie der Arm, in der Füllung (siehe unten).
+      const tonVon = (z) => `--tief:${((1 - Number(depth(z))) * 0.9).toFixed(3)}`;
+      const zTrapez = Math.min(Math.max((trapez.z + sh.z) / 2, zO + 0.0006), zHals - 0.0003);
+      parts.push({ z: zTrapez, node: el('path', {
+        d: kapsel(trapez, sh, 1.9, RIG.armOben[0][1] * 0.9), class: 'fig-limb fig-arm fig-trapez', style: tonVon(zTrapez),
+      }) });
+      const ober = glied(sh, ew, RIG.armOben);
+      const unter = glied(ew, hw, RIG.armUnten);
+      // Am Ellenbogen fehlt dem vorderen Glied ein Stück Kante: so weit, wie
+      // das hintere es dort umschließt.
+      const rE = Math.max(ober.hB, unter.hA) + rand * 1.2;
+      const RZ = 0.0015;   // Rand knapp hinter seinem Glied
+      // Beide Glieder in einem Ton, nach der Tiefe des ganzen Arms: Mit je
+      // eigener Abdunklung lag das runde Ende des tieferen Glieds als dunkler
+      // Fleck auf dem Ellenbogen – ein Rest des Rings, den es nicht mehr gibt
+      // (Seitheben, Pull-Apart t1 von vorn).
+      //
+      // Und die Abdunklung in der Füllung (--tief, wie beim Rumpf), nicht als
+      // Auflage: Zwei Auflagen übereinander dunkeln doppelt, und wo das runde
+      // Ende des Unterarms auf dem Oberarm liegt, stand so trotzdem eine
+      // dunkle Scheibe.
+      const zTon = (zO + zU) / 2;
+      const ton = tonVon(zTon);
+      const flaeche = (z, d) => parts.push({ z, node: el('path', { d, class: 'fig-limb fig-arm', style: ton }) });
+      if (zU >= zO) {
+        // Unterarm vorn (fast immer): Oberarm ringsum, Unterarm offene Kante.
+        parts.push({ z: zO - RZ, node: el('path', { d: ober.dSchulter, class: 'fig-arm-rand' }) });
+        flaeche(zO, ober.d);
+        parts.push({ z: zU - RZ, node: el('path', { d: kante(unter, rE, null), class: 'fig-arm-kante' }) });
+        flaeche(zU, unter.d);
+      } else {
+        // Oberarm vorn (der Arm zeigt vom Betrachter weg, etwa beim Rudern von
+        // vorn oder bei der Bridge): umgekehrt.
+        parts.push({ z: zU - RZ, node: el('path', { d: unter.d, class: 'fig-arm-rand' }) });
+        flaeche(zU, unter.d);
+        // Die Kante erst ein Stück unter der Schulter: Von 0 an stand oben ein
+        // kurzer, freier Strich auf der Schulterkuppe, wie eine Naht.
+        const lenO = Math.hypot(ew.x - sh.x, ew.y - sh.y);
+        parts.push({ z: zO - RZ, node: el('path', { d: kante(ober, lenO * 0.15, rE), class: 'fig-arm-kante' }) });
+        flaeche(zO, ober.d);
+      }
+      innenkante(s, ober, zO, zU, rE);
+    };
 
     ['L', 'R'].forEach((s) => {
-      limb(pts[`shoulder${s}`], pts[`elbow${s}`], 3.4, 2.5);
-      limb(pts[`elbow${s}`], pts[`hand${s}`], 2.5, 1.8);
-      // Hand als eigener Ballen: sonst hört der Unterarm einfach auf und es
-      // ist nicht zu sehen, dass die Figur etwas greift.
-      deckend(pts[`hand${s}`].z + 0.002, 'circle', {
-        cx: pts[`hand${s}`].x.toFixed(1), cy: pts[`hand${s}`].y.toFixed(1),
-        r: (2.4 * gearScale * pts[`hand${s}`].k).toFixed(1),
-        class: 'fig-limb',
-      });
+      arm(s);
+      // Die Hand selbst zeichnet haende() weiter unten – mit Fläche, Fingern
+      // und Daumen, je nachdem, ob sie greift oder aufliegt.
       limb(pts[`hip${s}`], pts[`knee${s}`], 4.6, 3.1);
       limb(pts[`knee${s}`], pts[`ankle${s}`], 3.1, 1.9);
       limb(pts[`ankle${s}`], pts[`toe${s}`], 1.9, 1.5, 'fig-limb fig-foot');
@@ -1494,7 +2807,7 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     // Kopf als Ei entlang der Rumpfachse statt als Kreis
     const headR = RIG.headR * 46 * gearScale * pts.head.k;
     const axis = Math.atan2(pts.head.y - pts.neck.y, pts.head.x - pts.neck.x) * 180 / Math.PI + 90;
-    deckend(pts.head.z + 0.001, 'ellipse', {
+    deckend(zKopf, 'ellipse', {
       cx: pts.head.x.toFixed(1), cy: pts.head.y.toFixed(1),
       rx: (headR * 0.86).toFixed(1), ry: headR.toFixed(1),
       transform: `rotate(${axis.toFixed(1)} ${pts.head.x.toFixed(1)} ${pts.head.y.toFixed(1)})`,
@@ -1502,71 +2815,127 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     });
 
     // Gerät, ausgerichtet an den Achsen des Skeletts selbst
-    /** Stange samt Scheiben entlang einer Achse im Raum. */
-    const barAt = (centre, axis, half, plate) => {
+    const pkt = (q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`;
+    /**
+     * Eine Hantelscheibe: ein flacher Zylinder um `axis`, von `a` bis `b`
+     * entlang der Achse gemessen ab `centre`, Radius `r` in Metern.
+     *
+     *     „Hab übrigens so hantelscheiben, nicht diese kugeln"
+     *
+     * Vorher stand an jedem Stangenende ein flacher Kreis, und ein Kreis ist
+     * aus jedem Blickwinkel rund – also eine Kugel. Eine Scheibe ist das nur
+     * von vorn; von der Seite ist sie ein schmaler Streifen. Deshalb zwei
+     * Ringe aus projizierten Punkten (Vorder- und Rückseite) und dazwischen
+     * die dunklere Kante, wie bei den Scheiben unter den Fersen.
+     *
+     * `k` ist der Perspektivfaktor, mit dem gezeichnet wird – siehe barAt().
+     * Die Scheibe ist ein Teil; ihre Flächen ordnet sie selbst: hintere
+     * Fläche, Kante von hinten nach vorn, vordere Fläche.
+     */
+    const KLASSEN = {
+      scheibe: ['fig-scheibe', 'fig-plate', 'fig-plate-seite'],
+      koerper: ['fig-flasche', 'fig-flasche-flaeche', 'fig-flasche-seite'],
+      deckel: ['fig-flasche', 'fig-deckel', 'fig-deckel-seite'],
+    };
+    const scheibe = (centre, axis, a, b, r, k, art = 'scheibe') => {
+      const [gruppe, flaeche, seite] = KLASSEN[art];
+      const hilf = Math.abs(axis[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const u = norm(cross(axis, hilf));
+      const v = cross(axis, u);
+      const proj = (p) => {
+        const q = P(p);
+        return k ? { x: VBW / 2 + (q.x - VBW / 2) * (k / q.k), y: VBH / 2 + (q.y - VBH / 2) * (k / q.k), z: q.z } : q;
+      };
+      const ring = (s) => {
+        const m = add(centre, mul(axis, s));
+        const out = [];
+        for (let w = 0; w < 360; w += 22.5) {
+          out.push(proj(add(m, add(mul(u, Math.cos(rad(w)) * r), mul(v, Math.sin(rad(w)) * r)))));
+        }
+        return out;
+      };
+      const ra = ring(a);
+      const rb = ring(b);
+      const tiefe = (rg) => rg.reduce((acc, q) => acc + q.z, 0) / rg.length;
+      const [hinten, vorn] = tiefe(ra) < tiefe(rb) ? [ra, rb] : [rb, ra];
+      const g = el('g', { class: gruppe });
+      g.appendChild(el('polygon', { points: hinten.map(pkt).join(' '), class: flaeche }));
+      ra.map((q, i) => {
+        const n = (i + 1) % ra.length;
+        return { z: q.z + ra[n].z + rb[i].z + rb[n].z, pts: [q, ra[n], rb[n], rb[i]] };
+      }).sort((x, y) => x.z - y.z).forEach((f) => {
+        g.appendChild(el('polygon', { points: f.pts.map(pkt).join(' '), class: seite }));
+      });
+      g.appendChild(el('polygon', { points: vorn.map(pkt).join(' '), class: flaeche }));
+      parts.push({ z: (tiefe(ra) + tiefe(rb)) / 2, node: g });
+    };
+    /**
+     * Stange samt Scheiben entlang einer Achse im Raum.
+     *
+     * `teile` zerlegt den Griff in so viele Stücke, jedes mit seiner eigenen
+     * Tiefe. Nötig, wo die Stange quer über dem Körper liegt (Hip Thrust): Als
+     * ein Strich wird sie mit der Tiefe ihrer Mitte einsortiert, also mitten
+     * im Becken, und jede nähere Fläche von Rumpf und Oberschenkel deckt sie
+     * ganz – auch das Stück, das zwischen Körper und naher Scheibe frei liegt.
+     */
+    const barAt = (centre, axis, half, plate, teile = 1) => {
       // Eine Stange ist ein starrer, gerader Gegenstand. Projiziert man ihre
       // Enden einzeln, bekommt das nähere einen größeren Perspektivfaktor als
       // das fernere – bei einer Kurzhantel unsichtbar, bei 1,2 m Langhantel
-      // kippt sie sichtbar wie eine Wippe, obwohl sie waagerecht liegt. Beide
-      // Enden rechnen deshalb mit dem Faktor der Stangenmitte: Die Verkürzung
+      // kippt sie sichtbar wie eine Wippe, obwohl sie waagerecht liegt. Alle
+      // Punkte rechnen deshalb mit dem Faktor der Stangenmitte: Die Verkürzung
       // beim Drehen bleibt, die falsche Neigung verschwindet.
       const c = P(centre);
-      const end = (s) => {
-        const q = P(add(centre, mul(axis, s * half)));
+      const at = (s) => {
+        const q = P(add(centre, mul(axis, s)));
         return {
           x: VBW / 2 + (q.x - VBW / 2) * (c.k / q.k),
           y: VBH / 2 + (q.y - VBH / 2) * (c.k / q.k),
           z: q.z, k: c.k,
         };
       };
-      const e1 = end(-1);
-      const e2 = end(1);
-      parts.push({
-        z: (e1.z + e2.z) / 2,
-        node: el('line', {
-          x1: e1.x.toFixed(1), y1: e1.y.toFixed(1), x2: e2.x.toFixed(1), y2: e2.y.toFixed(1),
-          'stroke-width': (2.2 * gearScale * (e1.k + e2.k) / 2).toFixed(2), class: 'fig-bar',
-        }),
+      const strich = (s1, s2, z, stummel) => {
+        const e1 = at(s1);
+        const e2 = at(s2);
+        parts.push({
+          z,
+          node: el('line', {
+            x1: e1.x.toFixed(1), y1: e1.y.toFixed(1), x2: e2.x.toFixed(1), y2: e2.y.toFixed(1),
+            'stroke-width': (2.2 * gearScale * c.k).toFixed(2), class: stummel ? 'fig-bar fig-bar-stummel' : 'fig-bar',
+          }),
+        });
+      };
+      // Je Seite eine große Scheibe innen und eine kleinere außen – das
+      // gestufte Profil ist es, woran man eine Scheibenhantel erkennt.
+      // `plate` ist der alte Kreisradius in Bildpunkten, plate / 40 derselbe
+      // Radius in Metern (gearScale = fit.scale / 40).
+      const { r, dick, innen } = hantelTeile(plate, half);
+      // Griff
+      for (let i = 0; i < teile; i++) {
+        const s1 = -innen + (2 * innen * i) / teile;
+        const s2 = -innen + (2 * innen * (i + 1)) / teile;
+        strich(s1, s2, teile === 1 ? c.z : (at(s1).z + at(s2).z) / 2);
+      }
+      [-1, 1].forEach((s) => {
+        const s2 = (x) => s * x;
+        scheibe(centre, axis, s2(innen), s2(innen + dick), r, c.k);
+        scheibe(centre, axis, s2(innen + dick), s2(innen + dick * 1.75), r * 0.74, c.k);
+        // Stummel samt Verschluss hinter der äußeren Scheibe – hinter der
+        // fernen Scheibe verdeckt, vor der nahen sichtbar.
+        const ende = at(s2(innen + dick * 2.35));
+        strich(s2(innen + dick * 1.75), s2(innen + dick * 2.35), ende.z, true);
       });
-      [e1, e2].forEach((q) => parts.push({
-        z: q.z + 0.01,
-        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (plate * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
-      }));
     };
 
-    if (equip === 'dumbbells') {
-      // 0.085 waren 19 cm – so kurz, dass sich die beiden Scheiben aus den
-      // meisten Blickwinkeln zu einem einzigen Fleck überdeckten.
-      //
-      // Quer zum Körper liegt die Hantel bei aufgedrehtem Unterarm – so hält
-      // man sie beim Seitheben, beim Drücken, beim gewöhnlichen Curl. Zeigen
-      // die Handflächen dagegen zueinander (Hammercurl), liegt sie längs,
-      // also in Blickrichtung. Das ist der einzige sichtbare Unterschied
-      // zwischen den beiden Curls, und ohne ihn wären es zwei gleiche Bilder.
-      const achse = spec.hantelLaengs ? frontAxis : sideAxis;
-      [pts0.handL, pts0.handR].forEach((h) => barAt(h, achse, 0.13, 3.4));
-    } else if (equip === 'onehand') {
-      barAt(pts0[`hand${spec.gewichtHand || 'R'}`], spec.hantelLaengs ? frontAxis : sideAxis, 0.13, 3.4);
-    } else if (equip === 'goblet') {
-      // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten
-      barAt(midOf(pts0.handL, pts0.handR), upAxis, 0.105, 4.4);
-    } else if (equip === 'barbell') {
-      // Eine Langhantel ist doppelt so breit wie die Schultern, und zwischen
-      // Hand und Scheibe liegt ein gutes Stück blanke Stange. Mit dem alten
-      // half = 0.34 war sie 75 cm lang: Die Scheiben klebten an den Händen und
-      // das Ganze sah aus wie eine Kurzhantelstange. 0.56 ist immer noch kürzer
-      // als in Wirklichkeit – weiter geht es nicht, ohne dass die Enden aus dem
-      // Kasten laufen, denn der Ausschnitt richtet sich nach der Figur.
-      barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.56, 4.4);
-    } else if (equip === 'szbar') {
-      // Eine SZ-Stange ist etwa halb so lang wie eine Langhantel; ihre
-      // Ausbuchtungen fallen bei dieser Strichstärke ohnehin unter den Tisch.
-      // Was man sehen soll, ist der Unterschied zur grossen Stange – und der
-      // ist die Länge.
-      barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 4.0);
-    } else if (equip === 'hipbar') {
-      barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.56, 4.4);
-    } else if (equip === 'band') {
+    // Hanteln und Stangen – wo sie liegen, sagt hanteln(); hier wird nur
+    // gezeichnet. Die Goblet-Hantel steht dort bei GOBLET_SCHALE.
+    hanteln(spec, j, equip).forEach((h) => barAt(h.centre, h.axis, h.half, h.plate, h.teile));
+    // Flaschen: je Teil ein Zylinder, gezeichnet wie die Scheiben einer Hantel.
+    flaschen(spec, j, equip).forEach((fl) => {
+      const k = P(fl.centre).k;
+      fl.teile.forEach(([von, bis, r, art]) => scheibe(fl.centre, fl.axis, von, bis, r, k, art));
+    });
+    if (equip === 'band') {
       // Ein Loop-Band hängt nicht überall gleich. Beim Pull-Apart und beim
       // Reverse Fly hält man es wirklich zwischen beiden Händen – dort ist eine
       // Linie von Hand zu Hand richtig. Bei allen übrigen Bandübungen steht man
@@ -1625,11 +2994,8 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // in drei weiteren Tabellen über Auf- und Abbau. Ein eigener Gerätename
       // nur fürs Zeichnen hätte die alle mitgeschleppt.
       const hoch = spec.plateAt === 'hip';
-      const q = P(add(hoch ? j.hipC : j.chest, mul(frontAxis, hoch ? 0.16 : 0.26)));
-      parts.push({
-        z: q.z + 0.01,
-        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
-      });
+      // Flach aufgelegt wie die Scheiben an der Hantel (scheibe()), kein Kreis.
+      scheibe(add(hoch ? j.hipC : j.chest, mul(frontAxis, hoch ? 0.16 : 0.26)), frontAxis, -0.02, 0.02, 5.4 / 40);
     } else if (equip === 'backpack') {
       // Rucksack – auf dem Rücken, auf der Brust oder in den Händen.
       //
@@ -1654,91 +3020,186 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // gehört er in die Hände (`packAt: 'hand'`).
       const halten = spec.packAt === 'hand';
       const brust = spec.packAt === 'chest';
-      const rumpf = midOf(j.chest, j.hipC);
-      const tiefe = brust ? 0.15 : -0.14;
-      const c3 = halten ? add(midOf(j.handL, j.handR), mul(frontAxis, 0.10)) : add(rumpf, mul(frontAxis, tiefe));
-      const bw = halten ? 0.13 : 0.17;
-      const bh = halten ? 0.15 : 0.21;
-      const ecke = (sx, sy) => P(add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, sy * bh / 2)));
-      const flaeche = (ecken, cls, dz) => {
-        const q = ecken.map(([sx, sy]) => ecke(sx, sy));
+      const strich = (von, bis, dz = 0.012) => {
+        const a2 = P(von); const b2 = P(bis);
         parts.push({
-          z: q.reduce((acc, e) => acc + e.z, 0) / q.length + dz,
-          node: el('polygon', { points: q.map((e) => `${e.x.toFixed(1)},${e.y.toFixed(1)}`).join(' '), class: cls }),
+          z: (a2.z + b2.z) / 2 + dz,
+          node: el('line', {
+            x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
+            'stroke-width': (1.5 * gearScale * a2.k).toFixed(2), class: 'fig-strap',
+          }),
         });
       };
-      flaeche([[-1, 1], [1, 1], [1, -1], [-1, -1]], 'fig-pack', 0.01);
-      flaeche([[-0.72, -0.1], [0.72, -0.1], [0.72, -0.82], [-0.72, -0.82]], 'fig-pack-tasche', 0.014);
-      if (!halten) {
+      /*
+       * Ein Kasten, keine Fläche.
+       *
+       * Der Rucksack war zwei Vielecke in der Rumpfebene. Bei Liegestütz und
+       * Inverted Row liegt diese Ebene waagerecht, und der Standardblick schaut
+       * fast parallel darauf: übrig blieb ein weißer Strich auf dem Rücken bzw.
+       * der Brust, und dass dort ein Rucksack liegt, war nur an den Trägern zu
+       * raten. Gefunden bei der Durchsicht der Figuren. Jetzt hat er Tiefe wie
+       * der Klotz unter den Füßen und die Scheiben an der Stange: sechs
+       * Flächen, von denen nur die gezeichnet werden, die zur Kamera zeigen,
+       * jede mit ihrer eigenen Tiefe einsortiert. Die Außenseite – weg vom
+       * Körper bzw. nach vorn – ist hell und trägt die Vordertasche, die
+       * übrigen sind dunkler, damit die Kanten zu sehen sind.
+       *
+       * u, v, w sind Breite, Höhe und Tiefe, rechtshändig (u × v = w), w zeigt
+       * nach außen.
+       */
+      const kasten = (c3, u, v, w, bw, bh, bd) => {
+        const seiten = [
+          [w, u, v, bd, bw, bh, true], [mul(w, -1), v, u, bd, bh, bw],
+          [u, v, w, bw, bh, bd], [mul(u, -1), w, v, bw, bd, bh],
+          [v, w, u, bh, bd, bw], [mul(v, -1), u, w, bh, bw, bd],
+        ];
+        seiten.forEach(([n, a, b, hn, ha, hb, aussen]) => {
+          const m = add(c3, mul(n, hn / 2));
+          const ecken = (fa, fb) => [[1, 1], [-1, 1], [-1, -1], [1, -1]]
+            .map(([sa, sb]) => P(add(add(m, mul(a, sa * fa * ha / 2)), mul(b, sb * fb * hb / 2))));
+          const q = ecken(1, 1);
+          // Nur was zur Kamera zeigt: Im Bild (y nach unten) laufen die Ecken
+          // einer zugewandten Fläche dann im Uhrzeigersinn.
+          const flaeche2 = q.reduce((acc, e, i) => {
+            const n2 = q[(i + 1) % 4];
+            return acc + e.x * n2.y - n2.x * e.y;
+          }, 0);
+          if (flaeche2 >= 0) return;
+          const z = q.reduce((acc, e) => acc + e.z, 0) / 4;
+          const poly = (pts4, cls) => el('polygon', { points: pts4.map(pkt).join(' '), class: cls });
+          const g = el('g');
+          g.appendChild(poly(q, aussen ? 'fig-pack' : 'fig-pack-seite'));
+          // Vordertasche: die untere Hälfte der Außenseite, etwas schmaler.
+          if (aussen) {
+            const t = [[0.72, -0.1], [-0.72, -0.1], [-0.72, -0.82], [0.72, -0.82]]
+              .map(([sa, sb]) => P(add(add(add(m, mul(n, 0.004)), mul(a, sa * ha / 2)), mul(b, sb * hb / 2))));
+            g.appendChild(poly(t, 'fig-pack-tasche'));
+          }
+          parts.push({ z: z + 0.01, node: g });
+        });
+      };
+      if (halten) {
+        /*
+         * Gehalten: lotrecht unter den Händen, an zwei Schlaufen.
+         *
+         * Vorher eine Fläche um die Mitte zwischen den Händen, in der
+         * Rumpfebene und ohne Verbindung zu ihnen: Die Hände hingen seitlich
+         * an den Oberschenkeln, der Rucksack stand 0,24 von jeder entfernt
+         * mitten vor dem Schritt, beim Rudern zudem um 62° mit dem Rumpf
+         * gekippt – eine schwebende weiße Karte, während der Hinweis „beide
+         * Hände in die Trageschlaufen" sagt.
+         *
+         * Ein Rucksack, den man an den Schlaufen hält, hängt senkrecht nach
+         * unten, egal wie der Rumpf steht. Seine Breite folgt dem Griff, so
+         * wie man ihn an den beiden Trägern fasst: gut zwei Drittel des
+         * Abstands der Hände, die Schlaufen laufen schräg zu ihnen hoch. Er
+         * hängt knapp vor den Händen, sonst stäke er in den Oberschenkeln.
+         */
+        const punkt = (a3, b3) => a3[0] * b3[0] + a3[1] * b3[1] + a3[2] * b3[2];
+        const hl = j.handL; const hr = j.handR;
+        const quer = norm([hr[0] - hl[0], 0, hr[2] - hl[2]]);
+        const u = Math.hypot(hr[0] - hl[0], hr[2] - hl[2]) > 1e-6 ? quer : sideAxis;
+        const v = [0, 1, 0];
+        let w = cross(u, v);
+        // w soll nach vorn zeigen (vom Körper weg), sonst hinge er im Rumpf.
+        const uu = punkt(w, frontAxis) < 0 ? mul(u, -1) : u;
+        w = cross(uu, v);
+        const abstandH = Math.hypot(hr[0] - hl[0], hr[1] - hl[1], hr[2] - hl[2]);
+        const bw = Math.min(0.4, Math.max(0.17, abstandH * 0.7));
+        const griff = midOf(hl, hr);
+        const oben = griff[1] - 0.06;
+        // Hochkant wie ein Rucksack, aber nie in den Boden: Beim Rudern hängen
+        // die Hände unten knapp über Kniehöhe.
+        const bh = Math.min(0.34, oben - (BODEN + 0.02)); const bd = 0.12;
+        const c3 = [griff[0] + w[0] * (bd / 2 + 0.03), oben - bh / 2, griff[2] + w[2] * (bd / 2 + 0.03)];
+        kasten(c3, uu, v, w, bw, bh, bd);
+        // Schlaufen: je ein schmales Dreieck von der Oberkante zur Hand und
+        // zurück – ein Band, das um die Faust läuft.
+        ['L', 'R'].forEach((seite) => {
+          const hand = j[`hand${seite}`];
+          const s = punkt([hand[0] - griff[0], 0, hand[2] - griff[2]], uu) < 0 ? -1 : 1;
+          const kante = add(c3, add(mul(uu, s * bw * 0.42), mul(v, bh / 2)));
+          const a3 = add(kante, mul(uu, -s * 0.03));
+          const b3 = add(kante, mul(uu, s * 0.03));
+          strich(a3, hand, 0.013);
+          strich(hand, b3, 0.013);
+        });
+      } else {
+        const rumpf = midOf(j.chest, j.hipC);
+        const tiefe = brust ? 0.15 : -0.14;
+        const c3 = add(rumpf, mul(frontAxis, tiefe));
+        const bw = 0.17; const bh = 0.21; const bd = 0.09;
+        // Außen ist bei der Brust vorn, beim Rücken hinten.
+        const w = brust ? frontAxis : mul(frontAxis, -1);
+        const u = brust ? sideAxis : mul(sideAxis, -1);
+        kasten(c3, u, upAxis, w, bw, bh, bd);
         // Träger: vom oberen Rand über die Schulter auf die andere Seite des
         // Rumpfs. Zwei Stücke mit eigener Tiefe, damit das Stück hinter dem
-        // Rumpf auch dahinter gezeichnet wird.
+        // Rumpf auch dahinter gezeichnet wird. Sie beginnen an der Innenkante
+        // des Kastens, am Körper.
         ['L', 'R'].forEach((seite) => {
           const sx = seite === 'L' ? -0.55 : 0.55;
-          const oben3 = add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, bh / 2));
+          const oben3 = add(add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, bh / 2)), mul(w, -bd / 2));
           const schulter = add(j[`shoulder${seite}`], mul(upAxis, 0.035));
-          const drueben = add(add(j[`shoulder${seite}`], mul(frontAxis, -tiefe * 0.7)), mul(upAxis, -0.12));
-          [[oben3, schulter], [schulter, drueben]].forEach(([von, bis]) => {
-            const a2 = P(von); const b2 = P(bis);
-            parts.push({
-              z: (a2.z + b2.z) / 2 + 0.012,
-              node: el('line', {
-                x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
-                'stroke-width': (1.5 * gearScale * a2.k).toFixed(2), class: 'fig-strap',
-              }),
-            });
-          });
+          // Das zweite Stück endet *innerhalb* der anderen Rumpfseite. Es lag
+          // 0,105 tief (Rumpf 0,096) und auf der Breite des Schultergelenks
+          // (0,215, Rumpf 0,19), also außerhalb – bei der Inverted Row schaute
+          // unter dem Rumpf ein weißer Trägerstummel heraus.
+          const innen3 = add(j[`shoulder${seite}`], mul(sideAxis, seite === 'L' ? 0.07 : -0.07));
+          const drueben = add(add(innen3, mul(frontAxis, -tiefe * 0.5)), mul(upAxis, -0.12));
+          strich(oben3, schulter);
+          strich(schulter, drueben);
         });
       }
     }
 
     /*
-     * Daumen und Finger – damit man den Griff sieht.
+     * Hände: wie sie liegen, sagt handForm(); hier wird nur gezeichnet.
      *
-     * Die Hand war ein Ballen, und ein Ballen greift nicht. Jetzt: drei Finger
-     * in Verlängerung des Unterarms – sie liegen um die Stange, die Hantel, das
-     * Band – und der Daumen quer dazu, in der Richtung, die das Muster nennt
-     * (`daumen`, siehe oben bei PATTERNS). Am Klimmzug im Obergriff zeigen die
-     * Daumen zueinander, im Untergriff nach außen: Das ist der Unterschied
-     * zwischen Chin-ups und Pull-ups, und er war nicht zu sehen.
+     * Bis v213 war die Hand ein Ballen mit drei Strichen davor. Von der Seite
+     * gesehen lagen die Striche übereinander, und jeder hatte seinen dunklen
+     * Rand – bei den Liegestützen stand am Ende des Arms ein Kringel:
      *
-     * Jeder Strich zweimal: erst breit in Hintergrundfarbe, dann in der Farbe
-     * des Körpers – sonst verschwinden die Finger, sobald die Hand vor dem
-     * Rumpf liegt.
+     *     „Die Hände sehen nicht so richtig händig aus"
+     *
+     * Jetzt ist die Hand ein kleiner Körper im Raum wie Arm und Bein: eine
+     * Handfläche als Fläche, vier Finger und ein Daumen als eigene Glieder,
+     * alle mit limb() und demselben Rand. Gedreht wird sie mit der Figur, und
+     * verkürzt sieht sie aus wie eine Hand von der Seite, nicht wie ein Knoten.
      */
-    if (spec.daumen) {
-      const weltOben = [0, 1, 0];
-      const haende = equip === 'onehand' ? [spec.gewichtHand || 'R'] : ['L', 'R'];
-      haende.forEach((seite) => {
-        const hand = j[`hand${seite}`];
-        const ell = j[`elbow${seite}`];
-        const innen = mul(sideAxis, seite === 'L' ? 1 : -1);
-        const t = ({ innen, aussen: mul(innen, -1), vorn: frontAxis, hinten: mul(frontAxis, -1),
-          oben: weltOben, unten: mul(weltOben, -1) })[spec.daumen] || innen;
-        let f = norm([hand[0] - ell[0], hand[1] - ell[1], hand[2] - ell[2]]);
-        if (spec.finger === 'boden') f = norm([upAxis[0], 0, upAxis[2]]);
-        else if (spec.finger === 'oben') f = upAxis;
-        const strich = (von, bis, breite) => {
-          const a2 = P(von); const b2 = P(bis);
-          const attrs = (w, cls, dz) => ({
-            x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
-            'stroke-width': (w * gearScale * a2.k).toFixed(2), class: cls, opacity: depth(a2.z),
-            _z: Math.max(a2.z, b2.z) + dz,
-          });
-          [attrs(breite + 1.1, 'fig-finger-rand', 0.03), attrs(breite, 'fig-finger', 0.031)].forEach((at) => {
-            const { _z, ...rest } = at;
-            parts.push({ z: _z, node: el('line', rest) });
-          });
-        };
-        // Drei Finger nebeneinander, von der Daumenseite weg gestaffelt.
-        [0.013, -0.008, -0.029].forEach((o) => {
-          const von = add(hand, mul(t, o));
-          strich(von, add(von, mul(f, 0.066)), 1.5);
-        });
-        const dvon = add(hand, mul(t, 0.02));
-        strich(dvon, add(dvon, add(mul(t, 0.046), mul(f, 0.016))), 1.7);
-      });
-    }
+    ['L', 'R'].forEach((seite) => {
+      const { faust, flaeche, stuecke, vorn } = handForm(spec, j, seite, equip);
+
+      // Alles in *einen* Pfad, und nur um den ein Rand: Jedes Glied einzeln
+      // umrandet – so wie Arm und Bein – ergab von der Seite gesehen einen
+      // Stapel Ränder, weil die vier Finger dort hintereinander liegen. So
+      // bleibt der Umriss der ganzen Hand, innen ist sie eine Fläche.
+      //
+      // Die Fläche läuft im selben Drehsinn wie die Glieder (kapsel()), sonst
+      // stanzt die Füllregel die Überlappung als Loch aus.
+      const q = flaeche.map(P);
+      const drehsinn = q.reduce((acc, e, i) => {
+        const n2 = q[(i + 1) % q.length];
+        return acc + e.x * n2.y - n2.x * e.y;
+      }, 0);
+      if (drehsinn < 0) q.reverse();
+      const f1 = (v) => v.toFixed(1);
+      const d = [`M${q.map((e) => `${f1(e.x)} ${f1(e.y)}`).join(' L')} Z`,
+        ...stuecke.map(([a3, b3, w1, w2]) => kapsel(P(a3), P(b3), w1, w2))].join(' ');
+      const alle = [...q, ...stuecke.flatMap(([a3, b3]) => [P(a3), P(b3)])];
+      const zHand = alle.reduce((acc, e) => acc + e.z, 0) / alle.length;
+      parts.push({ z: zHand - 0.0015, node: el('path', { d, class: 'fig-hand-rand' }) });
+      deckend(zHand, 'path', { d, class: 'fig-hand' });
+      // Bei der Faust die eingerollten Finger und den Daumen noch einmal
+      // einzeln, mit Rand, in ihrer eigenen Tiefe. Liegen sie vorn – man sieht
+      // in die Handfläche, Untergriff –, stehen vier Finger quer über dem Griff
+      // und der Daumen darüber. Liegen sie hinten, verdeckt sie die Hand, und
+      // man sieht den glatten Handrücken: Obergriff. Das ist der Unterschied,
+      // um den es bei der Frage nach den Fingern ging.
+      if (faust) {
+        vorn.forEach(([a3, b3, w1, w2]) => limb(P(a3), P(b3), w1, w2));
+      }
+    });
 
     if (spec.keil) {
       /*
@@ -1784,6 +3245,55 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
         ecke(links, vorn, boden), ecke(links, hinten, boden)], -0.02);
       face([ecke(rechts, hinten, top), ecke(rechts, vorn, top),
         ecke(rechts, vorn, boden), ecke(rechts, hinten, boden)], -0.02);
+    }
+
+    if (spec.fersenscheiben) {
+      /*
+       * Zwei Hantelscheiben, eine je Ferse – rund und hell, wie die Scheiben
+       * an der Stange (fig-plate), nicht wie das Möbelstück Bank (fig-keil).
+       * Rund heißt hier: ein Ring aus projizierten Punkten, genau wie der
+       * Schatten unter der ganzen Figur (siehe `fig-ground` weiter unten) –
+       * nur klein, je einer pro Fuß, und mit einer eigenen, dünnen Seite statt
+       * nur einer Fläche auf dem Boden. Zwei Ringe (oben und am Boden), nicht
+       * einer plus ein Pixelversatz: Nur so bleibt die Seite in derselben
+       * Perspektive wie der Rest der Figur.
+       */
+      const boden = -0.62;
+      ['L', 'R'].forEach((s) => {
+        const ank = j[`ankle${s}`];
+        const zeh = j[`toe${s}`];
+        const top = Math.max(boden + 0.014, ank[1] - 0.018);
+        const mx = ank[0];
+        const mz = ank[2] - Math.max(0.03, (zeh[2] - ank[2]) * 0.3);
+        const rx = 0.062; const rz = 0.068;
+        const oben = []; const unten = [];
+        for (let a = 0; a < 360; a += 30) {
+          const x2 = mx + Math.cos(rad(a)) * rx;
+          const z2 = mz + Math.sin(rad(a)) * rz;
+          oben.push(P([x2, top, z2]));
+          unten.push(P([x2, boden, z2]));
+        }
+        const z = oben.reduce((acc, q) => acc + q.z, 0) / oben.length;
+        // Seite zuerst (dahinter), dann die Deckfläche obenauf.
+        for (let i = 0; i < oben.length; i += 1) {
+          const n = (i + 1) % oben.length;
+          parts.push({
+            z: (oben[i].z + oben[n].z) / 2 - 0.001,
+            node: el('polygon', {
+              points: `${oben[i].x.toFixed(1)},${oben[i].y.toFixed(1)} ${oben[n].x.toFixed(1)},${oben[n].y.toFixed(1)} `
+                + `${unten[n].x.toFixed(1)},${unten[n].y.toFixed(1)} ${unten[i].x.toFixed(1)},${unten[i].y.toFixed(1)}`,
+              class: 'fig-plate-seite',
+            }),
+          });
+        }
+        parts.push({
+          z: z - 0.002,
+          node: el('polygon', {
+            points: oben.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+            class: 'fig-plate',
+          }),
+        });
+      });
     }
 
     if (spec.slider) {
@@ -1853,24 +3363,42 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // Übung: Ohne erhöhten Ballen fehlt die Dehnung nach unten, und das war
       // aus dem Bild vorher nicht zu sehen. Zuhause ist der Klotz meistens ein
       // dickes Buch, deshalb ist er flach und nicht stufenhoch.
+      //
+      // `stufe: 'beide'` ist dasselbe Buch unter beiden Ballen – beim
+      // Wadenheben im Sitzen (calfseated), so breit wie beide Füße.
+      const beide = spec.stufe === 'beide';
       const einbein = spec.stufe === 'R' || spec.stufe === 'L';
       const ank = einbein ? (spec.stufe === 'R' ? j.ankleR : j.ankleL) : midOf(j.ankleL, j.ankleR);
-      const zeh = einbein ? (spec.stufe === 'R' ? j.toeR : j.toeL) : null;
-      const top = einbein ? zeh[1] - 0.01 : Math.min(j.toeL[1], j.toeR[1]) - 0.02;
+      const zeh = einbein ? (spec.stufe === 'R' ? j.toeR : j.toeL) : beide ? midOf(j.toeL, j.toeR) : null;
+      const klotz = einbein || beide;
+      const top = klotz ? zeh[1] - 0.01 : Math.min(j.toeL[1], j.toeR[1]) - 0.02;
       // Unter dem Ballen, nicht unter der Ferse: Der Klotz sitzt vorn.
-      const zc = einbein ? zeh[2] : ank[2]; const xc = einbein ? zeh[0] : ank[0];
-      const bx = einbein ? 0.085 : 0.16;
-      const bz = einbein ? 0.10 : 0.26;
+      const zc = klotz ? zeh[2] : ank[2]; const xc = klotz ? zeh[0] : ank[0];
+      const bx = beide ? Math.abs(j.toeR[0] - j.toeL[0]) / 2 + 0.085 : einbein ? 0.085 : 0.16;
+      const bz = klotz ? 0.10 : 0.26;
       const corner = (sx, sz, y) => P([xc + sx * bx, y, zc + sz * bz]);
-      const face = (quad) => parts.push({
-        z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length - 0.05,
+      // Die Oberseite des Buchs unter beiden Ballen kommt nach ihrer hintersten
+      // Ecke dran, nicht nach ihrer Mitte: Die Mitte liegt unter den Zehen, die
+      // Füße reichen von dort bis zur Ferse dahinter. Nach der Mitte einsortiert
+      // wurde sie nach einem oder beiden Füßen gezeichnet und deckte sie zu –
+      // von schräg vorn verschwand der hintere Fuß bis auf einen Streifen im
+      // Buch, von vorn beide bis auf die Knöchel. Sie liegt unter den Füßen und
+      // gehört deshalb immer vor sie.
+      const face = (quad, oben = false) => parts.push({
+        z: (oben && beide ? Math.min(...quad.map((q) => q.z)) : quad.reduce((acc, q) => acc + q.z, 0) / quad.length) - 0.05,
         node: el('polygon', {
           points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
-          class: 'fig-bench',
+          // Das Buch trägt eine eigene Klasse dazu – gezeichnet wie die Bank,
+          // aber in tests/test-wade-sitzend.mjs von ihr zu unterscheiden, die
+          // Oberseite noch eine.
+          class: klotz ? `fig-bench fig-buch${oben ? ' fig-buch-oben' : ''}` : 'fig-bench',
         }),
       });
-      const boden = einbein ? top - 0.055 : -0.62;
-      face([corner(-1, -1, top), corner(1, -1, top), corner(1, 1, top), corner(-1, 1, top)]);
+      // Das Buch steht auf dem Boden: skelett() setzt beim Sitzen auf dem Buch
+      // (`ballen`) die Zehen BUCH + 0,01 darüber, und damit ist `boden` hier
+      // genau die Bodenhöhe – wie bei den Füßen der Bank daneben.
+      const boden = klotz ? top - BUCH : -0.62;
+      face([corner(-1, -1, top), corner(1, -1, top), corner(1, 1, top), corner(-1, 1, top)], true);
       face([corner(-1, 1, top), corner(1, 1, top), corner(1, 1, boden), corner(-1, 1, boden)]);
       face([corner(1, -1, top), corner(1, 1, top), corner(1, 1, boden), corner(1, -1, boden)]);
       face([corner(-1, -1, top), corner(-1, 1, top), corner(-1, 1, boden), corner(-1, -1, boden)]);
@@ -1953,8 +3481,8 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // im Nichts endet, ist keine Auskunft, sondern ein Fehler im Bild.
       // Fest im Raum, nicht an den Haenden: Die Stange haengt nicht am Sportler.
       const mitte = [0, spec.ueberkopf, spec.ueberkopfZ];
-      const b1 = P(add(mitte, mul(sideAxis, -0.9)));
-      const b2 = P(add(mitte, mul(sideAxis, 0.9)));
+      const b1 = P(add(mitte, mul(sideAxis, -UEBERKOPF_HALB)));
+      const b2 = P(add(mitte, mul(sideAxis, UEBERKOPF_HALB)));
       parts.push({
         z: (b1.z + b2.z) / 2 - 0.02,
         node: el('line', {
@@ -1984,9 +3512,14 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // Mittig unter der Figur, nicht am Ursprung: wer an einer Stange hängt,
       // steht nicht über dem Nullpunkt, und die Scheibe lag dann daneben.
       const gy = spec.anchor === 'bar' ? fit.groundY : -0.62;
+      // In der Tiefe so weit, wie die Figur reicht, mindestens 0,34. Beim
+      // Trizeps an der Stange liegt der Körper der Länge nach in der Tiefe
+      // (Fersen z −1,0, Kopf +0,3); die Scheibe mit fester Tiefe 0,34 lag
+      // dort nur unter der Mitte, und seit die Figur von der Seite gezeigt
+      // wird, standen die Füße sichtbar daneben in der Luft.
       const ring = [];
       for (let a = 0; a < 360; a += 15) {
-        ring.push(P([fit.mid[0] + Math.cos(rad(a)) * 0.62, gy, fit.mid[2] + Math.sin(rad(a)) * 0.34]));
+        ring.push(P([fit.mid[0] + Math.cos(rad(a)) * 0.62, gy, fit.mid[2] + Math.sin(rad(a)) * fit.bodenZ]));
       }
       // Immer ganz nach hinten. Sortiert man den Boden wie ein Körperteil ein,
       // legt er sich beim Blick von oben über das hintere Bein und färbt es
@@ -2030,8 +3563,43 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       });
     });
 
-    // Maleralgorithmus: hinten zuerst
-    parts.sort((p, q) => p.z - q.z).forEach((p) => scene.appendChild(p.node));
+    // Maleralgorithmus: hinten zuerst.
+    //
+    // Und nicht jedes Bild von vorn. Rund hundert Teile je Bild neu
+    // anzulegen, jedes Merkmal einzeln zu setzen und die vom Bild davor
+    // wegzuwerfen war nach dem schnelleren Stütz (siehe naechsteNull) der
+    // größte Posten je Bild – beim Liegestütz mit vierfach gedrosselter CPU
+    // rund 3 ms von gut 6. Von Bild zu Bild ändern sich aber fast nur
+    // Koordinaten: dieselben Teile in derselben Reihenfolge. Dann werden nur
+    // die Merkmale nachgezogen, die sich geändert haben; wo zwei Teile die
+    // Plätze getauscht haben, entstehen nur diese neu. Nur wenn sich die Zahl
+    // der Teile ändert (erstes Bild, Drehen), wird alles neu eingesetzt – als
+    // ein Stück Text, das der Browser in einem Zug liest.
+    const neu = parts.sort((p, q) => p.z - q.z).map((p) => p.node);
+    const passt = (dom, n) => dom.tagName === n.name && dom.getAttribute('class') === (n.attrs.class ?? null)
+      && dom.attributes.length === Object.keys(n.attrs).length
+      && dom.children.length === n.kinder.length && n.kinder.every((k, i) => passt(dom.children[i], k));
+    const setze = (dom, n) => {
+      Object.entries(n.attrs).forEach(([k, v]) => { if (dom.getAttribute(k) !== String(v)) dom.setAttribute(k, v); });
+      n.kinder.forEach((k, i) => setze(dom.children[i], k));
+    };
+    const bau = (n) => {
+      const node = document.createElementNS(NS, n.name);
+      Object.entries(n.attrs).forEach(([k, v]) => node.setAttribute(k, v));
+      n.kinder.forEach((k) => node.appendChild(bau(k)));
+      return node;
+    };
+    const alt = scene.children;
+    if (alt.length === neu.length) {
+      neu.forEach((n, i) => {
+        if (passt(alt[i], n)) setze(alt[i], n);
+        else scene.replaceChild(bau(n), alt[i]);
+      });
+    } else {
+      const text = (n) => `<${n.name}${Object.entries(n.attrs).map(([k, v]) => ` ${k}="${v}"`).join('')}>`
+        + `${n.kinder.map(text).join('')}</${n.name}>`;
+      scene.innerHTML = neu.map(text).join('');
+    }
   };
 
   // Die beiden Listener hängen am Fenster, nicht am Kasten – sonst bräche das
@@ -2042,6 +3610,8 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   const off = () => {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+    federStop();
     if (sichtbarkeit) sichtbarkeit.unobserve(host);
     delete host.__figEntry;
   };
@@ -2057,6 +3627,7 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   return {
     draw,
     setView: (y, pi = 0) => { yaw = y; pitch = pi; draw(lastT); },
+    getView: () => [yaw, pitch, dragging],
     stop: () => {
       active.delete(entry);
       off();
@@ -2127,4 +3698,8 @@ function frame(now) {
   }
   requestAnimationFrame(frame);
 }
-if (typeof requestAnimationFrame === 'function') requestAnimationFrame(frame);
+// Nur mit Seite: Ein Worker hat requestAnimationFrame (Chrome), aber kein
+// `document` – und die Vorschau des Kalenders lädt dieses Modul in einem
+// Worker mit (js/kalender-worker.js, über js/plan.js). Dort warf frame() beim
+// ersten Bild „document is not defined".
+if (typeof requestAnimationFrame === 'function' && typeof document !== 'undefined') requestAnimationFrame(frame);

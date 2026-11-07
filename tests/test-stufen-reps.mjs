@@ -49,9 +49,18 @@ const daten = await page.evaluate(async () => {
 const betroffen = [...new Set(Object.keys(daten).map((k) => k.split('/')[0]))].sort();
 check(betroffen.join(',') === 'chin-ups,pull-ups',
   `nur Chin-ups und Pull-ups haben eine Stufen-Ausnahme (${betroffen.join(', ') || 'keine'})`);
+// Chin-ups seit v255 3–10 mit der Pause des Katalogs: *„ich schaff aktuell 3,
+// also wäre 3 bis x wohl am sinnvollsten"*. Unten die Zahl, ab der ein Satz ein
+// Trainingssatz ist, oben die, ab der der Rucksack kommt (der Hinweis sagt 10).
+// Die Pull-ups bleiben bei 1–3 und 120 s – zu ihnen gab es keine Zahl.
+const ERWARTET = {
+  'chin-ups': { reps: '3–10' },
+  'pull-ups': { reps: '1–3', rest: 120 },
+};
 for (const [k, s] of Object.entries(daten)) {
-  check(s.anfaenger && s.anfaenger.reps === '1–3' && s.anfaenger.rest === 120,
-    `${k}: Anfänger bekommt 1–3 Wdh. und 120 s Pause (${JSON.stringify(s.anfaenger)})`);
+  const soll = ERWARTET[k.split('/')[0]];
+  check(!!soll && JSON.stringify(s.anfaenger) === JSON.stringify(soll),
+    `${k}: Anfänger bekommt ${soll ? `${soll.reps} Wdh.${soll.rest ? ` und ${soll.rest} s Pause` : ' und die Pause des Katalogs'}` : '?'} (${JSON.stringify(s.anfaenger)})`);
   check(!s.geuebt && !s.fortgeschritten,
     `${k}: für Geübte und Fortgeschrittene bleibt alles, wie es war`);
 }
@@ -90,7 +99,7 @@ const meta = async (level) => {
 
 const anf = await meta('anfaenger');
 const geu = await meta('geuebt');
-check(/1–3/.test(anf), `Anfänger sieht 1–3 Wiederholungen (${anf})`);
+check(/3–10/.test(anf), `Anfänger sieht 3–10 Wiederholungen (${anf})`);
 check(/5–10/.test(geu), `Geübter sieht weiter 5–10 (${geu})`);
 
 // --- 3. Die Pause folgt mit ---------------------------------------------
@@ -104,7 +113,7 @@ const pause = async (level) => {
     return (st && st.rest) || e.db.rest;
   });
 };
-check(await pause('anfaenger') === 120, 'Anfänger: 120 s Pause');
+check(await pause('anfaenger') === 180, 'Anfänger: 180 s Pause wie alle – die 120 s waren für Sätze mit ein bis drei');
 check(await pause('geuebt') === 180, 'Geübter: weiterhin 180 s');
 check(await pause('fortgeschritten') === 180, 'Fortgeschrittener: weiterhin 180 s');
 

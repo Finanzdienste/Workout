@@ -26,6 +26,11 @@
  * die zufällige Geräte-ID). Auf die Tabelle selbst hat der öffentliche Schlüssel
  * kein Recht: Geschrieben wird über die Funktion melde(), gelöscht über
  * entferne(), gelesen über admin_liste() mit Passwort – siehe README.
+ *
+ * Denselben Weg zum Server nimmt die automatische Sicherung (js/sicherung.js):
+ * rpcAufruf(), grund() und fehltFunktion() sind dafür exportiert. Ein zweiter
+ * Weg mit eigenem Kopf, eigener Zeitschranke und eigenem Rückfall für alte
+ * Schlüssel wäre nur eine zweite Stelle, an der dasselbe kaputtgehen kann.
  */
 
 import { CONFIG, hatServer } from './config.js';
@@ -92,7 +97,7 @@ async function senden(pfad, optionen, mitBearer = true) {
  * ist PostgREST selbst (Funktion fehlt, Spalte fehlt), fünfstellige Ziffern
  * sind Postgres-Fehlercodes – 42501 etwa heißt "darf nicht".
  */
-async function grund(res) {
+export async function grund(res) {
   try {
     const roh = await res.text();
     if (!roh) return `Fehler ${res.status}`;
@@ -109,8 +114,24 @@ async function grund(res) {
 }
 
 /** Antwortet der Server "diese Funktion kenne ich nicht"? */
-const fehltFunktion = (res, text) => res.status === 404
+export const fehltFunktion = (res, text) => res.status === 404
   || (res.status === 400 && /PGRST202|function|schema cache/i.test(text || ''));
+
+/**
+ * Eine Datenbankfunktion aufrufen, mit benannten Parametern im Körper.
+ *
+ * `keepalive` nur für den einen Aufruf, der das Verstecken der App überleben
+ * soll – der Browser trägt die Anfrage dann zu Ende, auch wenn die Seite
+ * währenddessen eingefroren wird. Mehr als 64 KB nimmt er dafür nicht an; das
+ * prüft der Aufrufer, nicht diese Funktion.
+ */
+export function rpcAufruf(name, params, { keepalive = false } = {}) {
+  return senden(`/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+    ...(keepalive ? { keepalive: true } : {}),
+  });
+}
 
 /**
  * Stand melden. Fehler sind hier keine Fehler: Kein Netz, Server weg, Tabelle

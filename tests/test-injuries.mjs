@@ -241,6 +241,30 @@ check(leer.length === 0, 'alle Haken entfernbar');
 const wieder = await page.evaluate(async () => (await import('./js/data.js')).PLAN[0].ex.map((x) => x.id));
 check(JSON.stringify(wieder) === JSON.stringify(vorher), 'Plan ist danach wieder der alte');
 
+// --- Ein Haken meldet sich beim Store ---
+// Auf die Meldung hören der Kalender (die Vorschau rechnet neu) und die
+// Sicherung. Bis zum Gegenlesen von v246 schrieben toggleInjury() und
+// clearInjuries() still: Nach einer Beschwerde in der Pause ging die Vorschau
+// von davor an Google, und die Sicherung erfuhr von der Beschwerde nichts.
+const meldungen = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const je = [];
+  let n = 0;
+  const weg = store.subscribe(() => { n += 1; });
+  store.toggleInjury('tennisarm', true);
+  je.push(n);
+  store.toggleInjury('tennisarm', false);
+  je.push(n - je[0]);
+  store.toggleInjury('tennisarm', true);
+  const vorLeeren = n;
+  store.clearInjuries();
+  je.push(n - vorLeeren);
+  weg();
+  return { je, uebrig: store.getState().injuries.length };
+});
+check(meldungen.je.every((x) => x === 1) && meldungen.uebrig === 0,
+  `anhaken, abwählen, alle entfernen: je eine Meldung an den Store (${meldungen.je.join(', ')})`);
+
 // --- Geschwister-Übungen: keine halben Sperren ---------------------------
 // Der Anlass: Split Squat, Schulterdrücken, Kreuzheben und hängendes Knieheben
 // kamen später dazu und standen in keiner einzigen Sperre. Wer einen
@@ -324,6 +348,70 @@ const unbekannt = await page.evaluate(async () => {
   return EXERCISES.map((e) => e.id).filter((id) => !genannt.has(id));
 });
 check(unbekannt.length === 0, `jede Übung kommt im Katalog vor${unbekannt.length ? ' – fehlt: ' + unbekannt.join(', ') : ''}`);
+
+// --- Ein Tausch auf eine im Modus gesperrte Übung ist kein Tausch -----------
+// Handgelenkbruch mit Hanteln: Goblet Squat → Hip Thrust, und der Hip Thrust
+// ist mit Hanteln selbst gesperrt (avoidDb). Die Notiz sagte beides
+// nebeneinander, „Goblet Squat → Hip Thrust" und „Hip Thrust fällt aus", und
+// die Übersicht zählte die Goblet-Sätze als getauscht. Geprüft wird das
+// Muster allgemein: jede Beschwerde einzeln und jedes Paar, bei dem die eine
+// auf etwas tauscht, das die andere nur in einem Modus sperrt – in beiden
+// Modi, an jeder Einheit.
+const kette = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { INJURIES, gesperrt } = await import('./js/injuries.js');
+  const { PLAN } = await import('./js/data.js');
+  const { injuryNotes } = await import('./js/plan.js');
+  const faelle = INJURIES.map((i) => [i.id]);
+  INJURIES.forEach((a) => Object.values(a.swap || {}).forEach((ziel) => INJURIES.forEach((b) => {
+    if (b !== a && [...(b.avoidDb || []), ...(b.avoidBw || [])].includes(ziel)) faelle.push([a.id, b.id]);
+  })));
+  const fehler = [];
+  let geprueft = 0;
+  for (const act of faelle) {
+    store.setSetting('injuries', act);
+    for (const m of ['db', 'bw']) {
+      const zu = gesperrt(act, m);
+      PLAN.forEach((w) => {
+        const r = injuryNotes(w.n, m);
+        geprueft += 1;
+        const weg = new Set(r.dropped.map((d) => d.id));
+        r.swapped.filter((s) => zu.has(s.to) || weg.has(s.to))
+          .forEach((s) => fehler.push(`${act.join('+')} ${m} W${w.n}: ${s.from}→${s.to}`));
+      });
+    }
+  }
+  // Der Fall aus dem Fund, in Worten: im Hantel-Modus fällt der Goblet Squat
+  // weg, er wird nicht getauscht.
+  store.setSetting('injuries', ['handgelenk-bruch']);
+  const w = PLAN.find((x) => x.ex.some((e) => e.id === 'goblet-squat'));
+  const r = w ? injuryNotes(w.n, 'db') : { dropped: [], swapped: [] };
+  return {
+    fehler: [...new Set(fehler)], geprueft, n: w && w.n,
+    weg: r.dropped.map((d) => `${d.id}:${d.sets}`), tausch: r.swapped.map((s) => `${s.from}→${s.to}`),
+  };
+});
+console.log(`     ${kette.geprueft} Notizen geprüft; Handgelenkbruch W${kette.n} mit Hanteln: weg ${kette.weg.join(' ')} · getauscht ${kette.tausch.join(' ') || '–'}`);
+check(kette.fehler.length === 0,
+  `kein Tausch auf eine im Modus gesperrte Übung${kette.fehler.length ? ' – ' + kette.fehler.slice(0, 6).join(' | ') + (kette.fehler.length > 6 ? ` … (${kette.fehler.length})` : '') : ''}`);
+check(kette.weg.some((x) => x.startsWith('goblet-squat:')) && !kette.tausch.some((x) => x.startsWith('goblet-squat→')),
+  'Handgelenkbruch mit Hanteln: der Goblet Squat fällt aus, statt „→ Hip Thrust" zu heißen');
+
+// Und die Übersicht unter Beschwerden sagt dasselbe.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setMode('db');
+  store.setSetting('injuries', ['handgelenk-bruch']);
+});
+await zuVerletzt();
+await page.waitForTimeout(300);
+const uebersicht = (await page.locator('.inj-summary').textContent()).replace(/\s+/g, ' ');
+const getauscht = (uebersicht.match(/Getauscht:(.*?)(Fällt ersatzlos weg:|$)/) || [])[1] || '';
+const ersatzlos = (uebersicht.match(/Fällt ersatzlos weg:(.*?)(Davon|Alle Haken|$)/) || [])[1] || '';
+check(!/Hip Thrust/.test(getauscht) && /Goblet Squat/.test(ersatzlos),
+  `die Übersicht zählt den Goblet Squat als weggefallen, nicht als getauscht (getauscht:${getauscht.slice(0, 80) || ' –'})`);
+await page.locator('[data-act="clear-injuries"]').click();
+await page.waitForTimeout(200);
 
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);

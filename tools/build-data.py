@@ -167,9 +167,10 @@ GERAET_AUS_TEXT = {
     # leer ausgeht - gemessen: 1,8 statt 10 Saetzen je Woche ohne Band und
     # Hanteln. Siehe flaschen-seitheben.
     'zwei volle Flaschen': [],
+    # Eine Schreibweise. Es standen einmal vier da („Ohne Gerät", „ohne Gerät",
+    # „ohne" …), und die Übungskarte zeigt den Text roh – dieselbe Angabe sah
+    # je Übung anders aus. Eine abweichende bricht jetzt den Bau ab.
     'Ohne Gerät': [],
-    'ohne Gerät': [],
-    'ohne': [],
     'Ohne Gerät (optional zwei Bücherstapel)': [],
 }
 
@@ -351,7 +352,7 @@ def main():
     # Namen, Wiederholungen, Hinweise und das Bodyweight-Äquivalent. Datei
     # löschen und neu generieren stellt den Originalplan wieder her.
     # Ohne plan.json gilt das alte, gleichmäßige Ziel für jede Gruppe.
-    def lies_plan(pfad):
+    def lies_plan(pfad, still=False):
         """Eine Plandatei prüfen und in die Form bringen, die die App erwartet."""
         roh = json.loads(pfad.read_text(encoding='utf-8'))
         # Der Suchbegriff ist tools/plan-*.json, und da geraet leicht etwas
@@ -382,9 +383,10 @@ def main():
                     sys.exit(f'{pfad.name}: {i["id"]} am {o["date"]} hat '
                              f'{i["bwSets"]} Bodyweight-Sätze')
             fresh.append({'n': len(fresh) + 1, 'date': o['date'], 'ex': o['ex']})
-        print(f'{pfad.relative_to(ROOT)}: {len(fresh)} Einheiten '
-              f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), '
-              f'Fokus "{roh.get("name", "Ausgewogen")}"')
+        if not still:
+            print(f'{pfad.relative_to(ROOT)}: {len(fresh)} Einheiten '
+                  f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), '
+                  f'Fokus "{roh.get("name", "Ausgewogen")}"')
         # Fingerabdruck der Inhalte: Welche Uebung an welcher Nummer steht.
         #
         # Ein Protokoll ist nach Workout-Nummer abgelegt. Aendert sich, was
@@ -396,9 +398,19 @@ def main():
         # Betrieb staendig und aendern nichts an dem, was zu tun ist.
         inhalt = ';'.join(f'{o["n"]}:' + ','.join(i['id'] for i in o['ex'])
                           for o in fresh)
+        # Und ein zweiter nur fuer die Satzzahlen. `stand` sieht nur die
+        # Uebungen; ein Neulauf, der allein die Saetze ohne Hanteln verteilt
+        # (bw_verteilen am 05.10.), liess ihn gleich – und eine angefangene
+        # Einheit bekam still eine andere Satzzahl. Getrennt, weil die Kette
+        # frueherer Plaene (tools/plan-vorher/) nach `stand` geht und eine
+        # reine Satzaenderung dort kein neues Glied braucht: Was an dem Tag
+        # galt, steht im Protokoll (`soll`), siehe satzWechsel() in js/app.js.
+        saetze = ';'.join(f'{o["n"]}:' + ','.join(
+            f'{i["id"]}/{i.get("sets", "")}/{i.get("bwSets", "")}' for i in o['ex']) for o in fresh)
         return {
             'name': roh.get('name', 'Aufbau'),
             'stand': hashlib.sha256(inhalt.encode()).hexdigest()[:12],
+            'saetze': hashlib.sha256(saetze.encode()).hexdigest()[:12],
             'target': roh['target'],
             'derived': roh.get('derived', []),
             'cap': roh.get('cap', DEFAULT_CAP),
@@ -431,6 +443,55 @@ def main():
     for v in varianten.values():
         v['target'] = {m: v['target'].get(m, DEFAULT_TARGET) for m in groups}
 
+    # Der Plan davor, je Variante, wenn er unter tools/plan-vorher/ liegt.
+    #
+    # Wechselt der Plan, schreibt die App angefangene Einheiten auf das fest,
+    # was im Protokoll steht (planWechsel() in js/app.js). Die Fokusansicht
+    # legte aber nur Einträge für die Übungen an, die schon angezeigt waren –
+    # und am 29.09. stand eine angefangene Cut-Einheit danach mit zwei statt
+    # vier Übungen da:
+    #
+    #     „Heute nur zwei Übungen?"
+    #
+    # Mit dem alten Plan weiß die App, was hinter der Nummer stand, und schreibt
+    # die ganze Einheit fest. Wer einen Plan neu einspielt, legt den bisherigen
+    # vorher hierher (siehe README, „Einen Plan neu einspielen").
+    #
+    # **Eine Kette, nicht ein Plan davor.** Bis hierher lag je Variante genau
+    # eine Datei (tools/plan-vorher/<variante>.json), und jeder neue Plan
+    # überschrieb sie. Die App nimmt einen Vorgänger aber nur, wenn sein Stand
+    # genau der ist, unter dem das Gerät zuletzt lief – wer eine Fassung
+    # übersprungen hatte, fand seinen nicht mehr. Am 03.10. ersetzte der Cut
+    # a51fd2 den e06a62, und eine Cut-Einheit, die unter e06a62 angefangen und
+    # seitdem nicht geöffnet war, stand danach wieder mit dem ersten Paar da:
+    # derselbe Fehler wie am 29.09. Deshalb liegt jetzt jeder ausgelieferte
+    # Stand in tools/plan-vorher/<variante>/<stand>.json und bleibt dort; die
+    # App sucht sich den passenden heraus (vorherPlan() in js/app.js).
+    #
+    # Der Dateiname ist der Stand. So steht kein Stand zweimal da, und wer eine
+    # Datei unter falschem Namen ablegt, merkt es hier und nicht erst auf dem
+    # Handy eines Nutzers, dessen Einheit wieder kurz ist.
+    for key, v in varianten.items():
+        einzeln = ROOT / 'tools' / 'plan-vorher' / f'{key}.json'
+        if einzeln.exists():
+            sys.exit(f'{einzeln.relative_to(ROOT)}: Die Ablage ist eine Kette – '
+                     f'je Stand eine Datei unter tools/plan-vorher/{key}/<stand>.json '
+                     f'(siehe README, „Einen Plan neu einspielen").')
+        ordner = ROOT / 'tools' / 'plan-vorher' / key
+        kette = []
+        for datei in sorted(ordner.glob('*.json')) if ordner.is_dir() else []:
+            alt = lies_plan(datei, still=True)
+            if datei.stem != alt['stand']:
+                sys.exit(f'{datei.relative_to(ROOT)}: Der Plan darin hat den Stand '
+                         f'{alt["stand"]} – die Datei muss {alt["stand"]}.json heißen.')
+            if alt['stand'] == v['stand']:
+                continue   # der laufende Plan ist kein Vorgänger
+            kette.append({'stand': alt['stand'],
+                          'ex': [[[i['id'], i['sets'], i['bwSets']] for i in o['ex']]
+                                 for o in alt['plan']]})
+        if kette:
+            v['vorher'] = kette
+
     # Eine Umleitung ins Leere wäre schlimmer als gar keine: Sie sieht im Code
     # nach Sorgfalt aus und landet doch wieder beim stillen Rückfall.
     for alt, ziel in FOKUS_ERSATZ.items():
@@ -452,17 +513,28 @@ def main():
         "//   rest     Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,\n"
         "//            und ab welchem Anteil eine Uebung als direkt fuer sie gilt\n"
         "//   plan     die Einheiten selbst\n"
+        "//   saetze   Fingerabdruck der Satzzahlen (je Nummer Uebung/sets/bwSets)\n"
+        "//   vorher   jeder fruehere ausgelieferte Plan als { stand, ex } (nur die\n"
+        "//            Uebungen je Nummer), damit ein Planwechsel angefangene\n"
+        "//            Einheiten vollstaendig festschreibt - auch nach einem Sprung\n"
+        "//            ueber mehrere Fassungen\n"
         "export const PLANS = {\n"
         + "".join(
             f"  {json.dumps(key)}: {{\n"
             f"    name: {json.dumps(v['name'], ensure_ascii=False)},\n"
             f"    stand: {json.dumps(v.get('stand', ''))},\n"
+            f"    saetze: {json.dumps(v.get('saetze', ''))},\n"
             f"    target: {json.dumps(v['target'], ensure_ascii=False)},\n"
             f"    derived: {json.dumps(v['derived'], ensure_ascii=False)},\n"
             f"    cap: {json.dumps(v['cap'])},\n"
             f"    rest: {json.dumps(v['rest'], ensure_ascii=False)},\n"
             f"    plan: {json.dumps(v['plan'], ensure_ascii=False, separators=(',', ':'))},\n"
-            f"  }},\n"
+            + ("    vorher: [\n"
+               + "".join(f"      {json.dumps(k, ensure_ascii=False, separators=(',', ':'))},\n"
+                         for k in v['vorher'])
+               + "    ],\n"
+               if v.get('vorher') else '')
+            + f"  }},\n"
             for key, v in varianten.items())
         + "};\n\n"
         "// Abgeschaffte Fokusse und ihr Nachfolger. Ein Fokus steht im Browser des\n"

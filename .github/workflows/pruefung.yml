@@ -17,7 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Die Versionspflicht vergleicht mit dem Stand vor diesem Push.
+          # Versionspflicht und Plan davor vergleichen mit einem älteren Stand,
+          # der Plan davor auf einem Zweig mit seinem Abzweig von origin/main –
+          # dafür braucht es die ganze Geschichte und alle Zweige.
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -68,6 +70,16 @@ jobs:
       # aus alten und neuen Dateien. Stand in sw.js, prüfte niemand.
       - name: VERSION hochgezählt, wo sich der Offline-Vorrat ändert
         run: python3 tools/pruefung/versionspflicht.py "${{ github.event.before || github.event.pull_request.base.sha }}"
+
+      # Bekommt ein Plan einen neuen Stand, muss der ausgelieferte nach
+      # tools/plan-vorher/ – sonst schreibt die App eine angefangene Einheit nur
+      # aus dem Protokoll fest („Heute nur zwei Übungen?"). Stand im README,
+      # prüfte niemand. Verglichen wird hier mit dem ausgelieferten Stand, nicht
+      # mit dem vor dem Push: Auf einem Zweig war der nie ausgeliefert, und wer
+      # ihn als Plan davor ablegte, scheiterte danach am Pull-Request. Welcher
+      # es ist, entscheidet --ci (siehe tools/pruefung/plan-vorher.py).
+      - name: Der Plan davor liegt bereit, wo sich ein Plan ändert
+        run: python3 tools/pruefung/plan-vorher.py --ci
 
       # Die erzeugten Dateien noch einmal erzeugen. Kommt dabei etwas anderes
       # heraus als eingecheckt ist, wurde von Hand hineingeschrieben oder ein

@@ -13,14 +13,15 @@
  * nicht für sich prüfen.
  * ------------------------------------------------------------------ */
 import * as store from './store.js';
-import { PLAN } from './data.js';
-import { esc } from './text.js';
+import { FOKUS_ERSATZ, PLAN, PLANS } from './data.js';
+import { esc, fmtNum } from './text.js';
 import { addDays, fmtDate, monthStart, plural, todayISO } from './dates.js';
-import { completedMode, effDate, exOf, progressOf, resolve } from './plan.js';
-import { MODE_ICON, MODE_LABEL, repsLabel } from './anzeige.js';
+import { completedMode, effDate, einheitEx, progressOf, resolve } from './plan.js';
+import { MODE_ICON, MODE_LABEL, repsLabel, umfangText } from './anzeige.js';
 import { termine, terminLabel } from './termine.js';
 import { AKT_BY_ID, gruppenAm } from './aktivitaeten.js';
 import { MUSCLE_LABEL } from './body.js';
+import { EX_BY_ID } from './uebung.js';
 
 /** Ein Zeichen für „hier war Sport, aber nicht aus dem Plan". */
 export const AKT_ICON = '🤾';
@@ -46,8 +47,13 @@ export const KIND_TEXT = { done: 'trainiert', part: 'angefangen', miss: 'ausgefa
  * nichts, die Tage stehen im abgelegten Protokoll; sie wurden nur nicht mehr
  * gezeigt. Ein Trainingstag gehört aber dem Tag, nicht dem Plan.
  *
- * Welche Übungen es waren, weiß der Kalender nicht mehr – der Plan dazu ist
- * nicht geladen. Gezeigt werden deshalb Tag, Modus und die Zahl der Sätze.
+ * Und welche Übungen es waren, mit Sätzen und Kilo. Hier stand einmal, das
+ * wisse der Kalender nicht mehr, weil der Plan dazu nicht geladen sei. Für
+ * Namen, Sätze und Gewicht braucht es den Plan aber nicht: Das Protokoll steht
+ * nach Übung (log[n][modus][id], je Satz `done` und `w`), und die Namen kommen
+ * aus dem Katalog. Unbekannt bleiben nur die Wiederholungen, die der Plan an
+ * jenem Tag vorsah – gezeigt wird deshalb, was gemacht wurde, nicht, was
+ * vorgesehen war.
  */
 export function fruehereTage() {
   const map = new Map();
@@ -55,19 +61,64 @@ export function fruehereTage() {
     Object.values(r.log || {}).forEach((e) => {
       if (!e || !e.startedOn) return;
       const proModus = { db: 0, bw: 0 };
+      const uebungen = [];
       ['db', 'bw'].forEach((m) => {
-        Object.values(e[m] || {}).forEach((arr) => {
-          if (Array.isArray(arr)) arr.forEach((s) => { if (s && s.done) proModus[m] += 1; });
+        Object.entries(e[m] || {}).forEach(([id, arr]) => {
+          if (!Array.isArray(arr)) return;
+          const fertig = arr.filter((s) => s && s.done);
+          if (!fertig.length) return;
+          proModus[m] += fertig.length;
+          const kg = fertig.map((s) => parseFloat(String(s.w ?? '').replace(',', '.')))
+            .filter((x) => Number.isFinite(x) && x > 0);
+          uebungen.push({ id, mode: m, saetze: fertig.length, kg });
         });
       });
       const saetze = proModus.db + proModus.bw;
       if (!saetze) return;
       const da = map.get(e.startedOn)
-        || { saetze: 0, einheiten: 0, mode: e.done || (proModus.bw > proModus.db ? 'bw' : 'db') };
+        || { saetze: 0, einheiten: 0, mode: e.done || (proModus.bw > proModus.db ? 'bw' : 'db'), uebungen: [] };
       da.saetze += saetze;
       da.einheiten += 1;
+      da.uebungen.push(...uebungen);
       map.set(e.startedOn, da);
     });
+  });
+  return map;
+}
+
+/** „20 kg" oder „20–22,5 kg" für die Sätze einer früheren Übung – oder nichts. */
+function kgSpanne(kg) {
+  if (!kg.length) return '';
+  const lo = Math.min(...kg);
+  const hi = Math.max(...kg);
+  return lo === hi ? `${fmtNum(lo)} kg` : `${fmtNum(lo)}–${fmtNum(hi)} kg`;
+}
+
+/**
+ * Eigene Einheiten nach Tag – der Zusatztag und alles selbst Zusammengestellte.
+ *
+ * Der Kalender zeichnete nur den Plan. Ein ganz gemachter Zusatztag am Sonntag
+ * stand dort als leerer Tag, während die Statistik ihn bei den Trainingstagen
+ * mitzählte. Trainiert wurde an dem Tag; der Kalender sagt das jetzt auch – am
+ * Tag, an dem der erste Satz stand (startedOn).
+ */
+export function eigeneTage() {
+  const map = new Map();
+  const log = store.getState().log || {};
+  store.customs().forEach((c) => {
+    const e = log[c.id];
+    if (!e || !e.startedOn) return;
+    const proModus = { db: 0, bw: 0 };
+    ['db', 'bw'].forEach((m) => {
+      Object.values(e[m] || {}).forEach((arr) => {
+        if (Array.isArray(arr)) arr.forEach((s) => { if (s && s.done) proModus[m] += 1; });
+      });
+    });
+    const saetze = proModus.db + proModus.bw;
+    if (!saetze) return;
+    const da = map.get(e.startedOn) || [];
+    da.push({ c, saetze, mode: proModus.bw > proModus.db ? 'bw' : 'db' });
+    map.set(e.startedOn, da);
   });
   return map;
 }
@@ -93,12 +144,20 @@ export function aktivitaetTage() {
   return map;
 }
 
-export function calendarCell(iso, month, today, byDate, sel, frueher, akt) {
+export function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigene, aus) {
   const ws = byDate.get(iso) || [];
   const st = dayState(ws[0], iso, today);
+  const selbst = (eigene && eigene.get(iso)) || [];
   // Der laufende Plan hat Vorrang: Steht heute eine Einheit an, ist das die
   // Auskunft, und nicht das, was vor einem Fokuswechsel an diesem Tag war.
-  const alt = st ? null : (frueher && frueher.get(iso)) || null;
+  // Eine eigene Einheit an einem Tag ohne Planeinheit trägt die Kachel wie
+  // eine trainierte; neben einer Planeinheit zählt sie als weitere (+1).
+  const alt = st ? null : (frueher && frueher.get(iso))
+    || (selbst.length ? { einheiten: 0, mode: selbst[0].mode } : null);
+  // Ein Trainingstag im Rhythmus, der ohne Training verstrich (ausfallTage()
+  // in js/plan.js). Auf dem Tag steht keine Einheit mehr – sie rückte nach
+  // hinten –, deshalb kommt der Ausfall aus der Rechnung und nicht aus byDate.
+  const ausfall = !st && !alt && aus ? aus.get(iso) || null : null;
   // Aktivitäten sind eine eigene Ebene und keine dritte Sorte Tag: An einem
   // Tag kann beides gewesen sein – vormittags Padel, abends die Einheit. Sie
   // ersetzen deshalb nichts, sondern kommen als Streifen dazu.
@@ -111,15 +170,29 @@ export function calendarCell(iso, month, today, byDate, sel, frueher, akt) {
   // 'frueher' trägt keine eigene Darstellung mehr (siehe css/styles.css) – die
   // Kachel ist eine trainierte wie jede andere. Die Klasse bleibt als Merkmal
   // für die Detailansicht und den Test stehen.
-  else if (alt) cls.push('done', 'frueher', alt.mode);
+  else if (alt) cls.push('done', alt.einheiten ? 'frueher' : 'eigen', alt.mode);
+  else if (ausfall) cls.push('miss');
   if (sport.length) cls.push('akt');
   const tag = Number(iso.slice(8));
-  // Ohne Einheit und ohne Sport ist der Tag kein Knopf: nichts anzuzeigen,
-  // nichts zu tippen.
-  if (!st && !alt && !sport.length) {
+  // Ohne Einheit, ohne Ausfall und ohne Sport ist der Tag kein Knopf: nichts
+  // anzuzeigen, nichts zu tippen.
+  if (!st && !alt && !ausfall && !sport.length) {
     return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
   }
   const namen = sport.map((t) => t.name || terminLabel(t)).join(', ');
+  if (ausfall) {
+    // Gestrichelt wie jedes „ausgefallen", mit dem Punkt statt eines
+    // Modus-Zeichens: Trainiert wurde an dem Tag in keinem Modus. Sport des
+    // Tages kommt als Streifen dazu und wird mit vorgelesen.
+    return `
+      <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
+              aria-pressed="${iso === sel}"
+              aria-label="${esc(fmtDate(iso, true))}: Workout ${ausfall.n} ${esc(KIND_TEXT.miss)}${
+                sport.length ? ` · ${esc(namen)}` : ''}">
+        <span class="cal-num">${tag}</span>
+        <span class="cal-mark">·</span>
+      </button>`;
+  }
   if (!st && !alt) {
     // Nur Sport an diesem Tag. Die Kachel bleibt ungefüllt – trainiert wurde
     // nach dem Plan nicht –, trägt aber den Streifen und lässt sich antippen.
@@ -131,7 +204,7 @@ export function calendarCell(iso, month, today, byDate, sel, frueher, akt) {
         <span class="cal-mark">${AKT_ICON}</span>
       </button>`;
   }
-  const anzahl = st ? ws.length : alt.einheiten;
+  const anzahl = (st ? ws.length : alt.einheiten) + selbst.length;
   const modus = st ? st.mode : alt.mode;
   const mehr = anzahl > 1 ? ` (+${anzahl - 1})` : '';
   return `
@@ -191,8 +264,76 @@ export function calendarAktivitaet(iso, sport) {
   }).join('');
 }
 
-/** Die angetippte Einheit im Detail: Übungen, Sätze, Modus. */
-export function calendarDetail(iso, byDate, today, frueher, akt) {
+/** Eine eigene Einheit im Detail – wie calendarWorkout(), nur ohne Plan. */
+export function calendarEigene(iso, x) {
+  const items = x.c.ex.filter((it) => EX_BY_ID.has(it.id)).map((it) => resolve(it, x.mode));
+  return `
+    <div class="card cal-detail cal-eigen">
+      <div class="cal-det-head">
+        <div>
+          <div class="lbl">${esc(x.c.name)} · ${esc(KIND_TEXT.done)}</div>
+          <div class="hint">${esc(fmtDate(iso, true))} · ${plural(items.length, 'Übung', 'Übungen')} ·
+            ${plural(x.saetze, 'Satz', 'Sätze')} abgehakt</div>
+        </div>
+        <span class="chip ${x.mode}">${MODE_ICON[x.mode]} ${esc(MODE_LABEL[x.mode])}</span>
+      </div>
+      <ul class="cal-list">
+        ${items.map((it) => `
+          <li>
+            <span class="cal-ex">${esc(it.name)}</span>
+            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, x.mode))}</span>
+          </li>`).join('')}
+      </ul>
+      <button type="button" class="btn btn-sm" data-act="custom-start" data-id="${esc(x.c.id)}">
+        Im Dashboard ansehen
+      </button>
+    </div>`;
+}
+
+/**
+ * Ein ausgefallener Tag im Detail: welche Einheit dran gewesen wäre und wohin
+ * sie rückte. Sachlich, ohne Vorwurf – der Tag ist vorbei, die Einheit nicht
+ * verloren.
+ */
+export function calendarAusfall(iso, x, today) {
+  let folge;
+  if (x.spaeter) {
+    const fertig = !x.aktuell || completedMode(x.n);
+    folge = `Workout ${x.n} rückte nach hinten und wurde am ${fmtDate(x.spaeter)} ${fertig ? 'trainiert' : 'angefangen'}.`;
+  } else if (x.aktuell) {
+    const jetzt = effDate(PLAN[x.n - 1]);
+    // Über Mitternacht, bevor catchUpPlan() nachrückt, liegt die Einheit noch
+    // auf einem vergangenen Tag – womöglich auf einem, den das Raster gerade
+    // selbst als ausgefallen zeigt. „Jetzt für Mo geplant" am Di wäre falsch;
+    // „noch offen" stimmt vor und nach dem Nachrücken.
+    folge = jetzt < today
+      ? `Workout ${x.n} rückte nach hinten und ist noch offen.`
+      : `Workout ${x.n} rückte nach hinten und ist jetzt für ${
+        jetzt === today ? 'heute' : fmtDate(jetzt)} geplant.`;
+  } else {
+    folge = `Workout ${x.n} blieb offen – danach ging es mit einem anderen Plan weiter.`;
+  }
+  const plan = x.focus ? (PLANS[x.focus] || FOKUS_ERSATZ[x.focus] || {}).name : '';
+  return `
+    <div class="card cal-detail cal-aus">
+      <div class="cal-det-head">
+        <div>
+          <div class="lbl">Workout ${x.n} · ${esc(KIND_TEXT.miss)}</div>
+          <div class="hint">${esc(fmtDate(iso, true))} · Trainingstag im Rhythmus nach dem Training
+            am ${esc(fmtDate(x.seit))}</div>
+        </div>
+      </div>
+      <div class="small" style="margin:10px 0 12px">${esc(folge)}</div>
+      ${x.aktuell ? `
+        <button type="button" class="btn btn-sm" data-act="cal-open" data-n="${x.n}">
+          ${x.spaeter && completedMode(x.n) ? 'Im Dashboard ansehen' : 'Zu dieser Einheit'}
+        </button>` : `
+        <div class="small muted">Aus einem früheren Trainingsplan${plan ? ` (${esc(plan)})` : ''}.</div>`}
+    </div>`;
+}
+
+/** Die angetippte Einheit im Detail: Übungen, Sätze, Modus – dazu eigene Einheiten des Tages. */
+export function calendarDetail(iso, byDate, today, frueher, akt, eigene, aus) {
   // Noch kein Tag angetippt: dann gibt es auch keinen Tag, über den sich etwas
   // sagen ließe. Vorher stand hier „Kein Training an diesem Tag" – auch wenn
   // heute eine Einheit lag.
@@ -200,12 +341,21 @@ export function calendarDetail(iso, byDate, today, frueher, akt) {
     return `<div class="card muted small">Tippe einen markierten Tag an, um die Einheit
       zu sehen.</div>`;
   }
+  const selbst = ((eigene && eigene.get(iso)) || []).map((x) => calendarEigene(iso, x)).join('');
+  return calendarDetailPlan(iso, byDate, today, frueher, akt, selbst, aus) + selbst;
+}
+
+function calendarDetailPlan(iso, byDate, today, frueher, akt, selbst, aus) {
   const ws = byDate.get(iso) || [];
   const sport = (akt && akt.get(iso)) || [];
   // Der Sport steht oben: Wer im Kalender auf einen orangen Streifen tippt,
   // hat ihn gemeint. Die Einheit desselben Tages kommt darunter, sie geht
   // dabei nicht verloren.
   const vorn = sport.length ? calendarAktivitaet(iso, sport) : '';
+  // Ausgefallen: auch hier unter dem Sport – Boxen am Samstag ist kein
+  // Plantraining, die Einheit des Tages rückte trotzdem nach hinten.
+  const ausfall = !ws.length && !(frueher && frueher.get(iso)) && aus ? aus.get(iso) : null;
+  if (ausfall) return vorn + calendarAusfall(iso, ausfall, today);
   if (vorn && !ws.length && !(frueher && frueher.get(iso))) return vorn;
   const alt = ws.length ? null : (frueher && frueher.get(iso)) || null;
   if (alt) {
@@ -218,12 +368,20 @@ export function calendarDetail(iso, byDate, today, frueher, akt) {
           </div>
           <span class="chip ${alt.mode}">${MODE_ICON[alt.mode]} ${esc(MODE_LABEL[alt.mode])}</span>
         </div>
-        <div class="small muted">Aus einem früheren Trainingsplan. Die Übungen dazu stehen in
-          dem Plan, der damals galt – die Sätze und Kilo zählen in der Statistik weiter mit.</div>
+        <ul class="cal-list">
+          ${(alt.uebungen || []).filter((u) => EX_BY_ID.has(u.id)).map((u) => `
+          <li>
+            <span class="cal-ex">${esc(EX_BY_ID.get(u.id)[u.mode].name)}</span>
+            <span class="cal-sets">${plural(u.saetze, 'Satz', 'Sätze')}${
+              kgSpanne(u.kg) ? ` · ${esc(kgSpanne(u.kg))}` : ''}</span>
+          </li>`).join('')}
+        </ul>
+        <div class="small muted">Aus einem früheren Trainingsplan, so wie es im Protokoll steht –
+          die Sätze und Kilo zählen in der Statistik weiter mit.</div>
       </div>`;
   }
   if (!ws.length) {
-    return `<div class="card muted small">Kein Training an diesem Tag. Tippe einen
+    return selbst ? vorn : `<div class="card muted small">Kein Training an diesem Tag. Tippe einen
       markierten Tag an, um die Einheit zu sehen.</div>`;
   }
   // Zwei Einheiten an einem Tag gibt es wirklich – etwa wenn zwei an
@@ -234,8 +392,10 @@ export function calendarDetail(iso, byDate, today, frueher, akt) {
 export function calendarWorkout(w, iso, today) {
   const st = dayState(w, iso, today);
   const mode = st.mode;
-  const items = exOf(w, mode).map((it) => resolve(it, mode));
-  const saetze = items.reduce((a, x) => a + x.sets, 0);
+  // Die ganze Einheit, samt eingefügtem Zusatztag (einheitEx()) – so, wie sie
+  // trainiert wird oder wurde. Künftige Tage zeigen keinen: Er gehört zu der
+  // Einheit, die heute fällig ist, und wird erst dort gerechnet.
+  const items = einheitEx(w, mode).map((it) => resolve(it, mode));
   const kopf = KIND_TEXT[st.kind];
   const prog = progressOf(w.n, mode);
 
@@ -244,8 +404,10 @@ export function calendarWorkout(w, iso, today) {
       <div class="cal-det-head">
         <div>
           <div class="lbl">Workout ${w.n} · ${esc(kopf)}</div>
-          <div class="hint">${esc(fmtDate(iso, true))} · ${plural(items.length, 'Übung', 'Übungen')} ·
-            ${plural(saetze, 'Satz', 'Sätze')}</div>
+          <!-- Wortgleich mit dem Kopf der Einheit: die Summe, Nachgeholtes
+               eingerechnet (umfangText() in js/anzeige.js); welche Übung
+               nachgeholt ist, steht in der Liste darunter. -->
+          <div class="hint">${esc(fmtDate(iso, true))} · ${esc(umfangText(items))}</div>
         </div>
         <span class="chip ${mode}">${MODE_ICON[mode]} ${esc(MODE_LABEL[mode])}</span>
       </div>
@@ -254,7 +416,7 @@ export function calendarWorkout(w, iso, today) {
         ${items.map((it) => `
           <li>
             <span class="cal-ex">${esc(it.name)}</span>
-            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, mode))}</span>
+            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, mode))}${it.zusatz ? ' · nachgeholt' : ''}</span>
           </li>`).join('')}
       </ul>
       <button type="button" class="btn btn-sm" data-act="cal-open" data-n="${w.n}">

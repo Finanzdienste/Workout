@@ -11,10 +11,16 @@
  * trainiert wurde. Das steht dann auch in der App, im Einstieg und unter Mehr,
  * mit einem Schalter zum Abstellen – ohne diesen Satz wäre es Schnüffelei.
  *
+ * Und jedes Gerät sichert sein Training automatisch dorthin – verschlüsselt auf
+ * dem Gerät, mit einem Schlüssel, den der Server nie sieht (js/sicherung.js).
+ * Auch das steht im Einstieg und unter Mehr, mit eigenem Schalter.
+ *
  * URL und Schlüssel dürfen öffentlich sein: Mit dem SQL aus der README kommt man
- * damit an genau drei Funktionen – melden, die eigene Zeile löschen, und die
- * Übersicht. Die will ein Passwort (siehe adminListe() in js/telemetry.js), und
- * das steht nirgends im Code. Auf die Tabelle selbst führt gar kein Weg.
+ * damit an genau sechs Funktionen – melden, die eigene Zeile löschen, die
+ * Übersicht, und für die Sicherung schreiben, lesen, löschen. Die Übersicht will
+ * ein Passwort (siehe adminListe() in js/telemetry.js), und das steht nirgends
+ * im Code; die Sicherung gibt nur Chiffrat heraus. Auf die Tabellen selbst
+ * führt gar kein Weg.
  */
 
 export const CONFIG = {

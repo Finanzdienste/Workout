@@ -35,6 +35,10 @@ schreibt ins Repo, dass die Plaene aelter sind als ihre Eingaben, und warum das
 so bleiben soll. Ein Fingerabdruck, der einfach nachgezogen wird, wuerde dieselbe
 Lage verschweigen.
 
+**Und er endet mit dem naechsten `--schreiben`.** Danach gibt es die Abweichung
+nicht mehr, und der Eintrag wird mit geleert. Ein Eintrag, der nicht mehr
+greift, schlaegt ebenfalls an – siehe tote_eintraege().
+
 **Je Variante ein eigener Stand.** Anfangs stand hier ein Fingerabdruck fuer
 alle vier Plaene, und das ging gut, solange sie zusammen erzeugt wurden. Am
 17.09. wurden drei von vieren neu gerechnet und der vierte nicht – eine Lage,
@@ -123,13 +127,27 @@ HINWEIS = ('Erzeugt von tools/pruefung/plan-frisch.py – je Variante der Stand 
            'Pruefung nicht durch.')
 
 
+def tote_eintraege(variante, tot):
+    """Eintraege unter `hingenommen`, zu denen es keine Abweichung mehr gibt.
+
+    Sie standen hier lange still: 17 Eintraege – „neu im Katalog" fuer
+    Uebungen, die --schreiben laengst in `felder` uebernommen hatte – und
+    jeder davon konnte nie wieder greifen. Wer die Datei las, hielt ihre
+    Begruendungen trotzdem fuer gueltig, und das README sagte dazu, die Plaene
+    seien aelter als ihre Eingaben. Eine Ausnahme ohne Regel, die sie
+    ausnimmt, ist keine Ausnahme mehr, sondern ein falscher Satz.
+    """
+    if not tot:
+        return 0
+    print(f'  Unter "hingenommen" steht, was nicht mehr greift – die Abweichung gibt es '
+          f'nicht mehr: {", ".join(tot)}')
+    print(f'  Entfernen (--schreiben {variante} leert "hingenommen" ohnehin mit).')
+    return 1
+
+
 def pruefe(variante, stand, jetzt):
     """Eine Variante gegen ihren eigenen Stand. Rueckgabe: 0 oder 1."""
     kopf = f'{VARIANTEN[variante]} ({variante})'
-    if stand.get('fingerabdruck') == fingerabdruck(jetzt):
-        print(f'{kopf}: Plan und Eingaben passen zusammen ({stand["fingerabdruck"]}).')
-        return 0
-
     hingenommen = stand.get('hingenommen', {})
     offen, bekannt = [], []
     for schluessel, alt, neu in unterschiede(stand.get('felder', {}), jetzt):
@@ -138,6 +156,11 @@ def pruefe(variante, stand, jetzt):
             bekannt.append((schluessel, eintrag.get('grund', '')))
         else:
             offen.append(f'{schluessel}: {alt!r} -> {neu!r}')
+    tot = sorted(set(hingenommen) - {s for s, _ in bekannt})
+
+    if stand.get('fingerabdruck') == fingerabdruck(jetzt):
+        print(f'{kopf}: Plan und Eingaben passen zusammen ({stand["fingerabdruck"]}).')
+        return tote_eintraege(variante, tot)
 
     print(f'{kopf}:')
     for schluessel, grund in bekannt:
@@ -148,7 +171,8 @@ def pruefe(variante, stand, jetzt):
     if not offen:
         print(f'  Sonst passen Plan und Eingaben zusammen '
               f'({len(bekannt)} bekannte Abweichung(en)).')
-        return 0
+        return tote_eintraege(variante, tot)
+    tote_eintraege(variante, tot)
 
     print('  Der Plan ist aelter als seine Eingaben:')
     for zeile in offen:
@@ -171,8 +195,12 @@ def main():
         # eine Frische, die sie nicht haben. Genau so war es passiert.
         namen = [a for a in sys.argv[1:] if a in VARIANTEN] or list(VARIANTEN)
         for name in namen:
+            # `hingenommen` wird mit geleert: Es begruendet Abweichungen zwischen
+            # `felder` und den Eingaben, und die gibt es nach diesem Schreiben
+            # nicht mehr. Uebernommen blieben sie als Saetze stehen, die nie
+            # wieder greifen – so standen hier 17 davon.
             plaene[name] = {'fingerabdruck': fingerabdruck(jetzt),
-                            'hingenommen': plaene.get(name, {}).get('hingenommen', {}),
+                            'hingenommen': {},
                             'felder': jetzt}
         STAND.write_text(json.dumps({'hinweis': HINWEIS, 'plaene': plaene},
                                     ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

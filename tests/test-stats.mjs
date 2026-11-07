@@ -139,6 +139,90 @@ check(kacheln.some((t) => /2\/84 Workouts in dieser Runde/.test(t)),
 check(kacheln.some((t) => /^6 Einheiten insgesamt/.test(t)),
   'und die Gesamtzahl über alle Runden steht direkt daneben');
 
+// --- Kachel und Verlaufskarte rechnen dasselbe Volumen ------------------
+//
+// Die Karte „Volumen je Muskelgruppe" nahm das Gewicht des ersten Satzes für
+// alle Sätze und die untere Wiederholungsgrenze, die Kachel „Volumen kg"
+// darüber jeden Satz mit seinem eigenen Gewicht. 40 kg, dann auf 35 gesenkt:
+// Kachel 870, Karte 720 – für dieselbe Einheit. Und jede Gruppe der Übung
+// bekam das volle Volumen, auch der Beinbeuger mit Anteil 0,15 beim Goblet
+// Squat.
+const volumenSicht = async (id, saetze) => {
+  await page.evaluate(async ({ id, saetze }) => {
+    const { PLAN } = await import('./js/data.js');
+    const w = PLAN.find((x) => x.ex.some((it) => it.id === id));
+    const e = { mode: 'db', startedOn: '2026-08-20', db: { [id]: saetze }, bw: {} };
+    localStorage.clear();
+    localStorage.setItem('workout.state.v1', JSON.stringify({
+      greeted: true, mode: 'db', autoShift: false, shift: 0, log: { [w.n]: e } }));
+  }, { id, saetze });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.tab[data-tab="stats"]').click();
+  await page.waitForTimeout(300);
+  const zahl = (t) => Number(String(t).replace(/[^\d,]/g, '').replace(',', '.'));
+  const kachel = await page.locator('.stat', { hasText: 'Volumen kg' }).locator('.stat-v').textContent();
+  const karten = {};
+  for (const f of await page.locator('#sparkMus .spark').all()) {
+    karten[await f.locator('.spark-name').textContent()] = zahl(await f.locator('.spark-val').textContent());
+  }
+  return { kachel: zahl(kachel), karten };
+};
+
+// Floor Press 6–12: 40·6 + 35·6 + 35·12 (der letzte Satz als „oben raus"
+// abgehakt, wie es in älteren Protokollen steht) = 870.
+const fp = await volumenSicht('floor-press', [
+  { w: '40', done: true }, { w: '35', done: true }, { w: '35', done: true, wie: 'oben' }]);
+console.log('     Floor Press: Kachel', fp.kachel, '· Karten', JSON.stringify(fp.karten));
+check(fp.kachel === 870, `Kachel zählt jeden Satz mit eigenem Gewicht (${fp.kachel})`);
+check(fp.karten.Brust === fp.kachel,
+  `Karte Brust (Anteil 1) zeigt dasselbe Volumen wie die Kachel (${fp.karten.Brust} / ${fp.kachel})`);
+
+// Goblet Squat 8–12, 3 × 20 kg = 480; Beinbeuger Hüfte hat Anteil 0,15 → 72.
+const gs = await volumenSicht('goblet-squat', [0, 1, 2].map(() => ({ w: '20', done: true })));
+console.log('     Goblet Squat: Kachel', gs.kachel, '· Karten', JSON.stringify(gs.karten));
+check(gs.karten['Beinbeuger Hüfte'] === 72,
+  `Goblet Squat geht nur anteilig auf Beinbeuger Hüfte (${gs.karten['Beinbeuger Hüfte']}, erwartet 72 von ${gs.kachel})`);
+check(gs.karten.Oberschenkel === gs.kachel, `Oberschenkel (Anteil 1) bekommt das volle Volumen (${gs.karten.Oberschenkel})`);
+
+// --- Serie in Folge am Trainingstag -------------------------------------
+// Die Serie zählte rückwärts und brach bei der ersten offenen Einheit ab – und
+// am Trainingstag liegt die nächste offene immer auf heute (der Plan rückt
+// nach). Vor dem Training stand deshalb „0 Serie in Folge", gemessen
+// 4 → 0 → 5 über Ruhetag, Trainingstag vorher und nachher.
+await page.waitForTimeout(300);
+const serienStand = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { addDays, daysBetween, todayISO } = await import('./js/dates.js');
+  const shift = daysBetween(PLAN[4].date, todayISO());       // Workout 5 heute
+  const log = {};
+  PLAN.slice(0, 4).forEach((w) => {
+    log[w.n] = { mode: 'db', done: 'db', startedOn: addDays(w.date, shift), bw: {},
+                 db: Object.fromEntries(w.ex.map((it) => [it.id,
+                   Array.from({ length: it.sets }, () => ({ w: '20', done: true }))])) };
+  });
+  return { greeted: true, name: 'T', level: 'fortgeschritten', mode: 'db', shift, log };
+});
+await page.evaluate((s) => localStorage.setItem('workout.state.v1', JSON.stringify(s)), serienStand);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+const serie = await page.evaluate(async () => {
+  const { sammleStats, effDate, completedMode } = await import('./js/plan.js');
+  const { PLAN } = await import('./js/data.js');
+  const { todayISO } = await import('./js/dates.js');
+  return { streak: sammleStats().streak, w5heute: effDate(PLAN[4]) === todayISO() && !completedMode(5) };
+});
+check(serie.w5heute, 'Workout 5 liegt offen auf heute');
+check(serie.streak === 4, `vor dem Training steht die Serie auf 4, nicht auf 0 (${serie.streak})`);
+
+// --- Der Hinweis unter dem Wochenvolumen nennt keine feste Satzzahl ------
+// „… weil jede Übung mit drei Sätzen dasteht" – für Fortgeschrittene (vier je
+// Übung) und ohne Hanteln (zwei bis vier) stimmte das nicht.
+await page.locator('.tab[data-tab="stats"]').click();
+await page.waitForTimeout(400);
+const volText = (await page.locator('#volWeek').textContent()).replace(/\s+/g, ' ');
+check(/als Ganzes/.test(volText) && !/drei Sätzen/.test(volText),
+  `der Hinweis erklärt die Abweichung ohne „drei Sätze" (…${(volText.match(/darüber oder darunter[^.]*\./) || [''])[0]})`);
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

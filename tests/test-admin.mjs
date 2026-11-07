@@ -92,7 +92,11 @@ const tobi = p.locator('.vgl tbody tr').filter({ hasText: 'Tobi' });
 check(await tobi.count() === 1, 'Tobi steht genau einmal da');
 check((await tobi.textContent()).includes('2 Geräte'), 'mit dem Vermerk "2 Geräte"');
 // Gerät "c" hat 18 Sätze, "c2" hat 9 – gezeigt wird das Maximum, nicht die Summe.
-const zahlenTobi = (await tobi.textContent()).match(/\d+/g).join(' ');
+// Datumsangaben (TT.MM.) vorher weg: Am 29.09. stand in der Zeile „27.09." –
+// der Tag des letzten Satzes – und die 27 darin schlug an, obwohl die Summe
+// nirgends stand.
+const zahlenTobi = (await tobi.textContent()).replace(/\b\d{1,2}\.\d{1,2}\.(\d{2,4})?/g, ' ')
+  .match(/\d+/g).join(' ');
 check(zahlenTobi.includes('18') && !zahlenTobi.includes('27'),
   `das Maximum der beiden Geräte, nicht ihre Summe (${zahlenTobi})`);
 check((await p.locator('.vgl').textContent()).includes('Alex'), 'Liste zeigt die Namen');
