@@ -6,7 +6,7 @@
  * Knopf mindestens 44 Pixel hoch, und der Kontrast der wichtigen Paare
  * mindestens 4,5 : 1 (WCAG AA) – in beiden Farbwelten.
  */
-import { oeffne, standMit, plus } from './sd-hilfe.mjs';
+import { oeffne, standMit, plus, SD_URL } from './sd-hilfe.mjs';
 
 const TAG = '2026-03-10';
 const einnahmen = {};
@@ -28,7 +28,7 @@ const stand = standMit(plus(TAG, -60), {
   vorrat: { tabletten: 20, stand: plus(TAG, -5) },
 });
 
-const { page, check, ende } = await oeffne({ viewport: { width: 360, height: 740 }, tag: TAG, zeit: '09:00', stand });
+const { browser, page, check, ende } = await oeffne({ viewport: { width: 360, height: 740 }, tag: TAG, zeit: '09:00', stand });
 
 const SEITEN_VERLAUF = ['labor-liste', 'dosis-liste', 'gewicht-liste', 'befinden-liste', 'labor', 'dosis', 'gewicht', 'befinden', 'einnahme'];
 const SEITEN_MEHR = ['bericht', 'fragen', 'termine', 'wissen', 'erinnerung', 'vorrat', 'darstellung', 'sicherung', 'ueber'];
@@ -73,6 +73,25 @@ for (const [schrift, farbe] of [['sehr-gross', 'hell'], ['gross', 'dunkel'], ['n
       if (klein.length) zuKlein.push(`${name}: ${klein.join(', ')}`);
     }
   });
+  // Begrüßung/Heute (Nov. 2026): Die Notfallleiste ist eine Zeile, die
+  // übrigen Nummern klappen auf. Zugeklappt passen 112 und „Weitere Nummern"
+  // nebeneinander; aufgeklappt wird die Seite nicht breiter, und jede Nummer
+  // ist mindestens 44 px hoch.
+  await page.click('#reiter-heute');
+  const zeile = await page.evaluate(() => {
+    const a = document.querySelector('#ansicht .notfall-leiste > .knopf-notruf').getBoundingClientRect();
+    const s = document.querySelector('#ansicht .notfall-mehr > summary').getBoundingClientRect();
+    return Math.abs(a.top - s.top) < 2;
+  });
+  check(zeile, `${schrift}/${farbe}: 112 und „Weitere Nummern" in einer Zeile`);
+  await page.click('#ansicht .notfall-mehr > summary');
+  const offen = await page.evaluate(() => ({
+    breite: document.documentElement.scrollWidth,
+    klein: [...document.querySelectorAll('#ansicht .notfall-leiste a, #ansicht .notfall-leiste button, #ansicht .notfall-leiste summary')]
+      .filter((b) => b.getBoundingClientRect().height < 44).map((b) => b.textContent.trim().slice(0, 20)),
+  }));
+  if (offen.breite > 360) zuBreit.push(`Heute mit „Weitere Nummern" (${offen.breite}px)`);
+  check(!offen.klein.length, `${schrift}/${farbe}: aufgeklappt jede Nummer ≥ 44 px hoch${offen.klein.length ? ` – ${offen.klein.join(', ')}` : ''}`);
   check(!zuBreit.length, `${schrift}/${farbe}: keine Seite breiter als 360 px${zuBreit.length ? ` – ${zuBreit.join('; ')}` : ''}`);
   if (schrift === 'normal') check(!zuKlein.length, `auch bei kleinster Schrift jeder Knopf ≥ 44 px hoch${zuKlein.length ? ` – ${zuKlein.slice(0, 4).join('; ')}` : ''}`);
 }
@@ -117,5 +136,38 @@ for (const farbe of ['hell', 'dunkel']) {
 await einstellen('sehr-gross', 'dunkel');
 await page.reload({ waitUntil: 'networkidle' });
 check(await page.evaluate(() => document.documentElement.dataset.schrift + '/' + document.documentElement.dataset.farbe) === 'sehr-gross/dunkel', 'Schrift und Farben bleiben nach dem Neuladen');
+
+/*
+ * Der feste Ersatz in index.html (C18) – gestaltet auch mit einer styles.css,
+ * die ihn nicht kennt. Während eines Updates lud die Seite einmal die
+ * styles.css der alten Fassung aus deren Vorrat: Der Notfalltext stand ohne
+ * roten Kasten da, die Nummern als blaue Standardlinks, und „Erscheint hier
+ * nach ein paar Sekunden nichts weiter …" sofort (Prüfung Nov. 2026).
+ * Nachgestellt mit einer leeren styles.css und einem app.js, das nicht startet.
+ */
+const ersatzCtx = await browser.newContext({ viewport: { width: 360, height: 740 }, serviceWorkers: 'block' });
+await ersatzCtx.route(/\/schilddruese\/css\/styles\.css/, (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
+await ersatzCtx.route(/\/schilddruese\/js\/app\.js/, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: 'throw new Error("passt nicht zu den anderen Modulen");' }));
+const ersatz = await ersatzCtx.newPage();
+await ersatz.goto(SD_URL, { waitUntil: 'load' });
+await ersatz.waitForTimeout(300);
+const ez = await ersatz.evaluate(() => {
+  const st = (sel) => getComputedStyle(document.querySelector(sel));
+  const leiste = st('#ansicht .notfall-leiste');
+  const knopf = document.querySelector('#ansicht .notfall-leiste a[href="tel:112"]');
+  const nummern = [...document.querySelectorAll('#ansicht .notfall-nummern a.nummer')];
+  return {
+    rand: leiste.borderTopColor, grund: leiste.backgroundColor,
+    knopf: getComputedStyle(knopf).backgroundColor, strich: getComputedStyle(knopf).textDecorationLine, hoch: knopf.getBoundingClientRect().height,
+    nummern: nummern.map((a) => [getComputedStyle(a).color, Math.round(a.getBoundingClientRect().height)]),
+    hinweis: st('#ansicht .start-hinweis').visibility,
+  };
+});
+check(ez.rand === 'rgb(179, 38, 30)' && ez.grund === 'rgb(251, 231, 229)', `Ersatz ohne passende styles.css: der rote Kasten um die Notfallnummern (${ez.rand} / ${ez.grund})`);
+check(ez.knopf === 'rgb(179, 38, 30)' && ez.strich === 'none' && ez.hoch >= 44, `… „112 anrufen" als roter Knopf, nicht als Link (${ez.knopf}, ${Math.round(ez.hoch)} px)`);
+check(ez.nummern.length === 3 && ez.nummern.every(([farbe, h]) => farbe === 'rgb(179, 38, 30)' && h >= 44), `… die übrigen Nummern rot und mindestens 44 px hoch (${JSON.stringify(ez.nummern)})`);
+check(ez.hinweis === 'hidden', '… der Satz „Kommt nach einer Weile nichts weiter …" wartet erst, statt sofort dazustehen');
+check((await ersatz.locator('#ansicht .start-hinweis').textContent()).startsWith('Die App wird geladen oder gerade aktualisiert.'), '… und sagt ruhig, was gerade geschieht');
+await ersatzCtx.close();
 
 await ende();

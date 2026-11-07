@@ -9,12 +9,27 @@ import { datumInWorten, datumKurz, relativ, uhrText, tageZwischen } from './datu
 import { esc, mehrzahl } from './text.js';
 import * as sp from './speicher.js';
 import { berichtText } from './bericht.js';
-import { KAPITEL, kapitel } from './wissen.js';
+import { KAPITEL, kapitel, kapitelHtml } from './wissen.js';
+import { vorratAndereStaerke, vorratText } from './ansicht-formulare.js';
+import { RUECKKANAL_SATZ, RUECKKANAL_DIENST, rueckkanalSchalter } from './ansicht-begruessung.js';
+import { APP_FASSUNG, BETREIBER } from './rueckkanal.js';
 
 const zeile = (seite, titel, unter, param = null, ri = '') => `
   <button type="button" class="zeile" data-act="seite" data-seite="${seite}"${param ? ` data-param="${esc(param)}"` : ''}>
     ${ri ? `<span class="ri" aria-hidden="true" style="font-size:1.4rem">${ri}</span>` : ''}
     <span class="zeile-text"><span class="zeile-titel">${titel}</span>${unter ? `<span class="zeile-unter">${unter}</span>` : ''}</span>
+    <span class="zeile-pfeil" aria-hidden="true">›</span>
+  </button>`;
+
+/*
+ * Begrüßung (Nov. 2026): das Begrüßungsfenster noch einmal – kein eigener
+ * Bildschirm, sondern dasselbe Fenster wie beim ersten Öffnen
+ * (js/ansicht-begruessung.js, geöffnet von js/app.js). Aussehen wie jede Zeile.
+ */
+const einfuehrungZeile = () => `
+  <button type="button" class="zeile" data-act="begruessung" aria-haspopup="dialog">
+    <span class="ri" aria-hidden="true" style="font-size:1.4rem">👋</span>
+    <span class="zeile-text"><span class="zeile-titel">Einführung: So hilft Ihnen die App</span><span class="zeile-unter">Wozu die Tablette – und was Sie hier tun können</span></span>
     <span class="zeile-pfeil" aria-hidden="true">›</span>
   </button>`;
 
@@ -24,11 +39,32 @@ function sicherungUnter(stand, heute) {
   return `Zuletzt ${esc(relativ(stand.letzteSicherung, heute))}${tage > 60 ? ' – Zeit für eine neue' : ''}`;
 }
 
+/*
+ * Die Zeile zum Vorrat sagt dasselbe wie „Heute" (D13): nach einer anderen
+ * Stärke „bitte neu zählen" statt einer Reichweite aus der alten Packung,
+ * bei 0 „aufgebraucht" statt „reicht noch etwa 0 Tage".
+ */
+function vorratUnter(stand, heute, reicht) {
+  if (reicht === null) return 'Wird nicht gezählt';
+  if (vorratAndereStaerke(stand, heute)) return 'Andere Stärke – bitte neu zählen';
+  const t = vorratText(reicht);
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 export function mehrAnsicht(stand, heute) {
   const offen = stand.fragen.filter((f) => !f.erledigt).length;
   const termin = sp.naechsterTermin(heute);
   const reicht = sp.vorratReicht(heute);
   return `
+    <h2 class="abschnitt">Einschätzung</h2>
+    <div class="zeilen">
+      ${zeile('gesamtbild', 'Einschätzung: Was sagen meine Werte?', 'Laborwerte, Beschwerden und Kontrollen eingeordnet', null, '🔎')}
+      ${zeile('dosis-karte', 'Dosis-Karte: mehr oder weniger?', 'Was der letzte TSH-Wert für die Dosis bedeutet – vor jeder Änderung die Praxis anrufen', null, '⚖️')}
+      ${zeile('warnzeichen', 'Warnzeichen prüfen', 'Geht es Ihnen gerade schlecht? In einer Minute wissen, was zu tun ist', null, '🚨')}
+      ${zeile('abstand', 'Was braucht Abstand?', stand.mittel.length ? `Uhrzeiten für ${mehrzahl(stand.mittel.length, 'Mittel', 'Mittel')}` : 'Kaffee, Kalzium, Eisen – ab wann in Ordnung', null, '⏱️')}
+      ${zeile('profil', 'Über mich & weitere Mittel', stand.profil.geburtsjahr || stand.mittel.length ? 'Angaben ändern' : 'Alter, Behandlung, Bundesland und weitere Mittel', null, '👤')}
+    </div>
+
     <h2 class="abschnitt">Zum Arzttermin</h2>
     <div class="zeilen">
       ${zeile('bericht', 'Bericht für den Arzttermin', 'Dosis, Einnahmen, Laborwerte, Befinden – zum Zeigen oder Schicken', null, '📄')}
@@ -38,47 +74,66 @@ export function mehrAnsicht(stand, heute) {
 
     <h2 class="abschnitt">Wissen</h2>
     <div class="zeilen">
-      ${zeile('wissen', 'Wissen zur Schilddrüse', 'Einnahme, Abstände, Laborwerte, Warnzeichen', null, '📖')}
+      ${einfuehrungZeile()}
+      ${zeile('wissen', 'Wissen zur Schilddrüse', 'Warum die Tablette wichtig ist, Einnahme, Abstände, Laborwerte, Warnzeichen', null, '📖')}
       ${zeile('wissen-kapitel', 'Wann anrufen, wann 112', 'Notruf, Bereitschaftsdienst, Praxis', 'notfall', '🚑')}
     </div>
 
     <h2 class="abschnitt">Einstellungen</h2>
     <div class="zeilen">
       ${zeile('erinnerung', 'Erinnerung', `Einnahme um ${esc(uhrText(stand.einstellungen.erinnerung))} · Kalenderdatei`, null, '⏰')}
-      ${zeile('vorrat', 'Tablettenvorrat', reicht !== null ? `Reicht noch etwa ${Math.max(0, reicht)} Tage` : 'Wird nicht gezählt', null, '💊')}
+      ${zeile('vorrat', 'Tablettenvorrat', vorratUnter(stand, heute, reicht), null, '💊')}
       ${zeile('darstellung', 'Schrift, Farben, Anrede', stand.einstellungen.schrift === 'sehr-gross' ? 'Schrift sehr groß' : stand.einstellungen.schrift === 'normal' ? 'Schrift normal' : 'Schrift groß', null, '🔤')}
       ${zeile('sicherung', 'Sicherung', sicherungUnter(stand, heute), null, '💾')}
-      ${zeile('ueber', 'Über diese App', 'Was sie kann und was nicht · Alles löschen', null, 'ℹ️')}
+      ${zeile('ueber', 'Über diese App', `Meldung an ${BETREIBER}: ${stand.einstellungen.rueckkanal ? 'an' : 'aus'} · Was die App kann und was nicht · Alles löschen`, null, 'ℹ️')}
     </div>`;
 }
 
 // ---------------------------------------------------------------- Seiten
 
+/*
+ * Runde 5: F16 – Der Satz über den Knöpfen gilt der Nutzerin am Bildschirm,
+ * nicht dem Papier: Er wurde mitgedruckt. „nicht-drucken" blendet ihn im
+ * Druck aus, „bericht-karte" nimmt dort Rahmen und Innenabstand der Karte weg
+ * (css/styles.css, @media print).
+ */
 function berichtSeite(stand, heute) {
   return {
     titel: 'Bericht',
     html: `
-      <p class="gedaempft" style="margin-bottom:.8rem">Zum Zeigen im Sprechzimmer, zum Vorlesen oder zum Weiterschicken. Die App bewertet darin nichts.</p>
+      <p class="gedaempft nicht-drucken" style="margin-bottom:.8rem">Zum Zeigen im Sprechzimmer, zum Vorlesen oder zum Weiterschicken. Was die App selbst eingeordnet hat, steht darin gekennzeichnet in einem eigenen Abschnitt.</p>
       <div class="knopf-reihe" style="margin:0 0 .8rem">
         <button type="button" class="knopf knopf-haupt" data-act="bericht-teilen">Teilen</button>
         <button type="button" class="knopf" data-act="bericht-kopieren">Kopieren</button>
         <button type="button" class="knopf" data-act="bericht-drucken">Drucken</button>
       </div>
-      <div class="karte"><div class="bericht" id="berichtText">${esc(berichtText(stand, heute))}</div></div>`,
+      <div class="karte bericht-karte"><div class="bericht" id="berichtText">${esc(berichtText(stand, heute))}</div></div>`,
   };
 }
 
+/*
+ * Der Knopf zum Abhaken zeigte nur „○" – was er tut, stand allein in der
+ * Beschreibung für Vorleseprogramme. Ein Tipp schob die Frage ohne ein Wort
+ * unter „Besprochen" ans Ende, als sei sie verschwunden (Runde 4: E14). Jetzt
+ * steht es auf dem Knopf, in der Reihe mit „Ändern" und „Löschen" – neben der
+ * Frage wäre bei „sehr groß" auf 360 px kaum Platz für ihren Text geblieben.
+ *
+ * Der Name des Knopfs ist sein sichtbarer Text („Besprochen?" bzw.
+ * „Besprochen", die Zeichen ○/✓ sind nur Schmuck), der Zustand steht allein in
+ * aria-pressed. Vorher hieß eine erledigte Frage für Vorleseprogramme „Wieder
+ * offen, gedrückt" – das klang, als sei sie offen –, und die Sprachsteuerung
+ * fand „Besprochen" nicht (Runde 5: F8).
+ */
 function fragenSeite(stand) {
   const offen = stand.fragen.filter((f) => !f.erledigt);
   const erledigt = stand.fragen.filter((f) => f.erledigt);
   const liste = (fragen) => fragen.map((f) => `
-    <div class="karte" style="display:flex;gap:.7rem;align-items:flex-start">
-      <button type="button" class="knopf knopf-klein${f.erledigt ? '' : ' knopf-leise'}" data-act="frage-erledigt" data-id="${esc(f.id)}" aria-pressed="${f.erledigt}" aria-label="${f.erledigt ? 'Wieder offen' : 'Als besprochen abhaken'}">${f.erledigt ? '✓' : '○'}</button>
-      <div style="flex:1;min-width:0"><p>${esc(f.text)}</p>
-        <div class="knopf-reihe" style="margin-top:.4rem">
-          <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="frage" data-param="${esc(f.id)}">Ändern</button>
-          <button type="button" class="knopf knopf-klein knopf-gefahr" data-act="frage-loeschen" data-id="${esc(f.id)}">Löschen</button>
-        </div>
+    <div class="karte">
+      <p>${esc(f.text)}</p>
+      <div class="knopf-reihe" style="margin-top:.4rem">
+        <button type="button" class="knopf knopf-klein${f.erledigt ? '' : ' knopf-leise'}" data-act="frage-erledigt" data-id="${esc(f.id)}" aria-pressed="${f.erledigt}"><span aria-hidden="true">${f.erledigt ? '✓' : '○'}</span> ${f.erledigt ? 'Besprochen' : 'Besprochen?'}</button>
+        <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="frage" data-param="${esc(f.id)}">Ändern</button>
+        <button type="button" class="knopf knopf-klein knopf-gefahr" data-act="frage-loeschen" data-id="${esc(f.id)}">Löschen</button>
       </div>
     </div>`).join('');
   return {
@@ -123,7 +178,7 @@ function wissenSeite() {
   };
 }
 
-function kapitelSeite(id) {
+function kapitelSeite(id, stand) {
   const k = kapitel(id);
   if (!k) return null;
   const i = KAPITEL.indexOf(k);
@@ -131,7 +186,7 @@ function kapitelSeite(id) {
   return {
     titel: k.titel,
     html: `
-      <article class="karte wissen">${k.html}</article>
+      <article class="karte wissen">${kapitelHtml(k, stand)}</article>
       <p class="klein gedaempft">Im Zweifel: Ihre Ärztin, Ihr Arzt oder die Apotheke. Diese App ersetzt keine ärztliche Beratung.</p>
       ${weiter ? `<div class="knopf-reihe"><button type="button" class="knopf knopf-breit" data-act="seite" data-seite="wissen-kapitel" data-param="${weiter.id}">Weiter: ${esc(weiter.titel)} ›</button></div>` : ''}`,
   };
@@ -203,7 +258,7 @@ function darstellungSeite(stand) {
       </div>
       <form data-formular="anrede" class="karte" novalidate>
         <label class="feld"><span>Anrede (freiwillig)</span>
-          <input type="text" name="name" value="${esc(stand.profil.name)}" placeholder="z. B. Frau Müller oder Vorname" autocomplete="off">
+          <input type="text" name="name" value="${esc(stand.profil.name)}" placeholder="z. B. Frau Müller oder Vorname" maxlength="${sp.GRENZEN.name}" autocomplete="off">
           <span class="hinweis">Steht oben auf „Heute" und im Bericht.</span>
         </label>
         <button type="submit" class="knopf knopf-breit">Anrede speichern</button>
@@ -217,7 +272,7 @@ function sicherungSeite(stand, heute) {
     titel: 'Sicherung',
     html: `
       <div class="karte">
-        <p>Alle Daten liegen nur auf diesem Handy. Eine Sicherungsdatei rettet sie bei einem neuen Handy oder wenn der Browser aufräumt.</p>
+        <p>Alle Ihre Einträge liegen nur auf diesem Handy. Eine Sicherungsdatei rettet sie bei einem neuen Handy oder wenn der Browser aufräumt.</p>
         <p class="gedaempft">${stand.letzteSicherung ? `Letzte Sicherung: ${esc(datumInWorten(stand.letzteSicherung, { jahr: true }))}.` : 'Noch keine Sicherung gespeichert.'}</p>
         <button type="button" class="knopf knopf-haupt knopf-breit" data-act="sicherung-speichern" style="margin-top:.8rem">Sicherung speichern</button>
         <p class="klein gedaempft" style="margin-top:.5rem">Am besten an sich selbst oder an Tochter oder Sohn schicken – dann liegt sie nicht nur auf diesem Handy.</p>
@@ -233,17 +288,37 @@ function sicherungSeite(stand, heute) {
   };
 }
 
+/*
+ * Rückkanal (Nov. 2026): „Meldung an Tobi" – derselbe Satz wie auf der
+ * letzten Seite des Begrüßungsfensters, mit dem Schalter (js/rueckkanal.js).
+ * Unten die Fassung der App: Am Telefon lässt sie sich so vorlesen.
+ *
+ * Die Karte steht zuerst: Seite 6 des Fensters und die Karte auf „Heute"
+ * schicken hierher zum Ausschalten. Hinter dem Kapitel „app" lag der Schalter
+ * bei 360 × 740 und Schrift „groß" fünf Bildschirme tief, ohne Hinweis oben
+ * (Prüfung Nov. 2026). Dazu, wer die Meldung bekommt und was er dabei sieht:
+ * Wie jeder Dienst im Netz sieht Supabase die Adresse des Handys im Netz (die
+ * IP-Adresse), auch wenn sie nicht in die Tabelle kommt – so steht es auch in
+ * der Workout-App, seit v203 (README dort, „Wer es speichert").
+ */
 function ueberSeite(stand, heute) {
   return {
     titel: 'Über diese App',
     html: `
+      <div class="karte rueckkanal-karte">
+        <h2>Meldung an ${esc(BETREIBER)}</h2>
+        <p>${esc(RUECKKANAL_SATZ)}</p>
+        <p>Keine Werte, keine Einträge, nichts über Ihre Gesundheit. Beim Ausschalten wird auch die letzte Meldung bei ${esc(BETREIBER)} gelöscht.</p>
+        <p class="klein gedaempft">${esc(RUECKKANAL_DIENST)}</p>
+        ${rueckkanalSchalter(stand, heute, { titel: false })}
+      </div>
       <article class="karte wissen">${kapitel('app').html}</article>
       <div class="karte">
         <h2>Alles löschen</h2>
-        <p class="gedaempft">Löscht Dosis, Einnahmen, Laborwerte und alle Einstellungen auf diesem Handy. Vorher besser eine Sicherung speichern.</p>
+        <p class="gedaempft">Löscht Dosis, Einnahmen, Laborwerte und alle Einstellungen auf diesem Handy – und die Meldung bei ${esc(BETREIBER)}. Vorher besser eine Sicherung speichern.</p>
         <button type="button" class="knopf knopf-gefahr knopf-breit" data-act="alles-loeschen" style="margin-top:.8rem">Alles löschen</button>
       </div>
-      <p class="klein gedaempft mitte">Schilddrüse · Datenstand ${esc(datumKurz(heute))} · Speicherfassung ${sp.VERSION}</p>`,
+      <p class="klein gedaempft mitte">Schilddrüse · Fassung ${esc(APP_FASSUNG)} · Datenstand ${esc(datumKurz(heute))} · Speicherfassung ${sp.VERSION}</p>`,
   };
 }
 
@@ -254,7 +329,7 @@ export function mehrSeite(name, param, stand, heute) {
     case 'fragen': return fragenSeite(stand);
     case 'termine': return termineSeite(stand, heute);
     case 'wissen': return wissenSeite();
-    case 'wissen-kapitel': return kapitelSeite(param);
+    case 'wissen-kapitel': return kapitelSeite(param, stand);
     case 'erinnerung': return erinnerungSeite(stand);
     case 'darstellung': return darstellungSeite(stand);
     case 'sicherung': return sicherungSeite(stand, heute);

@@ -99,6 +99,26 @@ export function zahlText(n, stellen = 2) {
   return String(gerundet).replace('.', ',');
 }
 
+/*
+ * Ein Wert, wie er eingegeben wurde – ungerundet: 0.015 → „0,015".
+ *
+ * Für Laborwerte, Bereichsgrenzen und den Zielbereich, also alles, was vom
+ * Befund abgeschrieben ist. zahlText rundet auf zwei Stellen: Aus TSH 0,015
+ * wurde „0,02", aus 0,004 sogar „0" – im Verlauf, in der Einschätzung und im
+ * Arztbericht, der „aus den Befunden abgeschrieben" heißt; nur das Formular
+ * zeigte die richtige Zahl (Runde 4: E21). Gerundet wird hier nur das
+ * Rechenrauschen (0,30000000000000004); eine sehr kleine Zahl steht
+ * ausgeschrieben da statt als „1e-7". zahlText bleibt für Berechnetes
+ * (umgerechnet, µg, kg).
+ */
+export function rohText(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '–';
+  const x = Number(n.toPrecision(12));
+  let s = String(x);
+  if (/e-/.test(s)) s = x.toFixed(20).replace(/0+$/, '').replace(/\.$/, '');
+  return s.replace('.', ',');
+}
+
 /** „7:12 Uhr" aus „07:12". */
 export function uhrText(hhmm) {
   if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return '';

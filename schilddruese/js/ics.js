@@ -13,11 +13,21 @@
  * zweiter Import denselben Termin ersetzt statt ihn zu verdoppeln.
  */
 import { zweistellig } from './datum.js';
+import { saeubern } from './text.js';
 
 const NL = '\r\n';
 
+/*
+ * Text für SUMMARY und DESCRIPTION. Vorher wurden nur \\ ; , und Zeilenenden
+ * behandelt: Ein weicher Umbruch aus Word (\v), ein Seitenvorschub oder ein
+ * Steuerzeichen aus einer Sicherung stand dann roh in der Datei, und eine
+ * halbe Emoji-Hälfte (vom Kürzen) wurde zu „�" – RFC 5545 (3.3.11) lässt in
+ * TEXT keine Steuerzeichen zu. saeubern() macht aus \v und \f einen
+ * Zeilenumbruch, aus den übrigen ein Leerzeichen und lässt halbe Emojis weg;
+ * der Tab ist in TEXT erlaubt (Runde 5: F25).
+ */
 function entschaerfen(text) {
-  return String(text)
+  return saeubern(text)
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
@@ -70,13 +80,23 @@ function folge() {
  * einer Viertelstunde Dauer endet am nächsten Tag um 00:05 – an den Ziffern
  * gerechnet stand dort 00:05 desselben Tages, also vor dem Beginn, und
  * manche Kalender verwerfen einen solchen Termin still.
+ *
+ * In UTC gerechnet, obwohl die Zeit schwebend ist: UTC kennt keine
+ * Zeitumstellung. In der Zeitzone des Geräts gibt es am Tag der Umstellung
+ * auf Sommerzeit 2:00–2:59 nicht, JavaScript schob 2:30 auf 3:30 – eine an
+ * diesem Tag angelegte tägliche Erinnerung klingelte dann jeden Tag eine
+ * Stunde später, ein Termin um 2:30 hatte die Dauer 0 (Runde 4: E29).
  */
 function stempel(iso, hhmm, plusMinuten = 0) {
   const [j, mo, t] = iso.split('-').map(Number);
   const [h, m] = hhmm.split(':').map(Number);
-  const d = new Date(j, mo - 1, t, h, m + plusMinuten);
-  return `${d.getFullYear()}${zweistellig(d.getMonth() + 1)}${zweistellig(d.getDate())}`
-    + `T${zweistellig(d.getHours())}${zweistellig(d.getMinutes())}00`;
+  const d = new Date(Date.UTC(j, mo - 1, t, h, m + plusMinuten));
+  // Das Datumsfeld nimmt das Jahr 9999 an; ein Ende danach hätte fünf
+  // Ziffern im Jahr („100000101T003000") und wäre nach RFC 5545 ungültig.
+  // Dann endet der Termin mit dem Jahr 9999 – nie vor seinem Beginn (Runde 5: F25).
+  if (d.getUTCFullYear() > 9999) return '99991231T235900';
+  return `${d.getUTCFullYear()}${zweistellig(d.getUTCMonth() + 1)}${zweistellig(d.getUTCDate())}`
+    + `T${zweistellig(d.getUTCHours())}${zweistellig(d.getUTCMinutes())}00`;
 }
 
 function jetztUTC() {
@@ -96,6 +116,34 @@ function kopf(name) {
   ];
 }
 
+/*
+ * Was in der Erinnerung steht, richtet sich nach der Uhrzeit: Wer die
+ * Tablette nach Absprache mit der Praxis abends nimmt (RW2 E15), bekam um
+ * 22 Uhr „Frühstück frühestens eine halbe Stunde später" – und nichts über den
+ * Abstand zur letzten Mahlzeit (B57). Abends gilt deshalb der Satz aus E15
+ * (ab 17 Uhr wie „Was braucht Abstand?"), tagsüber ein neutraler – kein Rat,
+ * danach nichts mehr zu essen: Mittags hieße das, das Abendessen wegzulassen.
+ *
+ * „Mindestens 3 Stunden" wie E15, der Plan (M3), das Wissen und die
+ * ATA-Leitlinie. Hier stand „frühestens 2 bis 3 Stunden" aus RW1 M3 – eine
+ * Zahl unter der Leitlinie, ausgerechnet in der täglichen Erinnerung (D5).
+ */
+/*
+ * Morgens auch der Tag der Blutabnahme (RW1 L0d): Der tägliche Termin sagte
+ * sonst auch an diesem Morgen „Schilddrüsentablette nehmen – Nüchtern …",
+ * und der Alarm eine Stunde vor der Abnahme nennt nur ihren Titel. Die
+ * Korrektur D16 (Runde 3) galt nur in der App (Runde 4: E27). Der tägliche
+ * Termin kennt einen später angelegten Abnahmetag nicht – deshalb allgemein
+ * und nur morgens: Tagsüber und abends liegt die Abnahme meist schon davor.
+ */
+const MORGENS = 'Nüchtern, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später. Am Tag einer Blutabnahme die Tablette erst nach der Abnahme nehmen – außer die Praxis hat etwas anderes gesagt.';
+const TAGSUEBER = 'Mit einem Glas Wasser, jeden Tag zur gleichen Zeit. Essen und andere Mittel mit Abstand – siehe „Was braucht Abstand?" in der App.';
+const ABENDS = 'Mit einem Glas Wasser, mindestens 3 Stunden nach der letzten Mahlzeit – jeden Tag gleich, so wie mit der Praxis besprochen.';
+export const erinnerungText = (uhr) => {
+  const h = Number(String(uhr).slice(0, 2));
+  return h >= 17 ? ABENDS : h >= 11 ? TAGSUEBER : MORGENS;
+};
+
 /**
  * Die tägliche Erinnerung: ein Termin ab `abISO` um `uhr`, jeden Tag, mit
  * Alarm zur vollen Zeit. Fünfzehn Minuten lang – ein Kalender ohne Dauer
@@ -114,7 +162,7 @@ export function erinnerungICS({ abISO, uhr, text = 'Schilddrüsentablette nehmen
     `DTEND:${ende}`,
     'RRULE:FREQ=DAILY',
     falten(`SUMMARY:${entschaerfen(text)}`),
-    falten(`DESCRIPTION:${entschaerfen(notiz || 'Nüchtern, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später.')}`),
+    falten(`DESCRIPTION:${entschaerfen(notiz || erinnerungText(uhr))}`),
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
     falten(`DESCRIPTION:${entschaerfen(text)}`),
@@ -130,10 +178,17 @@ export function erinnerungICS({ abISO, uhr, text = 'Schilddrüsentablette nehmen
  * Ein einzelner Termin (Arzt, Blutabnahme) mit Erinnerung einen Tag und eine
  * Stunde vorher. `id` ist die Kennung des Termins in der App – derselbe Termin
  * zweimal exportiert ersetzt sich im Kalender. Ohne Uhrzeit steht er um 9 Uhr.
+ *
+ * Vor einer Blutabnahme sagt die Erinnerung am Vortag, was zählt: Tablette
+ * erst danach. Wer Biotin nimmt, wird drei Tage vorher an die Pause erinnert –
+ * beides verhindert die häufigsten Scheinbefunde.
  */
-export function terminICS({ id, datum, uhr, titel, notiz = '' }) {
+export function terminICS({ id, datum, uhr, titel, notiz = '', blutabnahme = false, biotin = false }) {
   const z = kopf('Schilddrüse');
   const beginn = uhr || '09:00';
+  const vortag = blutabnahme
+    ? `Morgen: ${titel}. Die Schilddrüsen-Tablette morgen erst NACH der Blutabnahme nehmen – außer die Praxis hat etwas anderes gesagt.`
+    : `Morgen: ${titel}`;
   z.push(
     'BEGIN:VEVENT',
     `UID:termin-${id}@schilddruese.local`,
@@ -143,9 +198,20 @@ export function terminICS({ id, datum, uhr, titel, notiz = '' }) {
     `DTEND:${stempel(datum, beginn, 60)}`,
     falten(`SUMMARY:${entschaerfen(titel)}`),
     falten(`DESCRIPTION:${entschaerfen(notiz)}`),
+  );
+  if (blutabnahme && biotin) {
+    z.push(
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      falten(`DESCRIPTION:${entschaerfen('In drei Tagen ist Blutabnahme: Bitte Biotin ab heute weglassen. Wurde Biotin ärztlich verordnet, vorher in der Praxis fragen.')}`),
+      'TRIGGER:-P3D',
+      'END:VALARM',
+    );
+  }
+  z.push(
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
-    falten(`DESCRIPTION:${entschaerfen(`Morgen: ${titel}`)}`),
+    falten(`DESCRIPTION:${entschaerfen(vortag)}`),
     'TRIGGER:-P1D',
     'END:VALARM',
     'BEGIN:VALARM',

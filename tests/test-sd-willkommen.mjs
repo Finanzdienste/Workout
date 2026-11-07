@@ -7,15 +7,24 @@
  * übergangen, „Zurück" und wieder „Weiter" legt die Dosis doppelt an, und die
  * Leiste unten lockt vorzeitig aus der Einrichtung heraus.
  */
-import { oeffne, SD_URL, ansichtText } from './sd-hilfe.mjs';
+import { oeffne, SD_URL, ansichtText, standMit, plus, SCHLUESSEL } from './sd-hilfe.mjs';
 
 const TAG = '2026-03-10';
 const { page, check, uhr, gespeichert, ende } = await oeffne({ viewport: { width: 360, height: 740 }, tag: TAG, zeit: '08:00' });
 
 check(await page.locator('.willkommen-titel').isVisible(), 'beim ersten Öffnen steht die Willkommensseite da');
 check(await page.locator('#reiterleiste').isHidden(), 'die Reiterleiste ist während der Einrichtung ausgeblendet');
-check((await ansichtText(page)).includes('keine Dosis'), 'die Grenzen der App stehen gleich auf der ersten Seite');
+check((await ansichtText(page)).includes('Praxis anrufen'), 'die Grenzen der App stehen gleich auf der ersten Seite');
 check(await page.locator('[data-act="sicherung-laden"]').isVisible(), 'wer ein neues Handy hat, kann schon hier eine Sicherung einlesen');
+// Begrüßung/Rückkanal (Nov. 2026): „Alles bleibt auf diesem Handy. Kein
+// Konto, kein Internet nötig." stimmte mit der täglichen Meldung an Tobi
+// nicht mehr – es bleiben die Einträge.
+const schritt1 = await ansichtText(page);
+check(schritt1.includes('Ihre Einträge bleiben auf diesem Handy. Kein Konto nötig.') && !schritt1.includes('Alles bleibt auf diesem Handy') && !schritt1.includes('kein Internet'),
+  'Schritt 1: „Ihre Einträge bleiben auf diesem Handy. Kein Konto nötig."');
+// Gefragt wird nach der Behandlung, nicht nach der Einnahme: auch wer die Tabletten gerade nicht nimmt, kann den Haken setzen.
+const haken = (await page.locator('label:has(input[name=behandelt])').innerText()).trim();
+check(haken === 'Mir wurden Tabletten gegen eine Schilddrüsen-Unterfunktion verordnet – auch wenn ich sie gerade nicht nehme', `der Haken fragt nach der Verordnung („${haken}")`);
 
 // Eingabetaste im Namensfeld: weiter, nicht neu laden.
 await page.fill('input[name=name]', 'Mama');
@@ -42,6 +51,10 @@ await page.fill('input[name=praeparat]', 'L-Thyroxin Henning');
 await page.click('[data-act="willkommen-weiter"]');
 check((await page.locator('.schritte').innerText()).includes('Schritt 3'), 'mit 75 µg geht es zu Schritt 3');
 check((await ansichtText(page)).includes('nicht von selbst melden'), 'Schritt 3 sagt ehrlich, dass die App sich geschlossen nicht meldet');
+// Begrüßung/Rückkanal (Nov. 2026): „… einen Dienst im Internet, … den hat sie
+// mit Absicht nicht" – gleich danach kündigt das Fenster die Meldung übers Netz an.
+check((await ansichtText(page)).includes('Diese App kann sich nicht von selbst melden, wenn sie geschlossen ist.') && !(await ansichtText(page)).includes('Dienst im Internet'),
+  '… ohne den Halbsatz vom Dienst im Internet, den sie „mit Absicht nicht" habe');
 
 // Zurück und wieder vor: keine zweite Dosis.
 await page.click('[data-act="willkommen-zurueck"]');
@@ -73,5 +86,42 @@ check(box && box.height >= 100, `der Tabletten-Knopf ist groß (${box && Math.ro
 await uhr(TAG, '08:00');
 check(await page.locator('.tablette').isVisible() && !(await page.locator('.willkommen-titel').count()), 'nach dem Neuladen geht es direkt zu „Heute"');
 check(page.url().startsWith(SD_URL.replace(/index\.html$/, '')), 'die App bleibt in ihrem Ordner');
+
+// Begrüßung/Heute (Nov. 2026): Ohne Befund lädt „Heute" ein, Laborwerte
+// einzutragen – dass die App einen Befund einordnet, sah man dort vorher
+// nicht. Die Notfallleiste ist eine Zeile: 112 sofort, der Rest aufklappbar.
+// Ein offenes Begrüßungsfenster (Einführung) zuerst schließen – es gehört
+// nicht zu diesem Test.
+if (await page.locator('dialog[open]').count()) await page.keyboard.press('Escape');
+const einladung = page.locator('#ansicht .labor-einladung');
+check(await einladung.count() === 1 && (await einladung.innerText()).includes('Tragen Sie TSH (und fT4) ein'), 'ohne Befund: „Heute" lädt ein, Laborwerte einzutragen');
+const leisteOben = await page.locator('#ansicht .notfall-leiste').boundingBox();
+check(leisteOben && leisteOben.height <= 80 && await page.locator('#ansicht .notfall-leiste a.knopf-notruf[href="tel:112"]').isVisible(),
+  `die Notfallleiste ist eine Zeile mit 112 (${leisteOben && Math.round(leisteOben.height)} px hoch)`);
+// Prüfung Nov. 2026: Der Knopf steht gleich unter der Frage – bei 360 × 740
+// und Schrift „groß" über der Reiterleiste, ohne Rollen.
+const laborKnopf = async () => {
+  const k = await page.locator('#ansicht .labor-einladung [data-seite="labor"]').boundingBox();
+  const l = await page.locator('#reiterleiste').boundingBox();
+  return { ok: Boolean(k && l && k.y + k.height <= l.y), unten: k && Math.round(k.y + k.height), leiste: l && Math.round(l.y) };
+};
+let lk = await laborKnopf();
+check(lk.ok, `„Laborwerte eintragen" liegt ohne Rollen über der Reiterleiste (${lk.unten} ≤ ${lk.leiste})`);
+await einladung.locator('[data-seite="labor"]').click();
+check(await page.locator('form[data-formular="labor"]').count() === 1, '„Laborwerte eintragen" öffnet das Formular für den Befund');
+
+// Prüfung Nov. 2026: Aus der alten App, gestern nicht eingetragen – die
+// Einladung stand hinter „Gestern nicht eingetragen" unter der Reiterleiste
+// (y 758). Jetzt davor; die Frage nach gestern eilt nicht.
+await page.waitForTimeout(400);
+await page.evaluate(({ key, st }) => { localStorage.setItem(key, JSON.stringify(st)); sessionStorage.clear(); }, {
+  key: SCHLUESSEL,
+  st: standMit(plus(TAG, -60), { profil: { name: 'Mama', begruesst: true, seit: plus(TAG, -60), einfuehrung: 1 }, einnahmen: { [plus(TAG, -2)]: { uhr: '07:31' } } }),
+});
+await uhr(TAG, '08:00');
+const reihe = await page.evaluate(() => [...document.querySelectorAll('#ansicht .labor-einladung, #ansicht #gestern')].map((e) => e.id || 'labor'));
+check(JSON.stringify(reihe) === '["labor","gestern"]', `mit „Gestern nicht eingetragen": die Einladung steht davor (${reihe.join(', ')})`);
+lk = await laborKnopf();
+check(lk.ok, `… und „Laborwerte eintragen" liegt über der Reiterleiste (${lk.unten} ≤ ${lk.leiste})`);
 
 await ende();

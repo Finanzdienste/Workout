@@ -5,39 +5,122 @@ eine Tablette nimmt und beim Arzttermin wissen will, was seit dem letzten Mal
 war.
 
 Die App liegt neben der Workout-App im selben Repository und folgt denselben
-Grundsätzen: **kein Bauschritt, keine Abhängigkeiten, kein Server, kein
-Konto.** `schilddruese/index.html` im Browser öffnen genügt; über GitHub Pages
-liegt sie unter `https://finanzdienste.github.io/Workout/schilddruese/` und
-lässt sich von dort aus „zum Startbildschirm hinzufügen". Alle Daten bleiben im
-Browser des Handys.
+Grundsätzen: **kein Bauschritt, keine Abhängigkeiten, kein Konto.**
+`schilddruese/index.html` im Browser öffnen genügt; über GitHub Pages liegt sie
+unter `https://finanzdienste.github.io/Workout/schilddruese/` und lässt sich
+von dort aus „zum Startbildschirm hinzufügen". Alle Einträge bleiben im Browser
+des Handys; nach draußen geht nur ein tägliches Lebenszeichen ohne
+Gesundheitsdaten ([Rückkanal](#rückkanal-und-übersicht)), abschaltbar.
 
 ## Was sie kann
 
 | Bereich | Inhalt |
 | --- | --- |
-| **Heute** | Datum in Worten, die heute gültige Dosis, der große Knopf „Tablette genommen?". Darunter nur, was zutrifft: eine schon eingetragene künftige Dosis („Ab Montag: …"), die Stärke fehlt noch, gestern nichts eingetragen, gestern nicht genommen („heute wie gewohnt – nicht doppelt"), ein Termin in den nächsten zwei Wochen, Blutkontrolle nach einer Dosisänderung, Vorrat geht zur Neige, lange keine Sicherung. Ganz unten „Wie geht es Ihnen heute?" mit drei Knöpfen. |
-| **Verlauf** | Laborwerte (TSH, fT4, fT3) je Befund mit dem Bereich des Labors und der Tagesdosis, die damals galt; Verlaufslinie ab zwei Werten in derselben Einheit. Dosis mit Verlauf („aktuell", „geplant"). Einnahmen der letzten vier Wochen als Kalender mit ✓ ✗ ? zum Antippen und Nachtragen. Gewicht. Befinden mit Beschwerden. |
-| **Mehr** | Bericht für den Arzttermin (teilen, kopieren, drucken), eigene Fragen für den Termin, Termine (mit Kalenderdatei), Wissen in neun Kapiteln, Erinnerung, Tablettenvorrat, Schrift und Farben, Sicherung, „Über diese App" mit „Alles löschen". |
+| **Heute** | Ganz oben die Notfallleiste (112, Bereitschaftsdienst 116 117, Giftnotruf des Bundeslands, Telefonseelsorge). Datum in Worten, die heute gültige Dosis, der große Knopf „Tablette genommen?". Darunter nur, was zutrifft, nach Dringlichkeit geordnet: seelische Not immer zuerst, Puls und Herzklopfen aus dem Befinden, die Stufe der Einschätzung mit Verweis, ein Verweis auf die Dosis-Karte, Kontrollen und Nachfragen nach einer Dosisänderung, eine schon eingetragene künftige Dosis, die Stärke fehlt noch, gestern nichts eingetragen, gestern nicht genommen („heute wie gewohnt – nicht doppelt"), ein Termin in den nächsten zwei Wochen, Vorrat geht zur Neige, lange keine Sicherung. Ganz unten „Wie geht es Ihnen heute?" mit drei Knöpfen. |
+| **Verlauf** | Laborwerte (TSH, fT4, fT3 und freiwillig weitere) je Befund mit der Tagesdosis, die damals galt; je Wert die Lage in Worten und woher der Bereich stammt, darunter die Einschätzung (siehe unten). Verlaufslinie ab zwei Werten, umgerechnet auf eine Einheit. Dosis mit Verlauf („aktuell", „geplant", „auf Anweisung der Praxis"). Einnahmen der letzten vier Wochen als Kalender mit ✓ ✗ ? zum Antippen und Nachtragen. Gewicht. Befinden mit Beschwerden. |
+| **Mehr** | Einschätzung (Gesamtbild), Dosis-Karte, Warnzeichen prüfen, „Was braucht Abstand?", „Über mich & weitere Mittel". Bericht für den Arzttermin (teilen, kopieren, drucken), eigene Fragen für den Termin, Termine (mit Kalenderdatei), Wissen in zehn Kapiteln, Erinnerung, Tablettenvorrat, Schrift und Farben, Sicherung, „Über diese App" mit dem Schalter „Meldung an Tobi" und „Alles löschen". |
 
-Beim allerersten Öffnen drei Schritte: Anrede, Tablette (Präparat, Stärke in
-µg, Tabletten am Tag, seit wann), Einnahmezeit. Die Stärke darf leer bleiben,
+Beim allerersten Öffnen drei Schritte: für wen die Einschätzung gilt (mit dem
+Haken „Mir wurden Tabletten gegen eine Schilddrüsen-Unterfunktion verordnet –
+auch wenn ich sie gerade nicht nehme"), Anrede und Geburtsjahr; Tablette (Präparat, Stärke in µg,
+Tabletten am Tag, seit wann); Einnahmezeit. Die Stärke darf leer bleiben,
 wenn die Packung nicht zur Hand ist – geschätzt wäre schlimmer; „Heute"
 erinnert dann daran. Wer ein neues Handy hat, kann schon dort eine Sicherung
 einlesen.
 
+## Einschätzung und Dosis-Karte
+
+Auf ausdrücklichen Wunsch ordnet die App ein, so weit das verantwortbar ist –
+und sagt auf der Dosis-Karte, ob ein Wert eher für mehr, weniger oder gleich
+viel Tablette spricht. Gerechnet wird in `js/einheiten.js`,
+`js/einschaetzung.js` und `js/dosis.js` (rein, ohne Anzeige, jede Regel mit
+ihrer Kennung aus den Regelwerken); die Ansichten zeigen nur, was dort
+herauskommt.
+
+**Was die App einordnet**
+
+- **Jeden Laborwert** gegen den Bereich vom Befund (auch einseitig, „< 116"),
+  sonst gegen eine übliche Orientierung – mit der Quelle in Worten („Bereich
+  Ihres Labors", „übliche Orientierung, nicht Ihr Labor", „Ihr Zielbereich").
+  Einheiten werden vorher vereinheitlicht (mU/l = µU/ml = mIE/l; fT4 ng/dl →
+  pmol/l); angezeigt wird der Originalwert, bei Umrechnung mit dem
+  umgerechneten dazu. Ein ungewöhnlicher Wert (Komma, Einheit, ein
+  achtfacher Sprung bei gleicher Dosis) braucht beim Eintragen ein
+  ausdrückliches „Ja, stimmt".
+- **Das Muster aus TSH und fT4** mit einer Dringlichkeit in festen Stufen
+  („Sofort 112", „Heute anrufen", „In den nächsten Tagen anrufen", „In ein bis
+  zwei Wochen", „Beim nächsten Termin", „Kein besonderer Anlass"), dazu der
+  Satz gegen Selbsthandlung, mögliche Erklärungen aus den eigenen Einträgen
+  (Fragen zur Blutabnahme, Mittel, Einnahmen), der Verlauf zum vorigen Befund
+  und – wo nötig – ein Notfallsatz.
+- **Beschwerden** der letzten vier Wochen (wozu sie passen, im Alter anders
+  gewichtet), mit eigenen Pfaden für unregelmäßigen Puls und seelische Not.
+- **Warnzeichen** im Check (gespeichert, mit Anruf-Knöpfen), weitere Werte
+  (Hämoglobin, Ferritin, B12, Vitamin D, Natrium, HbA1c, LDL, CRP),
+  Abstände zu anderen Mitteln mit Uhrzeit, Kontrollen nach Änderungen.
+
+Die Einschätzung gilt nur für Erwachsene mit bekannter, behandelter
+Unterfunktion – eingeschaltet über den Haken im Willkommen oder im Profil
+(oder einen Behandlungsgrund). Gefragt wird nach der Verordnung, nicht nach
+der Einnahme: Gerade wer die Tabletten gerade nicht nimmt, soll die
+Einschätzung bekommen – sie rechnet nicht genommene Tage selbst ein (L5b). Ohne ihn zeigt die App die Lage der Werte,
+aber kein Muster und keine Dringlichkeit. Notfallleiste, Warnzeichen-Check
+und die Hinweise bei seelischer Not und unregelmäßigem Puls gelten immer.
+
+**Die Reihenfolge der Dosis-Karte** ist verbindlich und wird nie abgekürzt:
+
+1. Warnzeichen – bei Herzklopfen, Unruhe, unregelmäßigem Puls oder sehr
+   hohem TSH zuerst der Warnzeichen-Check (von heute), bei seelischer Not das
+   Gesprächsangebot statt einer Aussage zur Dosis;
+2. Schwangerschaft (nur unter 55);
+3. Sperrgründe, die schon feststehen – Befund zu alt, Dosis seither
+   geändert, die Praxis hat entschieden, kein Laborbereich, Krebs, T3,
+   Kortison, Hirnanhangdrüse, Biotin, Krankheit, neue Mittel, vergessene
+   Tabletten und weitere;
+4. offene Fragen, **eine je Anzeige**, per Knopf beantwortet (an den Befund,
+   ins Profil oder als Nachfrage mit Datum);
+5. erst dann die Richtung nach Muster – „spricht für …" mit der üblichen
+   Schrittgröße („Ärztinnen erhöhen dann meist um …"), nie eine neue
+   Tagesdosis.
+
+Unter jeder Richtung steht der Pflichttext (immer sichtbar, nie
+aufklappbar, nie kleiner als der Titel), bei Herzrisiko die 112-Zeichen,
+darunter die Grundlage und der Knopf „Die Praxis hat entschieden". Keine
+Richtung heißt nicht „alles gut": Die Karte nennt jeden Grund. „Heute"
+verweist nur auf die Karte und nennt die Richtung nie ohne den Pflichttext.
+
+**Grenzen.** Die App kennt nur, was eingetragen ist – keine übrigen
+Befunde, kein EKG, keine Knochendichte. Sie rechnet nie eine neue Dosis
+aus. Vor jeder Änderung: die Praxis anrufen; hat die Praxis anders
+entschieden oder einen Zielbereich genannt, gilt die Praxis. Nach jeder
+Änderung gibt es bis zum Kontrollwert (6–8 Wochen) keine neue Richtung.
+
+**Woher die Regeln stammen.** Aus zwei Regelwerken – eines für Laborwerte,
+Beschwerden, Warnzeichen, Wechselwirkungen und den Bericht, eines für die
+Dosisrichtung und die Ernährung. Jedes haben drei unabhängige Prüfer mit
+verschiedenem Blick (Endokrinologie, Labormedizin, Pharmazie und
+Patientensicherheit) gegengelesen; danach hat je ein „rotes Team" sie an
+Fallbeispielen angegriffen, und seine Korrekturen sind eingearbeitet.
+Unabhängig davon geschriebene Tests prüfen die Regeln gegen den Regeltext
+(`tests/test-sd-regeln-kern.mjs`, `tests/test-sd-regeln-dosis.mjs`).
+**Offen gesagt: Alle Prüfer waren KI-Agenten, keine Ärztinnen.** Vor dem
+Gebrauch soll die behandelnde Ärztin (oder eine Apothekerin) die Regeln und
+Texte einmal durchsehen und den persönlichen TSH-Zielbereich nennen.
+
+**Keine Weitergabe an Dritte.** Die App ist für eine Nutzerin gebaut und
+bleibt privat. Mit Befundeinordnung, Dringlichkeitsstufen und Dosisrichtung
+wäre sie, an andere weitergegeben, ein Medizinprodukt im Sinne der MDR – mit
+allem, was das an Prüfung und Zulassung verlangt.
+
 ## Was sie ausdrücklich nicht tut
 
-- **Keine Bewertung von Werten.** Kein „zu hoch", kein „zu niedrig", keine
-  Ampel. Der Bereich wird vom Befund abgeschrieben, nicht von der App
-  vorgegeben – jedes Labor hat eigene Grenzen, im Alter liegt die obere
-  TSH-Grenze oft höher, und den persönlichen Zielbereich legt die Ärztin fest.
-  Ein Prüfer beim Entwurf: *„Jede Farbe an einem Laborwert wird als Urteil
-  gelesen."* `tests/test-sd-labor.mjs` prüft das mit einem TSH weit über dem
-  Bereich.
-- **Keine Dosisempfehlung, keine Diagnose.** Kein Wissenstext weist an, eine
-  Tablette mehr oder weniger zu nehmen (`tests/test-sd-wissen.mjs` sucht nach
-  solchen Sätzen). Auch der Hinweis „Blutkontrolle nach 6–8 Wochen" nach einer
-  Dosisänderung sagt nur die Regel und nichts über die Dosis.
+- **Keine neue Dosis.** Die Dosis-Karte nennt eine Richtung und die übliche
+  Schrittgröße, nie eine Tagesdosis und keine Rechnung. Alle übrigen Texte
+  bleiben ohne µg-Zahl und ohne Aufforderung, etwas zu ändern; kein
+  Wissenstext weist an, eine Tablette mehr oder weniger zu nehmen
+  (`tests/test-sd-wissen.mjs` sucht nach solchen Sätzen).
+- **Keine Ampel ohne Worte.** Jede Lage und jede Stufe steht in Worten da;
+  die Farbe kommt nur dazu. Kein „zu hoch", kein „zu niedrig".
 - **Keine Erinnerung bei geschlossener App.** Dafür bräuchte es einen Server,
   der zur Minute Push-Nachrichten schickt. Ein Service Worker wacht nicht von
   selbst um sieben Uhr auf, Periodic Background Sync ist unzuverlässig und auf
@@ -72,13 +155,22 @@ Hauptquellen: Fachinformation L-Thyroxin, Leitlinie der American Thyroid
 Association 2014 (Jonklaas et al.), ATA-Leitlinie Schwangerschaft 2017,
 Lehrbücher der Inneren Medizin und Labormedizin.
 
+Das Kapitel „Ernährung und Alltag" übernimmt die Texte E1–E16 aus dem
+zweiten Regelwerk (siehe „Einschätzung und Dosis-Karte").
+
 **Offen und ehrlich:** Die Prüfer waren KI-Agenten, keine Ärztinnen. Die
 Texte sollte vor dem Gebrauch eine Ärztin oder eine Apothekerin einmal
 gegenlesen.
 
 ## Daten
 
-Ein Schlüssel im localStorage: `schilddruese.stand.v1`, mit `version: 1`.
+Ein Schlüssel im localStorage: `schilddruese.stand.v1`, seit der Einschätzung
+mit `version: 2` (Profil mit Geburtsjahr, Behandlung, Zielbereich, Herz,
+Knochen, Kortison, Bundesland; Mittel mit Abstand und Wechseln; je Befund die
+Fragen zur Blutabnahme und die Entscheidung der Praxis; Warnzeichen-Checks;
+Nachfragen der Dosis-Karte). Maßgeblich ist `normStand()` in
+`js/speicher.js`; ein Stand der Fassung 1 wird beim Lesen ergänzt. Das
+Beispiel zeigt die Grundfelder:
 
 ```json
 {
@@ -133,6 +225,75 @@ Drei Regeln aus der Workout-App, hier von Anfang an:
 - **„Stand vor dem Einlesen zurückholen"** fragt nach und steht nur am Tag des
   Einlesens und zwei Tage danach da; auf einem neuen Handy gar nicht.
 
+## Rückkanal und Übersicht
+
+Tobi will sehen, ob die App bei seiner Mutter installiert ist, ob sie läuft und
+ob sie aktuell ist. Von innen lässt sich das nicht beantworten, deshalb meldet
+die App **einmal am Tag beim Öffnen** ein Lebenszeichen
+(`js/rueckkanal.js`) an das Supabase-Projekt der Workout-App
+(`vjyohppohmvhhxgwouti`). Darin stehen genau sieben Felder: eine zufällige
+Gerätekennung (UUID), die Fassung der App (`APP_FASSUNG`, gleich `VERSION` in
+`sw.js`), ob sie vom Startbildschirm läuft, grob die Plattform
+(`ios`/`android`/`andere`), ob die Einführung angezeigt wurde, der erste und
+der heutige Tag – ohne Uhrzeit. **Nichts** über Werte, Einträge, Tabletten,
+Befinden, Name oder Anrede: `js/rueckkanal.js` bekommt den Stand gar nicht zu
+sehen, nur drei Wahrheitswerte (eingeschaltet, eingerichtet, Einführung
+angezeigt), und `sd_melde()` auf dem Server weist jedes weitere Feld ab. An
+wie vielen Tagen die App geöffnet wurde, zählt der Server selbst.
+
+- **Sichtbar.** Der Satz dazu steht auf der letzten Seite des
+  Begrüßungsfensters und unter „Mehr → Über diese App" („Meldung an Tobi",
+  dort als erste Karte), jeweils mit „An" / „Aus". Gemeldet wird erst, wenn
+  der Satz zu sehen war (`profil.einfuehrungDaten`): Wer das Fenster vor der
+  letzten Seite schließt, es wegen einer 112-Lage nicht bekommt oder auf
+  „Mehr" startet, sieht auf „Heute" eine kleine Karte („Die App schickt Tobi
+  einmal am Tag eine kurze Meldung …") mit „Verstanden" und „Ausschalten";
+  erst danach geht die erste Meldung raus. Solange das Begrüßungsfenster
+  offen ist, wartet sie ebenso; vor dem Einrichten geht nichts raus.
+- **Abschaltbar.** „Aus" schickt nichts mehr und löscht die eigene Zeile
+  (`sd_entferne`); ohne Netz wird das Löschen beim nächsten Öffnen nachgeholt.
+  Wieder eingeschaltet, meldet sich das Handy mit einer neuen Kennung. „Alles
+  löschen" löscht die Zeile ebenso. Eine Sicherung schaltet die Meldung nie
+  ein: War sie auf dem Handy aus, bleibt sie aus.
+- **Kein Test meldet.** Von einer lokalen Adresse (`localhost`, `127.0.0.1`,
+  `file://`, `.local`) geht nie etwas raus – wie `hatServer()` in
+  `js/config.js` der Workout-App, deren Übersicht so einmal rund 1000
+  erfundene Geräte zählte. `tests/test-sd-rueckkanal.mjs` schaltet es mit
+  `localStorage['schilddruese.rueckkanal.lokal'] = '1'` frei und fängt jeden
+  Aufruf ab.
+- **Gerät, nicht Stand.** Kennung, erster Tag und Tag der letzten Meldung
+  stehen unter einem eigenen Schlüssel (`schilddruese.rueckkanal.v1`), nicht
+  im Stand und nicht in der Sicherung – ein neues Handy ist ein neues Gerät.
+  Nur der Schalter (`einstellungen.rueckkanal`) gehört zum Stand.
+- **Wer es speichert.** Die Tabelle liegt bei Supabase. Wie jeder Dienst im
+  Netz sieht Supabase bei jeder Meldung die IP-Adresse des Handys; in die
+  Tabelle geschrieben wird sie nicht. Das steht auch in der App, unter „Mehr →
+  Über diese App" bei „Meldung an Tobi" (`RUECKKANAL_DIENST`) – wie in der
+  Workout-App seit v203.
+
+**Datenbank.** [`tools/schilddruese-rueckkanal.sql`](../tools/schilddruese-rueckkanal.sql)
+einmal im SQL Editor von Supabase ausführen; der Block ist wiederholbar. Er
+legt die Tabelle `sd_geraete` an (RLS an, kein Recht für `anon`) und drei
+Funktionen, die als einzige für `anon` ausführbar sind: `sd_melde(zeile)` mit
+Formprüfung (UUID, Fassung `v…`, Plattform aus drei Werten, Wahrheitswerte,
+Tage ohne Uhrzeit, kein Feld mehr), `sd_entferne(geraet)` mit der Zahl der
+gelöschten Zeilen und `sd_admin_liste(pass)`. Die prüft das Passwort über
+`admin_liste(pass)` der Workout-App – es gibt also nur ein Passwort, und es
+steht nirgends im Code.
+
+**Übersicht.** `schilddruese/uebersicht.html` (mit `uebersicht.js`) – nicht in
+der App verlinkt und nicht in `SHELL`. Nach dem Passwort je Gerät eine
+Tabelle: Fassung mit Vermerk, ob sie die aktuelle ist (gelesen aus `sw.js`
+auf dem Server), Startbildschirm, Plattform, zuletzt geöffnet (vor wie vielen
+Tagen), seit wann, an wie vielen Tagen, Einführung angezeigt. Darüber ein
+Hinweis, wenn die Fassung alt ist oder die App seit über sieben Tagen nicht
+geöffnet wurde. Alles vom Server wird als Text gesetzt, nie als HTML; das
+Passwort bleibt nur im Speicher der Seite.
+
+**Neue Fassung ausliefern:** `VERSION` in `sw.js` und `APP_FASSUNG` in
+`js/rueckkanal.js` zusammen hochzählen – sonst meldet die neue App die alte
+Nummer, und die Übersicht hält sie für veraltet.
+
 ## Gestaltung
 
 Für eine ältere Nutzerin: Grundschrift 20 px (wählbar 18 / 20 / 23 px), alle
@@ -150,20 +311,28 @@ alle drei Schriftgrößen.
 
 | Datei | Zweck |
 | --- | --- |
-| `index.html` | Seite mit Kopf, Ansicht und Reiterleiste |
+| `index.html` | Seite mit Kopf, Ansicht und Reiterleiste; eine feste Notfallleiste, die beim Start ersetzt wird, und ein kleines klassisches Skript für Service Worker und Neuladen nach einem Update – beides läuft auch, wenn die Module nicht starten |
 | `sw.js` | Offline-Vorrat. **VERSION hochzählen**, wenn sich eine Datei aus `SHELL` ändert |
 | `manifest.webmanifest`, `icon*` | Installierbar; PNGs aus `icon.svg` über `node tools/schilddruese-icons.mjs` |
 | `css/styles.css` | Gestaltung, Farbwelten, Schriftgrößen |
-| `js/app.js` | Reiter, Seiten, Aktionen (`data-act`), Sicherung, Hinweise, Service Worker |
-| `js/speicher.js` | Zustand, Normalisierung, Speichern, Sicherung, Abfragen (Dosis am Tag, Einnahmebilanz, Vorrat) |
-| `js/ansicht-*.js` | Heute, Verlauf, Mehr, Formulare, Willkommen – liefern HTML als Text |
+| `js/app.js` | Reiter, Seiten, Aktionen (`data-act`), Sicherung, Hinweise |
+| `js/speicher.js` | Zustand, Normalisierung, Speichern, Sicherung, Abfragen (Dosis am Tag, Einnahmebilanz, Vorrat, Mittel setzen) |
+| `js/einheiten.js` | Einheiten vereinheitlichen, Plausibilität beim Eintragen |
+| `js/einschaetzung.js` | Einordnung, Muster, Stufen, Erklärungen, Beschwerden, Warnzeichen, Abstände, Kontrollen, Gesamtbild, Berichtszeilen |
+| `js/dosis.js` | Die Dosis-Karte (Richtung, Sperrgründe, Pflichtfragen) und ihre Hinweise |
+| `js/ansicht-*.js` | Heute, Verlauf, Mehr, Formulare, Willkommen, Einschätzung (Befund-Block, Gesamtbild, Warnzeichen, Abstand), Dosis-Karte – liefern HTML als Text |
 | `js/bericht.js` | Der Text für den Arzttermin |
 | `js/wissen.js` | Die Wissenskapitel |
 | `js/ics.js` | Kalenderdateien: tägliche Erinnerung, einzelne Termine |
+| `js/rueckkanal.js` | Das tägliche Lebenszeichen an den Betreiber, Abschalten, offene Löschungen ([Rückkanal](#rückkanal-und-übersicht)) |
+| `uebersicht.html`, `uebersicht.js` | Übersicht für den Betreiber – nicht in der App verlinkt, nicht in `SHELL` |
+| `../tools/schilddruese-rueckkanal.sql` | Tabelle und Funktionen des Rückkanals in Supabase, wiederholbar |
 | `js/diagramm.js` | Verlaufslinie ohne Bibliothek |
 | `js/datum.js`, `js/text.js` | Datum, Zahlen mit Komma, HTML entschärfen |
 
-Tests: `tests/test-sd-*.mjs` (elf Dateien), gemeinsame Helfer in
+Tests: `tests/test-sd-*.mjs` (neunzehn Dateien – die Oberfläche der
+Einschätzung in `test-sd-einschaetzung-ui.mjs`, die Regeln ohne Browser in
+`test-sd-regeln-*.mjs`), gemeinsame Helfer in
 `tests/sd-hilfe.mjs`. Sie laufen mit allen anderen:
 
     node tests/lauf.mjs sd-      # nur die Schilddrüse
@@ -198,12 +367,11 @@ die Prüfung war vorher auch mit leerem Vorrat grün.
 - **Wechselnde Dosis je Wochentag** (z. B. werktags 100 µg, am Wochenende
   50 µg) ist üblich, aber hier nur als Notiz zur Dosis abbildbar. Der
   Vorratszähler rechnet mit einer Menge je Tag.
-- **Weitere Medikamente** – etwa Kalzium, Eisen oder Magensäureblocker, bei
-  denen der Abstand zählt – sind nicht als eigene Einträge vorgesehen.
-- **Giftnotruf:** In Deutschland regional; die App nennt Berlin als Beispiel.
-  Die Nummer des eigenen Bundeslands ließe sich als Einstellung ergänzen.
-- **Gegenlesen:** siehe oben – die Wissenstexte einmal von einer Ärztin oder
-  Apothekerin prüfen lassen.
+- **Giftnotruf:** Die Nummern je Bundesland stehen in `js/speicher.js`; vor
+  dem Gebrauch einmal gegen die aktuelle Liste der Giftinformationszentren
+  prüfen.
+- **Gegenlesen:** siehe oben – Regeln und Wissenstexte einmal von einer
+  Ärztin oder Apothekerin prüfen lassen.
 - **Notausgang der Workout-App** („App neu laden" unter Mehr dort) meldet alle
   Service Worker des Ursprungs ab und leert alle Vorräte – auch die dieser
   App. Die Daten bleiben erhalten; offline geht diese App erst wieder nach
