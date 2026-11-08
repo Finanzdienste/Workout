@@ -296,7 +296,10 @@ function dosisKarteSeite(stand, heute) {
   // Die Bestätigung verspricht die Erinnerung an die Kontrolle – nicht, solange
   // die neue Dosis noch einzutragen ist (aktionParam 'praxis'): Dann gibt es
   // die Erinnerung noch nicht (B27).
-  if (entschieden && b.praxisAm === heute && k.aktionParam !== 'praxis') {
+  // Runde 8 – Nachbesserung 2: über alle Knöpfe – neben einer Berichtigung
+  // steht der Knopf zur neuen Dosis nicht immer allein (js/dosis.js, D0.5).
+  const neueDosisFehlt = (k.aktionen || [{ aktion: k.aktion, param: k.aktionParam }]).some((a) => a.aktion === 'dosis' && a.param === 'praxis');
+  if (entschieden && b.praxisAm === heute && !neueDosisFehlt) {
     teile.push(`<div class="hinweis-karte ok" role="status"><span class="ri" aria-hidden="true">✓</span><div>${esc(PRAXIS_BESTAETIGUNG)}</div></div>`);
   }
   // Nummern, die Kopf, Texte, Frage oder die 112-Zeichen nennen, aber kein

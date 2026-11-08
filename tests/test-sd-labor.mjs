@@ -280,4 +280,36 @@ check(!(await page.locator('dialog.rueckfrage').count()) && s.labor[0].notiz ===
 await page.click('#reiter-heute');
 check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'D: „Heute" wartet weiter auf die Praxis');
 
+// ---- Runde 8 – Nachbesserung 2 (J7b bei einer geplanten eigenen Änderung):
+// Die eigene Änderung vom 01.04. ist entschieden („bleibt" am 10.04.), die
+// Karte wartet auf die am 02.05. eingetragene geplante Erhöhung ab 10.05. Die
+// Rückfrage nannte die schon entschiedene Änderung vom 01.04. – die wahre
+// Antwort „Ja, danach" machte die geplante Erhöhung zur entschiedenen. Jetzt
+// nennt sie den Eintrag vom 02.05. mit Beginn und Menge.
+const nb2Stand = () => ({
+  ...j7Stand(),
+  dosen: [
+    { id: 'd1', ab: '2025-01-01', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '', praxis: true },
+    { id: 'e1', ab: '2026-04-01', praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, notiz: '', praxis: false, eingetragenAm: '2026-04-01' },
+    { id: 'g1', ab: '2026-05-10', praeparat: 'L-Thyroxin', mikrogramm: 150, tabletten: 1, notiz: '', praxis: false, eingetragenAm: '2026-05-02' },
+  ],
+  labor: [{ ...j7Stand().labor[0], datum: '2026-03-25', praxis: 'bleibt', praxisAm: '2026-04-10' }],
+});
+await page.evaluate(({ key, st }) => localStorage.setItem(key, JSON.stringify(st)), { key: SCHLUESSEL, st: nb2Stand() });
+await uhr(J7, '12:00');
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'Nachbesserung 2 J7b Vorbedingung: „Heute" wartet auf die Praxis wegen der geplanten Erhöhung');
+await j7Oeffnen();
+await page.click('form[data-formular="labor"] button[type=submit]');
+await page.waitForTimeout(1000);
+const nb2Text = await k14Dialog();
+check(nb2Text.includes('Hat die Praxis das gesagt, nachdem Sie am 02.05.2026 eingetragen hatten, dass Sie ab 10.05.2026 selbst 150 µg am Tag nehmen wollen?') && !nb2Text.includes('01.04.2026'),
+  `Nachbesserung 2 J7b: die Rückfrage nennt die geplante Erhöhung, nicht die entschiedene Änderung vom 01.04. („${nb2Text.slice(0, 220)}")`);
+await page.click('dialog.rueckfrage [data-act="befund-korrigieren"]');
+await page.waitForTimeout(400);
+s = await gespeichert();
+check((s.nachfragen || []).some((n) => n.art === 'praxis_danach' && n.antwort === 'nein' && n.dosis === 'g1'), `Nachbesserung 2 J7b: „Nein, das war vorher" ist für die geplante Erhöhung gemerkt (${JSON.stringify((s.nachfragen || []).map((n) => [n.art, n.antwort, n.dosis]))})`);
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'Nachbesserung 2 J7b Gegenprobe: „Heute" wartet weiter auf die Praxis (X3/B2 mit Frist)');
+
 await ende();

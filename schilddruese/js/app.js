@@ -431,14 +431,26 @@ function zurueck() {
    * aktion 'seite'). Vorher stand die Nutzerin nach dem Speichern der
    * Berichtigung im leeren Formular „Neue Dosis" – die eben getippten 88 µg
    * der Praxis waren weg, bei der Meldung „Dosis gespeichert".
+   *
+   * Runde 8 – Nachbesserung 2 (H-N3-Weg mit zwei Fenstern): Gemerkt sind nur
+   * die Felder, die hier jemand geändert hat (geaenderteEingaben, wie G2), und
+   * zurück kommen sie nur, wenn es den Eintrag hinter dem Formular noch gibt
+   * (eintragWeg, wie fremdeAenderung). Vorher kamen ALLE Felder ungeprüft
+   * zurück: Hatte ein zweites Fenster inzwischen fT4 zum selben Befund
+   * eingetragen, überschrieb das alte leere Feld den Wert beim Speichern;
+   * hatte es den Befund gelöscht, stand das alte Formular mit allen Werten da,
+   * und „Speichern" legte ihn neu an.
    */
-  const eingaben = seite && seite.eingaben ? seite.eingaben : null;
+  let eingaben = seite && seite.eingaben ? seite.eingaben : null;
   if (seite) delete seite.eingaben;
+  const weg = Boolean(eingaben) && eingaben.some((g) => eintragWeg(sp.getStand(), g.kennung));
+  if (weg) eingaben = null;
   ui.seite = seite;
   sperren();
   window.scrollTo(0, 0);
   render(eingaben ? { eingaben } : {});
   $ansicht.focus({ preventScroll: true });
+  if (weg) meldung(FREMD_WEG);
 }
 
 // ---------------------------------------------------------------- Verlassen, Zurück-Taste
@@ -476,15 +488,35 @@ function eingabenGeaendert() {
   return jetzt !== null && jetzt !== ui.formStand;
 }
 
-function verlassen(weiter) {
+/*
+ * Runde 8 – Nachbesserung 2 (Reiterwechsel nach „Berichtigung ändern"):
+ * `weg` – die Seiten im Stapel unter der offenen, die mit ihr verschwinden
+ * (ein Reiter leert den Stapel, die Zurück-Taste kann mehrere Seiten auf
+ * einmal schließen). Trägt eine davon gemerkte Eingaben (aktion 'seite') oder
+ * ist es das Formular der Praxis mit offener E1-Nachfrage, fragt die App wie
+ * bei der offenen Seite. Vorher leerte der Reiter den Stapel still: die im
+ * Formular der Praxis getippten 88 µg waren weg, die E1-Nachfrage („Hat die
+ * Praxis Ihre Dosis schon geändert?") kam nicht – und nach der Berichtigung
+ * erinnerte danach nichts an die neue Dosis.
+ */
+const praxisSeiteOffen = (x) => Boolean(x && x.praxisVorher && x.name === 'dosis' && x.param === 'praxis' && praxisNochGeaendert(x.praxisVorher));
+
+function verlassen(weiter, { weg = [] } = {}) {
   const s = ui.seite;
-  if (s && s.praxisVorher && s.name === 'dosis' && s.param === 'praxis' && praxisNochGeaendert(s.praxisVorher)) {
+  if (praxisSeiteOffen(s)) {
     praxisNachfrage(s.praxisVorher, weiter);
     return;
   }
-  if (eingabenGeaendert() && !window.confirm(VERWERFEN)) {
+  const praxisUnten = [...weg].reverse().find(praxisSeiteOffen) || null;
+  // Die E1-Nachfrage deckt die Eingaben im Formular der Praxis ab („… noch nicht eingetragen").
+  const gemerkt = weg.some((x) => x !== praxisUnten && x.eingaben && x.eingaben.length);
+  if ((eingabenGeaendert() || gemerkt) && !window.confirm(VERWERFEN)) {
     // Nach der Zurück-Taste steht die Seite so wieder im Verlauf des Browsers.
     verlaufAbgleichen();
+    return;
+  }
+  if (praxisUnten) {
+    praxisNachfrage(praxisUnten.praxisVorher, weiter);
     return;
   }
   weiter();
@@ -565,10 +597,11 @@ window.addEventListener('popstate', (e) => {
     return;
   }
   if (!ui.seite) return;
+  // Runde 8 – Nachbesserung 2: Mehrere Schritte auf einmal schließen auch Seiten im Stapel (verlassen, `weg`).
   verlassen(() => {
     for (let i = 1; i < schritte && ui.stapel.length; i++) ui.stapel.pop();
     zurueck();
-  });
+  }, { weg: ui.stapel.slice(Math.max(0, ui.stapel.length - (schritte - 1))) });
 });
 
 /** Nach dem Speichern: dorthin, wohin das Formular will – oder zurück. */
@@ -890,15 +923,24 @@ function aktion(el) {
        * Seite darunter; zurueck() gibt es in die Felder zurück. Vorher kam
        * die Rückfrage, und nach dem Speichern der Berichtigung war das
        * Formular „Neue Dosis" leer.
+       * Runde 8 – Nachbesserung 2: nur dieser Knopf (das Formular setzt
+       * `merken` an seinem Knopf, js/ansicht-formulare.js) – der Rat heißt
+       * dort „erst das andere ändern, dann hier weiter". Die übrigen Knöpfe
+       * unter einem Feldfehler („Vorhandenen Eintrag ändern", „Befund vom …
+       * öffnen", „Eintrag vom … öffnen") heißen „dort statt hier": Nach ihrem
+       * Rat kamen die alten Werte zurück, „Speichern" brachte denselben Fehler
+       * noch einmal, und „‹ Zurück" fragte „Verwerfen?", obwohl alles
+       * gespeichert war. Sie fragen wieder wie vorher. Gemerkt werden nur die
+       * Felder, die hier geändert wurden (geaenderteEingaben, G2) – siehe zurueck().
        */
       const ausFehler = el.dataset.merken === '1';
       if (!ausFehler && eingabenGeaendert() && !window.confirm(VERWERFEN)) break;
-      if (ausFehler && ui.seite && eingabenGeaendert()) ui.seite.eingaben = eingabenMerken();
+      if (ausFehler && ui.seite && eingabenGeaendert()) ui.seite.eingaben = geaenderteEingaben();
       zeigeSeite(el.dataset.seite, el.dataset.param || null);
       break;
     }
     case 'reiter':
-      verlassen(() => zeigeReiter(el.dataset.reiter));
+      verlassen(() => zeigeReiter(el.dataset.reiter), { weg: ui.stapel });
       break;
     case 'tablette': {
       // Abhaken fragt nicht nach – ein Fehltipp lässt sich aber gleich in der
@@ -1366,7 +1408,13 @@ function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
         // ist mit der Antwort zum neuen erledigt. Blieb sie liegen, machte sie
         // die nächste Dosisänderung zur „Berichtigung" – ohne Kontrolle und
         // ohne Nachfrage nach einer Erhöhung (C17).
-        if (art === 'dosis_stimmt') s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && n.bezug !== zu && /^nein/.test(n.antwort)));
+        // Runde 8 – Nachbesserung 2 (offenes „Nein" mit zwei Befunden): außer
+        // einem „Nein", nach dem eine Anordnung eingetragen wurde (`anordnung`):
+        // Es sagt etwas über die Zeit VOR dieser Anordnung, nicht über die Menge
+        // von heute – der Bericht nennt es, bis die Zeit davor berichtigt ist
+        // (ez.neinVorAnordnung). Das Formular sieht nur das „Nein" zum jüngsten
+        // Befund; eine nächste Änderung wird dadurch nicht zur Berichtigung.
+        if (art === 'dosis_stimmt') s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && n.bezug !== zu && /^nein/.test(n.antwort) && !n.anordnung));
         // Runde 6 – Rest (W-D4-Art): Die Antwort auf W-D4 merkt sich, wonach
         // gefragt wurde – nach einer Erhöhung oder einer Senkung. Später aus
         // den Einträgen gelesen, machte ein nachgetragener Eintrag davor aus
@@ -1901,8 +1949,11 @@ function fehlerMarkeWeg(form) {
 
 /**
  * Fehler am Feld zeigen, ohne die Eingaben zu verlieren. Ein Fehler ist ein
- * Text – oder { text, knopf: { seite, param, text } }, wenn der Weg zur Lösung
- * auf einer anderen Seite liegt (etwa: den vorhandenen Eintrag öffnen).
+ * Text – oder { text, knopf: { seite, param, text, merken? } }, wenn der Weg
+ * zur Lösung auf einer anderen Seite liegt (etwa: den vorhandenen Eintrag
+ * öffnen). `merken: true`: Erst dort ändern, dann hier weiter – der Knopf
+ * fragt nicht „Verwerfen?", und das Getippte kommt beim Zurück wieder
+ * (aktion 'seite', zurueck()).
  */
 function zeigeFehler(form, fehler) {
   if (!form) return;
@@ -1943,7 +1994,8 @@ function zeigeFehler(form, fehler) {
       b.dataset.seite = knopf.seite;
       if (knopf.param) b.dataset.param = knopf.param;
       // Runde 8 – Nachbesserung (H-N3-Weg): ohne „Verwerfen?", mit gemerkten Eingaben (aktion 'seite').
-      b.dataset.merken = '1';
+      // Runde 8 – Nachbesserung 2: nur ein Knopf, der es verlangt (`merken`, „Berichtigung ändern").
+      if (knopf.merken === true) b.dataset.merken = '1';
       b.textContent = knopf.text;
       p.append(document.createElement('br'), b);
     }
@@ -1967,7 +2019,7 @@ document.addEventListener('click', (e) => {
   if (reiter && $reiter.contains(reiter)) {
     // Ein Reiter verlässt die offene Seite – mit Rückfrage, wenn Eingaben
     // verloren gingen (Runde 4: E5).
-    verlassen(() => zeigeReiter(reiter.dataset.reiter));
+    verlassen(() => zeigeReiter(reiter.dataset.reiter), { weg: ui.stapel });
     return;
   }
   const el = e.target.closest('[data-act]');
@@ -2206,8 +2258,20 @@ const notrufOffen = () => {
  * Formular, das es nicht mehr gab – „Ja, stimmt" tat nichts.
  */
 const FREMD_NEU = 'In einem anderen Fenster wurde etwas geändert. Die Seite zeigt jetzt den neuen Stand – Ihre Eingaben hier sind noch da.';
+// Runde 8 – Nachbesserung 2 (H-N3-Weg mit zwei Fenstern, zurueck()): Der Eintrag hinter gemerkten Eingaben ist weg.
+const FREMD_WEG = 'In einem anderen Fenster wurde dieser Eintrag inzwischen gelöscht. Was Sie hier getippt hatten, ist deshalb nicht mehr eingesetzt – die Seite zeigt den neuen Stand.';
 // Welche Liste des Stands hinter einem Formular mit data-id steht (wie eintragLoeschen).
 const EINTRAG_LISTE = { dosis: 'dosen', labor: 'labor', gewicht: 'gewicht', befinden: 'befinden', termin: 'termine', frage: 'fragen' };
+/*
+ * Ist der Eintrag hinter einem Formular (Kennung „art#id", formKennung) im
+ * Stand nicht mehr da? Ein Formular ohne Kennung (neuer Eintrag) hat keinen.
+ * Für fremdeAenderung (G2) und zurueck() mit gemerkten Eingaben.
+ */
+function eintragWeg(stand, kennung) {
+  const [art, id] = String(kennung || '').split('#');
+  const liste = stand[EINTRAG_LISTE[art]];
+  return Boolean(id && Array.isArray(liste) && !liste.some((x) => x.id === id));
+}
 
 function fremdStehtText() {
   if (gezeichnet && gezeichnet.willkommen) return 'In einem anderen Fenster wurde etwas geändert. Wenn Sie hier weitermachen, gilt, was auf dieser Seite steht.';
@@ -2325,12 +2389,7 @@ function fremdeAenderung() {
     vorlage.innerHTML = ansichtBauen(stand, heuteISO()).html;
     if (!stand.profil.begruesst) schritteMarkieren(vorlage.content);
     const da = new Set([...vorlage.content.querySelectorAll(FORMULARE)].map(formKennung));
-    const eintragWeg = (kennung) => {
-      const [art, id] = kennung.split('#');
-      const liste = stand[EINTRAG_LISTE[art]];
-      return Boolean(id && Array.isArray(liste) && !liste.some((x) => x.id === id));
-    };
-    if (!eingaben.every((g) => da.has(g.kennung) && !eintragWeg(g.kennung))) {
+    if (!eingaben.every((g) => da.has(g.kennung) && !eintragWeg(stand, g.kennung))) {
       meldung(fremdStehtText());
       return;
     }

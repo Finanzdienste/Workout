@@ -2163,11 +2163,12 @@ for (const farbe of ['hell', 'dunkel']) {
 // Ein Knopf, der aus einem Formular heraus eine andere Seite öffnet (hier
 // „Eintrag vom … öffnen" unter einem belegten Datum), verwirft das
 // Eingetippte nicht still.
-// Runde 8 – Nachbesserung (H-N3-Weg): Der Knopf aus dem Feldfehler ist der Rat
-// der App selbst – er fragt nicht mehr „Verwerfen?", sondern merkt sich das
-// Getippte; nach „‹ Zurück" steht es wieder im Formular (js/app.js, aktion
-// 'seite' und zurueck()). Vorher kam die Rückfrage, und wer sie bejahte,
-// verlor die Eingaben.
+// Runde 8 – Nachbesserung 2: wieder so. „Eintrag vom … öffnen" heißt „dort
+// statt hier" – nur der Knopf „Berichtigung ändern" (H-N3-Weg, `merken` am
+// Knopf) merkt sich das Getippte ohne Rückfrage. Nach 3fddec1 fragte auch
+// dieser Knopf nicht mehr, und die alten Eingaben lagen unter dem Eintrag:
+// nach seinem Speichern standen sie wieder im Formular („Speichern" brachte
+// denselben Fehler, „‹ Zurück" fragte „Verwerfen?").
 {
   await laden(stand({ befinden: [{ id: 'bgestern', datum: plus(TAG, -1), stufe: 'schlecht', beschwerden: ['herz'], notiz: 'nachts Herzstolpern' }] }));
   await page.click('#reiter-verlauf');
@@ -2177,15 +2178,25 @@ for (const farbe of ['hell', 'dunkel']) {
   await page.fill('textarea[name="notiz"]', 'Nachtrag: auch Schwindel');
   await page.click('form[data-formular="befinden"] button[type=submit]');
   const vorher = dialoge.length;
+  browserDialog.antwort = false;
   await page.locator('#ansicht [data-seite="befinden"][data-param="bgestern"]').first().click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(200);
+  browserDialog.antwort = true;
   const neu = dialoge.slice(vorher);
+  const notiz = await page.locator('textarea[name="notiz"]').inputValue().catch(() => '');
+  check(neu.some((d) => /noch nicht gespeichert/.test(d)) && notiz === 'Nachtrag: auch Schwindel',
+    `Nachprüfung R4 (Runde 8 – Nachbesserung 2): „Eintrag öffnen" aus dem Befinden-Formular fragt erst und lässt die Eingaben beim Abbrechen stehen (${JSON.stringify(neu)}, Notiz „${notiz}")`);
+  // Bejaht: der Eintrag öffnet, und nach „‹ Zurück" liegt nichts Altes mehr im Formular.
+  // (Ohne die Rückfrage – vor der Korrektur – ist der Knopf schon weg; dann scheitert der Test, statt zu hängen.)
+  const vorher2 = dialoge.length;
+  if (await gibt('#ansicht [data-seite="befinden"][data-param="bgestern"]')) await page.locator('#ansicht [data-seite="befinden"][data-param="bgestern"]').first().click();
+  await page.waitForTimeout(300);
   const offen = await page.locator('textarea[name="notiz"]').inputValue().catch(() => '');
   await page.click('.kopf-zurueck');
   await page.waitForTimeout(400);
-  const notiz = await page.locator('textarea[name="notiz"]').inputValue().catch(() => '');
-  check(neu.length === 0 && offen === 'nachts Herzstolpern' && notiz === 'Nachtrag: auch Schwindel',
-    `Nachprüfung R4 (Runde 8 – Nachbesserung): „Eintrag öffnen" aus dem Befinden-Formular öffnet den Eintrag ohne Rückfrage, und nach „‹ Zurück" steht das Getippte wieder da (${JSON.stringify(neu)}, geöffnet „${offen}", Notiz „${notiz}")`);
+  const notiz2 = await page.locator('textarea[name="notiz"]').inputValue().catch(() => '');
+  check(dialoge.length === vorher2 + 1 && offen === 'nachts Herzstolpern' && notiz2 !== 'Nachtrag: auch Schwindel',
+    `Nachprüfung R4 (Runde 8 – Nachbesserung 2): nach „Verwerfen" öffnet der Eintrag, und nach „‹ Zurück" kommen die verworfenen Eingaben nicht wieder (geöffnet „${offen}", Notiz danach „${notiz2}", Dialoge ${dialoge.length - vorher2})`);
 }
 
 // ================================================================ Runde 5 – App
@@ -4123,6 +4134,212 @@ const r8Warte = (ms) => page.waitForTimeout(ms);
   check(s.dosen.some((d) => d.berichtigung && d.mikrogramm === 50) && !s.dosen.some((d) => d.mikrogramm === 88), `Runde 8 H-N3-Weg: die Berichtigung ist auf 50 µg geändert, die Anordnung noch nicht gespeichert (${JSON.stringify(s.dosen.map((d) => [d.mikrogramm, d.berichtigung || false]))})`);
   check(await mg() === '88' && await gibt('form[data-formular="dosis"] input[name="weg"][value="praxis"]'), `Runde 8 H-N3-Weg: nach dem Speichern der Berichtigung steht die Anordnung (88) wieder im Formular der Praxis (Stärke „${await mg()}")`);
   check(/gespeichert/.test(await r4app.meldung()), `Runde 8 H-N3-Weg: Meldung nach dem Speichern („${(await r4app.meldung()).slice(0, 120)}")`);
+}
+
+// ---------------------------------------------------------------- Runde 8 – Nachbesserung 2 (App)
+//
+// Punkte der Nachprüfung von 3fddec1 zu js/app.js und zur Dosis-Karte: der
+// Reiterwechsel nach „Berichtigung ändern", die übrigen Knöpfe unter einem
+// Feldfehler („dort statt hier") und die gemerkten Eingaben bei zwei Fenstern.
+// Jeder Fall scheiterte gegen 3fddec1.
+
+/** Der H-N3-Weg bis in die Berichtigung: Nein → Berichtigung 75 → „Die Dosis wird geändert" → 88 → „Nein, das war falsch" → „Berichtigung ändern". */
+async function r8n2BisBerichtigung() {
+  await laden(stand({
+    profil: { geburtsjahr: 1950 }, mittel: ['marcumar'],
+    dosen: [r7Dosis('d1', '2025-08-23', 100, { praxis: true })],
+    labor: [befund('b1', plus(TAG, -10), { tsh: w(6.5, 'mU/l', 0.4, 4) }, { praxis: 'nochnicht', praxisAm: plus(TAG, -9) })],
+  }));
+  await r8Karte();
+  await r4app.klick('#dosis-karte [data-act="frage-antwort"][data-feld="dosis_stimmt"][data-wert^="nein"]');
+  await r8Warte(500);
+  await r4app.klick('#dosis-karte [data-act="seite"][data-seite="dosis"]');
+  await r8Warte(400);
+  await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '75');
+  await page.fill('form[data-formular="dosis"] input[name=ab]', TAG);
+  await page.check('form[data-formular="dosis"] input[name=praxis][value=nein]', { force: true });
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await r8Warte(900);
+  await r8Karte();
+  await page.click('#dosis-karte [data-seite="praxis-entschieden"]');
+  await r8Warte(700);
+  await page.click('[data-act="praxis-entscheid"][data-wert="geaendert"]');
+  await r8Warte(400);
+  await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '88');
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await r8Warte(900);
+  if (/genommen\?/.test(await r6Dialog())) { await r4app.klick('dialog.rueckfrage [data-act="befund-korrigieren"]'); await r8Warte(900); }
+  await r4app.klick('form[data-formular="dosis"] .feld-fehler [data-act="seite"][data-seite="dosis"]');
+  await r8Warte(600);
+}
+
+// Reiterwechsel nach „Berichtigung ändern": Unter der Berichtigung liegt das
+// Formular der Praxis mit den getippten 88 µg. Vorher leerte ein Reiter den
+// Stapel still – die 88 µg waren weg, die E1-Nachfrage kam nicht, und weil
+// eine Berichtigung keine Änderung ist, erinnerte danach nichts an die neue
+// Dosis (Karte: „Gut. Es gilt, was die Praxis gesagt hat … erinnert Sie an
+// die Kontrolle").
+{
+  await r8n2BisBerichtigung();
+  check((await r4app.text('#seitentitel')) === 'Dosis ändern', `Runde 8 N2 Reiter: Vorbedingung – die Berichtigung ist offen („${await r4app.text('#seitentitel')}")`);
+  const vor = dialoge.length;
+  await page.click('#reiter-heute');
+  await r8Warte(600);
+  check(await gibt(r4app.praxisDialog) && /Hat die Praxis Ihre Dosis schon geändert\?/.test(await r4app.text(r4app.praxisDialog)),
+    `Runde 8 N2 Reiter: der Reiter fragt nach der neuen Dosis der Praxis (E1), statt die getippte Anordnung still zu verwerfen („${(await r4app.text(r4app.praxisDialog)).slice(0, 80)}")`);
+  await page.waitForTimeout(900);
+  await r4app.klick(`${r4app.praxisDialog} [data-wert="bleiben"]`);
+  await r8Warte(400);
+  check((await r4app.text('#seitentitel')) === 'Dosis ändern' && dialoge.length === vor, `Runde 8 N2 Reiter: „Zurück zum Formular" – die Berichtigung bleibt offen („${await r4app.text('#seitentitel')}")`);
+  await page.click('#reiter-heute');
+  await r8Warte(600);
+  await page.waitForTimeout(900);
+  await r4app.klick(`${r4app.praxisDialog} [data-wert="spaeter"]`);
+  await r8Warte(600);
+  const heute = (await ansichtText(page)).replace(/\s+/g, ' ');
+  check(/Bitte tragen Sie die neue Dosis ein/.test(heute), `Runde 8 N2 Reiter: „Ja – ich trage sie später ein" – „Heute" erinnert an die neue Dosis der Praxis („${heute.slice(0, 160)}")`);
+  const karte = await r8Karte();
+  const ganz = (await ansichtText(page)).replace(/\s+/g, ' ');
+  check(/Bitte tragen Sie die neue Dosis ein/.test(karte) && await gibt('#dosis-karte [data-act="seite"][data-seite="dosis"][data-param="praxis"]') && !/erinnert Sie an die Kontrolle/.test(ganz),
+    `Runde 8 N2: neben der Berichtigung bittet die Karte um die neue Dosis (Knopf „Neue Dosis eintragen"), ohne „Gut … erinnert Sie an die Kontrolle" („${karte.slice(0, 160)}")`);
+}
+
+// Die übrigen Knöpfe unter einem Feldfehler heißen „dort statt hier":
+// „Vorhandenen Eintrag ändern" (gleiche Dosis schon eingetragen). Nach
+// 3fddec1 fragte er nicht mehr „Verwerfen?" und merkte sich das Getippte –
+// nach dem Ändern des vorhandenen Eintrags stand die Nutzerin wieder in
+// „Neue Dosis" mit 100 µg ab 01.03., „Speichern" brachte denselben Fehler,
+// und „‹ Zurück" fragte „Verwerfen?", obwohl alles gespeichert war.
+{
+  await laden(stand({ dosen: [r7Dosis('d1', TAG, 100, { praxis: null, eingetragenAm: TAG })], labor: [] }));
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="dosis"]:not([data-param])');
+  await r8Warte(400);
+  await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '100');
+  await page.fill('form[data-formular="dosis"] input[name=ab]', '2026-03-01');
+  if (await gibt('form[data-formular="dosis"] input[name=praxis][value=nein]')) await page.check('form[data-formular="dosis"] input[name=praxis][value=nein]', { force: true });
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await r8Warte(700);
+  const knopf = 'form[data-formular="dosis"] .feld-fehler [data-act="seite"][data-seite="dosis"]';
+  check(await gibt(knopf) && /Genau diese Dosis/.test(await r4app.text('form[data-formular="dosis"] .feld-fehler')), 'Runde 8 N2 gleich: Vorbedingung – Fehler „Genau diese Dosis …" mit Knopf „Vorhandenen Eintrag ändern"');
+  const vor = dialoge.length;
+  await page.click(knopf);
+  await r8Warte(600);
+  check(dialoge.slice(vor).some((d) => /noch nicht gespeichert/.test(d)), `Runde 8 N2 gleich: „Vorhandenen Eintrag ändern" fragt wieder „Verwerfen?" (${JSON.stringify(dialoge.slice(vor))})`);
+  await page.fill('form[data-formular="dosis"] input[name=ab]', '2026-03-01');
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await r8Warte(900);
+  for (let i = 0; i < 3 && (await gibt('dialog.rueckfrage')); i++) { await page.waitForTimeout(900); await r4app.klick('dialog.rueckfrage [data-act="befund-bestaetigen"]'); await r8Warte(900); }
+  const s = await gespeichert();
+  check(s.dosen.length === 1 && s.dosen[0].ab === '2026-03-01', `Runde 8 N2 gleich: Vorbedingung – der vorhandene Eintrag gilt jetzt ab 01.03. (${JSON.stringify(s.dosen.map((d) => [d.mikrogramm, d.ab]))})`);
+  const mg = await feldWert('form[data-formular="dosis"] input[name=mikrogramm]');
+  check(mg === null || mg === '', `Runde 8 N2 gleich: danach liegen die alten Werte nicht wieder in „Neue Dosis" (Stärke „${mg}")`);
+  const vor2 = dialoge.length;
+  if (await gibt('.kopf-zurueck')) await page.click('.kopf-zurueck');
+  await r8Warte(500);
+  check(dialoge.length === vor2, `Runde 8 N2 gleich: „‹ Zurück" fragt nicht „Verwerfen?" (${JSON.stringify(dialoge.slice(vor2))})`);
+}
+
+// Zwei Fenster: Befund b2 auf den Tag von b1 verlegt → „Befund vom … öffnen";
+// im zweiten Fenster bekommt b2 fT4 15 bzw. wird gelöscht; im ersten „‹ Zurück".
+// Nach 3fddec1 kamen die gemerkten Eingaben ungeprüft zurück: Das alte leere
+// fT4 überschrieb beim Speichern den Wert aus dem zweiten Fenster, und ein
+// dort gelöschter Befund kam mit „Speichern" zurück.
+for (const fall of ['fT4 im zweiten Fenster', 'im zweiten Fenster gelöscht']) {
+  await laden(stand({
+    dosen: [r7Dosis('d1', '2025-08-23', 100, { praxis: true })],
+    labor: [befund('b1', '2026-09-10', { tsh: w(2.1, 'mU/l', 0.4, 4) }, { praxis: 'nochnicht', praxisAm: '2026-09-11' }),
+      befund('b2', '2026-09-17', { tsh: w(2.5, 'mU/l', 0.4, 4) }, { praxis: 'nochnicht', praxisAm: '2026-09-18' })],
+  }));
+  await page.click('#reiter-verlauf');
+  if (!(await gibt('#ansicht [data-seite="labor"][data-param="b2"]'))) await page.click('#ansicht [data-seite="labor-liste"]');
+  await page.click('#ansicht [data-seite="labor"][data-param="b2"]');
+  await r8Warte(400);
+  await page.fill('form[data-formular="labor"] input[name=datum]', '2026-09-10');
+  await page.click('form[data-formular="labor"] button[type=submit]');
+  await r8Warte(700);
+  const knopf = 'form[data-formular="labor"] .feld-fehler [data-act="seite"]';
+  check(await gibt(knopf), `Runde 8 N2 zwei Fenster (${fall}): Vorbedingung – Fehler mit Knopf „Befund vom … öffnen"`);
+  const vor = dialoge.length;
+  await page.click(knopf);
+  await r8Warte(600);
+  check(dialoge.slice(vor).some((d) => /noch nicht gespeichert/.test(d)), `Runde 8 N2 zwei Fenster (${fall}): „Befund vom … öffnen" fragt wieder „Verwerfen?" (${JSON.stringify(dialoge.slice(vor))})`);
+  const p2 = await ctx.newPage();
+  p2.on('dialog', (d) => d.accept());
+  await p2.goto(process.env.SCHILDDRUESE_URL, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(600);
+  if (await p2.locator('dialog.begruessung[open]').count()) await p2.click('dialog.begruessung [data-act="begruessung-zu"]');
+  await p2.click('#reiter-verlauf');
+  await p2.waitForTimeout(500);
+  if (!(await p2.locator('#ansicht [data-seite="labor"][data-param="b2"]').count())) await p2.click('#ansicht [data-seite="labor-liste"]');
+  await p2.click('#ansicht [data-seite="labor"][data-param="b2"]');
+  await p2.waitForTimeout(500);
+  if (fall === 'fT4 im zweiten Fenster') {
+    await p2.fill('form[data-formular="labor"] input[name=ft4_wert]', '15');
+    await p2.fill('form[data-formular="labor"] input[name=ft4_von]', '12');
+    await p2.fill('form[data-formular="labor"] input[name=ft4_bis]', '22');
+    await p2.click('form[data-formular="labor"] button[type=submit]');
+  } else {
+    await p2.click('form[data-formular="labor"] [data-act="loeschen"]');
+  }
+  await p2.waitForTimeout(900);
+  for (let i = 0; i < 3 && (await p2.locator('dialog[open]').count()); i++) { await p2.waitForTimeout(900); await p2.locator('dialog[open] button', { hasText: /^Ja|Löschen/ }).first().click(); await p2.waitForTimeout(600); }
+  await p2.close();
+  await page.bringToFront();
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await r8Warte(700);
+  await page.click('.kopf-zurueck');
+  await r8Warte(600);
+  if (fall === 'fT4 im zweiten Fenster') {
+    const ft4 = await feldWert('form[data-formular="labor"] input[name=ft4_wert]');
+    const datum = await feldWert('form[data-formular="labor"] input[name=datum]');
+    check(ft4 === '15' && datum === '2026-09-17', `Runde 8 N2 zwei Fenster: nach „‹ Zurück" zeigt b2 das fT4 aus dem zweiten Fenster und sein Datum (fT4 „${ft4}", Datum „${datum}")`);
+    // Wie die Nutzerin: das Datum zurück auf den 17.09. (nach 3fddec1 stand dort noch der 10.09.) und speichern.
+    await page.fill('form[data-formular="labor"] input[name=datum]', '2026-09-17');
+    await page.click('form[data-formular="labor"] button[type=submit]');
+    await r8Warte(900);
+    for (let i = 0; i < 3 && (await gibt('dialog.rueckfrage')); i++) { await page.waitForTimeout(900); await r4app.klick('dialog.rueckfrage [data-act="befund-bestaetigen"]'); await r8Warte(900); }
+    const s = await gespeichert();
+    const b2 = s.labor.find((l) => l.id === 'b2');
+    check(Boolean(b2 && b2.ft4 && b2.ft4.wert === 15), `Runde 8 N2 zwei Fenster: Speichern behält das fT4 aus dem zweiten Fenster (${JSON.stringify(b2 && b2.ft4)})`);
+  } else {
+    const tshW = await feldWert('form[data-formular="labor"] input[name=tsh_wert]');
+    check(tshW !== '2,5' && tshW !== '2.5', `Runde 8 N2 zwei Fenster: der im zweiten Fenster gelöschte Befund kommt nach „‹ Zurück" nicht mit seinen alten Werten zurück (TSH „${tshW}")`);
+  }
+}
+
+// ---------------------------------------------------------------- Runde 8 – Nachbesserung 2 (App): „Ja" zum Kontrollbefund lässt das „Nein" mit Anordnung stehen
+//
+// „Nein, ich nehme etwas anderes" zu b1, danach die neue Dosis der Praxis
+// (125 µg) eingetragen: Das „Nein" trägt die Anordnung (`anordnung`) und sagt
+// etwas über die Zeit davor – der Bericht nennt die Angabe der Patientin
+// (ez.neinVorAnordnung). Zum Kontrollbefund b2 fragt die Karte „Nehmen Sie im
+// Moment genau 125 µg …?". Vorher löschte das „Ja" in js/app.js jedes „Nein"
+// zu einem früheren Befund (C17) – auch dieses, und die Angabe verschwand aus
+// dem Bericht.
+{
+  const t2 = plus(TAG, 56);
+  await laden(stand({
+    dosen: [r7Dosis('d1', '2024-01-01', 100, { praxis: true }), r7Dosis('e1', TAG, 125, { praxis: true, eingetragenAm: TAG })],
+    labor: [
+      befund('b0', '2026-05-10', { tsh: w(5.5, 'mU/l', 0.4, 4) }, { praxis: 'bleibt', praxisAm: '2026-05-12' }),
+      befund('b1', '2026-09-17', { tsh: w(6.5, 'mU/l', 0.4, 4) }, { praxis: 'geaendert', praxisAm: TAG }),
+      befund('b2', t2, { tsh: w(4.8, 'mU/l', 0.4, 4) }, { praxis: 'nochnicht', praxisAm: t2 }),
+    ],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'nein_100', am: TAG, anordnung: 'e1' }],
+  }), { tag: t2 });
+  const angabe = /Angabe der Patientin \(27\.09\.2026\): Sie nahm vor der neuen Dosis/;
+  check(angabe.test(await r6Bericht()), 'Runde 8 N2 „Nein" mit Anordnung: Vorbedingung – der Bericht nennt die Angabe der Patientin zur Zeit vor der Anordnung');
+  await r8Karte();
+  const ja = '#dosis-karte [data-act="frage-antwort"][data-feld="dosis_stimmt"][data-wert="ja"]';
+  check(await gibt(ja) && /genau 125 µg/.test(await r4app.text('#dosis-karte')), 'Runde 8 N2 „Nein" mit Anordnung: Vorbedingung – die Karte fragt zum Kontrollbefund „Nehmen Sie im Moment genau 125 µg …?"');
+  await r4app.klick(ja);
+  await r8Warte(500);
+  const s = await gespeichert();
+  const nein = s.nachfragen.filter((n) => n.art === 'dosis_stimmt' && n.bezug === 'b1');
+  check(nein.length === 1 && nein[0].anordnung === 'e1' && s.nachfragen.some((n) => n.art === 'dosis_stimmt' && n.bezug === 'b2' && n.antwort === 'ja'),
+    `Runde 8 N2 „Nein" mit Anordnung: „Ja" zu b2 lässt das „Nein" zu b1 mit der Anordnung stehen (${JSON.stringify(s.nachfragen.filter((n) => n.art === 'dosis_stimmt'))})`);
+  check(angabe.test(await r6Bericht()), 'Runde 8 N2 „Nein" mit Anordnung: nach „Ja" zu b2 nennt der Bericht die Angabe der Patientin weiter');
 }
 
 await ende();

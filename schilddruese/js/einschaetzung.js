@@ -442,7 +442,26 @@ export function dosisDamals(stand, tag, heute, befund = null) {
     && istISO(d.eingetragenAm) && Boolean(befund.praxisAm) && d.eingetragenAm >= befund.praxisAm;
   if (nachAbnahme) {
     const anordnung = d;
-    d = [...sp.gueltigeDosen(stand)].reverse().find((x) => x.ab <= tag && x !== anordnung && sp.tagesdosis(x) !== sp.tagesdosis(anordnung)) || null;
+    /*
+     * Runde 8 – Nachbesserung 2 („Dosis damals" bei gleicher Menge): die
+     * Menge davor ist der Eintrag unmittelbar vor der Anordnung – der, neben
+     * dem sie steht (`nach`, „Ja, bis dahin"), sonst der letzte geltende vor
+     * ihr mit „Gilt ab" bis zum Tag der Abnahme. Ohne Filter auf eine andere
+     * Menge: Vorher wurde ein Eintrag mit derselben Tagesmenge übersprungen
+     * (die Praxis stellt am Abnahmetag nur das Präparat um, L-Thyroxin 100 →
+     * Euthyrox 100, oder ordnet die Menge an, die die Patientin schon nimmt),
+     * und der Bericht nannte direkt neben dem TSH eine ältere, andere Menge
+     * („Dosis damals 75 µg", genommen wurden seit 06/2025 100 µg) – oder
+     * „noch nicht eingetragen"; über gueltigeDosen kam sogar eine Menge, die
+     * am selben Tag ersetzt wurde und nie galt. Nur Einträge, die galten
+     * (dosenDieGalten, H18). `nach` nur, solange sein Eintrag am selben Tag
+     * steht (wie dosisVerlauf, `daneben`) – wurde er später verschoben, ist
+     * der Vermerk veraltet.
+     */
+    const galten = dosenDieGalten(stand, heute);
+    const i = galten.indexOf(anordnung);
+    const neben = anordnung.nach ? galten.find((x) => x.id === anordnung.nach && x !== anordnung && x.ab === anordnung.ab) || null : null;
+    d = neben || (i > 0 ? [...galten.slice(0, i)].reverse().find((x) => x.ab <= tag) || null : null);
     if (!d) return { d: null, td: null, periode: null, berichtigtDurch: null, offen: true };
   }
   const periode = dosisVerlauf(stand, heute).find((p) => p.eintraege.includes(d)) || null;
@@ -451,26 +470,42 @@ export function dosisDamals(stand, tag, heute, befund = null) {
 
 /**
  * Runde 8: H-N1, Entscheidung (3) (N2-3) – ein offenes „Nein, ich nehme etwas
- * anderes" zum jüngsten TSH-Befund, nach dem eine Anordnung der Praxis
- * eingetragen wurde (nachfragen[].anordnung, Dosis-Formular): Die Patientin
- * hat gesagt, dass sie vor der neuen Dosis nicht die eingetragene Menge
- * nahm – was und seit wann, ist offen. Für den Bericht (js/bericht.js): der
- * Vorbehalt steht nur beim Befund, auf den sich das „Nein" bezieht, die
- * Angabe macht keine Aussage über den ganzen Zeitraum des Eintrags.
+ * anderes", nach dem eine Anordnung der Praxis eingetragen wurde
+ * (nachfragen[].anordnung, Dosis-Formular): Die Patientin hat gesagt, dass
+ * sie vor der neuen Dosis nicht die eingetragene Menge nahm – was und seit
+ * wann, ist offen. Für den Bericht (js/bericht.js): der Vorbehalt steht nur
+ * beim Befund, auf den sich das „Nein" bezieht, die Angabe macht keine
+ * Aussage über den ganzen Zeitraum des Eintrags.
  * → { nein, bezug, am, anordnung, davor, menge } | null – `davor`: der
  *   Eintrag, der vor der Anordnung galt; `menge`: die Menge, auf die sich das
  *   „Nein" bezog (sonst die von `davor`).
+ *
+ * Runde 8 – Nachbesserung 2 (offenes „Nein" mit zwei Befunden): das „Nein"
+ * über SEINEN Befund, nicht nur zum jüngsten – solange die Zeit vor der
+ * Anordnung nicht nach dem „Nein" berichtigt ist (dieselbe Regel wie
+ * js/dosis.js neinZurAnordnung). Vorher verschwand die Angabe der Patientin,
+ * sobald ein Kontrollbefund dazukam: keine Zeile „Angabe der Patientin …",
+ * kein Vorbehalt beim Befund vom 17.09. („Dosis damals 100 µg am Tag" ohne
+ * Einschränkung), und der Trendsatz sagte wieder „Die Dosis war in dieser
+ * Zeit gleich." – obwohl sie angegeben hatte, die 100 µg nicht genommen zu
+ * haben.
  */
 export function neinVorAnordnung(stand, heute) {
-  const befund = [...stand.labor].reverse().find((l) => l.tsh && l.datum <= heute) || null;
-  const nein = befund ? [...stand.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && n.bezug === befund.id) : null;
-  if (!nein || !/^nein/.test(nein.antwort) || !nein.anordnung) return null;
-  const anordnung = stand.dosen.find((d) => d.id === nein.anordnung) || null;
-  if (!anordnung) return null;
-  const davor = dosisAmIn(stand, tageWeiter(anordnung.ab, -1));
-  const m = /^nein_(\d+)(?:_(\d+))?$/.exec(nein.antwort);
-  const menge = m ? Number(`${m[1]}.${m[2] || '0'}`) : sp.tagesdosis(davor);
-  return { nein, bezug: befund.id, am: nein.am, anordnung, davor, menge };
+  const befunde = [...stand.labor].reverse().filter((l) => l.tsh && l.datum <= heute);
+  for (const befund of befunde) {
+    const nein = [...stand.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && n.bezug === befund.id);
+    if (!nein || !/^nein/.test(nein.antwort) || !nein.anordnung) continue;
+    const anordnung = stand.dosen.find((d) => d.id === nein.anordnung) || null;
+    if (!anordnung) continue;
+    const berichtigtDavor = dosenDieGalten(stand, heute).some((x) => x !== anordnung && x.ab < anordnung.ab && istBerichtigung(stand, x, heute)
+      && istISO(x.berichtigtAm) && x.berichtigtAm >= nein.am);
+    if (berichtigtDavor) continue;
+    const davor = dosisAmIn(stand, tageWeiter(anordnung.ab, -1));
+    const m = /^nein_(\d+)(?:_(\d+))?$/.exec(nein.antwort);
+    const menge = m ? Number(`${m[1]}.${m[2] || '0'}`) : sp.tagesdosis(davor);
+    return { nein, bezug: befund.id, am: nein.am, anordnung, davor, menge };
+  }
+  return null;
 }
 
 /** Biotin im Spiel (L5d): beim Befund angegeben oder als Mittel eingetragen. */
@@ -1406,14 +1441,31 @@ function verlaufTexte(befund, stand, info, stufe, tsh, { hypophyse = false, heut
       const schwelle = tsh !== null && (tsh < 0.1 || tsh > 10);
       if (STUFEN[stufe].rang <= STUFEN.termin.rang && !schwelle) s += ' Schwankungen dieser Größe sind normal.';
     }
-    const dA = dosisAmIn(stand, v.datum);
-    const dB = dosisAmIn(stand, befund.datum);
+    /*
+     * Runde 8 – Nachbesserung 2 („Dosis damals" überall gleich): die Dosis der
+     * beiden Abnahmen wie in der Befundzeile des Berichts (dosisDamals mit
+     * Befund). Eine Anordnung der Praxis vom Tag einer Abnahme, nach der
+     * Entscheidung zu ihr eingetragen, begann NACH dieser Abnahme: Beim
+     * späteren Befund zählt sie nicht mehr „dazwischen", beim früheren schon.
+     * Vorher sagte derselbe Bericht beim Befund „Dosis damals 100 µg" und im
+     * Trendsatz „Dazwischen wurde die Dosis geändert." (die Anordnung 125 ab
+     * dem Abnahmetag 17.09., eingetragen nach der Entscheidung vom 20.09.).
+     */
+    const tagHeute = heute || befund.datum;
+    const damalsA = dosisDamals(stand, v.datum, tagHeute, v);
+    const damalsB = dosisDamals(stand, befund.datum, tagHeute, befund);
+    const dA = damalsA && damalsA.d;
+    const dB = damalsB && damalsB.d;
     if (dA && dB) {
       // Runde 6: G15 – aus den Zeiträumen wie Bericht und Karte: Ein Eintrag,
       // den eine Berichtigung am selben Tag ersetzt, galt nie und ist keine
       // Änderung. Beginnt dazwischen nur eine Berichtigung (seit wann, ist
       // offen), sagt der Satz genau das – weder „geändert" noch „gleich".
-      const dazwischen = dosisVerlauf(stand, heute || befund.datum).filter((p) => p.ab > v.datum && p.ab <= befund.datum);
+      const verlauf = dosisVerlauf(stand, tagHeute);
+      const zeitraumVon = (x) => verlauf.find((p) => p.eintraege.includes(x)) || null;
+      const nachA = dA !== dosisAmIn(stand, v.datum) ? zeitraumVon(dosisAmIn(stand, v.datum)) : null;
+      const nachB = dB !== dosisAmIn(stand, befund.datum) ? zeitraumVon(dosisAmIn(stand, befund.datum)) : null;
+      const dazwischen = verlauf.filter((p) => ((p.ab > v.datum && p.ab <= befund.datum) || p === nachA) && p !== nachB);
       const nurBerichtigt = (p) => p.berichtigung && !p.ersetzt;
       const geaendert = dazwischen.some((p) => !nurBerichtigt(p) && sp.tagesdosis(p.d) !== sp.tagesdosis(dA));
       /*
@@ -1424,7 +1476,7 @@ function verlaufTexte(befund, stand, info, stufe, tsh, { hypophyse = false, heut
        * der Satz nicht behaupten, die Dosis sei gleich geblieben – der
        * Bericht sagt wenige Zeilen darüber das Gegenteil.
        */
-      const offen = (() => { const n = neinVorAnordnung(stand, heute || befund.datum); return Boolean(n && n.bezug === befund.id); })();
+      const offen = (() => { const n = neinVorAnordnung(stand, tagHeute); return Boolean(n && n.bezug === befund.id); })();
       s += geaendert ? ' Dazwischen wurde die Dosis geändert.'
         : dazwischen.some(nurBerichtigt) ? ' Dazwischen wurde die eingetragene Dosis berichtigt.'
           : offen ? ' Was die Patientin in dieser Zeit genommen hat, ist offen (siehe Angabe der Patientin).' : ' Die Dosis war in dieser Zeit gleich.';

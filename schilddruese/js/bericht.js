@@ -235,7 +235,14 @@ export function berichtText(stand, heute) {
       const damals = ez.dosisDamals(stand, l.datum, heute, l);
       // Runde 8: H-N1 (3) (N2-3) – der Vorbehalt der Patientin nur beim Befund,
       // auf den sich ihr „Nein" bezieht (nicht bei jedem Befund desselben Eintrags).
-      const nichtSo = neinOffen && neinOffen.bezug === l.id && !(damals && damals.berichtigtDurch);
+      // Runde 8 – Nachbesserung 2: und nur zu der Menge, die sie bestritten hat.
+      // Vorher hing er an jeder „Dosis damals" dieses Befunds: Lag die Anordnung
+      // nach dem Zurückdatieren schon vor der Abnahme (die Praxis hatte am 10.09.
+      // umgestellt, Abnahme 17.09.), stand „Dosis damals 88 µg am Tag (laut App;
+      // nach Angabe der Patientin nicht so genommen)" – bestritten hatte sie die
+      // 100 µg, wie die Zeile „Angabe der Patientin" darüber sagt.
+      const bestritten = (x) => (neinOffen.menge !== null ? x.td === neinOffen.menge : x.d === neinOffen.davor);
+      const nichtSo = neinOffen && neinOffen.bezug === l.id && Boolean(damals) && damals.td !== null && !damals.berichtigtDurch && bestritten(damals);
       const dosisDamals = damals && damals.td !== null
         ? ` – Dosis damals ${zahlText(damals.td, 1)} µg am Tag${damals.berichtigtDurch ? ` (laut App; später berichtigt, Berichtigung ab ${datumKurz(damals.berichtigtDurch.ab)})` : nichtSo ? ' (laut App; nach Angabe der Patientin nicht so genommen)' : ''}`
         : damals && damals.offen ? ' – Dosis damals noch nicht eingetragen (die neue Dosis der Praxis gilt erst seit der Abnahme)' : '';
