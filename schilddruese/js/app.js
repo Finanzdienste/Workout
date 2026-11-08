@@ -22,8 +22,10 @@ import { mehrAnsicht, mehrSeite } from './ansicht-mehr.js';
 import { formular, absenden, eintragLoeschen, zaehlerNachfuehren } from './ansicht-formulare.js';
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
 import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS, PRAXIS_NOCH_NICHT } from './ansicht-dosis.js';
-import { fragenVorschlaege, abnahmeHeute, aenderungsArt } from './einschaetzung.js';
-import { dosisHinweise, wd4FrageArt, wartetAufPraxis, PRAXIS_DANACH } from './dosis.js';
+import { fragenVorschlaege, abnahmeHeute } from './einschaetzung.js';
+import {
+  dosisHinweise, wd4FrageArt, entscheidungNachEigener, praxisDanachVermerken, praxisDanachMerken, praxisDanachZuruecksetzen, anordnungEingetragen,
+} from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, willkommenEntwurf, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import {
   SEITEN as BEGRUESSUNG_SEITEN, EINFUEHRUNG_FASSUNG, NOTLAGE_IM_BILD, faellig, vonSelbstErlaubt, notlageHeute, seiteHtml as begruessungHtml,
@@ -983,11 +985,13 @@ function aktion(el) {
       const wert = el.dataset.wert;
       if (!['bleibt', 'geaendert', 'nachmessen', 'nochnicht'].includes(wert)) break;
       let vorher = null;
-      const neuNachEigener = entscheidungNachEigener(wert, heute);
+      const neuNachEigener = entscheidungNachEigener(sp.getStand(), wert, heute);
       sp.aendern((s) => {
         const b = s.labor.find((l) => l.id === el.dataset.id);
         if (b) {
-          vorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm };
+          // Runde 8: J3 – mit dem bisherigen Vermerk PRAXIS_DANACH, damit die
+          // E1-Rücknahme ihn wiederherstellt (praxisNachfrage).
+          vorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm, vermerk: praxisDanachMerken(s, b.id) };
           /*
            * Runde 6: G5 – Eine Entscheidung, die schon gilt, behält ihr Datum,
            * wie im Befund-Formular. Ein erneuter Tipp auf „Neue Dosis
@@ -1001,7 +1005,7 @@ function aktion(el) {
            */
           if (b.praxis !== wert || !b.praxisAm || wert === 'nochnicht' || neuNachEigener) b.praxisAm = heute;
           b.praxis = wert;
-          if (neuNachEigener) praxisDanachVermerken(s, b, heute);
+          if (neuNachEigener) praxisDanachVermerken(s, b.id, heute);
         }
       });
       if (wert === 'geaendert') {
@@ -1299,15 +1303,10 @@ const PROFIL_ANTWORTEN = {
  * Antwort behielt die Entscheidung ihr altes Datum (G5) – X3/B2 blieben dann
  * bis zum Kontrollwert stehen, ohne Ausweg (js/dosis.js, wartetAufPraxis).
  * Vor dem Speichern gefragt: Danach wartet die Karte nicht mehr.
+ * Runde 8: J3, J7 – beides jetzt in js/dosis.js (entscheidungNachEigener,
+ * praxisDanachVermerken): Der Vermerk trägt die Kennung der Änderung, auf
+ * die die Karte wartete, und das Befund-Formular nutzt dieselbe Regel.
  */
-function entscheidungNachEigener(wert, heute) {
-  return ['bleibt', 'geaendert', 'nachmessen'].includes(wert) && wartetAufPraxis(sp.getStand(), heute);
-}
-
-function praxisDanachVermerken(s, b, heute) {
-  s.nachfragen = s.nachfragen.filter((n) => !(n.art === PRAXIS_DANACH && n.bezug === b.id));
-  s.nachfragen.push({ id: sp.kennung(), art: PRAXIS_DANACH, bezug: b.id, antwort: 'ja', am: heute });
-}
 
 /*
  * Eine Frage der Dosis-Karte oder von „Heute" beantworten. Wohin die Antwort
@@ -1320,16 +1319,17 @@ function praxisDanachVermerken(s, b, heute) {
 function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
   let geschrieben = false;
   let praxisVorher = null;
-  const neuNachEigener = ziel === 'befund' && feld === 'praxis' && entscheidungNachEigener(wert, heute);
+  const neuNachEigener = ziel === 'befund' && feld === 'praxis' && entscheidungNachEigener(sp.getStand(), wert, heute);
   if (/^[a-z0-9_]{1,20}$/i.test(wert || '') && /^[A-Za-z0-9_]{1,30}$/.test(feld || '')) {
     sp.aendern((s) => {
       if (ziel === 'befund') {
         const b = s.labor.find((l) => l.id === bezug);
         if (!b || !(BEFUND_ANTWORTEN[feld] || []).includes(wert)) return;
-        if (feld === 'praxis') praxisVorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm };
+        // Runde 8: J3 – mit dem bisherigen Vermerk PRAXIS_DANACH (siehe praxis-entscheid).
+        if (feld === 'praxis') praxisVorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm, vermerk: praxisDanachMerken(s, b.id) };
         b[feld] = wert;
         if (feld === 'praxis') b.praxisAm = heute;
-        if (neuNachEigener) praxisDanachVermerken(s, b, heute);
+        if (neuNachEigener) praxisDanachVermerken(s, b.id, heute);
         geschrieben = true;
       } else if (ziel === 'profil') {
         if (!(PROFIL_ANTWORTEN[feld] || []).includes(wert)) return;
@@ -1463,8 +1463,23 @@ function dialogZeigen({ titel, punkte = [], satz = '', knoepfe, art, abbrechen }
  * eine Schleife. Das Bestätigungsfeld trägt dann „nein". Escape bleibt
  * „zurück ins Formular".
  */
+/*
+ * Runde 8: K16 – „Korrigieren" führt zum beanstandeten Feld. Das
+ * Befund-Formular nennt keins; vorher landete der Fokus auf dem ersten
+ * Laborwert (TSH), und das beanstandete fT4 oder Hb lag außer Sicht. Der
+ * Name des Werts steht in der Frage („… bei fT4 wirklich 150 pmol/l?",
+ * js/einheiten.js) – daraus das Feld des ersten beanstandeten Werts.
+ */
+function feldAusFragen(form, fragen) {
+  if (!form || form.dataset.formular !== 'labor') return '';
+  const text = fragen.join('\n');
+  const wert = [...sp.LABORWERTE, ...sp.WEITERE_WERTE].find(([key, name]) => text.includes(`bei ${name} wirklich`) && form.querySelector(`[name="${key}_wert"]`));
+  return wert ? `${wert[0]}_wert` : '';
+}
+
 function rueckfrageZeigen(form, fragen, { satz = '', feld = '', ja = '', nein = '', name = '', neinSendet = false } = {}) {
   rueckfrageSchliessen(null);
+  const feldName = feld || feldAusFragen(form, fragen);
   const { dialog, freigeben } = dialogZeigen({
     titel: 'Bitte prüfen',
     punkte: fragen,
@@ -1475,7 +1490,7 @@ function rueckfrageZeigen(form, fragen, { satz = '', feld = '', ja = '', nein = 
     ],
     abbrechen: () => rueckfrageSchliessen(false),
   });
-  const r = { dialog, form, feld, name: /^[a-z]\w{0,30}$/i.test(name) ? name : 'bestaetigt', kennung: form ? formKennung(form) : '', bereit: false, neinSendet: Boolean(neinSendet) };
+  const r = { dialog, form, feld: feldName, name: /^[a-z]\w{0,30}$/i.test(name) ? name : 'bestaetigt', kennung: form ? formKennung(form) : '', bereit: false, neinSendet: Boolean(neinSendet) };
   rueckfrage = r;
   freigeben(() => { r.bereit = true; });
 }
@@ -1782,8 +1797,12 @@ function praxisNochGeaendert(vorher) {
   // eigene Änderung oder eine Berichtigung ist nicht die Dosis der Praxis;
   // sonst senkte ein Fehltipp mit „Abbrechen" die Dringlichkeit ohne jede
   // Rückfrage (Nachprüfung zu G5).
-  return !st.dosen.some((d, i) => i > 0 && d.ab > b.datum && d.praxis === true && !d.berichtigung
-    && aenderungsArt(d, st.dosen[i - 1]) === 'dosis');
+  // Runde 8: J4-Rest – dieselbe Regel wie die Karte (js/dosis.js,
+  // anordnungEingetragen): auch eine Anordnung an erster Stelle (sie hat den
+  // einzigen Eintrag vom Einrichten ersetzt) und eine vom Tag der Abnahme
+  // zählt. Vorher verlangte die Prüfung einen Eintrag davor (i > 0) und einen
+  // Tag nach der Abnahme – die Nachfrage kam trotz eingetragener Anordnung.
+  return !anordnungEingetragen(st, b, heuteISO());
 }
 
 function praxisNachfrage(vorher, weiter) {
@@ -1808,7 +1827,18 @@ function praxisNachfrage(vorher, weiter) {
         : { praxis: 'nochnicht', praxisAm: heute };
       sp.aendern((s) => {
         const b = s.labor.find((l) => l.id === vorher.befund);
-        if (b && b.praxis === 'geaendert') Object.assign(b, zurueckAuf);
+        if (b && b.praxis === 'geaendert') {
+          Object.assign(b, zurueckAuf);
+          /*
+           * Runde 8: J3 – der Vermerk PRAXIS_DANACH der zurückgenommenen
+           * Entscheidung muss mit zurück: Er blieb stehen, und die
+           * Entscheidung von VOR der eigenen Änderung („bleibt" vom Morgen)
+           * zählte damit als danach – Karte „Kein besonderer Anlass", „Heute"
+           * ohne X3 zur eigenen Verdopplung. Der vorherige Vermerk (oder
+           * keiner) gilt wieder.
+           */
+          praxisDanachZuruecksetzen(s, b.id, vorher.vermerk || null);
+        }
       });
       weiter();
       meldung(entschieden ? `Zurückgenommen – es gilt weiter: ${entschieden}.` : PRAXIS_NOCH_NICHT);

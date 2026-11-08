@@ -18,7 +18,10 @@ import * as sp from './speicher.js';
 import * as ez from './einschaetzung.js';
 import { befundPruefen } from './einheiten.js';
 import { E14_TEXT, E16_TEXT } from './wissen.js';
-import { dosisBefund, berichtigtAm as berichtigungsTag } from './dosis.js';
+// Als Namensraum (Runde 8: J7): Das Befund-Formular braucht wartetAufPraxis
+// und PRAXIS_DANACH – und nutzt entscheidungNachEigener/praxisDanachVermerken
+// aus js/dosis.js, sobald sie dort ausgeführt sind (siehe vermerkPraxisDanach).
+import * as dz from './dosis.js';
 import { wahlFrage, JNW_WAHL, BEFUND_FRAGEN, w1Karte, P6_HAKEN } from './ansicht-einschaetzung.js';
 
 const feldDatum = (name, wert, titel = 'Datum', hinweis = '', max = '') => `
@@ -146,15 +149,39 @@ function dosisFormular(id, stand, heute) {
   const dosisId = ausPraxis ? null : id;
   const da = dosisId ? stand.dosen.find((d) => d.id === dosisId) : null;
   const letzte = sp.aktuelleDosis();
-  const d = da || { praeparat: letzte ? letzte.praeparat : 'L-Thyroxin', mikrogramm: null, tabletten: 1, ab: heute, notiz: '', praxis: ausPraxis ? true : null };
+  /*
+   * Runde 8: J12 – nach „Nein, ich nehme etwas anderes" ist der neue Eintrag
+   * die Berichtigung. Vorher hieß das Formular trotzdem „Neue Dosis", sagte
+   * „Hier kommt die neue dazu, so wie die Ärztin sie verordnet hat" und
+   * belegte „Gilt ab" mit heute vor – das verleitete zu „Gilt ab = heute"
+   * statt zum Tag, seit dem die Menge wirklich genommen wird. Jetzt heißt es
+   * „Dosis berichtigen", der Hinweis sagt, was einzutragen ist, und „Gilt
+   * ab" bleibt leer, damit eine bewusste Wahl nötig ist. NICHT mit dem Beginn
+   * des berichtigten Eintrags vorbelegen: Bei einer vergessenen Änderung der
+   * Praxis (J9) überschriebe das die früher genommene Menge rückwirkend.
+   * Runde 8: H-N1 (4) / Entscheidung (2) (N2-2) – wartet das „Nein" nach einer
+   * eingetragenen Anordnung noch auf die Menge für die Zeit davor, heißt das
+   * Formular „Dosis eintragen": Ein „Gilt ab" vor der Anordnung berichtigt
+   * den Eintrag davor, eines ab dem Tag der Anordnung ist eine neue Dosis.
+   */
+  const nein = !da && !ausPraxis ? neinOffen(stand, heute) : null;
+  const berichtigt = Boolean(nein && !nein.anordnung && istBerichtigungJetzt(stand, null, heute));
+  const vorAnordnung = nein && nein.anordnung ? nein : null;
+  const davor = vorAnordnung ? ez.dosisAmIn(stand, tageWeiter(vorAnordnung.anordnung.ab, -1)) : null;
+  const d = da || { praeparat: letzte ? letzte.praeparat : 'L-Thyroxin', mikrogramm: null, tabletten: 1, ab: berichtigt || vorAnordnung ? '' : heute, notiz: '', praxis: ausPraxis ? true : null };
   // Die erste Dosis ist keine Änderung – bei ihr fragt die App nicht nach der
   // Quelle, außer sie hat schon eine oder ist eine Berichtigung (Runde 7: H12).
   const mitQuelle = mitQuelleFuer(stand, da);
+  const hinweis = da ? ''
+    : berichtigt ? 'Tragen Sie ein, was Sie wirklich nehmen, und bei „Gilt ab" den Tag, seit dem Sie es nehmen – ungefähr genügt. Der bisherige Eintrag wird dadurch berichtigt.'
+      : vorAnordnung ? `Ab ${datumKurz(vorAnordnung.anordnung.ab)} gilt die neue Dosis der Praxis (${mengeText(vorAnordnung.anordnung)}). Tragen Sie hier ein, was Sie ${vorAnordnung.anordnung.ab > heute ? 'bis dahin wirklich nehmen' : 'vorher wirklich genommen haben'}, und bei „Gilt ab" den Tag, seit dem – ungefähr genügt.${davor ? ` Der Eintrag ab ${datumKurz(davor.ab)} (${mengeText(davor)}) wird dadurch berichtigt.` : ''} Mit „Gilt ab" am ${datumKurz(vorAnordnung.anordnung.ab)} oder später tragen Sie stattdessen eine neue Dosis ein.`
+        : letzte ? `Die bisherige Dosis (${sp.dosisText(letzte)}) bleibt im Verlauf stehen. Hier kommt die neue dazu, so wie die Ärztin sie verordnet hat.` : '';
   return {
-    titel: da ? 'Dosis ändern' : 'Neue Dosis',
+    titel: da ? 'Dosis ändern' : berichtigt ? 'Dosis berichtigen' : vorAnordnung ? 'Dosis eintragen' : 'Neue Dosis',
     html: `
       <form data-formular="dosis" ${dosisId ? `data-id="${esc(dosisId)}"` : ''} novalidate>
-        ${!da && letzte ? `<div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Die bisherige Dosis (${esc(sp.dosisText(letzte))}) bleibt im Verlauf stehen. Hier kommt die neue dazu, so wie die Ärztin sie verordnet hat.</div></div>` : ''}
+        ${ausPraxis ? '<input type="hidden" name="weg" value="praxis">' : ''}
+        ${hinweis ? `<div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>${esc(hinweis)}</div></div>` : ''}
         ${feldText('praeparat', d.praeparat, 'Präparat', { platzhalter: 'z. B. L-Thyroxin Henning', hinweis: 'So, wie es auf der Packung steht. Ein Herstellerwechsel ist auch eine Änderung.', max: sp.GRENZEN.praeparat })}
         ${feldZahl('mikrogramm', d.mikrogramm, 'Stärke in µg (Mikrogramm)', { platzhalter: 'z. B. 75', hinweis: 'Die Zahl auf der Packung, z. B. 50, 75 oder 100.' })}
         ${tablettenWahl(d.tabletten)}
@@ -236,12 +263,26 @@ function gleicheDosis(a, b) {
  * braucht die Antwort schon vor dem Speichern. `alt`: der Eintrag, der
  * gerade geändert wird, oder null.
  */
-function istBerichtigungJetzt(s, alt, heute) {
-  const befund = dosisBefund(s, heute);
+/*
+ * Runde 8: H-N1 – das offene „Nein, ich nehme etwas anderes" zum Befund, um
+ * den es jetzt geht, mit der Menge, auf die es sich bezog, und – wenn danach
+ * eine Anordnung der Praxis eingetragen wurde – dieser Anordnung
+ * (`anordnung`, siehe dosisAbsenden): Dann wartet das „Nein" noch auf die
+ * Menge für die Zeit davor; die Anordnung und Einträge ab ihrem Tag erledigen
+ * es nicht. → { antwort, am, menge, anordnung } | null
+ */
+function neinOffen(s, heute) {
+  const befund = dz.dosisBefund(s, heute);
   const antwort = befund ? [...s.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && n.bezug === befund.id) : null;
-  const menge = antwort ? neinMenge(antwort.antwort) : null;
-  return Boolean(antwort && /^nein/.test(antwort.antwort)
-    && !s.dosen.some((d) => d !== alt && d.ab >= antwort.am && (menge === null || sp.tagesdosis(d) !== menge)));
+  if (!antwort || !/^nein/.test(antwort.antwort)) return null;
+  const anordnung = antwort.anordnung ? s.dosen.find((d) => d.id === antwort.anordnung) || null : null;
+  return { antwort, am: antwort.am, menge: neinMenge(antwort.antwort), anordnung };
+}
+
+function istBerichtigungJetzt(s, alt, heute) {
+  const nein = neinOffen(s, heute);
+  return Boolean(nein && !s.dosen.some((d) => d !== alt && d.ab >= nein.am && (nein.menge === null || sp.tagesdosis(d) !== nein.menge)
+    && !(nein.anordnung && d.ab >= nein.anordnung.ab)));
 }
 
 /*
@@ -321,7 +362,12 @@ const mengeText = (d) => {
  * Ändern die Frage, und „Auf Anweisung der Praxis: Nein" wurde still zu
  * „nicht angegeben" – die Bitte, der Praxis Bescheid zu sagen, hing daran.
  */
-const mitQuelleFuer = (stand, da) => (da ? stand.dosen.indexOf(da) >= 1 || da.berichtigung || da.praxis !== null : stand.dosen.length >= 1);
+// Runde 8: K13 – „hat schon eine Quelle" heißt true oder false. Der Eintrag
+// vom Einrichten hatte das Feld gar nicht (undefined), und `!== null` nahm
+// ihn als Eintrag mit Quelle: Direkt nach dem Einrichten verlangte „Dosis
+// ändern" bei der einzigen Dosis „Auf Anweisung der Praxis?" als Pflicht, und
+// die Notiz ließ sich nicht speichern – bis zum nächsten Neuladen (normStand).
+const mitQuelleFuer = (stand, da) => (da ? stand.dosen.indexOf(da) >= 1 || da.berichtigung || typeof da.praxis === 'boolean' : stand.dosen.length >= 1);
 
 function dosisAbsenden(id, f, heute) {
   const stand = sp.getStand();
@@ -354,13 +400,73 @@ function dosisAbsenden(id, f, heute) {
     // Ohne die Frage (erste Dosis) bleibt, was der Eintrag hatte.
     praxis: quelle === 'ja' ? true : quelle === 'nein' ? false : formDa ? formDa.praxis : null,
   };
+  /*
+   * Runde 8: H-N1 – der Weg „Die Praxis hat entschieden → Neue Dosis
+   * eintragen" (verstecktes Feld `weg`, dosisFormular): Ein Eintrag auf
+   * diesem Weg ist NIE eine Berichtigung – auch nach „Nein, ich nehme etwas
+   * anderes". Vorher galt er als Berichtigung: Bericht „nimmt nach eigener
+   * Angabe 88 statt 100 … seit wann offen", WW1 „Sie haben berichtigt", keine
+   * Kontrolle (D6c), und das „Nein" war weg, nach der Menge bis dahin fragte
+   * nichts mehr. Jetzt bleibt das „Nein" mit der Anordnung stehen (unten).
+   */
+  const ausPraxis = !formDa && f.get('weg') === 'praxis';
+  // Eine neue Anordnung der Praxis – über ihren Weg oder mit „Auf Anweisung der Praxis: Ja".
+  const anordnungNeu = !formDa && (ausPraxis || felder.praxis === true);
+  const eigene = felder.praxis === false;
+  const nein = neinOffen(stand, heute);
+  // Runde 8: Entscheidung (2) zu H-N1 (N2-2) – solange das „Nein" mit einer
+  // Anordnung wartet, ist ein Eintrag ab deren Tag eine gewöhnliche neue
+  // Dosis (eigene Änderung, Anordnung, geplante Dosis), keine Berichtigung.
+  // Vorher öffnete „Verlauf → Neue Dosis" dann nur „Dosis berichtigen" und
+  // wies jeden Tag ab der Anordnung ab – keine eigene Senkung, keine geplante
+  // Dosis eintragbar, bis zum nächsten TSH-Befund.
+  const nachAnordnung = Boolean(nein && nein.anordnung && ab >= nein.anordnung.ab);
+  // Runde 8: K4 (b) – „Gilt ab" in der Zukunft bei offenem „Nein": nie eine
+  // Berichtigung. Als Berichtigung statt des geltenden Eintrags ließ sie
+  // diesen wegfallen, und heute galt keine Dosis mehr – oder wieder die, die
+  // als nie genommen gemeldet war. Das „Nein" wartet auf sie wie auf eine
+  // Anordnung (unten), danach fragt das Formular nach der Menge bis dahin.
+  const geplantTrotzNein = Boolean(nein && !nein.anordnung && !formDa && ab > heute);
+  // Runde 8: J9 – „Ja, am … geändert" (siehe unten): dann keine Berichtigung.
+  const geaendertJa = f.get('geaendert') === 'ja';
   // Berichtigung nach „Nein, ich nehme etwas anderes"? Siehe istBerichtigungJetzt.
-  const berichtigtJetzt = istBerichtigungJetzt(stand, formDa, heute);
+  const berichtigtJetzt = !ausPraxis && !nachAnordnung && !geplantTrotzNein && !geaendertJa && istBerichtigungJetzt(stand, formDa, heute);
   const heuteGilt = ez.dosisAmIn(stand, heute);
+  // Der Eintrag, den eine neue Berichtigung berichtigt: der heute gilt – oder,
+  // wartet das „Nein" nach einer Anordnung, der vor der Anordnung (H-N1 (4)).
+  const berichtigtWird = nein && nein.anordnung ? ez.dosisAmIn(stand, tageWeiter(nein.anordnung.ab, -1)) : heuteGilt;
   const nieVorher = new Set([...ez.nieGegolten(stand, heute).keys()].map((d) => d.id));
   // Der Eintrag, wie er gespeichert würde – zum Probe-Rechnen (Runde 7: H1).
   const probe = (tag) => (formDa ? { ...formDa, ...felder, ab: tag }
-    : { id: 'probe-neu', ...felder, ab: tag, berichtigung: berichtigtJetzt, ...(berichtigtJetzt && heuteGilt ? { statt: heuteGilt.id } : {}) });
+    : { id: 'probe-neu', ...felder, ab: tag, berichtigung: berichtigtJetzt, ...(berichtigtJetzt && berichtigtWird ? { statt: berichtigtWird.id } : {}) });
+  /*
+   * Runde 8: J9 – eine vergessene Änderung (die Praxis stellte im Februar auf
+   * 88 µg um, eingetragen erst nach „Nein, ich nehme etwas anderes" im
+   * September): Liegt „Gilt ab" NACH dem Beginn des Eintrags, der heute gilt,
+   * kann es eine Änderung gewesen sein – vorher wurde still eine Berichtigung
+   * gespeichert, ohne Kontrolle (D6c), ohne Nachfrage nach der Erhöhung
+   * (W-D4), mit „nimmt nach eigener Angabe 88 statt 75 … seit wann offen" im
+   * Bericht. Jetzt fragt das Formular; beide Antworten speichern (neinSendet):
+   * „Ja, am … geändert" → gewöhnlicher Eintrag, „Nein, schon vorher falsch"
+   * → Berichtigung wie bisher. Nicht an „Auf Anweisung der Praxis: Ja"
+   * geknüpft (eine Tippfehler-Berichtigung mit „Gilt ab" = Beginn des alten
+   * Eintrags fragt nicht, der Tag liegt nicht danach). Nicht bei „Gilt ab"
+   * heute mit Praxis: Nein (G11: 100 µg angeordnet, nie genommen, 75 µg
+   * weiter genommen – ein „Ja" machte die nie genommenen 100 µg zur Menge
+   * davor, zu der X3 zurückrät) und nicht bei einem künftigen Tag.
+   */
+  if (berichtigtJetzt && !formDa && berichtigtWird && ab > berichtigtWird.ab && ab <= heute && !(ab === heute && eigene) && f.get('geaendert') !== 'nein') {
+    return {
+      ok: false,
+      rueckfragen: [nochEingetragen(berichtigtWird, 'bisher')],
+      rueckfrageSatz: `Hat sich Ihre Dosis ${ab === heute ? 'heute' : `am ${datumKurz(ab)}`} geändert, und war sie bis dahin richtig eingetragen?`,
+      rueckfrageFeld: 'ab',
+      rueckfrageName: 'geaendert',
+      rueckfrageJa: `Ja, ${ab === heute ? 'heute' : `am ${datumKurz(ab)}`} geändert`,
+      rueckfrageNein: 'Nein, schon vorher falsch',
+      rueckfrageNeinSendet: true,
+    };
+  }
   /*
    * Runde 7: H1 – eine Berichtigung, deren „Gilt ab" vor einem vorhandenen
    * Eintrag mit derselben Menge liegt (siehe gleicheMengeSpaeter): fragen,
@@ -413,6 +519,9 @@ function dosisAbsenden(id, f, heute) {
    * Eine Berichtigung am Tag des berichtigten Eintrags ist gewollt (D19).
    */
   let da = formDa;
+  // Runde 8: J1/J4 (a) – „Ja, bis dahin": der vorhandene Eintrag desselben
+  // Tages, NEBEN den der neue tritt (Vermerk `nach`, ez.dosisVerlauf).
+  let nach = null;
   /*
    * Nachprüfung zu Runde 7 (N1): Eine eigene Änderung (Praxis: Nein) ersetzt
    * keinen Eintrag desselben Tages – sie ist eine Änderung GEGENÜBER ihm.
@@ -421,24 +530,77 @@ function dosisAbsenden(id, f, heute) {
    * kommt sie als eigener Eintrag dazu; war der vorhandene der erste, gilt er
    * als die Menge davor (ez.dosisVerlauf), sonst zählt die Menge vor diesem
    * Tag, und eine ersetzte Anordnung der Praxis nennt der Bericht.
+   *
+   * Runde 8: J1, J4 (Entscheidung (a)) – steht ab diesem Tag der ERSTE Eintrag
+   * überhaupt (meist vom Einrichten, „Seit wann?" blieb auf heute) oder eine
+   * BERICHTIGUNG, kann dessen „Gilt ab" eine Schätzung sein. Dann fragt das
+   * Formular – für Anordnungen der Praxis und eigene Änderungen gleich –:
+   * „Haben Sie bis … genommen?" „Ja, bis dahin" speichert den neuen Eintrag
+   * daneben mit dem Vermerk `nach`: Der vorhandene ist die Menge davor, die
+   * Änderung ist echt (D6c, W-D4, WW1/WW2, X3/B2). „Nein, das war falsch"
+   * ersetzt wie bisher an Ort und Stelle. Vorher löschte „Ja, ersetzen" am
+   * Einrichtungstag die bisherige Menge, die Änderung zählte nicht (J4), und
+   * die Anordnung der Praxis erbte Marke und `statt` einer Berichtigung
+   * desselben Tages (J1).
+   * Runde 8: H-N2 – nur bei einem solchen Eintrag. Für einen Eintrag, der
+   * selbst als Änderung eingetragen wurde und an diesem Tag beginnt, bleibt
+   * „ersetzen?" (Anordnung) bzw. „daneben ohne Frage" (eigene, N1): Nach
+   * einer eigenen Erhöhung 100 → 150 am Morgen und der Anordnung 125 am
+   * Nachmittag machte „Ja, bis dahin" die Eintagesmenge 150 zur Menge davor,
+   * und W-D4 fragte nach „verringert" statt nach „erhöht".
+   * Runde 8: H-N3 – ersetzt eine Anordnung eine Berichtigung („Nein, das war
+   * falsch"), fielen deren Marke und `statt` weg, und die als falsch gemeldete
+   * Menge galt wieder als genommen. Deshalb ersetzt die Anordnung eine
+   * Berichtigung nicht: Der Fehler am Feld führt zum Ändern der Berichtigung
+   * (Knopf wie bei gleichFehler) – die einfachste Lösung, die nichts still
+   * wieder gelten lässt; die Kette ohne Menge zu erhalten, ginge nicht.
    */
-  const eigene = felder.praxis === false;
   if (!formDa && !berichtigtJetzt) {
     const gleich = gleichFehler();
     if (gleich) return gleich;
-    const amTag = eigene ? null : [...stand.dosen].reverse().find((d) => d.ab === ab);
-    if (amTag && f.get('ersetzen') !== 'ja') {
-      return {
-        ok: false,
-        rueckfragen: [nochEingetragen(amTag, 'schon')],
-        rueckfrageSatz: 'Soll Ihre Angabe diesen Eintrag ersetzen? Ab einem Tag kann nur eine Dosis gelten.',
-        rueckfrageFeld: 'ab',
-        rueckfrageName: 'ersetzen',
-        rueckfrageJa: 'Ja, ersetzen',
-        rueckfrageNein: 'Nein – „Gilt ab" prüfen',
-      };
+    const amTag = [...stand.dosen].reverse().find((d) => d.ab === ab) || null;
+    const ersterGalt = ez.dosenDieGalten(stand, heute)[0] || null;
+    const schaetzung = Boolean(amTag) && (amTag === ersterGalt || Boolean(amTag.berichtigung));
+    if (amTag && schaetzung) {
+      const antwort = f.get('bisDahin');
+      if (antwort !== 'ja' && antwort !== 'nein') {
+        return {
+          ok: false,
+          rueckfragen: [nochEingetragen(amTag, 'schon')],
+          rueckfrageSatz: `Haben Sie ${ab === heute ? 'bis heute' : `bis zum ${datumKurz(ab)}`} ${mengeText(amTag)} genommen?`,
+          rueckfrageFeld: 'ab',
+          rueckfrageName: 'bisDahin',
+          rueckfrageJa: 'Ja, bis dahin',
+          rueckfrageNein: 'Nein, das war falsch',
+          rueckfrageNeinSendet: true,
+        };
+      }
+      if (antwort === 'ja') nach = amTag;
+      else if (amTag.berichtigung && anordnungNeu) {
+        return {
+          ok: false,
+          fehler: {
+            ab: {
+              text: `Ab ${datumKurz(amTag.ab)} ist Ihre Berichtigung eingetragen: ${mengeText(amTag)}. Stimmt sie nicht, ändern Sie bitte zuerst diese Berichtigung – auf das, was Sie vor der neuen Dosis wirklich genommen haben. Danach tragen Sie die neue Dosis ein.`,
+              knopf: { seite: 'dosis', param: amTag.id, text: 'Berichtigung ändern' },
+            },
+          },
+        };
+      } else da = amTag;
+    } else if (amTag && !eigene) {
+      if (f.get('ersetzen') !== 'ja') {
+        return {
+          ok: false,
+          rueckfragen: [nochEingetragen(amTag, 'schon')],
+          rueckfrageSatz: 'Soll Ihre Angabe diesen Eintrag ersetzen? Ab einem Tag kann nur eine Dosis gelten.',
+          rueckfrageFeld: 'ab',
+          rueckfrageName: 'ersetzen',
+          rueckfrageJa: 'Ja, ersetzen',
+          rueckfrageNein: 'Nein – „Gilt ab" prüfen',
+        };
+      }
+      da = amTag;
     }
-    if (amTag) da = amTag;
   }
   /*
    * Nachprüfung zu Runde 7 (Rest von H18): „Gilt ab" eines vorhandenen
@@ -465,6 +627,67 @@ function dosisAbsenden(id, f, heute) {
   const weg = belegt && belegt.praxis !== true ? belegt.id : null;
   const andere = stand.dosen.filter((d) => d !== da);
   const vorher = [...andere].reverse().find((d) => d.ab <= ab);
+  /*
+   * Runde 8: Entscheidung (1) zu H-N1 (N2-1) – die Anordnung über „Die Praxis
+   * hat entschieden" bei offenem „Nein, ich nehme etwas anderes": Oft erklärt
+   * die Anordnung das „Nein" schon (die Praxis hatte am 24.09. umgestellt, die
+   * Karte fragte am 27.09. „genau 100?"). Blieb das „Nein" dann offen, sagte
+   * der Bericht „hat sie nicht so genommen", und es gab keinen Ausweg. Jetzt
+   * fragt das Formular vorher: „Ja" → gewöhnliche Änderung, das „Nein" ist
+   * erledigt; „Nein, etwas anderes" → Änderung, das „Nein" bleibt mit der
+   * Anordnung, danach „Dosis berichtigen" für die Zeit davor. Beide Antworten
+   * speichern (neinSendet). Nur, wenn vor der Anordnung ein Eintrag mit genau
+   * dieser Menge galt und das „Nein" nicht schon auf eine Anordnung wartet.
+   */
+  const neinBisDahin = f.get('neinBisDahin');
+  const davorNein = ausPraxis && nein && !nein.anordnung && nein.menge !== null ? ez.dosisAmIn(stand, tageWeiter(ab, -1)) : null;
+  const neinFrage = Boolean(davorNein) && sp.tagesdosis(davorNein) === nein.menge;
+  if (neinFrage && neinBisDahin !== 'ja' && neinBisDahin !== 'nein') {
+    const bis = ab > heute ? `bis zur neuen Dosis ab ${datumKurz(ab)}` : ab === heute ? 'bis heute' : `bis zum ${datumKurz(tageWeiter(ab, -1))}`;
+    return {
+      ok: false,
+      rueckfragen: [`Ab ${datumKurz(ab)} ist ${mengeText(eintrag)} eingetragen. Auf der Dosis-Karte hatten Sie angegeben: „Nein, ich nehme etwas anderes".`],
+      rueckfrageSatz: ab > heute ? `Nehmen Sie ${bis} ${mengeText(davorNein)}?` : `Haben Sie ${bis} ${mengeText(davorNein)} genommen?`,
+      rueckfrageFeld: 'ab',
+      rueckfrageName: 'neinBisDahin',
+      rueckfrageJa: 'Ja',
+      rueckfrageNein: 'Nein, etwas anderes',
+      rueckfrageNeinSendet: true,
+    };
+  }
+  /*
+   * Runde 8: K15 – ein Jahresvertipper bei „Gilt ab" einer Anordnung (2025
+   * statt 2026) ging still durch: „Aktuell 88 µg seit 27.09.2025", beim
+   * Befund vom 17.09.2026 „Dosis damals 88 µg", keine Kontrolle, kein WW1.
+   * Liegt „Gilt ab" einer neuen Anordnung vor dem Befund, zu dem die Praxis
+   * entschieden hat, oder mehr als ein Jahr zurück, fragt das Formular nach.
+   * „Nein" führt zu „Gilt ab".
+   */
+  if (anordnungNeu && !berichtigtJetzt && !nachAnordnung && f.get('abAlt') !== 'ja') {
+    const befund = dz.dosisBefund(stand, heute);
+    const entschieden = befund && ez.praxisHatErklaert(befund) && befund.praxisAm ? befund : null;
+    if ((entschieden && ab < entschieden.datum) || ab < tageWeiter(heute, -365)) {
+      return {
+        ok: false,
+        rueckfragen: [`Die neue Dosis ist mit „Gilt ab" ${datumKurz(ab)} eingetragen.${entschieden ? ` Zum Befund vom ${datumKurz(entschieden.datum)} hat die Praxis am ${datumKurz(entschieden.praxisAm)} entschieden.` : ''}`],
+        rueckfrageSatz: `Gilt die neue Dosis wirklich schon seit dem ${datumKurz(ab)}?`,
+        rueckfrageFeld: 'ab',
+        rueckfrageName: 'abAlt',
+        rueckfrageJa: `Ja, seit ${datumKurz(ab)}`,
+        rueckfrageNein: 'Nein – „Gilt ab" prüfen',
+      };
+    }
+  }
+  /*
+   * Runde 8: K4 – die B54-Sicherung mit dem Stand NACH dem Speichern: Eine
+   * Berichtigung mit „Gilt ab" in der Zukunft ließe den Eintrag, den sie
+   * berichtigt, wegfallen – dann gälte heute keine Dosis mehr (oder wieder
+   * eine, die als nie genommen gemeldet war). Die Prüfung oben sieht nur die
+   * Einträge, die heute da sind.
+   */
+  if (ab > heute && !sp.gueltigeDosen({ dosen: probeDosen(stand.dosen, da, probe(ab)) }).some((d) => d.ab <= heute)) {
+    return { ok: false, fehler: { ab: `Dann wäre bis zum ${datumKurz(ab)} keine Dosis mehr eingetragen. Bitte tragen Sie den Tag ein, seit dem Sie diese Tablette nehmen – ungefähr genügt. Ein Tag in der Zukunft geht nur für eine geplante Änderung.` } };
+  }
   /*
    * Runde 6: G11 – „nie genommen?" Beim Ändern einer Berichtigung ohne
    * Vermerk, deren „Gilt ab" vor einen Eintrag mit anderer Menge rückt. Beim
@@ -525,7 +748,12 @@ function dosisAbsenden(id, f, heute) {
     const alt = sp.tagesdosis(vorher);
     const neu = sp.tagesdosis(eintrag);
     if (alt && neu && Math.abs(neu - alt) > alt / 2) {
-      rueckfragen.push(`Bisher ${zahlFeld(alt)} µg am Tag, jetzt ${zahlFeld(neu)} µg am Tag – das ist eine Änderung um mehr als die Hälfte.`);
+      // Runde 8: J12 – bei einer Berichtigung ist es keine „Änderung": Die
+      // Menge war falsch eingetragen (12,5 statt 125 µg).
+      const wieViel = neu > 2 * alt ? 'das ist mehr als das Doppelte' : neu < alt / 2 ? 'das ist weniger als die Hälfte' : 'das ist ein Unterschied um mehr als die Hälfte';
+      rueckfragen.push(berichtigtJetzt
+        ? `Bisher eingetragen ${zahlFeld(alt)} µg am Tag, jetzt ${zahlFeld(neu)} µg am Tag – ${wieViel}.`
+        : `Bisher ${zahlFeld(alt)} µg am Tag, jetzt ${zahlFeld(neu)} µg am Tag – das ist eine Änderung um mehr als die Hälfte.`);
     }
     if (rueckfragen.length) {
       const art = rueckfragen.length === 1 && staerke ? STAERKE_RUECKFRAGE : SPRUNG_RUECKFRAGE;
@@ -533,15 +761,22 @@ function dosisAbsenden(id, f, heute) {
     }
   }
   let gespeichert = da ? da.id : null;
+  // Runde 8: H-N1 – wohin es nach dem Speichern geht und was die Meldung sagt
+  // (siehe unten, das offene „Nein").
+  let danach = null;
+  let neinSatz = '';
   sp.aendern((s) => {
     const alt = da ? s.dosen.find((d) => d.id === da.id) : null;
-    // Berichtigung nach „Nein, ich nehme etwas anderes"? Siehe istBerichtigungJetzt.
-    const berichtigung = istBerichtigungJetzt(s, alt, heute);
+    // Berichtigung nach „Nein, ich nehme etwas anderes"? Siehe istBerichtigungJetzt –
+    // Runde 8: vor dem Speichern entschieden, mit den Ausnahmen (ausPraxis,
+    // nachAnordnung, geplantTrotzNein, „Ja, am … geändert").
+    const berichtigung = berichtigtJetzt;
     // Runde 6: G11 – der Vermerk, welchen Eintrag die Berichtigung berichtigt:
     // beim Anlegen der, der heute gilt (nach ihm hat die Karte gefragt); nach
     // „Ja, nie genommen" der, der am bisherigen Tag galt. Beim Ändern bleibt
     // ein vorhandener Vermerk stehen – `eintrag` enthält ihn nicht.
-    const statt = !alt && berichtigung ? heuteGilt : nie && f.get('nieGenommen') === 'ja' ? nie.statt : null;
+    // Runde 8: H-N1 (4) – wartet das „Nein" nach einer Anordnung, der Eintrag vor der Anordnung (berichtigtWird).
+    const statt = !alt && berichtigung ? berichtigtWird : nie && f.get('nieGenommen') === 'ja' ? nie.statt : null;
     const vermerk = statt && s.dosen.some((d) => d.id === statt.id) && statt !== alt ? { statt: statt.id } : {};
     /*
      * Runde 6 – Rest (X3b): der Tag der Berichtigung – heute, wenn sie jetzt
@@ -555,7 +790,7 @@ function dosisAbsenden(id, f, heute) {
      * Runde 6 – Rest).
      */
     const berichtigtAm = berichtigung || vermerk.statt || !alt ? heute
-      : alt.berichtigtAm || [berichtigungsTag(s, alt, heute), heute].sort()[0];
+      : alt.berichtigtAm || [dz.berichtigtAm(s, alt, heute), heute].sort()[0];
     /*
      * Runde 7: H8 – der Tag, an dem die App von dieser Menge erfährt: heute
      * beim Anlegen und wenn sich Menge oder „Auf Anweisung der Praxis"
@@ -569,23 +804,68 @@ function dosisAbsenden(id, f, heute) {
     const eingetragenAm = neueMenge ? heute : alt.eingetragenAm;
     if (alt) {
       const verschoben = alt.ab !== eintrag.ab;
-      Object.assign(alt, eintrag, berichtigung || alt.berichtigung ? { berichtigung: true, ...vermerk, berichtigtAm } : {},
-        eingetragenAm ? { eingetragenAm } : {});
+      /*
+       * Runde 8: J1 (Entscheidung (a)) – ersetzt eine Anordnung der Praxis
+       * („Auf Anweisung der Praxis: Ja" oder der Weg der Praxis) den Eintrag
+       * desselben Tages, übernimmt sie NIE berichtigung, statt oder
+       * berichtigtAm des ersetzten. Vorher erbte die neue Dosis der Praxis
+       * die Marke einer Berichtigung desselben Tages: Im Bericht stand
+       * „Berichtigung (Angabe): nimmt nach eigener Angabe 88 µg statt der
+       * zuvor eingetragenen 100 µg", WW1 sagte „Sie haben berichtigt", die
+       * Kontrolle (D6c) fehlte. Eine eigene Änderung, die eine Berichtigung
+       * ersetzt, behält dagegen deren Kette (Marke und statt bleiben).
+       */
+      if (alt !== formDa && anordnungNeu) {
+        delete alt.statt;
+        delete alt.berichtigtAm;
+        Object.assign(alt, eintrag, { berichtigung: false }, eingetragenAm ? { eingetragenAm } : {});
+      } else {
+        Object.assign(alt, eintrag, berichtigung || alt.berichtigung ? { berichtigung: true, ...vermerk, berichtigtAm } : {},
+          eingetragenAm ? { eingetragenAm } : {});
+      }
       // Runde 7: H18 – wer „Gilt ab" ändert, sagt es zuletzt: hinter andere
       // Einträge desselben Tages, wie probeDosen rechnet.
       if (verschoben) s.dosen.push(...s.dosen.splice(s.dosen.indexOf(alt), 1));
     } else {
       gespeichert = sp.kennung();
-      s.dosen.push({ id: gespeichert, ...eintrag, berichtigung, ...(berichtigung ? { ...vermerk, berichtigtAm } : {}), eingetragenAm });
+      // Runde 8: J1/J4 (a) – „Ja, bis dahin": daneben, mit dem Vermerk `nach`.
+      s.dosen.push({ id: gespeichert, ...eintrag, berichtigung, ...(berichtigung ? { ...vermerk, berichtigtAm } : {}), eingetragenAm, ...(nach ? { nach: nach.id } : {}) });
     }
     if (weg) s.dosen = s.dosen.filter((d) => d.id !== weg);
     s.dosen.sort((a, b) => a.ab.localeCompare(b.ab));
-    // X3 (1) „Nein, ich nehme etwas anderes": Mit dem Eintrag ist die
-    // Aufforderung erfüllt. Die Antwort fällt weg, und die Dosis-Karte fragt
-    // mit der eingetragenen Dosis neu. Ein Datumsvergleich genügt nicht –
-    // der berichtigte Eintrag beginnt oft vor der Antwort, und alte Antworten
-    // „nein" nennen keine Menge (B26, B63).
-    s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && /^nein/.test(n.antwort)));
+    /*
+     * X3 (1) „Nein, ich nehme etwas anderes": Mit dem Eintrag ist die
+     * Aufforderung erfüllt. Die Antwort fällt weg, und die Dosis-Karte fragt
+     * mit der eingetragenen Dosis neu. Ein Datumsvergleich genügt nicht –
+     * der berichtigte Eintrag beginnt oft vor der Antwort, und alte Antworten
+     * „nein" nennen keine Menge (B26, B63).
+     *
+     * Runde 8: H-N1 – erledigt ist das „Nein" nur durch die Berichtigung,
+     * durch „Ja, am … geändert" (J9) oder durch „Ja" auf „Haben Sie bis …
+     * genommen?" (Entscheidung (1)). Eine Anordnung der Praxis über ihren Weg
+     * (oder eine geplante Dosis, K4) erledigt es nicht: Das „Nein" bleibt mit
+     * der Kennung der Anordnung stehen (`anordnung`) und wartet auf die Menge
+     * für die Zeit davor – das Formular dafür öffnet sich gleich (danach).
+     * Gibt es vor der Anordnung keinen Eintrag mehr (sie hat am Einrichtungstag
+     * den einzigen ersetzt), ist nichts zu berichtigen: Das „Nein" fällt weg
+     * wie bisher. Wer nur einen Eintrag ändert (etwa die Notiz) oder nach der
+     * Anordnung eine neue Dosis einträgt (Entscheidung (2)), erledigt nichts.
+     */
+    if (nein) {
+      const erledigt = berichtigung || geaendertJa || neinBisDahin === 'ja';
+      const wartet = !erledigt && !alt && !nein.anordnung && (ausPraxis || geplantTrotzNein);
+      const davorDa = wartet && sp.gueltigeDosen(s).some((d) => d.id !== gespeichert && d.ab < ab);
+      if (erledigt || (wartet && !davorDa)) {
+        s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && /^nein/.test(n.antwort)));
+      } else if (wartet) {
+        const offen = s.nachfragen.find((n) => n === nein.antwort) || [...s.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && /^nein/.test(n.antwort));
+        if (offen) offen.anordnung = gespeichert;
+        danach = { name: 'dosis' };
+        neinSatz = ab > heute
+          ? ' Bitte tragen Sie jetzt noch ein, was Sie im Moment nehmen.'
+          : ` Sie hatten angegeben, dass Sie nicht ${nein.menge !== null ? `${zahlFeld(nein.menge)} µg am Tag` : 'die eingetragene Menge'} genommen haben. Bitte tragen Sie jetzt noch ein, was Sie ${ab === heute ? 'bis heute' : `bis zum ${datumKurz(tageWeiter(ab, -1))}`} genommen haben.`;
+      }
+    }
   });
   /*
    * Andere Stärke bei gezähltem Vorrat: bitte neu zählen (D13). Bei einer
@@ -615,15 +895,18 @@ function dosisAbsenden(id, f, heute) {
   const nieJetzt = [...ez.nieGegolten(sp.getStand(), heute).keys()].filter((d) => !nieVorher.has(d.id) && d.id !== gespeichert);
   const nieSatz = nieJetzt.length
     ? ` ${nieJetzt.map((d, i) => `${i ? 'die' : 'Die'} ${mengeText(d)} ab ${datumKurz(d.ab)}`).join(' und ')} zählen jetzt als nie genommen.` : '';
+  // Runde 8: H-N1 – mit dem Satz zum offenen „Nein" und dem Formular danach.
+  const weiter = danach ? { danach } : {};
   if (neuZaehlen) {
     return {
       ok: true,
+      ...weiter,
       meldung: ab > heute
-        ? `Dosis gespeichert.${nieSatz} Bitte zählen Sie am ${datumKurz(ab)} Ihren Tablettenvorrat neu – „Heute" erinnert Sie an dem Tag daran.`
-        : `Dosis gespeichert.${nieSatz} Bitte zählen Sie Ihren Tablettenvorrat neu – auf „Heute" unter „Vorrat neu zählen" oder unter „Mehr → Tablettenvorrat".`,
+        ? `Dosis gespeichert.${nieSatz}${neinSatz} Bitte zählen Sie am ${datumKurz(ab)} Ihren Tablettenvorrat neu – „Heute" erinnert Sie an dem Tag daran.`
+        : `Dosis gespeichert.${nieSatz}${neinSatz} Bitte zählen Sie Ihren Tablettenvorrat neu – auf „Heute" unter „Vorrat neu zählen" oder unter „Mehr → Tablettenvorrat".`,
     };
   }
-  return { ok: true, meldung: nieSatz ? `Dosis gespeichert.${nieSatz}` : 'Dosis gespeichert' };
+  return { ok: true, ...weiter, meldung: nieSatz || neinSatz ? `Dosis gespeichert.${nieSatz}${neinSatz}` : 'Dosis gespeichert' };
 }
 
 // ---------------------------------------------------------------- Labor
@@ -712,31 +995,41 @@ const Q5_WERTE = ['nein', 'einmal', 'tage', 'unbekannt'];
  * vorhandenen dazu: leere Werte und offene Fragen werden gefüllt. Sagen beide
  * bei derselben Angabe Verschiedenes, wird nichts still überschrieben.
  *
- * → { zusammen, widerspruch: [Namen] }
+ * Runde 8: K14 – `widerspruch` nennt zu jeder Angabe beide Werte („TSH:
+ * bisher 2,1 mU/l, jetzt 2,15 mU/l"), und mit `neuGewinnt` gilt bei einem
+ * Widerspruch der neue Wert (die Antwort „Ja, der neue Wert gilt" in
+ * laborAbsenden). Vorher stand nur der Name des Werts im Fehler.
+ * → { zusammen, widerspruch: [Texte], notizZuLang }
  */
-function befundeZusammen(alt, neu) {
+function befundeZusammen(alt, neu, { neuGewinnt = false } = {}) {
   const zusammen = {};
   const widerspruch = [];
+  const wertKurz = (w) => `${w.unter ? '< ' : ''}${zahlFeld(w.wert)} ${w.einheit}`;
   [...sp.LABORWERTE, ...sp.WEITERE_WERTE].forEach(([key, name]) => {
     const a = alt[key];
     const n = neu[key];
     if (!n || !a) { zusammen[key] = a || n || null; return; }
     const gleich = a.wert === n.wert && a.einheit === n.einheit && a.unter === n.unter
       && (a.von === null || n.von === null || a.von === n.von) && (a.bis === null || n.bis === null || a.bis === n.bis);
-    if (!gleich) { widerspruch.push(name.replace(/ \(.*\)$/, '')); zusammen[key] = a; return; }
+    if (!gleich) {
+      widerspruch.push(`${name.replace(/ \(.*\)$/, '')}: bisher ${wertKurz(a)}, jetzt ${wertKurz(n)}`);
+      zusammen[key] = neuGewinnt ? { ...n, von: n.von ?? a.von, bis: n.bis ?? a.bis } : a;
+      return;
+    }
     zusammen[key] = { ...a, von: a.von ?? n.von, bis: a.bis ?? n.bis };
   });
   sp.FRAGEN_FELDER.forEach((k) => {
     if (neu[k] && alt[k] && neu[k] !== alt[k]) {
       const frage = BEFUND_FRAGEN.find((q) => q.feld === k);
-      widerspruch.push(frage ? frage.kurz : FRAGE_KURZ[k] || k);
+      const antwortText = (v) => (frage && frage.optionen ? (frage.optionen.find(([w]) => w === v) || [v, v])[1] : (JNW_WAHL.find(([w]) => w === v) || [v, v])[1]);
+      widerspruch.push(`${frage ? frage.kurz : FRAGE_KURZ[k] || k}: bisher ${antwortText(alt[k])}, jetzt ${antwortText(neu[k])}`);
     }
-    zusammen[k] = alt[k] || neu[k] || '';
+    zusammen[k] = neuGewinnt ? neu[k] || alt[k] || '' : alt[k] || neu[k] || '';
   });
-  zusammen.praxisAm = alt.praxis ? alt.praxisAm : neu.praxisAm;
+  zusammen.praxisAm = zusammen.praxis && zusammen.praxis === alt.praxis ? alt.praxisAm : neu.praxisAm;
   ['abnahmeUhr', 'tabletteUhr', 'laborName'].forEach((k) => {
-    if (neu[k] && alt[k] && neu[k] !== alt[k]) widerspruch.push({ abnahmeUhr: 'Uhrzeit der Abnahme', tabletteUhr: 'Uhrzeit der Tablette', laborName: 'Name des Labors' }[k]);
-    zusammen[k] = alt[k] || neu[k] || '';
+    if (neu[k] && alt[k] && neu[k] !== alt[k]) widerspruch.push(`${{ abnahmeUhr: 'Uhrzeit der Abnahme', tabletteUhr: 'Uhrzeit der Tablette', laborName: 'Name des Labors' }[k]}: bisher ${alt[k]}, jetzt ${neu[k]}`);
+    zusammen[k] = neuGewinnt ? neu[k] || alt[k] || '' : alt[k] || neu[k] || '';
   });
   /*
    * Runde 5: F23 – Beide Notizen passen zusammen nicht in die Grenze: nicht
@@ -848,6 +1141,45 @@ function laborFormular(id, stand, heute) {
 const JNW_WERTE = ['ja', 'nein', 'unbekannt'];
 const auswahl = (v, erlaubt) => (erlaubt.includes(v) ? v : '');
 
+/*
+ * Runde 8: J7 – eine Entscheidung der Praxis, die über das Befund-Formular
+ * eingetragen wird, zählt nach einer eigenen Änderung oder Berichtigung wie
+ * über „Die Praxis hat entschieden" (js/app.js): mit dem Datum von heute und
+ * dem Vermerk PRAXIS_DANACH (js/dosis.js, wartetAufPraxis). Vorher schrieb
+ * nur js/app.js den Vermerk; aus dem Formular galt die Entscheidung als vor
+ * der Änderung, Karte und „Heute" rieten weiter „wieder die bisherige Menge".
+ * Beide Hilfen rechnen wie js/app.js – und nehmen die Fassung aus js/dosis.js,
+ * sobald sie dort ausgeführt ist (dann mit der Kennung der Änderung, J3).
+ */
+const ENTSCHIEDEN = ['bleibt', 'geaendert', 'nachmessen'];
+function entscheidungNachEigener(stand, wert, heute) {
+  if (typeof dz.entscheidungNachEigener === 'function') return Boolean(dz.entscheidungNachEigener(stand, wert, heute));
+  return ENTSCHIEDEN.includes(wert) && dz.wartetAufPraxis(stand, heute);
+}
+function vermerkPraxisDanach(s, befundId, heute) {
+  if (typeof dz.praxisDanachVermerken === 'function') { dz.praxisDanachVermerken(s, befundId, heute); return; }
+  s.nachfragen = s.nachfragen.filter((n) => !(n.art === dz.PRAXIS_DANACH && n.bezug === befundId));
+  s.nachfragen.push({ id: sp.kennung(), art: dz.PRAXIS_DANACH, bezug: befundId, antwort: 'ja', am: heute });
+}
+/*
+ * Runde 8: J7b – die Änderung, auf die die Karte wartet, mit ihrem Tag für die
+ * Rückfrage: der Eintrag, mit dem die Menge von heute begann (ein späterer
+ * Präparatwechsel klärt nichts, E30); bei einer Berichtigung ihr Tag
+ * (dz.berichtigtAm, X3b), sonst der spätere von „Gilt ab" und dem Tag des
+ * Eintrags (bekannt seit, H8). → { d, tag, berichtigung } | null
+ */
+function wartendeAenderung(stand, heute) {
+  const galten = ez.dosenDieGalten(stand, heute).filter((d) => d.ab <= heute);
+  if (!galten.length) return null;
+  const td = sp.tagesdosis(galten[galten.length - 1]);
+  let i = galten.length - 1;
+  while (i > 0 && sp.tagesdosis(galten[i - 1]) === td) i--;
+  const d = galten[i];
+  const berichtigung = ez.istBerichtigung(stand, d, heute);
+  const tag = berichtigung ? dz.berichtigtAm(stand, d, heute) : [d.ab, istISO(d.eingetragenAm) ? d.eingetragenAm : null].filter(Boolean).sort().pop();
+  return { d, tag, berichtigung };
+}
+
 function laborAbsenden(id, f, heute) {
   const stand = sp.getStand();
   const fehler = {};
@@ -914,9 +1246,29 @@ function laborAbsenden(id, f, heute) {
   if (amTag) {
     const oeffnen = { seite: 'labor', param: amTag.id, text: `Befund vom ${datumKurz(datum)} öffnen` };
     if (id) return { ok: false, fehler: { datum: { text: `Für den ${datumKurz(datum)} gibt es schon einen Befund. Tragen Sie die Werte bitte dort ein – oder wählen Sie ein anderes Datum.`, knopf: oeffnen } } };
-    const { zusammen, widerspruch, notizZuLang } = befundeZusammen(amTag, eintrag);
-    if (widerspruch.length) {
-      return { ok: false, fehler: { datum: { text: `Für den ${datumKurz(datum)} gibt es schon einen Befund, und er sagt bei ${widerspruch.join(', ')} etwas anderes. Bitte prüfen Sie den vorhandenen Befund und ändern Sie ihn dort.`, knopf: oeffnen } } };
+    /*
+     * Runde 8: K14 – der Befund in zwei Schritten (TSH 2,1 vom Telefon, später
+     * der Brief mit TSH 2,15, fT4 und den Bereichen): Bei einer Abweichung
+     * führte der Knopf „Befund … öffnen" über die Seitenaktion zur Frage
+     * „Ihre Eingaben sind noch nicht gespeichert. Verwerfen …?" und öffnete
+     * den alten Befund mit den alten Werten – alles eben Eingetippte war weg,
+     * und der Fehler nannte nicht einmal die beiden Werte. Jetzt eine
+     * Rückfrage mit beiden Werten: „Ja, der neue Wert gilt" speichert alles
+     * zusammen (der neue Wert ersetzt den alten, die übrigen Werte kommen
+     * dazu), „Nein" führt zurück ins Formular – die Eingaben bleiben stehen.
+     */
+    const uebernehmen = f.get('uebernehmen') === 'ja';
+    const { zusammen, widerspruch, notizZuLang } = befundeZusammen(amTag, eintrag, { neuGewinnt: uebernehmen });
+    if (widerspruch.length && !uebernehmen) {
+      return {
+        ok: false,
+        rueckfragen: [`Für den ${datumKurz(datum)} gibt es schon einen Befund. Er sagt etwas anderes – ${widerspruch.join('; ')}.`],
+        rueckfrageSatz: widerspruch.length === 1 ? 'Soll der neue Wert gelten? Die übrigen Werte kommen zum vorhandenen Befund dazu.' : 'Sollen die neuen Werte gelten? Die übrigen Werte kommen zum vorhandenen Befund dazu.',
+        rueckfrageFeld: 'datum',
+        rueckfrageName: 'uebernehmen',
+        rueckfrageJa: widerspruch.length === 1 ? 'Ja, der neue Wert gilt' : 'Ja, die neuen Werte gelten',
+        rueckfrageNein: 'Nein, zurück zum Formular',
+      };
     }
     if (notizZuLang) {
       // Platz für die neue Notiz: die Grenze ohne die vorhandene und ohne das „ · " dazwischen.
@@ -977,11 +1329,57 @@ function laborAbsenden(id, f, heute) {
     return [k, bisher || heute];
   }));
 
+  /*
+   * Runde 8: J7 (Entscheidung (c)) – ändert sich die Angabe der Praxis auf
+   * bleibt/geändert/nachmessen, während die Karte nach einer eigenen Änderung
+   * oder Berichtigung auf sie wartet, zählt sie als Entscheidung DANACH: mit
+   * dem Datum von heute und dem Vermerk PRAXIS_DANACH – wie über „Die Praxis
+   * hat entschieden" (js/app.js). Vor dem Speichern gerechnet: Danach wartet
+   * die Karte nicht mehr.
+   * Runde 8: J7b – steht die Angabe unverändert da (vorbelegt vom früheren
+   * Mal, etwa „bleibt" vom 29.04., vor der eigenen Änderung vom 04.05.) und
+   * ist der Befund der, um den es auf der Karte geht, darf das Formular sie
+   * nicht still neu datieren – aber auch nicht übergehen, sonst war die
+   * Entscheidung nicht eintragbar. Es fragt: „Hat die Praxis das nach Ihrer
+   * eigenen Änderung vom … gesagt?" [Ja, danach → Datum heute und Vermerk] /
+   * [Nein, das war vorher → speichern wie bisher]; beide speichern (neinSendet).
+   */
+  const praxisNeu = ENTSCHIEDEN.includes(praxis) && !(bezug && bezug.praxis === praxis && bezug.praxisAm);
+  const nachEigener = ENTSCHIEDEN.includes(praxis) && entscheidungNachEigener(stand, praxis, heute);
+  const befundDerKarte = dz.dosisBefund(stand, heute);
+  const praxisDanach = f.get('praxisDanach');
+  let vermerkt = praxisNeu && nachEigener;
+  if (!praxisNeu && nachEigener && bezug && befundDerKarte && bezug.id === befundDerKarte.id) {
+    if (praxisDanach !== 'ja' && praxisDanach !== 'nein') {
+      const wartend = wartendeAenderung(stand, heute);
+      const wortlaut = { bleibt: 'Die Dosis bleibt so', geaendert: 'Die Dosis wird geändert', nachmessen: 'Erst nachmessen' }[praxis];
+      return {
+        ok: false,
+        rueckfragen: [`Beim Befund vom ${datumKurz(bezug.datum)} steht: „${wortlaut}" – angegeben am ${datumKurz(bezug.praxisAm)}.`],
+        rueckfrageSatz: `Hat die Praxis das nach Ihrer ${wartend && wartend.berichtigung ? 'Berichtigung' : 'eigenen Änderung'}${wartend ? ` vom ${datumKurz(wartend.tag)}` : ''} gesagt?`,
+        rueckfrageFeld: 'praxis',
+        rueckfrageName: 'praxisDanach',
+        rueckfrageJa: 'Ja, danach',
+        rueckfrageNein: 'Nein, das war vorher',
+        rueckfrageNeinSendet: true,
+      };
+    }
+    if (praxisDanach === 'ja') {
+      ziel.praxisAm = heute;
+      vermerkt = true;
+    }
+  }
+
+  let befundId = bezug ? bezug.id : null;
   sp.aendern((s) => {
     const alt = bezug ? s.labor.find((l) => l.id === bezug.id) : null;
     if (alt) Object.assign(alt, ziel);
-    else s.labor.push({ id: sp.kennung(), ...ziel });
+    else {
+      befundId = sp.kennung();
+      s.labor.push({ id: befundId, ...ziel });
+    }
     s.labor.sort((a, b) => a.datum.localeCompare(b.datum));
+    if (vermerkt && befundId) vermerkPraxisDanach(s, befundId, heute);
   });
   return { ok: true, meldung: amTag ? `Zum Befund vom ${datumKurz(datum)} hinzugefügt` : 'Laborwerte gespeichert', danach: { name: 'labor-liste' } };
 }
@@ -1599,6 +1997,21 @@ export function eintragLoeschen(art, id) {
   sp.aendern((s) => {
     if (art === 'vorrat') { s.vorrat = null; return; }
     const liste = { dosis: 'dosen', labor: 'labor', gewicht: 'gewicht', befinden: 'befinden', termin: 'termine', frage: 'fragen' }[art];
+    /*
+     * Runde 8: J5 – „Die Praxis weiß davon" (WERT_BEKANNT) hängt an der
+     * Kennung des Befunds. Wird von zwei Einträgen desselben Tages der
+     * „falsche" gelöscht, bleibt die Angabe an einem Befund desselben Tages mit
+     * demselben Wert – sonst stand der Gefahrenwert wieder auf „Heute anrufen".
+     */
+    if (art === 'labor') {
+      const weg = s.labor.find((l) => l.id === id);
+      const bleibt = weg ? s.labor.filter((l) => l !== weg && l.datum === weg.datum) : [];
+      s.nachfragen.forEach((n) => {
+        if (n.art !== ez.WERT_BEKANNT || n.bezug !== id || !weg || !weg[n.antwort]) return;
+        const gleich = bleibt.find((l) => l[n.antwort] && !sp.wertWiderspruch(l[n.antwort], weg[n.antwort]));
+        if (gleich) n.bezug = gleich.id;
+      });
+    }
     if (liste) s[liste] = s[liste].filter((e) => e.id !== id);
   });
 }

@@ -45,7 +45,10 @@ const inhalt = JSON.parse(readFileSync(datei, 'utf8'));
 // Runde 7: H2 – geändert: Die Datenfassung ist jetzt 3 (neue Felder aus
 // Runde 6), damit eine ältere App die Datei ablehnt, statt Felder zu verwerfen.
 // Begrüßung/Heute (Nov. 2026): Fassung 4 – das Merkmal des Begrüßungsfensters.
-check(inhalt.app === 'schilddruese' && inhalt.version === 4, 'die Datei trägt App-Namen und Version');
+// Runde 8: J6 – Fassung 5 (dosen[].nach, praxis_danach.dosis, dosis_stimmt.anordnung),
+// weil Fassung 4 ausgeliefert ist: Eine noch offene App der Fassung 4 verwürfe
+// die neuen Felder sonst beim nächsten Speichern.
+check(inhalt.app === 'schilddruese' && inhalt.version === 5, `die Datei trägt App-Namen und Version 5 (${inhalt.version})`);
 check(vergleich(inhalt) === vergleich(vorher), 'die Datei enthält Dosis, Einnahmen, Laborwerte und Fragen');
 let s = await gespeichert();
 check(s.letzteSicherung === TAG, 'das Datum der letzten Sicherung wird gemerkt');

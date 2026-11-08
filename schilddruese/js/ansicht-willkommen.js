@@ -184,12 +184,21 @@ export function willkommenWeiter(schritt, form, heute) {
         fehler: { mikrogramm: `${ungewoehnlich} Bitte prüfen Sie die Zahl auf der Packung.` },
       };
     }
+    /*
+     * Runde 8: K13 – der Eintrag wie nach normStand, mit `praxis: null` und
+     * `berichtigung: false`. Ohne das Feld (undefined) hielt das Dosis-Formular
+     * die erste Dosis für einen Eintrag mit Quelle und verlangte direkt nach dem
+     * Einrichten bei „Dosis ändern" „Auf Anweisung der Praxis?" als Pflicht –
+     * die Notiz ließ sich bis zum nächsten Neuladen nicht speichern.
+     */
     const eintrag = {
       praeparat: zeileAus(f.get('praeparat'), sp.GRENZEN.praeparat),
       mikrogramm,
       tabletten: zahlAus(f.get('tabletten')) || 1,
       ab,
       notiz: '',
+      praxis: null,
+      berichtigung: false,
     };
     sp.aendern((s) => {
       // Beim Einrichten gibt es höchstens eine Dosis – die wird ersetzt, nicht ergänzt.

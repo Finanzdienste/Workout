@@ -3146,9 +3146,12 @@ function ug6(n) { return `${String(n).replace('.', ',')} µg`; }
   const alt = st();
   check('X3b nach G11 ohne gespeicherten Tag: ab dem Befund nach den ersetzten 100 µg (vor 10 Tagen) – X3b', !!x3b(alt), hinweisInfo(dosisHinweise(alt, HEUTE)));
   // Gegenprobe (G10): Eine Berichtigung vor der Blutabnahme hält die Frage zum Befund nicht zurück.
+  // Runde 8: K10 – X3b steht trotzdem mit auf der Karte, solange „Heute" ihn
+  // mit Frist nennt (12 Tage nach der Berichtigung): dieselbe Stufe Tage.
   const vorher = st({ berichtigtAm: plus(HEUTE, -12) }, plus(HEUTE, -10));
   const kv = r6('X3b Gegenprobe: Berichtigung vor der Blutabnahme', { ...vorher, nachfragen: [] });
-  check('X3b Gegenprobe: Berichtigung vor der Blutabnahme – die Karte fragt, ob die Dosis stimmt (G10)', !!kv.frage && kv.frage.id === 'X3' && !hatRegel(kv, 'X3b'), info(kv));
+  check('X3b Gegenprobe: Berichtigung vor der Blutabnahme – die Karte fragt, ob die Dosis stimmt (G10), und nennt X3b mit (Runde 8: K10)',
+    !!kv.frage && kv.frage.id === 'X3' && hatRegel(kv, 'X3b') && kv.stufe === 'tage', info(kv));
 }
 
 // Die globalen Eigenschaften, die hier zählen, auch über die Karten der Runde 6.
@@ -3477,6 +3480,511 @@ global('Runde 7: Gesamtbild nie unter der Dosis-Karte', R7, (x) => rang(gesamtbi
 global('Runde 7: jede genannte Nummer steht in anrufe', R7,
   (x) => NUMMERN.every(([m, passt]) => !m.test([kern(x.r), str(x.r.warnzeichen), ...frageTexte(x.r)].join('\n')) || x.r.anrufe.some(passt)), (x) => x.name);
 global('Runde 7: keine neue Tagesdosis', R7, (x) => neueDosisGenannt(alles(x.r), x.stand, x.heute).length === 0, (x) => `${x.name}: ${neueDosisGenannt(alles(x.r), x.stand, x.heute).join(', ')}`);
+
+// ================================================================ Runde 8
+//
+// Befunde der achten Review-Runde zur Dosis-Karte und zu „Heute" (J2, J3, J8,
+// J10, J13, K1, K2, K5, K6, K7, K10, K11, K12, K17, J4-Rest mit Entscheidung
+// (5), K-N1, Entscheidung (4) zu H-N1). Jeder Fall scheiterte vor der
+// Korrektur (Kopie des Stands 7029062), außer den Gegenproben. Die
+// app.js-Wege „Die Praxis hat entschieden" und die E1-Rücknahme sind mit den
+// Exporten von js/dosis.js nachgebildet (praxisDanachVermerken,
+// praxisDanachMerken, praxisDanachZuruecksetzen), wie js/app.js sie ausführt.
+const R8 = [];
+const r8 = (name, stand, heute = HEUTE) => {
+  const r = dosisRichtung(stand, heute);
+  R8.push({ name, stand, heute, r });
+  return r;
+};
+function r8fall(name, fn) {
+  try { fn(); } catch (err) { check(`${name}: läuft`, false, kurzFehler(err)); }
+}
+const grundText = (r, id) => grundVon(r, id).map((g) => str(g.text)).join(' | ');
+const stufeVon = (r, id) => (grundVon(r, id)[0] || {}).stufe || null;
+const BISHERIGE = /bisherige Menge/;
+/** „Die Praxis hat entschieden" wie js/app.js (praxis-entscheid): Datum und Vermerk, wenn die Karte wartete. → vorher (für die Rücknahme) */
+function r8Entscheid(s, befundId, wert, heute) {
+  const b = s.labor.find((l) => l.id === befundId);
+  const vorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm, vermerk: dosisModul.praxisDanachMerken(s, b.id) };
+  const neuNachEigener = dosisModul.entscheidungNachEigener(s, wert, heute);
+  if (b.praxis !== wert || !b.praxisAm || wert === 'nochnicht' || neuNachEigener) b.praxisAm = heute;
+  b.praxis = wert;
+  if (neuNachEigener) dosisModul.praxisDanachVermerken(s, b.id, heute);
+  return vorher;
+}
+/** Die E1-Rücknahme „Nein – es gilt weiter …" wie js/app.js (praxisNachfrage). */
+function r8Ruecknahme(s, vorher) {
+  const b = s.labor.find((l) => l.id === vorher.befund);
+  if (b && b.praxis === 'geaendert') {
+    Object.assign(b, { praxis: vorher.praxis, praxisAm: vorher.praxisAm });
+    dosisModul.praxisDanachZuruecksetzen(s, b.id, vorher.vermerk || null);
+  }
+}
+const vermerke = (s) => s.nachfragen.filter((n) => n.art === dosisModul.PRAXIS_DANACH);
+/** Ein Stand mit Dosis d1 100 µg (Praxis), Befund TSH 6,5 vor `befundVor` Tagen und den weiteren Dosen. */
+const r8Stand = (dosen, { befundVor = 12, befund = {}, nachfragen = null, profil = {}, mittel = [], vorbefunde = [] } = {}) => vollständigerStand({
+  profil, mittel, vorbefunde,
+  dosen: [dosis('d1', DOSIS_AB, 100), ...dosen],
+  befund: bef(6.5, 15, { datum: plus(HEUTE, -befundVor), ...befund }),
+  nachfragen: nachfragen || [dosisStimmt('b1', plus(HEUTE, -befundVor))],
+});
+
+r8fall('J2', () => {
+  // Die Praxis sagte am Tag der eigenen Erhöhung (T−10) ohne Vermerk
+  // „bleibt" (zählt nach H8 als vorher); heute zurück auf die verordneten
+  // 100 µg. Vorher: X3 „nehmen Sie bis dahin wieder Ihre bisherige Menge" –
+  // also die eigenmächtigen 150 µg – mit 112-Zeile, auf Karte und „Heute".
+  const e1 = plus(HEUTE, -10);
+  const lage = (rueck) => r8Stand([dosis('e1', e1, 150, { praxis: false, eingetragenAm: e1 }), ...(rueck ? [rueck] : [])], { befund: { praxis: 'bleibt', praxisAm: e1 } });
+  const kv = r8('J2 vor der Rückkehr', lage(null), plus(HEUTE, -5));
+  check('J2 Vorbedingung (H8): vor der Rückkehr X3 mit Stufe Tage – die Entscheidung vom selben Tag ohne Vermerk zählt als vorher', stufeVon(kv, 'X3') === 'tage', info(kv));
+  for (const [name, rueck] of [['ab heute', dosis('e2', HEUTE, 100, { praxis: false, eingetragenAm: HEUTE })], ['rückdatiert (Gilt ab T−3, eingetragen heute)', dosis('e2', plus(HEUTE, -3), 100, { praxis: false, eingetragenAm: HEUTE })]]) {
+    const s = lage(rueck);
+    const k = r8(`J2 Rückkehr ${name}`, s);
+    check(`J2 Rückkehr ${name}: B2 „zurück auf Ihre frühere Menge", kein X3 „bisherige Menge", keine 112-Zeile`,
+      /frühere Menge/.test(grundText(k, 'B2')) && !BISHERIGE.test(grundText(k, 'X3')) && !k.warnzeichen, info(k));
+    const h = hinweis(s, 'B2');
+    check(`J2 Rückkehr ${name}: „Heute" B2 „Sie nehmen wieder Ihre frühere Menge", kein X3`, !!h && /frühere Menge/.test(h.text) && !hinweis(s, 'X3'), hinweisInfo(dosisHinweise(s, HEUTE)));
+  }
+  // Gegenprobe (3): „bleibt" MIT Vermerk nach der Erhöhung (über die Karte,
+  // während sie wartete) – die Praxis bestätigte die 150 µg, das Zurück
+  // bleibt ein eigener großer Schritt (gewollt).
+  const sg = r8Stand([dosis('e1', e1, 150, { praxis: false, eingetragenAm: e1 })]);
+  r8Entscheid(sg, 'b1', 'bleibt', e1);
+  check('J2 Gegenprobe-Vorbedingung: Vermerk mit der Kennung der eigenen Änderung, Karte ohne X3-Frist', vermerke(sg).length === 1 && vermerke(sg)[0].dosis === 'e1' && !stufeVon(r8('J2 Gegenprobe vorher', sg, plus(HEUTE, -5)), 'X3'), JSON.stringify(vermerke(sg)));
+  sg.dosen.push(dosis('e2', HEUTE, 100, { praxis: false, eingetragenAm: HEUTE }));
+  const kg = r8('J2 Gegenprobe (3)', sg);
+  check('J2 Gegenprobe (3): Entscheidung mit Vermerk nach der Erhöhung → die Rückkehr bleibt X3 „bisherige Menge" (eigener großer Schritt)', BISHERIGE.test(grundText(kg, 'X3')) && stufeVon(kg, 'X3') === 'tage', info(kg));
+  // Sicherung: über zwei eigene Zwischenschritte zurück auf die Menge der
+  // Praxis (100 → 150 → 125 → 100) – nie „bisherige Menge" (= 125).
+  const sz = r8Stand([dosis('e1', e1, 150, { praxis: false, eingetragenAm: e1 }), dosis('e2', plus(HEUTE, -5), 125, { praxis: false, eingetragenAm: plus(HEUTE, -5) }), dosis('e3', HEUTE, 100, { praxis: false, eingetragenAm: HEUTE })]);
+  const kz = r8('J2 zurück auf die Menge der Praxis über zwei Schritte', sz);
+  check('J2 Sicherung: zurück auf die zuletzt verordnete Menge über zwei eigene Schritte → B2 „frühere Menge", kein „bisherige Menge"', /frühere Menge/.test(grundText(kz, 'B2')) && !BISHERIGE.test(kern(kz)), info(kz));
+  // H9 bleibt: Zickzack 100 P → 150 → 100 → 150 ist kein „zurück".
+  const sh = r8Stand([dosis('e1', plus(HEUTE, -20), 150, { praxis: false, eingetragenAm: plus(HEUTE, -20) }), dosis('e2', plus(HEUTE, -10), 100, { praxis: false, eingetragenAm: plus(HEUTE, -10) }), dosis('e3', HEUTE, 150, { praxis: false, eingetragenAm: HEUTE })], { befundVor: 25 });
+  const kh = r8('J2 Gegenprobe H9 Zickzack', sh);
+  check('J2 Gegenprobe (H9): Zickzack zurück auf die eigene Verdopplung bleibt X3 „bisherige Menge"', BISHERIGE.test(grundText(kh, 'X3')), info(kh));
+});
+
+r8fall('K-N1', () => {
+  // Rückkehr mit dem wahren Beginn eingetragen (D0.5 bittet darum): Die
+  // Entscheidung „bleibt" (mit Vermerk, T−5) kam nach diesem Beginn (T−7)
+  // oder an ihm – sie ist nicht „dazwischen", die Rückkehr bleibt B2.
+  const e1 = plus(HEUTE, -10);
+  const basis = () => {
+    const s = r8Stand([dosis('e1', e1, 150, { praxis: false, eingetragenAm: e1 })]);
+    r8Entscheid(s, 'b1', 'bleibt', plus(HEUTE, -5));
+    return s;
+  };
+  check('K-N1 Vorbedingung: „bleibt" am T−5 über die Karte – Vermerk für e1, Karte „keine"', vermerke(basis()).some((n) => n.dosis === 'e1') && r8('K-N1 vorher', basis(), plus(HEUTE, -5)).stufe === 'keine');
+  for (const [name, ab] of [['Gilt ab T−7 (vor der Entscheidung)', plus(HEUTE, -7)], ['Gilt ab T−5 (Tag der Entscheidung)', plus(HEUTE, -5)]]) {
+    const s = basis();
+    s.dosen.push(dosis('e2', ab, 100, { praxis: false, eingetragenAm: HEUTE }));
+    const k = r8(`K-N1 Rückkehr ${name}`, s);
+    check(`K-N1 Rückkehr ${name}: B2 „frühere Menge", kein W-D2, „Heute" B2`, /frühere Menge/.test(grundText(k, 'B2')) && !k.warnzeichen && !!hinweis(s, 'B2') && !hinweis(s, 'X3'), `${info(k)} | ${hinweisInfo(dosisHinweise(s, HEUTE))}`);
+  }
+  // Gegenprobe (wie J2 (3)): Rückkehr ab heute, nach der Entscheidung – X3 bleibt.
+  const sg = basis();
+  sg.dosen.push(dosis('e2', HEUTE, 100, { praxis: false, eingetragenAm: HEUTE }));
+  check('K-N1 Gegenprobe: Rückkehr ab heute nach der Entscheidung bleibt X3 mit Stufe Tage', stufeVon(r8('K-N1 Gegenprobe', sg), 'X3') === 'tage');
+});
+
+r8fall('J3', () => {
+  // (a) „bleibt" vom Morgen (ohne Vermerk), dann selbst 150 µg ab heute →
+  // Karte wartet. „Die Praxis hat entschieden → geändert" (Vermerk), dann im
+  // Formular „‹ Zurück" → E1 „Nein – es gilt weiter: Die Dosis bleibt so".
+  // Vorher blieb der Vermerk stehen, und die Entscheidung von VOR der
+  // Änderung zählte als danach: Karte „keine", „Heute" ohne X3.
+  const s = r8Stand([dosis('e1', HEUTE, 150, { praxis: false, eingetragenAm: HEUTE })], { befund: { praxis: 'bleibt', praxisAm: HEUTE } });
+  check('J3 (a) Vorbedingung: die Karte wartet (X3 Tage) – „bleibt" vom selben Tag ohne Vermerk zählt als vorher', stufeVon(r8('J3 (a) vorher', s), 'X3') === 'tage');
+  const vorher = r8Entscheid(s, 'b1', 'geaendert', HEUTE);
+  check('J3 (a) praxisDanachVermerken: Vermerk mit der Kennung der wartenden Änderung (dosis = e1)', vermerke(s).length === 1 && vermerke(s)[0].dosis === 'e1' && vorher.vermerk === null, JSON.stringify(vermerke(s)));
+  r8Ruecknahme(s, vorher);
+  const k = r8('J3 (a) nach der Rücknahme', s);
+  check('J3 (a) Rücknahme: kein Vermerk mehr, praxis wieder „bleibt" vom Morgen', vermerke(s).length === 0 && s.labor[0].praxis === 'bleibt' && s.labor[0].praxisAm === HEUTE, JSON.stringify(vermerke(s)));
+  check('J3 (a) Rücknahme: die Karte wartet wieder (X3 Tage mit „bisherige Menge"), „Heute" nennt X3', stufeVon(k, 'X3') === 'tage' && BISHERIGE.test(grundText(k, 'X3')) && !!hinweis(s, 'X3'), `${info(k)} | ${hinweisInfo(dosisHinweise(s, HEUTE))}`);
+  // Ein vorhandener Vermerk kommt bei der Rücknahme zurück.
+  const s2 = r8Stand([dosis('e1', HEUTE, 150, { praxis: false, eingetragenAm: HEUTE })]);
+  r8Entscheid(s2, 'b1', 'bleibt', HEUTE);
+  const alt = vermerke(s2)[0];
+  const v2 = r8Entscheid(s2, 'b1', 'geaendert', HEUTE);
+  r8Ruecknahme(s2, v2);
+  check('J3 (a) Rücknahme stellt den vorherigen Vermerk wieder her', vermerke(s2).length === 1 && vermerke(s2)[0].id === alt.id && vermerke(s2)[0].dosis === 'e1' && s2.labor[0].praxis === 'bleibt', JSON.stringify(vermerke(s2)));
+  // (b) Zweite eigene Änderung am Tag des Vermerks für die erste: Der Vermerk
+  // (dosis = e1) gilt nicht für e2 (200 µg) – X3 mit Frist und 112-Zeile.
+  const sb = r8Stand([dosis('e1', HEUTE, 150, { praxis: false, eingetragenAm: HEUTE })]);
+  r8Entscheid(sb, 'b1', 'bleibt', HEUTE);
+  check('J3 (b) Vorbedingung: nach „bleibt" mit Vermerk für e1 wartet die Karte nicht mehr', !stufeVon(r8('J3 (b) vorher', sb), 'X3'));
+  sb.dosen.push(dosis('e2', HEUTE, 200, { praxis: false, eingetragenAm: HEUTE }));
+  const kb = r8('J3 (b) zweite eigene Änderung', sb);
+  check('J3 (b) zweite eigene Änderung (100 → 200) am Tag des Vermerks für die erste: X3 Tage mit 112-Zeile, „Heute" X3', stufeVon(kb, 'X3') === 'tage' && !!kb.warnzeichen && !!hinweis(sb, 'X3'), `${info(kb)} | ${hinweisInfo(dosisHinweise(sb, HEUTE))}`);
+  // Gegenprobe: ein Vermerk ohne Kennung (ältere Daten) gilt weiter für den ganzen Tag.
+  const so = r8Stand([dosis('e1', HEUTE, 150, { praxis: false, eingetragenAm: HEUTE }), dosis('e2', HEUTE, 200, { praxis: false, eingetragenAm: HEUTE })], { befund: { praxis: 'bleibt', praxisAm: HEUTE } });
+  so.nachfragen.push({ id: 'n-alt', art: dosisModul.PRAXIS_DANACH, bezug: 'b1', antwort: 'ja', am: HEUTE });
+  check('J3 Gegenprobe: ein Vermerk ohne Kennung zählt wie bisher – X3 ohne Frist', !stufeVon(r8('J3 Gegenprobe Vermerk ohne Kennung', so), 'X3'));
+});
+
+r8fall('J8', () => {
+  // Eigene Erhöhung 75 → 100 µg (ab 04.05., eingetragen 25.05.), am 27.05.
+  // „Die Praxis hat entschieden → Neue Dosis" 88 µg (Praxis: Ja). Vorher
+  // monatelang: „Wusste die Praxis das nicht, nehmen Sie wieder Ihre
+  // bisherige Menge" – gegen die aktuelle Anordnung.
+  const lage = (menge, wert = 'geaendert') => {
+    const s = vollständigerStand({
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('e1', '2026-05-04', 100, { praxis: false, eingetragenAm: '2026-05-25' })],
+      befund: bef(6.5, 15, { datum: '2026-04-27' }), nachfragen: [dosisStimmt('b1', '2026-04-27')],
+    });
+    r8Entscheid(s, 'b1', wert, '2026-05-27');
+    if (menge !== null) s.dosen.push(dosis('a1', '2026-05-27', menge, { praxis: true, eingetragenAm: '2026-05-27' }));
+    return s;
+  };
+  for (const tag of ['2026-05-27', '2026-07-29']) {
+    const s = lage(88);
+    const k = r8(`J8 Anordnung 88 µg nach eigener Erhöhung, ${tag}`, s, tag);
+    const x3 = grundText(k, 'X3');
+    check(`J8 ${tag}: kein „bisherige Menge", kein praxisWussteSatz – stattdessen „gilt die Dosis, die die Praxis festgelegt hat", ohne 112-Zeile`,
+      !BISHERIGE.test(kern(k)) && !/Wusste die Praxis das bei ihrer Entscheidung nicht, nehmen Sie/.test(kern(k)) && /gilt die Dosis, die die Praxis festgelegt hat/.test(x3) && !k.warnzeichen, info(k));
+    check(`J8 ${tag}: dieselbe Zeile im Bericht der Karte ohne „bisherige Menge"`, !BISHERIGE.test(dosisModul.dosisBerichtZeilen(s, tag).join('\n')));
+  }
+  // Nachbar: Die Praxis ordnet die frühere Menge (75) an.
+  const kn = r8('J8 Nachbar: Anordnung der früheren Menge', lage(75), '2026-05-27');
+  check('J8 Nachbar: Anordnung = frühere Menge – kein „bisherige Menge", kein praxisWussteSatz', !BISHERIGE.test(kern(kn)) && /gilt die Dosis, die die Praxis festgelegt hat/.test(grundText(kn, 'X3')), info(kn));
+  // Gegenprobe: nach „bleibt" bleibt der C4-Satz (ob die Praxis vom großen Schritt wusste, weiß die App nicht).
+  const kg = r8('J8 Gegenprobe „bleibt"', lage(null, 'bleibt'), '2026-05-27');
+  check('J8 Gegenprobe: nach „bleibt" bleibt „Wusste die Praxis das bei ihrer Entscheidung nicht, nehmen Sie wieder Ihre bisherige Menge"', BISHERIGE.test(grundText(kg, 'X3')), info(kg));
+  // Derselbe Weg über die 14-Tage-Frage „Ich habe selbst etwas geändert" (X3-14, Zweig `selbst`): danach die Anordnung
+  // der Praxis (88 µg, Praxis: Ja) – mit und ohne eingetragene Entscheidung am Befund.
+  for (const [name, mitEntscheid] of [['mit Entscheidung „geändert"', true], ['ohne Entscheidung am Befund', false]]) {
+    const s = vollständigerStand({
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('e1', plus(HEUTE, -5), 150, { praxis: false, eingetragenAm: plus(HEUTE, -5) })],
+      befund: bef(6.5, 15, { datum: plus(HEUTE, -20) }),
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -20)), { id: 'n14', art: 'nach14', bezug: 'b1', antwort: 'selbst', am: plus(HEUTE, -5) }],
+    });
+    if (mitEntscheid) r8Entscheid(s, 'b1', 'geaendert', plus(HEUTE, -2));
+    s.dosen.push(dosis('a1', plus(HEUTE, -2), 88, { praxis: true, eingetragenAm: plus(HEUTE, -2) }));
+    const k = r8(`J8 selbst gemeldet, dann Anordnung ${name}`, s);
+    check(`J8 „selbst geändert" (X3-14), dann Anordnung ${name}: kein „bisherige Menge", kein „dabei bleiben sollen" – „gilt die Dosis, die die Praxis festgelegt hat", ohne Frist und 112-Zeile`,
+      !BISHERIGE.test(kern(k)) && !/dabei bleiben sollen/.test(kern(k)) && /gilt die Dosis, die die Praxis festgelegt hat/.test(grundText(k, 'X3')) && !stufeVon(k, 'X3') && !k.warnzeichen, info(k));
+  }
+});
+
+r8fall('J10', () => {
+  // Berichtigung nach „Nein, ich nehme etwas anderes" mit „Auf Anweisung der
+  // Praxis: Ja" – die Gesamtzeile des Arztberichts sagte „aus Berichtigung
+  // der Dosis ohne Absprache mit der Praxis".
+  const zeile = (praxis) => {
+    const s = vollständigerStand({
+      dosen: [dosis('d1', DOSIS_AB, 12.5), dosis('eB', '2025-09-01', 125, { praxis, berichtigung: true, statt: 'd1', berichtigtAm: HEUTE, eingetragenAm: HEUTE })],
+      befund: bef(0.9, 15, { datum: plus(HEUTE, -4) }), nachfragen: [dosisStimmt('b1', HEUTE, 'nein_12_5')],
+    });
+    return (dosisModul.gesamtBerichtZeilen(s, HEUTE) || []).join('\n');
+  };
+  const ja = zeile(true);
+  const nein = zeile(false);
+  const offen = zeile(null);
+  check('J10 „Auf Anweisung der Praxis: Ja": Gesamtzeile nennt „laut Patientin von der Praxis verordnet", nicht „ohne Absprache"', /laut Patientin von der Praxis verordnet/.test(ja) && !/ohne Absprache/.test(ja), ja);
+  check('J10 „Nein": „nicht mit der Praxis abgesprochen"; ohne Angabe: „Absprache mit der Praxis offen" – drei verschiedene Zeilen',
+    /nicht mit der Praxis abgesprochen/.test(nein) && /Absprache mit der Praxis offen/.test(offen) && new Set([ja, nein, offen]).size === 3, `${nein} | ${offen}`);
+});
+
+r8fall('J13', () => {
+  // Jahrgang 1951 mit offener Herzfrage: „Weil unter „Über mich" das
+  // Geburtsjahr oder die Angabe zum Herzen fehlt" – das Geburtsjahr war da.
+  const FEHLT = 'Geburtsjahr oder die Angabe zum Herzen fehlt';
+  const k = (geburtsjahr, herz) => r8(`J13 ${geburtsjahr}/${herz || 'offen'}`, vollständigerStand({ profil: { geburtsjahr, herz }, befund: bef(tsh(7.9, { von: 0.27, bis: 4.2 }), ft4(11.2)) }));
+  const t = (r) => kern(r);
+  check('J13 Vorbedingung: Muster b, Richtung mehr (D3)', k(1951, '').richtung === 'mehr' && hatRegel(k(1951, ''), 'D3'));
+  check('J13 1951 mit offener Herzfrage: „Weil Sie über 65 sind" – nicht „Geburtsjahr … fehlt"; der Herz-Zusatz steht ohnehin da',
+    /Weil Sie über 65 sind/.test(t(k(1951, ''))) && !t(k(1951, '')).includes(FEHLT) && /Solange nicht angegeben ist, ob Sie eine Herzerkrankung/.test(t(k(1951, ''))), t(k(1951, '')));
+  check('J13 1951, Herz „weiß nicht": „über 65"', /Weil Sie über 65 sind/.test(t(k(1951, 'unbekannt'))) && !t(k(1951, 'unbekannt')).includes(FEHLT));
+  // Beides fest: beide Gründe in einem Satz – vorher nannte der Satz nur das Herz, obwohl auch das Alter zählt.
+  check('J13 1951 mit Herz ja: „über 65 sind und eine Herzerkrankung haben"; 1951 mit Herz nein: „über 65"', /Weil Sie über 65 sind und eine Herzerkrankung haben/.test(t(k(1951, 'ja'))) && /Weil Sie über 65 sind, geht/.test(t(k(1951, 'nein'))), t(k(1951, 'ja')));
+  check('J13 60 Jahre mit Herz ja: der Herz-Satz allein', /Weil Sie eine Herzerkrankung haben, geht/.test(t(k(1966, 'ja'))) && !/über 65/.test(t(k(1966, 'ja'))), t(k(1966, 'ja')));
+  check('J13 ohne Geburtsjahr, Herz nein: „das Geburtsjahr fehlt" – nicht „oder die Angabe zum Herzen"', /das Geburtsjahr fehlt/.test(t(k(null, 'nein'))) && !t(k(null, 'nein')).includes(FEHLT), t(k(null, 'nein')));
+  check('J13 ohne Geburtsjahr mit Herz ja: Herz-Satz', /Weil Sie eine Herzerkrankung haben/.test(t(k(null, 'ja'))) && !t(k(null, 'ja')).includes(FEHLT));
+  check('J13 56 Jahre, Herz offen: „die Angabe zum Herzen fehlt" – nicht das Geburtsjahr', /die Angabe zum Herzen fehlt/.test(t(k(1970, ''))) && !t(k(1970, '')).includes(FEHLT), t(k(1970, '')));
+  check('J13 Gegenprobe: beides offen → der bisherige Satz', t(k(null, '')).includes(FEHLT));
+});
+
+r8fall('K1/K12', () => {
+  // Eine eigene Änderung, die erst künftig gilt (75 → 125 µg ab T+5, Praxis:
+  // Nein, heute eingetragen). Vorher sank die Karte bis zum Starttag auf
+  // „Beim nächsten Termin" (K1) bzw. „Kein besonderer Anlass" (K12), ohne
+  // X3/B2, ohne 112-Zeile; „Heute" leer.
+  const sv = vollständigerStand({ dosen: [dosis('d1', DOSIS_AB, 75)], befund: bef(7.0, 15, { datum: plus(HEUTE, -10) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -10))] });
+  const kv = r8('K1 vorher', sv);
+  check('K1 Vorbedingung: Muster c, Richtung mehr, Stufe zeitnah', kv.richtung === 'mehr' && kv.stufe === 'zeitnah', info(kv));
+  const s = vollständigerStand({ dosen: [dosis('d1', DOSIS_AB, 75), dosis('e1', plus(HEUTE, 5), 125, { praxis: false, eingetragenAm: HEUTE })], befund: bef(7.0, 15, { datum: plus(HEUTE, -10) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -10))] });
+  const k = r8('K1 geplante eigene Erhöhung', s);
+  check('K1 geplante eigene Erhöhung: X3 mit Stufe Tage schon vor dem Starttag, Karte nicht unter zeitnah, 112-Zeile',
+    stufeVon(k, 'X3') === 'tage' && rang(k.stufe) >= RANG.zeitnah && !!k.warnzeichen && /ändern wollen/.test(grundText(k, 'X3')) && !BISHERIGE.test(grundText(k, 'X3')), info(k));
+  check('K1 D0.5 sagt nicht „Kontrollwert", sondern dass der Anruf klärt', /klärt der Anruf/.test(grundText(k, 'D0.5')) && !/Kontrollwert/.test(grundText(k, 'D0.5')), grundText(k, 'D0.5'));
+  check('K1 „Heute" nennt X3 zur geplanten Änderung, mit 112-Zeile', !!hinweis(s, 'X3') && /ohne Anweisung der Praxis ändern/.test(hinweis(s, 'X3').text) && !!hinweis(s, 'X3').warnzeichen, hinweisInfo(dosisHinweise(s, HEUTE)));
+  check('K1 Gesamtbild nicht unter der Karte (Tage)', gesamtbildMitDosis(s, HEUTE).stufe === 'tage', gesamtbildMitDosis(s, HEUTE).stufe);
+  const ks = r8('K1 am Starttag', s, plus(HEUTE, 5));
+  check('K1 am Starttag: X3 Tage „bisherige Menge" wie bisher', stufeVon(ks, 'X3') === 'tage' && BISHERIGE.test(grundText(ks, 'X3')), info(ks));
+  // Die Praxis entscheidet, während die Karte wartet (Vermerk für die geplante Änderung): erledigt – auch nach dem Starttag.
+  const se = JSON.parse(JSON.stringify(s));
+  r8Entscheid(se, 'b1', 'bleibt', plus(HEUTE, 1));
+  check('K1 Entscheidung mit Vermerk vor dem Starttag: Karte wartet nicht mehr – heute und am Starttag', vermerke(se)[0].dosis === 'e1' && !stufeVon(r8('K1 nach Entscheidung', se, plus(HEUTE, 2)), 'X3') && !stufeVon(r8('K1 nach Entscheidung, Starttag', se, plus(HEUTE, 5)), 'X3'), info(dosisRichtung(se, plus(HEUTE, 5))));
+  // K12: Die Praxis hatte zum Befund „bleibt" gesagt (T−8), danach die geplante große Erhöhung 88 → 125.
+  const s12 = vollständigerStand({ dosen: [dosis('d1', DOSIS_AB, 88), dosis('e1', plus(HEUTE, 5), 125, { praxis: false, eingetragenAm: HEUTE })], befund: bef(6.0, 15, { datum: plus(HEUTE, -10), praxis: 'bleibt', praxisAm: plus(HEUTE, -8) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -10))] });
+  const k12 = r8('K12 geplante eigene Erhöhung nach „bleibt"', s12);
+  check('K12 nach „bleibt": X3 Tage mit 112-Zeile statt „Kein besonderer Anlass"; „Heute" X3; Gesamtbild Tage', stufeVon(k12, 'X3') === 'tage' && k12.stufe === 'tage' && !!k12.warnzeichen && !!hinweis(s12, 'X3') && gesamtbildMitDosis(s12, HEUTE).stufe === 'tage', info(k12));
+  // Gegenprobe: eine geplante Anordnung der Praxis bleibt D0.5 „Ab … ist schon eine neue Dosis eingetragen" mit Kontrollwert.
+  const sp2 = vollständigerStand({ dosen: [dosis('d1', DOSIS_AB, 75), dosis('a1', plus(HEUTE, 5), 88, { praxis: true, eingetragenAm: HEUTE })], befund: bef(7.0, 15, { datum: plus(HEUTE, -10), praxis: 'geaendert', praxisAm: HEUTE }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -10))] });
+  const kp = r8('K1 Gegenprobe geplante Anordnung', sp2);
+  check('K1 Gegenprobe: geplante Anordnung der Praxis – D0.5 „schon eine neue Dosis eingetragen … Kontrollwert", kein X3/B2', /Kontrollwert/.test(grundText(kp, 'D0.5')) && !hatRegel(kp, 'X3') && !hatRegel(kp, 'B2') && !hinweis(sp2, 'B2'), info(kp));
+});
+
+r8fall('K2', () => {
+  // Q5 „einmal viele Tabletten" zum Befund von gestern (Giftnotruf, heute);
+  // heute ein weiterer TSH-Befund – vorher verschwand der Giftnotruf.
+  const G = plus(HEUTE, -1);
+  const tief = tsh(0.05);
+  const sv = vollständigerStand({ befund: bef(tief, 15, { datum: G, verwechselt: 'einmal' }), nachfragen: [dosisStimmt('b1', G)] });
+  check('K2 Vorbedingung: Q5 „einmal" → Karte heute mit Giftnotruf', r8('K2 vorher', sv).stufe === 'heute' && /Giftnotruf/.test(grundText(r8('K2 vorher', sv), 'Q5')));
+  for (const [name, verwechselt] of [['„nein"', 'nein'], ['offen', '']]) {
+    const s = vollständigerStand({
+      vorbefunde: [vorbefund('b1', G, 0.05, { tsh: tief, verwechselt: 'einmal' })],
+      befund: bef(tief, 15, { id: 'b2', datum: HEUTE, verwechselt }), nachfragen: [dosisStimmt('b1', G), dosisStimmt('b2', HEUTE)],
+    });
+    const k = r8(`K2 neuer Befund, verwechselt ${name}`, s);
+    check(`K2 neuer Befund (verwechselt ${name}): Q5 „einmal" von gestern bleibt – Stufe heute, Giftnotruf, mit dem Datum des Befunds; Gesamtbild heute`,
+      k.stufe === 'heute' && /Giftnotruf/.test(grundText(k, 'Q5')) && grundText(k, 'Q5').includes(`Befund vom ${kurz(G)}`) && gesamtbildMitDosis(s, HEUTE).stufe === 'heute', info(k));
+  }
+  // Gegenproben: Die Praxis hat zum Befund von gestern entschieden, oder er ist über drei Monate alt – dann nicht mehr.
+  const sp2 = vollständigerStand({ vorbefunde: [vorbefund('b1', G, 0.05, { tsh: tief, verwechselt: 'einmal', praxis: 'bleibt', praxisAm: HEUTE })], befund: bef(tief, 15, { id: 'b2', datum: HEUTE, verwechselt: 'nein' }), nachfragen: [dosisStimmt('b1', G), dosisStimmt('b2', HEUTE)] });
+  const kp2 = r8('K2 Gegenprobe Entscheidung', sp2);
+  // Die Stufe der Karte kommt dann nur noch vom Befund selbst (TSH 0,05: Tage), nicht mehr vom Giftnotruf (heute).
+  check('K2 Gegenprobe: Praxis hat zum Befund mit der Angabe entschieden → kein Giftnotruf-Anruf mehr, Q5 nur noch ohne Frist', !stufeVon(kp2, 'Q5') && !/Giftnotruf/.test(grundText(kp2, 'Q5')) && kp2.stufe !== 'heute', info(kp2));
+  // Die Praxis hat zum NEUEN Befund entschieden (nach der Angabe): nicht mehr akut – wie beim eigenen Befund steht die Angabe ohne Frist da, mit „sofort 112".
+  const sn = vollständigerStand({ vorbefunde: [vorbefund('b1', G, 0.05, { tsh: tief, verwechselt: 'einmal' })], befund: bef(tief, 15, { id: 'b2', datum: HEUTE, verwechselt: 'nein', praxis: 'bleibt', praxisAm: HEUTE }), nachfragen: [dosisStimmt('b1', G), dosisStimmt('b2', HEUTE)] });
+  const kn = r8('K2 Entscheidung zum neuen Befund', sn);
+  check('K2 Entscheidung zum neuen Befund: Q5 ohne Frist mit dem Datum der Angabe und „sofort 112", kein Giftnotruf-Anruf, Stufe keine',
+    hatRegel(kn, 'Q5') && !stufeVon(kn, 'Q5') && grundText(kn, 'Q5').includes(`Befund vom ${kurz(G)}`) && /sofort 112/.test(grundText(kn, 'Q5')) && !/Giftnotruf/.test(grundText(kn, 'Q5')) && kn.stufe === 'keine', info(kn));
+  const sa = vollständigerStand({ vorbefunde: [vorbefund('b1', plus(HEUTE, -100), 0.05, { tsh: tief, verwechselt: 'einmal' })], befund: bef(tief, 15, { id: 'b2', datum: HEUTE, verwechselt: 'nein' }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -99)), dosisStimmt('b2', HEUTE)] });
+  check('K2 Gegenprobe: die Angabe ist über drei Monate alt → kein Giftnotruf mehr', !hatRegel(r8('K2 Gegenprobe alt', sa), 'Q5'));
+});
+
+r8fall('K5/K11 (a)', () => {
+  // K5: e2 (100 µg, Praxis) wurde auf den Tag der Anordnung e1 (88 µg)
+  // verschoben und ersetzt sie („Ja, ersetzen" – die Anordnung bleibt für den
+  // Bericht stehen). D0.5 „doppelt" riet, den doppelten Eintrag zu löschen –
+  // gelöscht, gälten die ersetzten 88 µg wieder.
+  const T3 = plus(HEUTE, -3);
+  const s5 = r8Stand([dosis('e1', T3, 88, { praxis: true, eingetragenAm: T3 }), dosis('e2', T3, 100, { praxis: true, eingetragenAm: HEUTE })], { befundVor: 10, befund: { praxis: 'geaendert', praxisAm: T3 } });
+  const k5 = r8('K5 doppelter Eintrag ersetzt eine Anordnung', s5);
+  const d5 = grundText(k5, 'D0.5');
+  check('K5: kein Rat „löschen Sie den doppelten Eintrag"; der ersetzte Eintrag wird genannt, und „Löschen Sie … nicht"',
+    !/löschen Sie den doppelten Eintrag/.test(d5) && /ersetzt am selben Tag 88 µg am Tag \(auf Anweisung der Praxis\)/.test(d5) && /Löschen Sie den Eintrag vom .* nicht/.test(d5), d5);
+  check('K5: kein Knopf zum Ändern des doppelten Eintrags (dort wäre „Löschen")', !k5.aktionen.some((a) => a.aktion === 'dosis' && a.param === 'e2'), JSON.stringify(k5.aktionen));
+  // K11 (a): Am Starttag der Anordnung (125 µg ab heute, eingetragen T−2) bleibt sie bei 100 µg und trägt das ein (Praxis: Nein) – die eigene Angabe ersetzt die Anordnung am selben Tag.
+  const s11 = r8Stand([dosis('e1', HEUTE, 125, { praxis: true, eingetragenAm: plus(HEUTE, -2) }), dosis('e2', HEUTE, 100, { praxis: false, eingetragenAm: HEUTE })], { befundVor: 3, befund: { praxis: 'geaendert', praxisAm: plus(HEUTE, -2) }, profil: { geburtsjahr: geb(76) }, mittel: ['marcumar'] });
+  const k11 = r8('K11 (a) bei der bisherigen Menge geblieben, am Tag der Anordnung', s11);
+  const d11 = grundText(k11, 'D0.5');
+  check('K11 (a): kein Rat zum Löschen; stattdessen „Haben Sie die neue Dosis der Praxis noch nicht begonnen, ändern Sie bei ihr „Gilt ab""',
+    !/löschen Sie den doppelten Eintrag/.test(d11) && /noch nicht begonnen/.test(d11) && /125 µg am Tag \(auf Anweisung der Praxis\)/.test(d11), d11);
+  check('K11 (a): der Knopf öffnet die Anordnung (nicht den eigenen Eintrag)', k11.aktionen.some((a) => a.aktion === 'dosis' && a.param === 'e1') && !k11.aktionen.some((a) => a.param === 'e2'), JSON.stringify(k11.aktionen));
+  // Gegenprobe: ein doppelter Eintrag, der nichts ersetzt – der bisherige Rat bleibt.
+  const sg = r8Stand([dosis('e2', T3, 100, { praxis: true, eingetragenAm: T3 })], { befundVor: 10 });
+  const kg = r8('K5 Gegenprobe doppelt ohne Ersetzen', sg);
+  check('K5 Gegenprobe: ein doppelter Eintrag ohne ersetzten Eintrag – „löschen Sie den doppelten Eintrag" mit Knopf wie bisher', /löschen Sie den doppelten Eintrag/.test(grundText(kg, 'D0.5')) && kg.aktionen.some((a) => a.param === 'e2'), grundText(kg, 'D0.5'));
+});
+
+r8fall('K6', () => {
+  // „bleibt" (T−8, mit Vermerk) nach der eigenen Erhöhung (T−10); dann ein
+  // neuer Befund b2 (T−2), zu dem die Praxis noch nichts gesagt hat. Vorher
+  // zählte die Entscheidung nicht mehr: X3 „bisherige Menge" mit 112-Zeile
+  // und X3b „in den nächsten Tagen anrufen" kamen zurück.
+  const E = plus(HEUTE, -10);
+  const mitB2 = (s) => {
+    s.labor.push(vorbefund('b2', plus(HEUTE, -2), 5.5));
+    s.nachfragen.push(dosisStimmt('b2', plus(HEUTE, -2)));
+    return s;
+  };
+  const s = r8Stand([dosis('e1', E, 150, { praxis: false, eingetragenAm: E })], { befundVor: 20 });
+  r8Entscheid(s, 'b1', 'bleibt', plus(HEUTE, -8));
+  check('K6 Vorbedingung: nach „bleibt" X3 ohne Frist, „Heute" ohne X3', !stufeVon(r8('K6 vorher', s, plus(HEUTE, -5)), 'X3') && !hinweis(s, 'X3', plus(HEUTE, -5)));
+  mitB2(s);
+  const k = r8('K6 neuer Befund nach der Entscheidung', s);
+  // Die 112-Zeile bleibt wie nach jeder Entscheidung zum großen Schritt (C4): Ob die Praxis davon wusste, weiß die App nicht.
+  check('K6 mit neuem Befund: die Entscheidung zur eigenen Änderung gilt weiter – X3 ohne Frist, kein „bisherige Menge" mit Frist, „Heute" ohne X3', hatRegel(k, 'X3') && !stufeVon(k, 'X3') && !/Rufen Sie heute oder morgen/.test(grundText(k, 'X3')) && !hinweis(s, 'X3'), `${info(k)} | ${hinweisInfo(dosisHinweise(s, HEUTE))}`);
+  // X3b: Berichtigung (T−10), „bleibt" T−8, neuer Befund T−2.
+  const sb = r8Stand([dosis('e1', E, 75, { praxis: false, berichtigung: true, statt: 'd1', berichtigtAm: E, eingetragenAm: E })], { befundVor: 20 });
+  r8Entscheid(sb, 'b1', 'bleibt', plus(HEUTE, -8));
+  check('K6 X3b Vorbedingung: nach „bleibt" ist X3b auf „Heute" erledigt', !hinweis(sb, 'X3b', plus(HEUTE, -5)));
+  mitB2(sb);
+  check('K6 X3b mit neuem Befund: bleibt erledigt – kein X3b mit Frist auf „Heute" und Karte', !hinweis(sb, 'X3b') && !stufeVon(r8('K6 X3b neuer Befund', sb), 'X3b'), hinweisInfo(dosisHinweise(sb, HEUTE)));
+});
+
+r8fall('K7', () => {
+  // 76 Jahre (Einpendelzeit 8 Wochen). Dosis 75 → 88 µg am T−50 (Praxis),
+  // Befund T−46, Praxis T−45 „Erst nachmessen". Vorher: D6c „Jetzt ist die
+  // Kontrolle fällig" schon 42 Tage nach „nachmessen" (T−3) – 50 Tage nach
+  // der Änderung –, und die Karte verwarf genau diesen Wert (D0.6).
+  const AEND = plus(HEUTE, -50);
+  const s = vollständigerStand({
+    profil: { geburtsjahr: geb(76) },
+    dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', AEND, 88, { praxis: true, eingetragenAm: AEND })],
+    befund: bef(6.0, 15, { datum: plus(HEUTE, -46), praxis: 'nachmessen', praxisAm: plus(HEUTE, -45) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -46))],
+  });
+  check('K7 heute (50 Tage nach der Änderung): noch keine Kontrolle fällig', !hinweis(s, 'D6c') && !gesamtbildMitDosis(s, HEUTE).teile.some((t) => t.id === 'D6c'), hinweisInfo(dosisHinweise(s, HEUTE)));
+  const d6c = hinweis(s, 'D6c', plus(HEUTE, 6));
+  check('K7 an T+6 (56 Tage nach der Änderung): D6c fällig, mit der Frist der Änderung', !!d6c && /Kontrolle fällig/.test(d6c.text) && /etwa 8 Wochen nach der Dosisänderung vom/.test(d6c.text), d6c ? d6c.text : '–');
+  // Ein Wert heute (in der Einpendelzeit) ist nicht der Kontrollbefund – wie für die Karte (D0.6).
+  const sw = JSON.parse(JSON.stringify(s));
+  sw.labor.push(vorbefund('b2', HEUTE, 5.0));
+  sw.nachfragen.push(dosisStimmt('b2', HEUTE));
+  check('K7 ein Wert in der Einpendelzeit erledigt die Kontrolle nicht: D6c bleibt an T+6 fällig', !!hinweis(sw, 'D6c', plus(HEUTE, 6)) && hatRegel(r8('K7 Karte zum frühen Wert', sw), 'D0.6'), hinweisInfo(dosisHinweise(sw, plus(HEUTE, 6))));
+  // Gegenprobe: „nachmessen" ohne Änderung davor – 42 Tage wie bisher.
+  const sg = vollständigerStand({ profil: { geburtsjahr: geb(76) }, befund: bef(6.0, 15, { datum: plus(HEUTE, -46), praxis: 'nachmessen', praxisAm: plus(HEUTE, -45) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -46))] });
+  check('K7 Gegenprobe: „nachmessen" ohne Änderung – D6c nach 42 Tagen („6 bis 8 Wochen danach")', !!hinweis(sg, 'D6c') && /6 bis 8 Wochen danach/.test(hinweis(sg, 'D6c').text), hinweisInfo(dosisHinweise(sg, HEUTE)));
+});
+
+r8fall('K10', () => {
+  // Berichtigung (T−6, Praxis: Nein, „Gilt ab" auf den wahren Beginn T−60),
+  // neuer Befund b2 (T−3, normal). Vorher: Karte „Zuerst eine Frage" ohne
+  // X3b und mit Stufe keine, nach „Ja" Richtung „gleich" ohne X3b – „Heute"
+  // sagte X3b „in den nächsten Tagen anrufen".
+  const ber = dosis('e1', plus(HEUTE, -60), 75, { praxis: false, berichtigung: true, statt: 'd1', berichtigtAm: plus(HEUTE, -6), eingetragenAm: plus(HEUTE, -6) });
+  const s = vollständigerStand({
+    dosen: [dosis('d1', DOSIS_AB, 100), ber], vorbefunde: [vorbefund('b1', plus(HEUTE, -20), 6.5)],
+    befund: bef(2.0, 15, { id: 'b2', datum: plus(HEUTE, -3) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -20)), dosisStimmt('b1', plus(HEUTE, -6), 'nein_100')],
+  });
+  check('K10 Vorbedingung: „Heute" X3b mit Stufe Tage', !!hinweis(s, 'X3b') && hinweis(s, 'X3b').stufe === 'tage');
+  const k = r8('K10 Frage offen', s);
+  check('K10 Frage X3 offen: die Karte fragt UND nennt X3b mit Stufe Tage – dieselbe Stufe wie „Heute" und Gesamtbild', !!k.frage && k.frage.id === 'X3' && stufeVon(k, 'X3b') === 'tage' && k.stufe === 'tage' && gesamtbildMitDosis(s, HEUTE).stufe === 'tage', info(k));
+  s.nachfragen.push(dosisStimmt('b2', HEUTE));
+  const kj = r8('K10 nach „Ja"', s);
+  check('K10 nach „Ja": Richtung „gleich" mit X3b (Stufe Tage), Karte Tage', kj.richtung === 'gleich' && stufeVon(kj, 'X3b') === 'tage' && kj.stufe === 'tage' && !kj.frage, info(kj));
+});
+
+r8fall('K11 (c)', () => {
+  // Anordnung 125 µg ab T−2 (eingetragen am Tag der Entscheidung), heute
+  // trägt sie ehrlich 100 µg ab heute ein (Praxis: Nein) – sie hat noch nicht
+  // begonnen. Vorher: B2 „ohne Anweisung der Praxis geändert", W-D4 an T+28
+  // „Seit Ihre Dosis verringert wurde" zu einer Senkung, die es nie gab.
+  const s = r8Stand([dosis('e1', plus(HEUTE, -2), 125, { praxis: true, eingetragenAm: plus(HEUTE, -2) }), dosis('e2', HEUTE, 100, { praxis: false, eingetragenAm: HEUTE })], { befundVor: 3, befund: { praxis: 'geaendert', praxisAm: plus(HEUTE, -2) }, profil: { geburtsjahr: geb(76) }, mittel: ['marcumar'] });
+  const k = r8('K11 (c) bei der bisherigen Menge geblieben, nach dem Starttag', s);
+  const b2 = grundText(k, 'B2');
+  check('K11 (c): kein „ohne Anweisung der Praxis geändert"; B2 fragt, ob die neue Dosis schon begonnen wurde, und rät, ihr „Gilt ab" zu verschieben – Knopf zur Anordnung',
+    !/ohne Anweisung der Praxis geändert/.test(kern(k)) && /noch nicht begonnen/.test(b2) && /„Gilt ab"/.test(b2) && k.aktionen.some((a) => a.aktion === 'dosis' && a.param === 'e1'), info(k));
+  check('K11 (c): „Heute" sagt dasselbe (B2 „noch nicht begonnen"), keine 112-Zeile, kein X3', !!hinweis(s, 'B2') && /noch nicht begonnen/.test(hinweis(s, 'B2').text) && !hinweis(s, 'X3'), hinweisInfo(dosisHinweise(s, HEUTE)));
+  check('K11 (c): an T+28 keine Nachfrage W-D4 nach einer Senkung', !hinweis(s, 'W-D4', plus(HEUTE, 28)), hinweisInfo(dosisHinweise(s, plus(HEUTE, 28))));
+  // Gegenprobe: dieselbe Angabe erst drei Wochen nach dem Beginn der Anordnung – dann hat sie die 125 µg genommen und selbst wieder gesenkt (B2 wie bisher).
+  const sg = r8Stand([dosis('e1', plus(HEUTE, -21), 125, { praxis: true, eingetragenAm: plus(HEUTE, -21) }), dosis('e2', HEUTE, 100, { praxis: false, eingetragenAm: HEUTE })], { befundVor: 25, befund: { praxis: 'geaendert', praxisAm: plus(HEUTE, -21) } });
+  const kg = r8('K11 (c) Gegenprobe drei Wochen später', sg);
+  check('K11 (c) Gegenprobe: drei Wochen nach dem Beginn der Anordnung zurück auf 100 µg – eine eigene Änderung (B2 „ohne Anweisung der Praxis geändert")', /ohne Anweisung der Praxis geändert/.test(grundText(kg, 'B2')), info(kg));
+});
+
+r8fall('K17', () => {
+  // Befund vor 100 Tagen, Praxis hat nichts gesagt: D0.4 „rufen Sie beim
+  // nächsten Termin an und lassen Sie neu messen" – beim Termin ruft man nicht an.
+  const B = plus(HEUTE, -100);
+  for (const [name, w] of [['TSH 2,0 (Stufe keine)', 2.0], ['TSH 4,8 (Termin)', 4.8]]) {
+    const s = vollständigerStand({ befund: bef(w, 15, { datum: B }), nachfragen: [dosisStimmt('b1', B)] });
+    const k = r8(`K17 ${name}`, s);
+    check(`K17 ${name}: D0.4 „sprechen Sie es beim nächsten Termin an und lassen Sie neu messen", kein „rufen Sie beim nächsten Termin an"`,
+      /sprechen Sie es beim nächsten Termin an und lassen Sie neu messen/.test(grundText(k, 'D0.4')) && !/rufen Sie beim nächsten Termin an/.test(grundText(k, 'D0.4')), grundText(k, 'D0.4'));
+  }
+  const s12 = vollständigerStand({ befund: bef(12, 15, { datum: B }), nachfragen: [dosisStimmt('b1', B)] });
+  check('K17 Gegenprobe TSH 12 (Tage): „rufen Sie in den nächsten Tagen an" bleibt', /rufen Sie in den nächsten Tagen an/.test(grundText(r8('K17 TSH 12', s12), 'D0.4')));
+});
+
+r8fall('J4-Rest / Entscheidung (5)', () => {
+  // Eingerichtet mit 100 µg „ab heute" (einziger Eintrag), Marcumar, 76
+  // Jahre; „Die Praxis hat entschieden → Neue Dosis" 125 µg ersetzt den
+  // einzigen Eintrag an Ort und Stelle. Vorher: Karte und „Heute" baten
+  // weiter um die neue Dosis, WW1 und D6c fehlten, D0.16 riet, „Gilt ab" der
+  // Anordnung zurückzudatieren.
+  const lage = (befundTag, mitTag = true) => {
+    const s = vollständigerStand({
+      profil: { geburtsjahr: geb(76), seit: HEUTE }, mittel: ['marcumar'], einnahmen: {},
+      dosen: [dosis('d1', HEUTE, 125, { praxis: true, ...(mitTag ? { eingetragenAm: HEUTE } : {}) })],
+      befund: bef(6.0, 15, { datum: befundTag, praxis: 'geaendert', praxisAm: HEUTE }), nachfragen: [],
+    });
+    return s;
+  };
+  for (const [name, tag] of [['Befund heute', HEUTE], ['Befund gestern', plus(HEUTE, -1)]]) {
+    const s = lage(tag);
+    const k = r8(`J4-Rest ${name}`, s);
+    check(`J4-Rest ${name}: keine Bitte „Bitte tragen Sie die neue Dosis ein", kein Knopf „Neue Dosis eintragen"`, !/Bitte tragen Sie die neue Dosis ein/.test(kern(k)) && !k.aktionen.some((a) => a.param === 'praxis'), info(k));
+    check(`J4-Rest ${name}: Entscheidung (5) – „Was haben Sie vor der neuen Dosis genommen?" mit Knopf „Dosis eintragen", kein „Gilt ab ändern"`,
+      /Was haben Sie vor der neuen Dosis genommen/.test(grundText(k, 'D0.16')) && !/„Gilt ab"/.test(grundText(k, 'D0.16')) && k.aktionen.some((a) => a.aktion === 'dosis' && a.param === null && a.text === 'Dosis eintragen'), info(k));
+    check(`J4-Rest ${name}: „Heute" WW1 (INR unter Marcumar) zur Anordnung, D6c an Tag +56, kein D0.6`, !!hinweis(s, 'WW1') && !!hinweis(s, 'D6c', plus(HEUTE, 56)) && !hatRegel(k, 'D0.6'), hinweisInfo(dosisHinweise(s, HEUTE)));
+    check(`J4-Rest ${name}: keine Richtung ohne Menge davor – kein W-D4 an Tag 14 und 28`, !hinweis(s, 'W-D4', plus(HEUTE, 14)) && !hinweis(s, 'W-D4', plus(HEUTE, 28)));
+    check(`J4-Rest ${name}: anordnungEingetragen nennt die Anordnung (für js/app.js praxisNochGeaendert)`, dosisModul.anordnungEingetragen(s, s.labor[0], HEUTE) === s.dosen[0]);
+  }
+  // Mit der Menge davor nachgetragen gibt es die Richtung (W-D4 „erhöht").
+  const sn = lage(plus(HEUTE, -1));
+  sn.dosen.unshift(dosis('d0', '2024-01-01', 100, { praxis: null }));
+  check('J4-Rest Menge davor nachgetragen: W-D4 „erhöht" an Tag 14, kein D0.16 mehr', !!hinweis(sn, 'W-D4', plus(HEUTE, 14)) && /erhöht/.test(hinweis(sn, 'W-D4', plus(HEUTE, 14)).text) && !hatRegel(r8('J4-Rest mit Menge davor', sn), 'D0.16'), hinweisInfo(dosisHinweise(sn, plus(HEUTE, 14))));
+  // karte N3: „geändert" zu einem älteren Befund b0, ein neuerer b2 vor der Anordnung – auch zu ihm kein D0.16 „Gilt ab ändern".
+  const s3 = vollständigerStand({
+    profil: { geburtsjahr: geb(76), seit: HEUTE }, mittel: ['marcumar'], einnahmen: {},
+    dosen: [dosis('d1', HEUTE, 125, { praxis: true, eingetragenAm: HEUTE })],
+    vorbefunde: [vorbefund('b0', plus(HEUTE, -30), 6.0, { praxis: 'geaendert', praxisAm: HEUTE })],
+    befund: bef(5.5, 15, { datum: plus(HEUTE, -10) }), nachfragen: [],
+  });
+  const k3 = r8('J4-Rest karte N3', s3);
+  check('J4-Rest (karte N3): „geändert" am älteren Befund, neuerer Befund vor der Anordnung – kein D0.16 „Gilt ab ändern", sondern die Bitte um die Menge davor', !/„Gilt ab"/.test(grundText(k3, 'D0.16')) && /Was haben Sie vor der neuen Dosis genommen/.test(grundText(k3, 'D0.16')), info(k3));
+  // Gegenprobe: ohne Tag des Eintrags (ältere Daten) ist der erste Eintrag mit „Praxis: ja" keine Anordnung nach einer Entscheidung.
+  const kg = r8('J4-Rest Gegenprobe ohne eingetragenAm', lage(plus(HEUTE, -1), false));
+  check('J4-Rest Gegenprobe: erster Eintrag ohne Tag des Eintrags – wie bisher die Bitte um die neue Dosis', /Bitte tragen Sie die neue Dosis ein/.test(kern(kg)), info(kg));
+  // Dasselbe mit zwei Einträgen: die Anordnung am Tag der Abnahme (nach der Entscheidung eingetragen).
+  const s2 = vollständigerStand({
+    profil: { geburtsjahr: geb(76) }, mittel: ['marcumar'],
+    dosen: [dosis('d1', DOSIS_AB, 100), dosis('e1', HEUTE, 125, { praxis: true, eingetragenAm: HEUTE })],
+    befund: bef(6.0, 15, { datum: HEUTE, praxis: 'geaendert', praxisAm: HEUTE }), nachfragen: [],
+  });
+  const k2 = r8('J4-Rest Anordnung am Tag der Abnahme', s2);
+  check('J4-Rest Anordnung am Tag der Abnahme: eingetragen – keine Bitte, kein D0.6 „vor der Abnahme geändert", Stufe keine', !/Bitte tragen Sie die neue Dosis ein/.test(kern(k2)) && !hatRegel(k2, 'D0.6') && k2.stufe === 'keine' && dosisModul.anordnungEingetragen(s2, s2.labor[0], HEUTE) === s2.dosen[1], info(k2));
+});
+
+r8fall('Entscheidung (4) zu H-N1', () => {
+  // X3 „Nein, ich nehme etwas anderes" (nein_100), dann direkt „Die Praxis
+  // hat entschieden → Neue Dosis" 88 µg: Das Formular (Gruppe Historie)
+  // speichert eine Änderung und lässt das „Nein" mit `anordnung` stehen.
+  // Vorher zählte die Karte die Anordnung als Berichtigung (korrekturRat „Gilt
+  // ab ändern") und fragte W-D4 nach „verringert" (100 → 88).
+  const lage = (mitAnordnung) => {
+    const s = vollständigerStand({
+      profil: { geburtsjahr: geb(76) }, mittel: ['marcumar'],
+      dosen: [dosis('d1', '2025-08-23', 100), dosis('a1', HEUTE, 88, { praxis: true, eingetragenAm: HEUTE })],
+      befund: bef(6.5, 15, { datum: plus(HEUTE, -10), praxis: 'geaendert', praxisAm: HEUTE }),
+      nachfragen: [{ id: 'nx', art: 'dosis_stimmt', bezug: 'b1', antwort: 'nein_100', am: HEUTE }],
+    });
+    // Nach normStand gesetzt: Der Speicher behält das Feld erst mit Fassung 5 (Gruppe Historie).
+    if (mitAnordnung) s.nachfragen[0].anordnung = 'a1';
+    return s;
+  };
+  const s = lage(true);
+  const k = r8('Entscheidung (4) Anordnung nach „Nein"', s);
+  check('Entscheidung (4): X3 „Bitte tragen Sie ein, was Sie vor dem <Tag> genommen haben" mit Knopf „Dosis eintragen"', new RegExp(`vor dem ${kurz(HEUTE)} genommen haben`).test(grundText(k, 'X3')) && k.aktionen.some((a) => a.aktion === 'dosis' && a.param === null), info(k));
+  check('Entscheidung (4): kein korrekturRat (D0.5 „Gilt ab ändern") für die Anordnung; D0.5 nennt die Änderung', !/„Gilt ab"/.test(grundText(k, 'D0.5')) && /nach dieser Blutabnahme schon geändert/.test(grundText(k, 'D0.5')), grundText(k, 'D0.5'));
+  check('Entscheidung (4): keine Richtung vor der Berichtigung der Menge davor – kein W-D4 an T+28; WW1 „geändert"', !hinweis(s, 'W-D4', plus(HEUTE, 28)) && !!hinweis(s, 'WW1') && /geändert/.test(hinweis(s, 'WW1').text), hinweisInfo(dosisHinweise(s, plus(HEUTE, 28))));
+  // Die Menge davor nachgetragen (Berichtigung 75 µg statt d1, Regel (2) im Formular): Das „Nein" ist erledigt – auch wenn es
+  // stehen blieb (etwa aus einer Sicherung) –, die Richtung 75 → 88 gilt (W-D4 „erhöht" an T+14), kein X3 mehr.
+  const sb = lage(true);
+  sb.dosen.splice(1, 0, dosis('eB', '2025-09-01', 75, { praxis: false, berichtigung: true, statt: 'd1', berichtigtAm: HEUTE, eingetragenAm: HEUTE }));
+  const kb = r8('Entscheidung (4) nach der Berichtigung der Zeit davor', sb);
+  check('Entscheidung (4) nach der Berichtigung: kein X3 „was Sie vor dem … genommen haben" mehr, Stufe keine', !hatRegel(kb, 'X3') && kb.stufe === 'keine', info(kb));
+  check('Entscheidung (4) nach der Berichtigung: W-D4 „erhöht" an T+14 (75 → 88), kein „verringert"', !!hinweis(sb, 'W-D4', plus(HEUTE, 14)) && /erhöht/.test(hinweis(sb, 'W-D4', plus(HEUTE, 14)).text), hinweisInfo(dosisHinweise(sb, plus(HEUTE, 14))));
+  // Gegenprobe: ohne `anordnung` (ältere Daten, Fassung 4) zählt der Eintrag ab dem „Nein" wie bisher als Berichtigung.
+  const kg = r8('Entscheidung (4) Gegenprobe ohne anordnung', lage(false));
+  check('Entscheidung (4) Gegenprobe: ohne das Feld `anordnung` wie bisher der korrekturRat', /„Gilt ab"/.test(grundText(kg, 'D0.5')), info(kg));
+});
+
+// Die globalen Eigenschaften auch über die Karten der Runde 8.
+global('Runde 8: L3f – kein Text nennt eine längere Frist als die Stufe der Karte', R8.filter((x) => x.r && x.r.stufe !== 'notruf'),
+  (x) => FRIST_UNTER.every(([ab, m]) => rang(x.r.stufe) < RANG[ab] || !m.test(kern(x.r))), (x) => `${x.name}: ${x.r.stufe} | ${kern(x.r).replace(/\s+/g, ' ').slice(0, 160)}`);
+global('Runde 8: Gesamtbild nie unter der Dosis-Karte', R8.filter((x) => x.r), (x) => rang(gesamtbildMitDosis(x.stand, x.heute).stufe) >= rang(x.r.stufe), (x) => x.name);
+global('Runde 8: jede genannte Nummer steht in anrufe', R8.filter((x) => x.r),
+  (x) => NUMMERN.every(([m, passt]) => !m.test([kern(x.r), str(x.r.warnzeichen), ...frageTexte(x.r)].join('\n')) || x.r.anrufe.some(passt)), (x) => x.name);
+global('Runde 8: keine neue Tagesdosis', R8.filter((x) => x.r), (x) => neueDosisGenannt(alles(x.r), x.stand, x.heute).length === 0, (x) => `${x.name}: ${neueDosisGenannt(alles(x.r), x.stand, x.heute).join(', ')}`);
+global('Runde 8: nie „nehmen Sie mehr/weniger" als Aufforderung', R8.filter((x) => x.r),
+  (x) => !/\bnehmen Sie (ab (jetzt|morgen|heute) )?(eine? )?(mehr|weniger|zusätzlich)\b/i.test(alles(x.r)) && !/\b(erhöhen|verringern|reduzieren|senken) Sie\b/.test(alles(x.r)));
 
 console.log(`\n${oks} OK, ${fails} FAIL – ${FAELLE.length} Fälle dosisRichtung, ${HINWEIS_FAELLE.length} Fälle dosisHinweise, ${GESAMT_FAELLE.length} Fälle gesamtbildMitDosis`);
 process.exit(fails || !oks ? 1 : 0);

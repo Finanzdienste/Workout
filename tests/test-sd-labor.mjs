@@ -10,7 +10,7 @@
  * ohne Worte. Die Einschätzung mit bestätigter Behandlung prüft
  * tests/test-sd-einschaetzung-ui.mjs.
  */
-import { oeffne, standMit, plus, kurz, ansichtText } from './sd-hilfe.mjs';
+import { oeffne, standMit, plus, kurz, ansichtText, SCHLUESSEL } from './sd-hilfe.mjs';
 
 const TAG = '2026-03-10';
 const stand = standMit(plus(TAG, -100), {
@@ -19,7 +19,7 @@ const stand = standMit(plus(TAG, -100), {
     { id: 'd2', ab: plus(TAG, -30), praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '' },
   ],
 });
-const { page, check, uhr, gespeichert, ende } = await oeffne({ tag: TAG, stand });
+const { page, check, uhr, gespeichert, dialoge, ende } = await oeffne({ tag: TAG, stand });
 
 const fehlerTexte = () => page.locator('.feld-fehler').allInnerTexts();
 const neu = async () => {
@@ -132,5 +132,105 @@ s = await gespeichert();
 const einseitig = s.labor.find((x) => x.datum === plus(TAG, -1));
 check(einseitig && einseitig.tsh.von === null && einseitig.tsh.bis === 4.2, `nur die obere Grenze eingetragen: gespeichert (${JSON.stringify(einseitig && einseitig.tsh)})`);
 check((await ansichtText(page)).includes('bis 4,2 mU/l'), '… und so angezeigt: „bis 4,2 mU/l"');
+
+// ---- Runde 8: K14 – der Befund in zwei Schritten (TSH 2,1 vom Telefon, später
+// der Brief mit TSH 2,15, fT4 und den Bereichen). Vorher führte der Knopf
+// „Befund … öffnen" im Fehler über „Ihre Eingaben sind noch nicht gespeichert.
+// Verwerfen …?" zum alten Befund mit den alten Werten – alles Eingetippte war
+// weg, und der Fehler nannte nicht einmal die beiden Werte. Jetzt eine
+// Rückfrage mit beiden Werten; „Ja, der neue Wert gilt" speichert alles
+// zusammen, „Nein" führt zurück ins Formular – die Eingaben bleiben stehen.
+const K14 = plus(TAG, -3);
+await page.evaluate(({ key, st }) => localStorage.setItem(key, JSON.stringify(st)), {
+  key: SCHLUESSEL,
+  st: standMit(plus(TAG, -100), { labor: [{ id: 'k1', datum: K14, tsh: { wert: 2.1, einheit: 'mU/l', von: null, bis: null }, ft4: null, ft3: null, notiz: '' }] }),
+});
+await uhr(TAG);
+const k14Brief = async () => {
+  await neu();
+  await page.fill('input[name=datum]', K14);
+  await page.fill('input[name=tsh_wert]', '2,15');
+  await page.fill('input[name=tsh_von]', '0,27');
+  await page.fill('input[name=tsh_bis]', '4,2');
+  await page.fill('input[name=ft4_wert]', '15,2');
+  await page.fill('input[name=ft4_von]', '12');
+  await page.fill('input[name=ft4_bis]', '22');
+  await page.click('button[type=submit]');
+  await page.waitForTimeout(300);
+};
+const k14Dialog = async () => ((await page.locator('dialog.rueckfrage').count()) ? (await page.locator('dialog.rueckfrage').innerText()).replace(/\s+/g, ' ') : '');
+await k14Brief();
+let k14Text = await k14Dialog();
+check(k14Text.includes('TSH: bisher 2,1 mU/l, jetzt 2,15 mU/l') && k14Text.includes('Soll der neue Wert gelten?') && k14Text.includes('Ja, der neue Wert gilt') && k14Text.includes('Nein, zurück zum Formular'),
+  `K14: eine Rückfrage mit beiden Werten statt eines Fehlers mit Seitenwechsel („${k14Text.slice(0, 180)}")`);
+await page.waitForTimeout(700);
+await page.click('dialog.rueckfrage [data-act="befund-korrigieren"]');
+await page.waitForTimeout(300);
+check(await page.inputValue('input[name=tsh_wert]') === '2,15' && await page.inputValue('input[name=ft4_wert]') === '15,2' && (await gespeichert()).labor.length === 1 && (await gespeichert()).labor[0].tsh.wert === 2.1,
+  'K14: „Nein, zurück zum Formular" – die Eingaben stehen noch da, gespeichert ist nichts');
+const k14Dialoge = dialoge.length;
+await page.click('button[type=submit]');
+await page.waitForTimeout(1000);
+await page.click('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+await page.waitForTimeout(300);
+check(!dialoge.slice(k14Dialoge).some((t) => t.includes('Verwerfen')), 'K14: kein „Ihre Eingaben sind noch nicht gespeichert. Verwerfen …?" auf dem Weg');
+s = await gespeichert();
+const k14b = s.labor.find((l) => l.datum === K14);
+check(s.labor.length === 1 && !!k14b && k14b.id === 'k1' && k14b.tsh.wert === 2.15 && k14b.tsh.von === 0.27 && k14b.tsh.bis === 4.2 && !!k14b.ft4 && k14b.ft4.wert === 15.2,
+  `K14: „Ja, der neue Wert gilt" – ein Befund mit TSH 2,15 (0,27–4,2) und fT4 15,2, nichts verloren (${JSON.stringify(k14b && [k14b.tsh, k14b.ft4 && k14b.ft4.wert])})`);
+check((await ansichtText(page)).includes('2,15 mU/l'), 'K14: die Liste zeigt den neuen Wert');
+
+// ---- Runde 8: J7, J7b – eine Entscheidung der Praxis über das Befund-Formular
+// zählt nach einer eigenen Änderung (Vermerk PRAXIS_DANACH wie über „Die Praxis
+// hat entschieden"). Steht die Angabe unverändert vorbelegt da (das „bleibt"
+// vom 29.04., vor der eigenen Änderung vom 04.05.), fragt das Formular, ob die
+// Praxis das danach gesagt hat – beide Antworten speichern.
+const J7 = '2026-05-04';
+const J7_FRAGEN = { abnahmeUhr: '', vorAbnahme: 'nein', biotin: 'nein', krank: 'nein', kortison: 'nein', kontrastmittel: 'nein', mittelGeaendert: 'nein', einnahmeGeaendert: 'nein', packung: 'nein', vergessen: 'nein', einnahmeArt: 'ja', abstandOk: 'ja', verwechselt: 'nein', tabletteUhr: '', laborName: '', bestaetigt: false, notiz: '' };
+const j7Stand = () => standMit('2025-01-01', {
+  version: 4,
+  profil: { name: '', begruesst: true, behandelt: true, seit: '2024-01-01', geburtsjahr: 1950, ursache: 'hashimoto', krebs: 'nein', praeparatArt: 't4', herz: 'nein', osteoporose: 'nein', kortison: 'nein', diabetes: 'nein', schwanger: '', zielNiedrig: 'nein', hypophyseOderNiedrig: 'nein', bundesland: 'BY', mittelErfasst: true, kaffee30: true, einfuehrung: 1, einfuehrungDaten: true },
+  dosen: [
+    { id: 'd1', ab: '2025-01-01', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '', praxis: true },
+    { id: 'e1', ab: J7, praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, notiz: '', praxis: false, eingetragenAm: J7 },
+  ],
+  labor: [{ id: 'j1', datum: '2026-04-27', tsh: { wert: 5.5, einheit: 'mU/l', von: 0.4, bis: 4 }, ft4: null, ft3: null, ...J7_FRAGEN, praxis: 'bleibt', praxisAm: '2026-04-29' }],
+  nachfragen: [],
+});
+const j7Oeffnen = async () => {
+  await page.click('#reiter-verlauf');
+  await page.click('[data-seite="labor-liste"]');
+  await page.locator('[data-seite="labor"][data-param="j1"]').first().click();
+  await page.waitForTimeout(300);
+};
+await page.evaluate(({ key, st }) => localStorage.setItem(key, JSON.stringify(st)), { key: SCHLUESSEL, st: j7Stand() });
+await uhr(J7, '12:00');
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'J7b Vorbedingung: nach der eigenen Erhöhung wartet „Heute" auf die Praxis (X3/B2)');
+await j7Oeffnen();
+check(await page.isChecked('form[data-formular="labor"] input[name=praxis][value=bleibt]'), 'J7b Vorbedingung: im Befund-Formular ist „Die Dosis bleibt so" vom 29.04. vorbelegt');
+await page.click('form[data-formular="labor"] button[type=submit]');
+await page.waitForTimeout(300);
+const j7Text = await k14Dialog();
+check(j7Text.includes('Beim Befund vom 27.04.2026 steht: „Die Dosis bleibt so" – angegeben am 29.04.2026.') && j7Text.includes('Hat die Praxis das nach Ihrer eigenen Änderung vom 04.05.2026 gesagt?') && j7Text.includes('Ja, danach') && j7Text.includes('Nein, das war vorher'),
+  `J7b: das unveränderte „bleibt" fragt, ob die Praxis das nach der eigenen Änderung gesagt hat („${j7Text.slice(0, 200)}")`);
+await page.waitForTimeout(700);
+await page.click('dialog.rueckfrage [data-act="befund-korrigieren"]');
+await page.waitForTimeout(400);
+s = await gespeichert();
+check(s.labor[0].praxisAm === '2026-04-29' && !(s.nachfragen || []).some((n) => n.art === 'praxis_danach') && await page.locator('form[data-formular="labor"]').count() === 0,
+  `J7b: „Nein, das war vorher" speichert ohne neues Datum (${s.labor[0].praxisAm}), kein Vermerk`);
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'J7b: … und „Heute" wartet weiter auf die Praxis');
+await j7Oeffnen();
+await page.click('form[data-formular="labor"] button[type=submit]');
+await page.waitForTimeout(1000);
+await page.click('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+await page.waitForTimeout(400);
+s = await gespeichert();
+check(s.labor[0].praxisAm === J7 && (s.nachfragen || []).some((n) => n.art === 'praxis_danach' && n.bezug === 'j1' && n.am === J7),
+  `J7/J7b: „Ja, danach" – Datum heute und Vermerk PRAXIS_DANACH wie über „Die Praxis hat entschieden" (${s.labor[0].praxisAm}, ${JSON.stringify((s.nachfragen || []).map((n) => n.art))})`);
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() === 0, 'J7: danach wartet „Heute" nicht mehr auf die Praxis');
 
 await ende();

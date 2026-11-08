@@ -312,7 +312,18 @@ export function dosisVerlauf(stand, heute) {
      * Rückfrage „mehr als die Hälfte", weil nichts davor stand.
      */
     const eigeneNachErstem = vor && vor.ab === d.ab && perioden.length === 1 && d.praxis === false && !berichtigung;
-    const ersetzt = vor && vor.ab === d.ab && !eigeneNachErstem ? perioden.pop() : null;
+    /*
+     * Runde 8: J1, J4 – der Eintrag steht ausdrücklich NEBEN dem vorigen
+     * desselben Tages (`nach`: das Dosis-Formular hat gefragt „Haben Sie bis
+     * … genommen?", Antwort Ja). Dann ist der vorige die Menge davor, kein
+     * ersetzter Eintrag – auch bei einer Anordnung der Praxis am
+     * Einrichtungstag (vorher galt die eine Dosis „ab heute" als ersetzt, die
+     * Änderung zählte nicht: keine Kontrolle D6c, kein WW1, die Karte bat
+     * weiter um die neue Dosis). Die N1-Ausnahme bleibt für ältere Daten ohne
+     * Vermerk; ohne Vermerk gilt sonst weiter H18 (der letzte zählt).
+     */
+    const daneben = vor && vor.ab === d.ab && d.nach && vor.eintraege.some((x) => x.id === d.nach);
+    const ersetzt = vor && vor.ab === d.ab && !eigeneNachErstem && !daneben ? perioden.pop() : null;
     const davor = perioden[perioden.length - 1] || null;
     const galtNie = ersetzt ? [...ersetzt.nieGenommen, ...(berichtigung ? ersetzt.eintraege.map((x) => ({ d: x, durch: d })) : [])] : [];
     // Nachprüfung zu Runde 7 (N1): am selben Tag ersetzte Anordnungen der
@@ -419,6 +430,30 @@ export function dosisDamals(stand, tag, heute) {
   if (!d) return null;
   const periode = dosisVerlauf(stand, heute).find((p) => p.eintraege.includes(d)) || null;
   return { d, td: sp.tagesdosis(d), periode, berichtigtDurch: periode ? periode.berichtigtDurch : null };
+}
+
+/**
+ * Runde 8: H-N1, Entscheidung (3) (N2-3) – ein offenes „Nein, ich nehme etwas
+ * anderes" zum jüngsten TSH-Befund, nach dem eine Anordnung der Praxis
+ * eingetragen wurde (nachfragen[].anordnung, Dosis-Formular): Die Patientin
+ * hat gesagt, dass sie vor der neuen Dosis nicht die eingetragene Menge
+ * nahm – was und seit wann, ist offen. Für den Bericht (js/bericht.js): der
+ * Vorbehalt steht nur beim Befund, auf den sich das „Nein" bezieht, die
+ * Angabe macht keine Aussage über den ganzen Zeitraum des Eintrags.
+ * → { nein, bezug, am, anordnung, davor, menge } | null – `davor`: der
+ *   Eintrag, der vor der Anordnung galt; `menge`: die Menge, auf die sich das
+ *   „Nein" bezog (sonst die von `davor`).
+ */
+export function neinVorAnordnung(stand, heute) {
+  const befund = [...stand.labor].reverse().find((l) => l.tsh && l.datum <= heute) || null;
+  const nein = befund ? [...stand.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && n.bezug === befund.id) : null;
+  if (!nein || !/^nein/.test(nein.antwort) || !nein.anordnung) return null;
+  const anordnung = stand.dosen.find((d) => d.id === nein.anordnung) || null;
+  if (!anordnung) return null;
+  const davor = dosisAmIn(stand, tageWeiter(anordnung.ab, -1));
+  const m = /^nein_(\d+)(?:_(\d+))?$/.exec(nein.antwort);
+  const menge = m ? Number(`${m[1]}.${m[2] || '0'}`) : sp.tagesdosis(davor);
+  return { nein, bezug: befund.id, am: nein.am, anordnung, davor, menge };
 }
 
 /** Biotin im Spiel (L5d): beim Befund angegeben oder als Mittel eingetragen. */
@@ -1743,6 +1778,32 @@ export function weitereWerte(befund, stand, heute = null) {
         break;
       default:
     }
+    /*
+     * Runde 8: J11 – auch ein milderer Wert ab Stufe „zeitnah" (Hb 11,8 bei
+     * 12–16: „in ein bis zwei Wochen") lässt sich quittieren: der Knopf „Ja,
+     * die Praxis weiß davon" (WERT_BEKANNT, wie bei den Gefahrenwerten). Mit
+     * der Angabe gilt „beim nächsten Termin", der Text nennt den Tag des
+     * Befunds. Vorher gab es den Knopf nur für Gefahrenwerte, und „📅 In ein
+     * bis zwei Wochen" stand 90 Tage lang oben auf „Heute", auch nach
+     * Entscheidungen der Praxis. KEIN Abfall von selbst nach 14 Tagen: Ohne
+     * Angabe bleibt die Stufe – ein Wert, der eine Frist trägt, wird nicht
+     * still leiser.
+     */
+    if (STUFEN[stufe].rang >= STUFEN.zeitnah.rang) {
+      const seit = weitereSeit(befund, key);
+      const bekannt = heute ? [...stand.nachfragen].reverse().find((n) => n.art === WERT_BEKANNT && n.bezug === befund.id && n.antwort === key
+        && n.am >= seit && n.am <= heute) : null;
+      if (bekannt) {
+        const erster = texte[0].split(/(?<=\.)\s/)[0];
+        const war = /^Der Wert /.test(erster) ? erster.replace(/^Der Wert /, `Der Wert vom ${kurz(befund.datum)} `) : `Wert vom ${kurz(befund.datum)}: ${erster}`;
+        texte[0] = `${war} Sie haben angegeben, dass die Praxis davon weiß. Halten Sie sich an das, was dort besprochen wurde, und fragen Sie beim nächsten Termin, ob der Wert kontrolliert werden soll.`;
+        stufe = 'termin';
+        liste.push({ key, name, wert: w, stufe, texte, auffaellig: true, bekanntFrage: false });
+        return;
+      }
+      liste.push({ key, name, wert: w, stufe, texte, auffaellig: true, bekanntFrage: true });
+      return;
+    }
     liste.push({ key, name, wert: w, stufe, texte, auffaellig: stufe !== 'keine' });
   });
   return liste;
@@ -2382,10 +2443,21 @@ function weitereTeile(stand, heute, letzter) {
   for (let i = stand.labor.length - 1; i >= 0; i--) {
     const l = stand.labor[i];
     if (l.datum > heute) continue;
-    if (l.datum < ab) break;
+    /*
+     * Runde 8: K8 – kein Abbruch vor dem Fenster: Ein Gefahrenwert, den die
+     * Nutzerin eben zu einem älteren Befund nachgetragen hat (Natrium 118 zum
+     * Befund vom Mai, heute abgeschrieben), fehlte im Gesamtbild, auf „Heute"
+     * und in der Gesamteinschätzung des Berichts – die Befund-Karte sagte
+     * „Heute anrufen", oben stand „Kein besonderer Anlass". Ältere Befunde
+     * zählen für Gefahrenwerte, die die App seit höchstens 14 Tagen kennt
+     * (weitereSeit, werteAm); ein jüngerer Befund mit demselben Wert geht
+     * weiter vor (`gesehen`).
+     */
+    const alt = l.datum < ab;
     weitereWerte(l, stand, heute).forEach((x) => {
       if (gesehen.has(x.key)) return;
       gesehen.add(x.key);
+      if (alt && !(x.gefahr && tageZwischen(weitereSeit(l, x.key), heute) <= GEFAHR_FRISCH_TAGE)) return;
       if (STUFEN[x.stufe].rang >= STUFEN.termin.rang) {
         teile.push({
           id: `E13-${x.key}`, stufe: x.stufe, text: `${x.name}: ${x.texte[0]}`, quelle: 'weitere', datum: l.datum,

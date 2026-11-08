@@ -83,6 +83,24 @@ const leiste = await page.locator('#reiterleiste').boundingBox();
 check(box && leiste && box.y + box.height <= leiste.y, `der Tabletten-Knopf liegt bei 360 × 740 ganz über der Leiste (${box && Math.round(box.y + box.height)} ≤ ${leiste && Math.round(leiste.y)})`);
 check(box && box.height >= 100, `der Tabletten-Knopf ist groß (${box && Math.round(box.height)} px hoch)`);
 
+// Runde 8: K13 – gleich nach dem Einrichten „Dosis ändern" bei der einzigen
+// Dosis: Der Eintrag vom Einrichten hatte kein Feld `praxis`, und das Formular
+// hielt ihn deshalb für einen Eintrag mit Quelle – es verlangte „Auf Anweisung
+// der Praxis?" als Pflicht, die Notiz ließ sich bis zum nächsten Neuladen
+// nicht speichern.
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="dosis-liste"]');
+await page.locator('#ansicht [data-seite="dosis"][data-param]').first().click();
+await page.waitForTimeout(300);
+check(await page.locator('form[data-formular="dosis"]').count() === 1 && !(await ansichtText(page)).includes('Auf Anweisung der Praxis?'), 'K13: „Dosis ändern" fragt bei der einzigen Dosis nicht „Auf Anweisung der Praxis?"');
+await page.fill('form[data-formular="dosis"] input[name=notiz]', 'Packung geprüft');
+await page.click('form[data-formular="dosis"] button[type=submit]');
+await page.waitForTimeout(300);
+check(!(await page.locator('.feld-fehler').allInnerTexts()).some((t) => t.includes('Hat die Praxis diese Dosis angeordnet')), 'K13: Speichern verlangt keine Quellangabe');
+const s13 = await gespeichert();
+check(s13.dosen.length === 1 && s13.dosen[0].notiz === 'Packung geprüft' && s13.dosen[0].praxis === null, `K13: die Notiz ist gespeichert, die Quelle bleibt offen (${JSON.stringify(s13.dosen[0])})`);
+await page.click('#reiter-heute');
+
 await uhr(TAG, '08:00');
 check(await page.locator('.tablette').isVisible() && !(await page.locator('.willkommen-titel').count()), 'nach dem Neuladen geht es direkt zu „Heute"');
 check(page.url().startsWith(SD_URL.replace(/index\.html$/, '')), 'die App bleibt in ihrem Ordner');
