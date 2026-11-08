@@ -994,6 +994,8 @@ function dosisAbsenden(id, f, heute) {
     const eingetragenAm = neueMenge || geplantNeu ? heute : alt.eingetragenAm;
     if (alt) {
       const verschoben = alt.ab !== eintrag.ab;
+      // Der bisherige Beginn – vor Object.assign unten gemerkt (R2).
+      const vorAb = alt.ab;
       /*
        * Runde 8 – Nachbesserung (F1): mit neuer Menge oder Quelle ist der
        * Eintrag neu bekannt (eingetragenAm heute). Ein Vermerk „Entscheidung
@@ -1003,8 +1005,20 @@ function dosisAbsenden(id, f, heute) {
        * ohne Frist („Wusste die Praxis das bei ihrer Entscheidung nicht …")
        * und „Heute" nichts. Auch die gemerkte Antwort „Nein, das war vorher"
        * (laborAbsenden) gehört zur alten Menge.
+       *
+       * Runde 8 – Nachprüfung (F1-2586): Der Vermerk „ja" wird nicht mehr
+       * gelöscht, sondern „verfallen" – für diese Änderung zählt er nicht
+       * mehr (F1 bleibt), er belegt aber, dass die Entscheidung ihr galt und
+       * nicht einer anderen (K1/F2, js/dosis.js vermerkAnderer). Gelöscht,
+       * zählte die Entscheidung danach als „nach dem Eintrag" einer vorher
+       * eingetragenen geplanten Änderung: deren Frist war weg, „Heute"
+       * schwieg, am Starttag sprang die Karte ohne Eingabe auf „Tage". Das
+       * „Nein, das war vorher" fällt weg wie bisher.
        */
-      if (neueMenge) s.nachfragen = s.nachfragen.filter((n) => !(n.art === dz.PRAXIS_DANACH && n.dosis === alt.id));
+      if (neueMenge) {
+        s.nachfragen = s.nachfragen.filter((n) => !(n.art === dz.PRAXIS_DANACH && n.dosis === alt.id && n.antwort === 'nein'));
+        s.nachfragen.forEach((n) => { if (n.art === dz.PRAXIS_DANACH && n.dosis === alt.id && n.antwort === 'ja') n.antwort = 'verfallen'; });
+      }
       /*
        * Runde 8: J1 (Entscheidung (a)) – ersetzt eine Anordnung der Praxis
        * („Auf Anweisung der Praxis: Ja" oder der Weg der Praxis) den Eintrag
@@ -1024,6 +1038,21 @@ function dosisAbsenden(id, f, heute) {
         Object.assign(alt, eintrag, berichtigung || alt.berichtigung ? { berichtigung: true, ...vermerk, berichtigtAm } : {},
           eingetragenAm ? { eingetragenAm } : {});
       }
+      /*
+       * Runde 8 – Nachprüfung (R2): Rückt „Gilt ab" einer Berichtigung nach
+       * vorn, ist der neu überdeckte Bereich heute gesagt (H18, unten) – sie
+       * merkt sich das Vorrücken (`vorgerueckt`, js/speicher.js
+       * ersetztDurchBerichtigung). Einträge darin, die vorher gesagt wurden,
+       * gelten dann als nie genommen; vorher blieb eine Anordnung, die nach
+       * der Berichtigung, aber vor dem Vorrücken eingetragen war, die
+       * aktuelle Dosis (K3 sah nur den Tag der Berichtigung, berichtigtAm –
+       * der bleibt für X3b, wie er ist). Wird der Eintrag zur Anordnung (J1),
+       * ist er keine Berichtigung mehr, und das Feld fällt weg.
+       */
+      if (alt === formDa && alt.berichtigung && verschoben && eintrag.ab < vorAb) {
+        alt.vorgerueckt = [...(Array.isArray(alt.vorgerueckt) ? alt.vorgerueckt : []), { ab: eintrag.ab, von: vorAb, am: heute }].slice(-10);
+      }
+      if (!alt.berichtigung) delete alt.vorgerueckt;
       // Runde 7: H18 – wer „Gilt ab" ändert, sagt es zuletzt: hinter andere
       // Einträge desselben Tages, wie probeDosen rechnet.
       if (verschoben) s.dosen.push(...s.dosen.splice(s.dosen.indexOf(alt), 1));
@@ -1397,7 +1426,8 @@ function entscheidungNachEigener(stand, wert, heute) {
  */
 function vermerkPraxisDanach(s, befundId, heute, vorher = null) {
   if (typeof dz.praxisDanachVermerken === 'function') { dz.praxisDanachVermerken(s, befundId, heute, vorher); return; }
-  s.nachfragen = s.nachfragen.filter((n) => !(n.art === dz.PRAXIS_DANACH && n.bezug === befundId));
+  // Runde 8 – Nachprüfung (R4): Vermerke anderer Änderungen (mit Kennung) bleiben stehen.
+  s.nachfragen = s.nachfragen.filter((n) => !(n.art === dz.PRAXIS_DANACH && n.bezug === befundId && (n.antwort === 'nein' || !n.dosis)));
   s.nachfragen.push({ id: sp.kennung(), art: dz.PRAXIS_DANACH, bezug: befundId, antwort: 'ja', am: heute });
 }
 /*
@@ -1636,14 +1666,25 @@ function laborAbsenden(id, f, heute) {
      * Entscheidung danach, js/dosis.js vermerkFuer). Vorher kam die Frage bei
      * jedem weiteren Speichern des Befunds wieder, auch für eine Notiz. Zu
      * einer neuen eigenen Änderung (andere Kennung) kommt sie wieder; eine
-     * geänderte Menge löscht den Vermerk (dosisAbsenden).
+     * geänderte Menge löscht den Vermerk (dosisAbsenden; ein „ja" verfällt
+     * dort, F1-2586).
      * Runde 8 – Nachbesserung 2: ohne wartende Änderung (etwa „selbst
      * geändert" ohne Eintrag) ein Vermerk ohne Kennung – sonst käme die Frage
      * dort wieder bei jedem Speichern.
      */
     const schonVerneint = stand.nachfragen.some((n) => n.art === dz.PRAXIS_DANACH && n.bezug === bezug.id && n.antwort === 'nein'
       && (wartend ? n.dosis === wartend.d.id : !n.dosis));
-    if (!schonVerneint && praxisDanach !== 'ja' && praxisDanach !== 'nein') {
+    /*
+     * Runde 8 – Nachprüfung (R1): Nach „Die Dosis wird geändert" wartet die
+     * Karte auf die neue Dosis der Praxis, auch wenn die Entscheidung schon als
+     * „danach" vermerkt ist (Vermerk „ja" mit der Angabe „geändert" für genau
+     * diese Änderung). Die Rückfrage klärt dann nichts – „Ja, danach" schriebe
+     * denselben Vermerk, und sie käme bei jedem Speichern wieder. Es fehlt die
+     * neue Dosis (D0.5 bittet darum), nicht die Antwort.
+     */
+    const schonDanach = Boolean(wartend) && bezug.praxis === 'geaendert' && stand.nachfragen.some((n) => n.art === dz.PRAXIS_DANACH && n.bezug === bezug.id
+      && n.antwort === 'ja' && n.dosis === wartend.d.id && n.am === bezug.praxisAm && (!n.praxis || n.praxis === 'geaendert'));
+    if (!schonVerneint && !schonDanach && praxisDanach !== 'ja' && praxisDanach !== 'nein') {
       const wortlaut = { bleibt: 'Die Dosis bleibt so', geaendert: 'Die Dosis wird geändert', nachmessen: 'Erst nachmessen' }[praxis];
       // Runde 8 – Nachbesserung 2: eine geplante eigene Änderung mit dem Tag ihres Eintrags und ihrem Beginn.
       const frage = !wartend ? 'Hat die Praxis das gesagt, nachdem Sie die Dosis selbst geändert hatten?'
@@ -1682,8 +1723,10 @@ function laborAbsenden(id, f, heute) {
     s.labor.sort((a, b) => a.datum.localeCompare(b.datum));
     if (vermerkt && befundId) vermerkPraxisDanach(s, befundId, heute, praxisVorher);
     // Runde 8 – Nachbesserung (D): die Antwort „Nein, das war vorher" merken (ein „ja"-Vermerk zu diesem Befund bleibt unberührt).
+    // Runde 8 – Nachprüfung (R4): je Änderung ein Vermerk – ersetzt wird nur das „Nein" zu derselben Änderung.
     if (verneint && befundId) {
-      s.nachfragen = s.nachfragen.filter((n) => !(n.art === dz.PRAXIS_DANACH && n.bezug === befundId && n.antwort === 'nein'));
+      s.nachfragen = s.nachfragen.filter((n) => !(n.art === dz.PRAXIS_DANACH && n.bezug === befundId && n.antwort === 'nein'
+        && (verneint.dosis ? n.dosis === verneint.dosis : !n.dosis)));
       s.nachfragen.push({ id: sp.kennung(), art: dz.PRAXIS_DANACH, bezug: befundId, antwort: 'nein', am: heute, ...(verneint.dosis ? { dosis: verneint.dosis } : {}) });
     }
   });

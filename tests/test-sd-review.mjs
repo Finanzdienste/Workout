@@ -4342,4 +4342,60 @@ for (const fall of ['fT4 im zweiten Fenster', 'im zweiten Fenster gelöscht']) {
   check(angabe.test(await r6Bericht()), 'Runde 8 N2 „Nein" mit Anordnung: nach „Ja" zu b2 nennt der Bericht die Angabe der Patientin weiter');
 }
 
+// ---------------------------------------------------------------- Nachprüfung der Runde 8 (R1, P1): „Die Dosis wird geändert" ohne neue Dosis der Praxis danach
+//
+// Seed 7870 (P1): 88 µg (Praxis), Befund von gestern; eingetragen ist die
+// geplante eigene Erhöhung auf 125 µg ab T+7 (Praxis: Nein) – die Karte wartet
+// (Tage). Karte → „Die Praxis hat entschieden → Die Dosis wird geändert" →
+// Formular der Praxis: 50 µg ab T+1. Die eigene 125 µg bleibt stehen und
+// beginnt NACH der neuen Dosis der Praxis. Vorher galt „geändert" als
+// Entscheidung zu genau dieser eigenen Menge: Karte „Kein besonderer Anlass",
+// X3 ohne Frist, „Heute" ohne X3 und ohne 112-Zeile – auch ab dem Starttag
+// (das 2,5-Fache der verordneten Menge). Jetzt X3 mit Frist auf Karte und
+// „Heute", wie in 7029062.
+{
+  const start = plus(TAG, 7);
+  await laden(stand({
+    profil: { herz: 'nein' },
+    dosen: [r7Dosis('d1', plus(TAG, -400), 88, { praxis: true }), r7Dosis('e1', start, 125, { praxis: false, eingetragenAm: plus(TAG, -5) })],
+    labor: [befund('b1', plus(TAG, -1), { tsh: w(0.6, 'mU/l', 0.4, 4) }, { praxis: 'nochnicht', praxisAm: plus(TAG, -1) })],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: plus(TAG, -1) }],
+  }));
+  const vorher = await r8Karte();
+  check(await attr('#dosis-karte', 'data-stufe') === 'tage' && /ändern wollen/.test(vorher) && /heute oder morgen/.test(vorher),
+    'Nachprüfung R1 P1: Vorbedingung – die Karte wartet auf die geplante eigene 125 µg (Tage, „heute oder morgen")');
+  await page.click('#dosis-karte [data-seite="praxis-entschieden"]');
+  await r8Warte(700);
+  await page.click('[data-act="praxis-entscheid"][data-wert="geaendert"]');
+  await r8Warte(500);
+  check(await gibt('form[data-formular="dosis"]'), 'Nachprüfung R1 P1: Vorbedingung – „Die Dosis wird geändert" öffnet das Formular der Praxis');
+  await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '50');
+  await page.fill('form[data-formular="dosis"] input[name=ab]', plus(TAG, 1));
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await r8Warte(900);
+  for (let i = 0; i < 3 && (await gibt('dialog.rueckfrage')); i++) { await r4app.klick('dialog.rueckfrage [data-act="befund-bestaetigen"]'); await r8Warte(900); }
+  const s = await gespeichert();
+  const vermerk = s.nachfragen.filter((n) => n.art === 'praxis_danach');
+  check(s.dosen.some((d) => d.mikrogramm === 50 && d.praxis === true && d.ab === plus(TAG, 1)) && s.dosen.some((d) => d.id === 'e1' && d.mikrogramm === 125),
+    `Nachprüfung R1 P1: Vorbedingung – die neue Dosis der Praxis 50 µg ab ${kurz(plus(TAG, 1))} ist gespeichert, die eigene 125 µg bleibt (${JSON.stringify(s.dosen.map((d) => [d.mikrogramm, d.ab, d.praxis]))})`);
+  check(vermerk.length === 1 && vermerk[0].dosis === 'e1' && vermerk[0].praxis === 'geaendert',
+    `Nachprüfung R1 P1: der Vermerk nennt die wartende Änderung und die Angabe „geändert" (${JSON.stringify(vermerk)})`);
+  const karte = await r8Karte();
+  check(['tage', 'heute'].includes(await attr('#dosis-karte', 'data-stufe')) && /mehr als ein üblicher Schritt/.test(karte) && /heute oder morgen/.test(karte) && !/Wusste die Praxis das bei ihrer Entscheidung nicht/.test(karte),
+    `Nachprüfung R1 P1: die Karte behält X3 mit Frist zur eigenen 125 µg – die neue Dosis der Praxis liegt davor (Stufe ${await attr('#dosis-karte', 'data-stufe')}: „${karte.slice(0, 220)}")`);
+  await page.click('#reiter-heute');
+  const x3Heute = page.locator('#ansicht [data-regel="X3"]');
+  check(await x3Heute.count() === 1 && /mehr als ein üblicher Schritt/.test(await x3Heute.innerText()) && await x3Heute.locator('a[href="tel:112"]').count() === 1,
+    `Nachprüfung R1 P1: „Heute" nennt X3 mit der 112-Zeile (${await x3Heute.count()} X3-Hinweis)`);
+  // Am Starttag der eigenen 125 µg, ohne weitere Eingabe.
+  await laden(s, { tag: start });
+  const amStart = await r8Karte();
+  check(['tage', 'heute'].includes(await attr('#dosis-karte', 'data-stufe')) && /geändert haben/.test(amStart) && /bisherige Menge/.test(amStart),
+    `Nachprüfung R1 P1: am Starttag X3 mit Frist („… nehmen Sie bis dahin wieder Ihre bisherige Menge", Stufe ${await attr('#dosis-karte', 'data-stufe')})`);
+  await page.click('#reiter-heute');
+  const x3Start = page.locator('#ansicht [data-regel="X3"]');
+  check(await x3Start.count() === 1 && /bisherige Menge/.test(await x3Start.innerText()) && await x3Start.locator('a[href="tel:112"]').count() === 1,
+    `Nachprüfung R1 P1: am Starttag nennt „Heute" X3 mit der 112-Zeile (${await x3Start.count()} X3-Hinweis)`);
+}
+
 await ende();

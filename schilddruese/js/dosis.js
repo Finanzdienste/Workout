@@ -220,8 +220,20 @@ const wochenText = (frist) => (frist === 56 ? 'etwa 8 Wochen' : '6 bis 8 Wochen'
  * D0.6 auf derselben Karte „etwa 8 Wochen" (Runde 4: E17).
  */
 const einpendelnAb = (stand, ab) => Math.max(einpendeln(stand, ab), einpendeln(stand, tageWeiter(ab, 56)));
-/** Liegt ein TSH-Befund vor, der nach der Einpendelzeit von `d` zeigt, wie die Menge wirkt? */
-const kontrollwertDa = (stand, d, heute) => stand.labor.some((l) => l.tsh && l.datum <= heute && tageZwischen(d.ab, l.datum) >= einpendelnAb(stand, d.ab));
+/*
+ * Liegt ein TSH-Befund vor, der nach der Einpendelzeit von `d` zeigt, wie die Menge wirkt?
+ *
+ * Runde 8 – Nachprüfung (R3): nur ein Befund, den die App selbst für
+ * verwertbar hält – dieselbe Plausibilität (plausibel), mit der die Karte
+ * D0.3 „Vorher gibt die App keine Richtung" zeigt. Vorher beendete auch ein
+ * ungewöhnlicher Wert die eigene Änderung (D11): TSH 1,5 fünf Tage nach TSH
+ * 25 bei gleicher Dosis (ein Komma- oder Einheitenfehler?) – nach einer
+ * eigenen Vervierfachung auf 200 µg gab es kein X3 mehr, „Heute" schwieg, und
+ * die Karte sagte „Nehmen Sie Ihre Tablette bis dahin genau wie bisher
+ * weiter". Ein bestätigter Wert (`bestaetigt`) zählt wie bisher.
+ */
+const kontrollwertDa = (stand, d, heute) => stand.labor.some((l) => l.tsh && l.datum <= heute && tageZwischen(d.ab, l.datum) >= einpendelnAb(stand, d.ab)
+  && plausibel(l, stand));
 
 /** X3 (4): mehr als ein üblicher Schritt – über 25 µg oder über ein Viertel der bisherigen Menge am Tag. */
 function grosserSchritt(tdNeu, tdAlt) {
@@ -321,8 +333,44 @@ export const PRAXIS_DANACH = 'praxis_danach';
  * Frist, „Heute" leer; am Starttag sprang die Karte ohne Eingabe auf „Tage".
  * Nur für künftige Änderungen: Eine laufende Änderung nennt die Karte vor
  * jeder geplanten – trägt die Entscheidung den Vermerk einer anderen, war die
- * laufende schon entschieden, und ihr Vermerk wurde ersetzt (ein Befund
- * trägt einen Vermerk „ja").
+ * laufende schon entschieden. Ihr eigener Vermerk bleibt dabei stehen (R4,
+ * unten); vorher ersetzte ihn der neue („ein Befund trägt einen Vermerk
+ * „ja“"), und die laufende galt wieder als offen.
+ * Runde 8 – Nachprüfung (F1-2586): Als Vermerk einer anderen Änderung zählt
+ * auch einer mit der Antwort „verfallen" (F1 im Dosis-Formular: Die Menge
+ * jener Änderung wurde danach geändert). Für sie selbst zählt er nicht mehr,
+ * er belegt aber weiter, dass die Entscheidung ihr galt. Vorher löschte F1
+ * ihn: Danach galt die Entscheidung als „nach dem Eintrag" einer vorher
+ * eingetragenen geplanten Änderung (H8) – deren Frist war weg, „Heute"
+ * schwieg, am Starttag sprang die Karte ohne Eingabe auf „Tage".
+ *
+ * Runde 8 – Nachprüfung (R1), schränkt K6, K1, „C gegen K6" und H8 ein:
+ *   (a) „Die Dosis wird geändert" zählt für eine eigene Änderung (laufend oder
+ *       geplant) nur, wenn nach ihr in dosenDieGalten eine neue Dosis der
+ *       Praxis steht (Praxis: Ja, keine Berichtigung), eingetragen am Tag der
+ *       Entscheidung oder später – sie löst die eigene Änderung ab oder
+ *       bestätigt deren Menge. Sonst zählt sie für diese Änderung weder über
+ *       den Vermerk noch über das Datum: X3/B2 behalten die Frist, auf der
+ *       Karte, auf „Heute" (mit der 112-Zeile) und im Gesamtbild – auch direkt
+ *       nach „Die Dosis wird geändert", solange die neue Dosis noch fehlt. Die
+ *       Bitte um die neue Dosis (D0.5) steht daneben wie bisher. Vorher galt
+ *       die Entscheidung als „danach entschieden", auch wenn die neue Dosis
+ *       gelöscht, auf „Praxis: Nein" gestellt oder vor eine eigene Erhöhung
+ *       gelegt war: X3 ohne Frist („Wusste die Praxis das …"), „Heute" ohne
+ *       X3 – zu einer Menge, der die Praxis eben widersprochen hatte.
+ *   (b) „Erst nachmessen" zu einer Änderung, die am Tag der Entscheidung noch
+ *       nicht begonnen hatte (Beginn nach diesem Tag), zählt bis zu ihrem
+ *       Starttag (die Praxis kennt den Plan – B2 ohne Frist), ab dem Starttag
+ *       nicht mehr: Die Praxis wollte erst messen, die Änderung hat vorher
+ *       begonnen – X3/B2 mit Frist. Für eine schon laufende Änderung und für
+ *       „Die Dosis bleibt so" bleibt es bei K1 und J7.
+ *   Maßgeblich ist die Angabe, zu der der Vermerk gehört (`praxis` am
+ *   Vermerk, R4); ohne sie (ältere Vermerke) und ohne Vermerk die Angabe am
+ *   Befund. Trägt die Entscheidung von heute den Vermerk einer anderen
+ *   Änderung und hat diese Änderung selbst einen Vermerk zum Befund, der nach
+ *   (a)/(b) nicht zählt, sagt die heutige Angabe über sie nichts – wie K1/F2:
+ *   Sonst machte ein „bleibt" zur geplanten Änderung die verworfene laufende
+ *   wieder zur entschiedenen.
  * Runde 8 – Nachbesserung 2 (F1-Rest): Eine Entscheidung gilt nur der
  * Menge, die an ihrem Tag in der App stand. Zur Menge von `dosisId` gehören
  * auch die gleichen Einträge, die auf ihn folgen (gleicheMengeDanach –
@@ -340,7 +388,8 @@ function entscheidungenNach(stand, heute, seit, { gleicherTag = false, dosisId =
   if (!seit) return [];
   const juengster = dosisBefund(stand, heute);
   const eintrag = dosisId ? stand.dosen.find((d) => d.id === dosisId) || null : null;
-  const lauf = eintrag ? gleicheMengeDanach(stand, eintrag, heute) : [];
+  const galten = eintrag ? dosenDieGalten(stand, heute) : [];
+  const lauf = eintrag ? gleicheMengeDanach(stand, eintrag, heute, galten) : [];
   // Ein Eintrag dieser Menge, der am Tag `am` schon galt, wurde danach (neu)
   // eingetragen – mit `amTag` auch an diesem Tag selbst (H8: die Reihenfolge
   // am selben Tag ist offen, die Entscheidung zählt dann als vorher).
@@ -351,14 +400,29 @@ function entscheidungenNach(stand, heute, seit, { gleicherTag = false, dosisId =
   // Am Tag der Entscheidung lag schon ein neuerer TSH-Befund in der App vor
   // (C) – seit seinem Tag des Eintrags, wenn bekannt, sonst seit seinem Datum.
   const ueberholt = (b) => stand.labor.some((l) => l !== b && l.tsh && l.datum > b.datum && (istISO(l.eingetragenAm) ? l.eingetragenAm : l.datum) <= b.praxisAm);
+  // R1 (a): eine neue Dosis der Praxis nach `eintrag`, eingetragen ab `tag`
+  // (ältere Einträge ohne Tag des Eintrags: ab ihrem „Gilt ab").
+  const danach = galten.includes(eintrag) ? galten.slice(galten.indexOf(eintrag) + 1) : [];
+  const neueDosisAb = (tag) => danach.some((x) => x.praxis === true && !x.berichtigung && !istBerichtigung(stand, x, heute)
+    && (istISO(x.eingetragenAm) ? x.eingetragenAm : x.ab) >= tag);
+  // R1: Zählt die Angabe `wert` vom Tag `tag` für `eintrag` nicht? (a) „geändert" ohne neue Dosis der
+  // Praxis danach, (b) „Erst nachmessen" zu einer Änderung, die nach diesem Tag begann – ab ihrem Starttag.
+  const zaehltNicht = (wert, tag) => Boolean(eintrag) && ((wert === 'geaendert' && !neueDosisAb(tag))
+    || (wert === 'nachmessen' && eintrag.ab > tag && eintrag.ab <= heute));
   return stand.labor.filter((b) => {
     if (!(praxisHatErklaert(b) && b.praxisAm && b.praxisAm <= heute)) return false;
     // C gegen K6, K1: ein Vermerk für genau diese Änderung – auch von einem früheren Tag dieses Befunds.
-    if (dosisId && stand.nachfragen.some((n) => n.art === PRAXIS_DANACH && n.bezug === b.id && n.antwort === 'ja'
-      && n.dosis === dosisId && istISO(n.am) && n.am <= b.praxisAm && giltNoch(n))) return true;
-    const vermerk = vermerkFuer(stand, b, dosisId);
-    // K1/F2: Die Entscheidung trägt nur den Vermerk einer anderen Änderung – für eine geplante zählt sie nicht.
-    if (eintrag && eintrag.ab > heute && !vermerk && vermerkFuer(stand, b)) return false;
+    // R1: mit der Angabe, zu der er gehört.
+    const eigene = dosisId ? stand.nachfragen.filter((n) => n.art === PRAXIS_DANACH && n.bezug === b.id && n.antwort === 'ja'
+      && n.dosis === dosisId && istISO(n.am) && n.am <= b.praxisAm && giltNoch(n)) : [];
+    if (eigene.some((n) => !zaehltNicht(n.praxis || b.praxis, n.am))) return true;
+    // R1: die Angabe, die der Befund heute trägt, vom Tag seiner Entscheidung (K6, H8).
+    if (zaehltNicht(b.praxis, b.praxisAm)) return false;
+    const roh = vermerkFuer(stand, b, dosisId);
+    const vermerk = roh && !zaehltNicht(roh.praxis || b.praxis, roh.am) ? roh : null;
+    // K1/F2: Die Entscheidung trägt nur den Vermerk einer anderen Änderung – für eine geplante zählt sie
+    // nicht, ebenso wenig für eine, deren eigener Vermerk zu diesem Befund nach R1 nicht zählt.
+    if (eintrag && !vermerk && (eintrag.ab > heute || eigene.length) && vermerkAnderer(stand, b, dosisId)) return false;
     if (!vermerk && ueberholt(b)) return false;
     // F1-Rest: Die Menge stand am Tag der Entscheidung noch nicht so in der App.
     if (neuNach(b.praxisAm, true)) return false;
@@ -372,8 +436,7 @@ function entscheidungenNach(stand, heute, seit, { gleicherTag = false, dosisId =
  * folgen und dieselbe Menge am Tag haben (doppelt oder anderes Präparat) –
  * mit `d` zusammen die Menge, die ab `d` gilt. Nur Einträge, die galten.
  */
-function gleicheMengeDanach(stand, d, heute) {
-  const galten = dosenDieGalten(stand, heute);
+function gleicheMengeDanach(stand, d, heute, galten = dosenDieGalten(stand, heute)) {
   const i = galten.indexOf(d);
   const td = sp.tagesdosis(d);
   const lauf = [];
@@ -393,6 +456,17 @@ function praxisNachEigener(stand, heute, seit, optionen = {}) {
 function vermerkFuer(stand, b, dosisId = null) {
   return stand.nachfragen.find((n) => n.art === PRAXIS_DANACH && n.bezug === b.id && n.antwort === 'ja' && n.am === b.praxisAm
     && (!dosisId || !n.dosis || n.dosis === dosisId)) || null;
+}
+/*
+ * Runde 8 – Nachprüfung (R4, F1-2586): Trägt die Entscheidung vom Tag, den
+ * der Befund trägt, den Vermerk einer ANDEREN Änderung als `dosisId` – mit
+ * „ja" oder „verfallen" (F1: deren Menge wurde danach geändert)? Dann kam sie,
+ * während die Karte auf jene wartete (K1/F2). Seit R4 kann ein Befund daneben
+ * Vermerke anderer Änderungen von früheren Tagen tragen – die zählen hier nicht.
+ */
+function vermerkAnderer(stand, b, dosisId) {
+  return stand.nachfragen.some((n) => n.art === PRAXIS_DANACH && n.bezug === b.id && ['ja', 'verfallen'].includes(n.antwort)
+    && n.am === b.praxisAm && Boolean(n.dosis) && n.dosis !== dosisId);
 }
 
 /*
@@ -426,6 +500,21 @@ export function entscheidungNachEigener(stand, wert, heute) {
  * den Vermerk an sie statt an die geplante.
  * Runde 8 – Nachbesserung 2 (J7b): die wartende Änderung über
  * wartendeAenderung – dieselbe, die das Befund-Formular in seiner Rückfrage nennt.
+ *
+ * Runde 8 – Nachprüfung (R4): Ein Befund behält je Änderung einen Vermerk.
+ * Ersetzt wird nur der Vermerk derselben Änderung (gleiche Kennung; ohne
+ * wartende Änderung der ohne Kennung) – samt einem „verfallen" (F1) zu ihr – und die
+ * Antworten „Nein, das war vorher" zu diesem Befund (sie galten der Angabe,
+ * die jetzt ersetzt ist). Vermerke anderer Änderungen bleiben stehen. Vorher
+ * löschte jede Entscheidung alle Vermerke des Befunds: War die laufende
+ * eigene Änderung E entschieden und wartete die Karte danach auf eine
+ * geplante G, verlor E mit der Entscheidung zu G ihren Vermerk – kam die
+ * erste am Tag, seit dem E bekannt ist, galt E wieder als offen, und die
+ * Karte riet gegen die Praxis „… nehmen Sie bis dahin wieder Ihre bisherige
+ * Menge"; jede weitere Entscheidung schob den Vermerk zwischen E und G hin
+ * und her. Der Vermerk merkt sich dazu die Angabe der Praxis (`praxis`):
+ * Sagt sie später zu G „Die Dosis wird geändert", bleibt das „bleibt" zu E,
+ * was es war (R1). js/speicher.js (normStand) behält `dosis` und `praxis`.
  */
 export function praxisDanachVermerken(s, befundId, heute, vorher = null) {
   const b = s.labor.find((l) => l.id === befundId);
@@ -434,8 +523,10 @@ export function praxisDanachVermerken(s, befundId, heute, vorher = null) {
   const ohne = { ...s, labor: s.labor.map((l) => (l === b ? { ...l, ...davor } : l)) };
   const wartend = wartendeAenderung(ohne, heute);
   const dosisId = wartend ? wartend.d.id : null;
-  s.nachfragen = s.nachfragen.filter((n) => !(n.art === PRAXIS_DANACH && n.bezug === b.id));
-  s.nachfragen.push({ id: sp.kennung(), art: PRAXIS_DANACH, bezug: b.id, antwort: 'ja', am: heute, ...(dosisId ? { dosis: dosisId } : {}) });
+  s.nachfragen = s.nachfragen.filter((n) => !(n.art === PRAXIS_DANACH && n.bezug === b.id
+    && (n.antwort === 'nein' || (dosisId ? n.dosis === dosisId : !n.dosis))));
+  const angabe = ['bleibt', 'geaendert', 'nachmessen'].includes(b.praxis) ? { praxis: b.praxis } : {};
+  s.nachfragen.push({ id: sp.kennung(), art: PRAXIS_DANACH, bezug: b.id, antwort: 'ja', am: heute, ...(dosisId ? { dosis: dosisId } : {}), ...angabe });
 }
 /*
  * Runde 8 – Nachbesserung 2 (J7b): die Änderung, auf die die Karte nach
@@ -476,6 +567,10 @@ export function wartendeAenderung(stand, heute) {
  * Speichern des Befunds – auch nur einer Notiz – kam die J7b-Frage wieder.
  * praxisDanachZuruecksetzen nimmt die Liste (ein einzelner Vermerk aus
  * älterem Code geht auch).
+ * Runde 8 – Nachprüfung (R4): Seit ein Befund je Änderung einen Vermerk
+ * behält, sind es oft mehr als zwei – die Rücknahme stellt genau die Liste von
+ * vor der Entscheidung wieder her: Der Vermerk einer früher entschiedenen
+ * Änderung bleibt, der der zurückgenommenen Entscheidung geht.
  */
 export function praxisDanachMerken(s, befundId) {
   return s.nachfragen.filter((n) => n.art === PRAXIS_DANACH && n.bezug === befundId).map((n) => ({ ...n }));

@@ -3527,6 +3527,8 @@ const FELDER_FASSUNG_5 = ['befinden', 'befinden[].beschwerden', 'befinden[].datu
   'dosen[].ab', 'dosen[].berichtigtAm', 'dosen[].berichtigung', 'dosen[].eingetragenAm', 'dosen[].id', 'dosen[].mikrogramm',
   // Runde 8: J1/J4 (Fassung 5) – der Eintrag steht am selben Tag NEBEN dem genannten (Menge davor).
   'dosen[].nach', 'dosen[].notiz', 'dosen[].praeparat', 'dosen[].praxis', 'dosen[].statt',
+  // Runde 8 – Nachprüfung (R2, Fassung 5): jedes Vorrücken von „Gilt ab" einer Berichtigung (Bereich und Tag).
+  'dosen[].vorgerueckt', 'dosen[].vorgerueckt[].ab', 'dosen[].vorgerueckt[].am', 'dosen[].vorgerueckt[].von',
   'dosen[].tabletten', 'einnahmen', 'einstellungen', 'einstellungen.erinnerung', 'einstellungen.farbe', 'einstellungen.hinweisTablette',
   // Rückkanal (Nov. 2026): der Schalter für die tägliche Meldung – noch Fassung 4, sie ist nicht ausgeliefert.
   'einstellungen.rueckkanal', 'einstellungen.schrift', 'fragen',
@@ -3542,7 +3544,8 @@ const FELDER_FASSUNG_5 = ['befinden', 'befinden[].beschwerden', 'befinden[].datu
   // Nachprüfung zu Runde 7 (N1): der Tag des Eintrags je weiterem Wert.
   'labor[].werteAm', 'labor[].werteAm.natrium', 'letzteSicherung', 'mittel', 'mittelAbstand', 'mittelWechsel', 'mittelWechsel[].am', 'mittelWechsel[].art', 'mittelWechsel[].id', 'mittelWechsel[].key',
   // Runde 8 (Fassung 5): `anordnung` am „Nein" (H-N1) und `dosis` am Vermerk praxis_danach (J3).
-  'nachfragen', 'nachfragen[].aenderung', 'nachfragen[].am', 'nachfragen[].anordnung', 'nachfragen[].antwort', 'nachfragen[].art', 'nachfragen[].bezug', 'nachfragen[].dosis', 'nachfragen[].id', 'nachfragen[].titel',
+  // Runde 8 – Nachprüfung (R4, Fassung 5): `praxis` am Vermerk praxis_danach – die Angabe, zu der er gehört.
+  'nachfragen', 'nachfragen[].aenderung', 'nachfragen[].am', 'nachfragen[].anordnung', 'nachfragen[].antwort', 'nachfragen[].art', 'nachfragen[].bezug', 'nachfragen[].dosis', 'nachfragen[].id', 'nachfragen[].praxis', 'nachfragen[].titel',
   'profil', 'profil.begruesst', 'profil.behandelt', 'profil.bundesland', 'profil.diabetes',
   // Begrüßung/Heute (Nov. 2026): welche Fassung des Begrüßungsfensters angezeigt wurde, mit der Seite „Ihre Daten".
   'profil.einfuehrung', 'profil.einfuehrungDaten', 'profil.geburtsjahr', 'profil.herz', 'profil.hypophyseOderNiedrig',
@@ -3562,10 +3565,12 @@ const R7_VOLL = {
   mittelWechsel: [{ id: 'w1', key: 'kaffee', art: 'beginn', am: '2026-01-01' }],
   uhrWechsel: [{ id: 'u1', am: '2026-01-01', von: '07:00', nach: '11:00' }],
   nachfragen: [{ id: 'n1', art: 'wd4', bezug: 'd1-14', antwort: 'ja', am: '2026-01-01', aenderung: 'erhoehung' }, { id: 'n2', art: 'karte_gezeigt', bezug: 'b1', antwort: 'mehr', am: '2026-01-01', titel: 'T' },
-    { id: 'n3', art: 'praxis_danach', bezug: 'b1', antwort: 'ja', am: '2026-01-05', dosis: 'd1' }, { id: 'n4', art: 'dosis_stimmt', bezug: 'b1', antwort: 'nein_75', am: '2026-01-06', anordnung: 'd1' }],
+    // Runde 8 – Nachprüfung (R4): der Vermerk mit der Angabe, zu der er gehört.
+    { id: 'n3', art: 'praxis_danach', bezug: 'b1', antwort: 'ja', am: '2026-01-05', dosis: 'd1', praxis: 'bleibt' }, { id: 'n4', art: 'dosis_stimmt', bezug: 'b1', antwort: 'nein_75', am: '2026-01-06', anordnung: 'd1' }],
   // Rückkanal (Nov. 2026): mit dem Schalter der täglichen Meldung.
   einstellungen: { erinnerung: '07:00', schrift: 'gross', farbe: 'hell', hinweisTablette: true, rueckkanal: false },
-  dosen: [r6Dosis('d1', '2024-01-01', 75, { praxis: true, eingetragenAm: '2024-01-03' }), r7Ber('d2', '2025-01-01', 88, 'd1', '2025-02-01'),
+  // Runde 8 – Nachprüfung (R2): die Berichtigung mit einem Vorrücken von „Gilt ab".
+  dosen: [r6Dosis('d1', '2024-01-01', 75, { praxis: true, eingetragenAm: '2024-01-03' }), r7Ber('d2', '2025-01-01', 88, 'd1', '2025-02-01', { vorgerueckt: [{ ab: '2025-01-01', von: '2025-02-01', am: '2025-02-10' }] }),
     r6Dosis('d3', '2024-01-01', 88, { praxis: true, eingetragenAm: '2024-01-01', nach: 'd1' })],
   einnahmen: { '2026-01-01': { uhr: '07:00' } },
   // Geändert in Runde 7 – weitere Werte (H4, H15, H21): Der Befund trägt jetzt
@@ -4910,7 +4915,12 @@ const r8AbWert = (html) => (/name="ab"[^>]*value="([^"]*)"/.exec(html) || [])[1]
       const r = r8Senden(e.id, r8Felder(T0, 75, { praxis: 'nein' }), T2, { bestaetigt: 'ja' });
       st = spR5.getStand();
       const g = nbGrund(st, T2);
-      check('F1 Menge des Eintrags auf 75 µg geändert: der Vermerk für ihn ist weg, Karte X3/B2 MIT Frist, „Heute" nennt X3/B2', r.ok && !nbVermerke(st).length && !!g && g.stufe === 'tage' && /X3|B2/.test(r8HinweisIds(st, T2)), `${JSON.stringify(nbVermerke(st))} ${g ? `${g.id}/${g.stufe}` : '-'} ${r8HinweisIds(st, T2)}`);
+      // Runde 8 – Nachprüfung (F1-2586): „der Vermerk ist weg" schrieb das Löschen
+      // fest, das K1/F2 den Beleg nahm, dass die Entscheidung dieser Änderung galt.
+      // Gewollt ist nur, dass er für sie nicht mehr zählt: Er bleibt, „verfallen".
+      check('F1 Menge des Eintrags auf 75 µg geändert: der Vermerk für ihn zählt nicht mehr („verfallen", kein „ja"), Karte X3/B2 MIT Frist, „Heute" nennt X3/B2',
+        r.ok && !nbVermerke(st).some((n) => n.antwort === 'ja') && nbVermerke(st).length === 1 && nbVermerke(st)[0].antwort === 'verfallen' && nbVermerke(st)[0].dosis === e.id
+        && !!g && g.stufe === 'tage' && /X3|B2/.test(r8HinweisIds(st, T2)), `${JSON.stringify(nbVermerke(st))} ${g ? `${g.id}/${g.stufe}` : '-'} ${r8HinweisIds(st, T2)}`);
       // Gegenprobe: nur die Notiz geändert – der Vermerk bleibt, der Grund bleibt ohne Frist (J3/K1).
       r8Laden(r8Stand({ dosen: [r8Dosis('d1', '2025-01-01', 100, { praxis: true })], labor: [r8Befund('b1', B, 2, { praxis: 'nochnicht', praxisAm: plus(T0, -9) })], nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: plus(T0, -9) }] }));
       r8Senden(null, r8Felder(T0, 150, { praxis: 'nein' }), T0, { bestaetigt: 'ja' });
@@ -5304,6 +5314,164 @@ const r8AbWert = (html) => (/name="ab"[^>]*value="([^"]*)"/.exec(html) || [])[1]
       const rg = r8Senden(null, r8Felder('2026-03-01', 100, { praxis: 'ja' }), R8, {});
       const k2 = rg.fehler && rg.fehler.ab && rg.fehler.ab.knopf;
       check('H-N3 Gegenprobe: „Vorhandenen Eintrag ändern" (gleiche Dosis) trägt kein `merken` – dort fragt die App weiter „Verwerfen?"', !!k2 && k2.text === 'Vorhandenen Eintrag ändern' && !k2.merken, JSON.stringify(rg.fehler));
+    });
+
+    // ================================================================ Nachprüfung der Runde 8 (R1, F1-2586, R2)
+    // Die bestätigten Rückschritte gegenüber 7029062, über die echten
+    // Formularwege nachgestellt. Jede Prüfung außer Vorbedingungen und
+    // Gegenproben scheiterte vor der Korrektur (Stand a065a4a).
+    const npFrist = (st, heute) => { const g = nbGrund(st, heute); return Boolean(g && ['tage', 'heute'].includes(g.stufe)); };
+    const npHeute = (st, heute) => dzR7.dosisHinweise(st, heute).some((h) => ['X3', 'B2'].includes(h.id) && !h.still);
+    const npInfo = (st, heute) => {
+      const k = nbKarte(st, heute);
+      const g = nbGrund(st, heute);
+      return `Karte ${k ? k.stufe : '-'} ${g ? `${g.id}/${g.stufe || '-'}: ${g.text.slice(0, 110)}` : 'ohne X3/B2'} | Heute ${r8HinweisIds(st, heute)} | Gesamt ${dzR7.gesamtbildMitDosis(st, heute).stufe}`;
+    };
+    const npZeigtQuelle = (id, heute) => /name="praxis"/.test(afR7.formular('dosis', id, spR5.getStand(), heute).html);
+
+    fall('Nachprüfung R1: „Die Praxis hat entschieden → Die Dosis wird geändert" und das Formular der Praxis', () => {
+      // P1 (Seed 7870): 88 µg seit 2025, die geplante eigene 125 µg ab 03.04.
+      // (eingetragen 27.03.). Am 01.04. „Die Dosis wird geändert", die neue
+      // Dosis der Praxis 50 µg ab 02.04. – vor der eigenen Erhöhung, die
+      // stehen bleibt. Vorher: X3 ohne Frist, „Heute" leer, ab dem Starttag
+      // „Kein besonderer Anlass" zum 2,5-Fachen der verordneten Menge.
+      const T = '2026-03-27';
+      r8Laden(r8Stand({ dosen: [r8Dosis('d1', '2025-01-10', 88, { praxis: true })], labor: [r8Befund('b1', '2026-03-26', 0.6, { praxis: 'nochnicht', praxisAm: '2026-03-26' })] }));
+      const rp = r8Senden(null, r8Felder('2026-04-03', 125, { praxis: 'nein' }), T, {});
+      check('R1 P1 Vorbereitung: geplante eigene 125 µg ab 03.04. – X3 mit Frist', rp.ok && npFrist(spR5.getStand(), T), `${r8Fragen(rp)} ${npInfo(spR5.getStand(), T)}`);
+      r8PraxisEntscheid('b1', 'geaendert', '2026-04-01');
+      const ra = r8Senden(null, r8Felder('2026-04-02', 50, { praxis: 'ja', weg: 'praxis' }), '2026-04-01', {});
+      const st = spR5.getStand();
+      check('R1 P1 Vorbereitung: die neue Dosis der Praxis 50 µg ab 02.04. ist gespeichert, die eigene 125 µg bleibt',
+        ra.ok && st.dosen.some((d) => spR5.tagesdosis(d) === 50 && d.praxis === true) && st.dosen.some((d) => spR5.tagesdosis(d) === 125 && d.praxis === false), `${r8Fragen(ra)} ${r8Dosen(st)}`);
+      for (const tag of ['2026-04-01', '2026-04-03', '2026-04-17']) {
+        check(`R1 P1 am ${tag}: X3 mit Frist zur eigenen 125 µg, „Heute" nennt X3, Gesamtbild „Tage"`,
+          npFrist(st, tag) && npHeute(st, tag) && ['tage', 'heute'].includes(dzR7.gesamtbildMitDosis(st, tag).stufe), npInfo(st, tag));
+      }
+      // Kein Rückfrage-Kreis: Speichern des Befunds (nur eine Notiz) fragt nicht nach „danach" –
+      // die Entscheidung ist schon so vermerkt, es fehlt die neue Dosis der Praxis danach.
+      const vorher = JSON.stringify(nbVermerke(spR5.getStand()));
+      const rb = afR7.absenden('labor', 'b1', r8Labor('2026-03-26', { tsh_wert: '0,6', praxis: 'geaendert', notiz: 'Notiz' }), '2026-04-01');
+      check('R1 Gegenprobe: das Befund-Formular stellt danach keine J7b-Frage im Kreis und ändert den Vermerk nicht', rb.ok && JSON.stringify(nbVermerke(spR5.getStand())) === vorher, JSON.stringify(rb));
+
+      // A (Seed 7523): eigene 200 µg (von 100), „geändert" mit 100 µg der Praxis,
+      // ein neuerer Befund; die 100 µg dann auf „Praxis: Nein" und vor die 200 µg.
+      r8Laden(r8Stand({ profil: { geburtsjahr: 1969 }, dosen: [r8Dosis('d1', '2025-12-28', 100, { praxis: true })], labor: [r8Befund('b1', '2026-04-02', 0.6)] }));
+      r8Senden(null, r8Felder('2026-04-14', 200, { praxis: 'nein' }), '2026-04-14', { bestaetigt: 'ja' });
+      r8PraxisEntscheid('b1', 'geaendert', '2026-04-18');
+      const rp2 = r8Senden(null, r8Felder('2026-04-18', 100, { praxis: 'ja', weg: 'praxis' }), '2026-04-18', {});
+      spR5.aendern((s) => { s.labor.push(r8Befund('b2', '2026-04-18', 6)); });
+      const p = spR5.getStand().dosen.find((d) => d.praxis === true && spR5.tagesdosis(d) === 100 && d.ab === '2026-04-18');
+      check('R1 A Vorbereitung: mit der neuen Dosis der Praxis danach kein X3 mit Frist', rp2.ok && !!p && !npFrist(spR5.getStand(), '2026-04-18'), npInfo(spR5.getStand(), '2026-04-18'));
+      const rn = r8Senden(p.id, r8Felder('2026-04-18', 100, { praxis: 'nein' }), '2026-04-25', {});
+      const rv = r8Senden(p.id, r8Felder('2026-04-04', 100, { praxis: 'nein' }), '2026-04-25', {});
+      const sa = spR5.getStand();
+      check('R1 A: die 100 µg auf „Praxis: Nein" und vor die 200 µg – die eigene Verdopplung hat wieder X3 mit Frist, „Heute" nennt X3',
+        rn.ok && rv.ok && npFrist(sa, '2026-04-25') && npHeute(sa, '2026-04-25'), `${r8Dosen(sa)} | ${npInfo(sa, '2026-04-25')}`);
+    });
+
+    fall('Nachprüfung F1-2586: die geänderte Menge entwertet den Vermerk, löscht ihn aber nicht', () => {
+      // Anordnung 200 µg (25.03.), laufende eigene Senkung E 112,5 µg (03.04.),
+      // geplante eigene G 88 µg (03.05., eingetragen 06.04.). „bleibt" am 07.04.
+      // während die Karte auf E wartet (Vermerk E); dann E auf 200 µg. Vorher
+      // löschte F1 den Vermerk: G verlor die Frist bis zu ihrem Starttag.
+      const H = '2026-04-07';
+      const anfang = () => r8Stand({
+        profil: { geburtsjahr: 1951 },
+        dosen: [r8Dosis('d1', '2025-11-21', 25), r8Dosis('A', '2026-03-25', 200, { praxis: true, eingetragenAm: '2026-03-25' }),
+          r8Dosis('E', '2026-04-03', 112.5, { praxis: false, eingetragenAm: '2026-03-25' }), r8Dosis('G', '2026-05-03', 88, { praxis: false, eingetragenAm: '2026-04-06' })],
+        labor: [r8Befund('b0', '2026-03-07', 0.6)],
+      });
+      r8Laden(anfang());
+      r8PraxisEntscheid('b0', 'bleibt', H);
+      const g0 = nbGrund(spR5.getStand(), H);
+      check('F1-2586 Vorbedingung (K1/F2): nach „bleibt" zu E wartet die Karte mit Frist auf G', !!g0 && !!g0.stufe && /ab 03\.05\.2026/.test(g0.text), npInfo(spR5.getStand(), H));
+      const r = r8Senden('E', r8Felder('2026-04-03', 200, { praxis: 'nein' }), H, { bestaetigt: 'ja' });
+      const st = spR5.getStand();
+      const g = nbGrund(st, H);
+      check('F1-2586: nach dem Ändern der Menge von E behält G X3 mit Frist, „Heute" nennt G', r.ok && !!g && !!g.stufe && /ab 03\.05\.2026/.test(g.text) && npHeute(st, H), npInfo(st, H));
+      check('F1-2586: der Vermerk zu E bleibt als Beleg, „verfallen" – er zählt für E nicht mehr', nbVermerke(st).length === 1 && nbVermerke(st)[0].dosis === 'E' && nbVermerke(st)[0].antwort === 'verfallen', JSON.stringify(nbVermerke(st)));
+      const geladen = r8NeuGeladen();
+      const gn = nbGrund(geladen, H);
+      check('F1-2586 Neuladen: der Vermerk bleibt „verfallen", G behält die Frist', nbVermerke(geladen).some((n) => n.antwort === 'verfallen' && n.dosis === 'E') && !!gn && !!gn.stufe, `${JSON.stringify(nbVermerke(geladen))} | ${npInfo(geladen, H)}`);
+      // Gegenprobe (Zweck von F1): E auf eine andere neue Menge – E wartet wieder mit Frist.
+      r8Laden(anfang());
+      r8PraxisEntscheid('b0', 'bleibt', H);
+      r8Senden('E', r8Felder('2026-04-03', 150, { praxis: 'nein' }), H, { bestaetigt: 'ja' });
+      const ge = nbGrund(spR5.getStand(), H);
+      check('F1-2586 Gegenprobe: E auf 150 µg – zur neuen Menge wieder X3/B2 mit Frist', !!ge && !!ge.stufe && /ab 03\.04\.2026/.test(ge.text), npInfo(spR5.getStand(), H));
+      // Gegenprobe: „Nein, das war vorher" zu E fällt mit der neuen Menge weg wie bisher.
+      r8Laden(anfang());
+      spR5.aendern((s) => { s.nachfragen.push({ id: 'nn', art: dzR7.PRAXIS_DANACH, bezug: 'b0', antwort: 'nein', am: H, dosis: 'E' }); });
+      r8Senden('E', r8Felder('2026-04-03', 150, { praxis: 'nein' }), H, { bestaetigt: 'ja' });
+      check('F1-2586 Gegenprobe: ein „Nein, das war vorher" zu E fällt beim Ändern der Menge weg', !nbVermerke(spR5.getStand()).length, JSON.stringify(nbVermerke(spR5.getStand())));
+    });
+
+    fall('Nachprüfung R2: „Gilt ab" einer Berichtigung nach vorn – der neu überdeckte Bereich ist an diesem Tag gesagt', () => {
+      // Seed 1077: 175 µg ab 18.03. (eingetragen 29.03.), Befund 27.03.; „Nein,
+      // ich nehme etwas anderes"; 31.03. 100 µg „ab heute" (Berichtigung),
+      // gleich danach (oder am 02.04.) 112,5 µg ab 17.03. auf Anweisung der
+      // Praxis; 06.04. „Gilt ab" der 100 µg auf 12.03., wie die Karte rät.
+      // Ihre letzte Aussage: seit 12.03. 100 µg. Vorher blieb die 112,5 µg die
+      // aktuelle Dosis („Dosis damals 112,5", W-D4 „erhöht", X3b weg).
+      const lauf = ({ tagA = '2026-03-31', praxis = true } = {}) => {
+        r8Laden(r8Stand({
+          dosen: [r8Dosis('d1', '2026-03-18', 175, { eingetragenAm: '2026-03-29' })],
+          labor: [r8Befund('b0', '2026-02-23', 12, { praxis: 'bleibt', praxisAm: '2026-03-29' }), r8Befund('b1', '2026-03-27', 2.5, { praxis: 'nochnicht', praxisAm: '2026-03-28' })],
+        }));
+        r8Antwort('dosis_stimmt', 'b1', 'nein_175', '2026-03-29');
+        const r1 = r8Senden(null, r8Felder('2026-03-31', 100, npZeigtQuelle(null, '2026-03-31') ? { praxis: 'nein' } : {}), '2026-03-31', {});
+        const r2 = r8Senden(null, r8Felder('2026-03-17', 112.5, npZeigtQuelle(null, tagA) ? { praxis: 'ja' } : {}), tagA, { abAlt: 'ja', bisDahin: 'ja', geaendert: 'ja' });
+        if (praxis) r8PraxisEntscheid('b1', 'nachmessen', '2026-03-31');
+        const B = spR5.getStand().dosen.find((d) => spR5.tagesdosis(d) === 100);
+        const r3 = r8Senden(B.id, r8Felder('2026-03-12', 100, npZeigtQuelle(B.id, '2026-04-06') ? { praxis: 'nein' } : {}), '2026-04-06', { abAlt: 'ja', nieGenommen: 'ja' });
+        return { r1, r2, r3, B: spR5.getStand().dosen.find((d) => d.id === B.id) };
+      };
+      const H = '2026-04-06';
+      for (const [name, opt] of [['Anordnung am Tag der Berichtigung', {}], ['Anordnung zwei Tage später (TAG_A)', { tagA: '2026-04-02' }], ['ohne Entscheidung der Praxis', { praxis: false }]]) {
+        const { r1, r2, r3, B } = lauf(opt);
+        const st = spR5.getStand();
+        const A = st.dosen.find((d) => spR5.tagesdosis(d) === 112.5);
+        check(`R2 ${name} Vorbereitung: Berichtigung 100 µg (statt der 175), Anordnung 112,5 µg, „Gilt ab" der 100 µg auf 12.03. gespeichert`,
+          r1.ok && r2.ok && r3.ok && B.berichtigung && B.ab === '2026-03-12' && !!A && A.praxis === true, `${r8Fragen(r1)} / ${r8Fragen(r2)} / ${r8Fragen(r3)} ${r8Dosen(st)}`);
+        check(`R2 ${name}: die aktuelle Dosis ist die zuletzt gesagte (100 µg seit 12.03.), die 112,5 µg zählen als nie genommen`,
+          spR5.tagesdosis(ez.dosisAmIn(st, H)) === 100 && ez.nieGegolten(st, H).has(A), `${r8Dosen(st)} | nie: ${[...ez.nieGegolten(st, H).keys()].map((d) => spR5.tagesdosis(d)).join(',')}`);
+        const bericht = brR8.berichtText(st, H);
+        check(`R2 ${name}: Bericht „Dosis damals 100 µg" zum Befund vom 27.03., „Heute" ohne W-D4 „seit Ihre Dosis erhöht wurde"`,
+          /27\.03\.2026: [^\n]*Dosis damals 100 µg/.test(bericht) && !r8Hinweis(st, H, 'W-D4'), `${r8Zeilen(bericht, /^27\.03\.2026/)} | Heute ${r8HinweisIds(st, H)}`);
+        const k = nbKarte(st, H);
+        const x3b = (k.gruende || []).find((g) => g.id === 'X3b');
+        check(`R2 ${name}: X3b bleibt auf der Karte${opt.praxis === false ? ' mit Frist, Gesamtbild „Tage"' : ''}`,
+          !!x3b && (opt.praxis !== false || (['tage', 'heute'].includes(x3b.stufe) && ['tage', 'heute'].includes(dzR7.gesamtbildMitDosis(st, H).stufe))), npInfo(st, H));
+        check(`R2 ${name} Gegenprobe: berichtigtAm bleibt der Tag der Berichtigung (31.03., X3b)`, B.berichtigtAm === '2026-03-31', JSON.stringify(B));
+        check(`R2 ${name}: das Vorrücken ist gemerkt und übersteht das Neuladen`, JSON.stringify(B.vorgerueckt) === JSON.stringify([{ ab: '2026-03-12', von: '2026-03-31', am: H }])
+          && JSON.stringify(r8NeuGeladen().dosen.find((d) => d.id === B.id).vorgerueckt) === JSON.stringify(B.vorgerueckt), JSON.stringify(B.vorgerueckt));
+      }
+      // Gegenprobe (K3): eine Anordnung im neu überdeckten Bereich, die erst NACH dem Vorrücken gesagt wurde, bleibt.
+      lauf();
+      spR5.aendern((s) => { s.dosen.push(r8Dosis('N', '2026-03-15', 125, { praxis: true, eingetragenAm: '2026-04-07' })); s.dosen.sort((a, b) => a.ab.localeCompare(b.ab)); });
+      const st = spR5.getStand();
+      const N = st.dosen.find((d) => d.id === 'N');
+      check('R2 Gegenprobe (K3): eine Anordnung im neu überdeckten Bereich, gesagt NACH dem Vorrücken, bleibt gültig', !ez.nieGegolten(st, '2026-04-07').has(N), r8Dosen(st));
+    });
+
+    fall('Nachprüfung R2: zweimal vorgerückt – je Bereich zählt der Tag, an dem er neu überdeckt wurde', () => {
+      // Berichtigung B 100 µg statt der 175 µg ab 20.03. (gesagt 25.03. mit
+      // „Gilt ab" 25.03.), am 06.04. vor auf 15.03., am 10.04. weiter auf 10.03.
+      // Dazwischen (08.04.) eingetragen: 112,5 µg ab 17.03. (im Bereich des
+      // ersten Vorrückens – danach gesagt, bleibt) und 125 µg ab 12.03. (im
+      // Bereich des zweiten – davor gesagt, nie genommen).
+      const st = r8Stand({
+        dosen: [r8Dosis('d1', '2026-03-20', 175, { eingetragenAm: '2026-03-01' }),
+          r8Dosis('B', '2026-03-10', 100, { praxis: false, berichtigung: true, statt: 'd1', berichtigtAm: '2026-03-25', eingetragenAm: '2026-03-25',
+            vorgerueckt: [{ ab: '2026-03-15', von: '2026-03-25', am: '2026-04-06' }, { ab: '2026-03-10', von: '2026-03-15', am: '2026-04-10' }] }),
+          r8Dosis('X1', '2026-03-17', 112.5, { praxis: true, eingetragenAm: '2026-04-08' }), r8Dosis('X2', '2026-03-12', 125, { praxis: true, eingetragenAm: '2026-04-08' })],
+      });
+      const weg = spR5.ersetztDurchBerichtigung(st);
+      const id = (x) => st.dosen.find((d) => d.id === x);
+      check('R2: im Bereich des zweiten Vorrückens gilt die vorher gesagte 125 µg als nie genommen', weg.has(id('X2')) && weg.get(id('X2')).id === 'B', r8Dosen(st));
+      check('R2 Gegenprobe: im Bereich des ersten Vorrückens bleibt die danach gesagte 112,5 µg (K3)', !weg.has(id('X1')), r8Dosen(st));
+      check('R2 Gegenprobe: das Ziel (175 µg) ersetzt die Berichtigung wie immer', weg.has(id('d1')), r8Dosen(st));
     });
   } finally {
     globalThis.FormData = vorherFormData;
