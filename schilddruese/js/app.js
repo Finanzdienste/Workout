@@ -423,10 +423,21 @@ function zeigeSeite(name, param = null, { ersetzen = false } = {}) {
 }
 
 function zurueck() {
-  ui.seite = ui.stapel.pop() || null;
+  const seite = ui.stapel.pop() || null;
+  /*
+   * Runde 8 – Nachbesserung (H-N3-Weg): Was in einem Formular getippt war,
+   * als ein Knopf aus einem Feldfehler („Berichtigung ändern") eine andere
+   * Seite öffnete, kommt beim Zurück in die Felder zurück (gemerkt in
+   * aktion 'seite'). Vorher stand die Nutzerin nach dem Speichern der
+   * Berichtigung im leeren Formular „Neue Dosis" – die eben getippten 88 µg
+   * der Praxis waren weg, bei der Meldung „Dosis gespeichert".
+   */
+  const eingaben = seite && seite.eingaben ? seite.eingaben : null;
+  if (seite) delete seite.eingaben;
+  ui.seite = seite;
   sperren();
   window.scrollTo(0, 0);
-  render();
+  render(eingaben ? { eingaben } : {});
   $ansicht.focus({ preventScroll: true });
 }
 
@@ -868,13 +879,24 @@ function aktion(el) {
       // „‹ Zurück" und „Abbrechen": mit Rückfrage, wenn Eingaben verloren gingen (E5).
       verlassen(zurueck);
       break;
-    case 'seite':
+    case 'seite': {
       // Aus einem Formular heraus – etwa „Eintrag vom … öffnen" unter einem
       // belegten Datum – ist das Eingetippte beim Zurückkommen weg. Wie beim
       // Zurück erst fragen (Nachprüfung zu E22/E5).
-      if (eingabenGeaendert() && !window.confirm(VERWERFEN)) break;
+      /*
+       * Runde 8 – Nachbesserung (H-N3-Weg): Der Knopf unter einem Feldfehler
+       * („Berichtigung ändern", data-merken) ist der Rat der App selbst – er
+       * fragt nicht „Verwerfen?", sondern merkt sich das Getippte an der
+       * Seite darunter; zurueck() gibt es in die Felder zurück. Vorher kam
+       * die Rückfrage, und nach dem Speichern der Berichtigung war das
+       * Formular „Neue Dosis" leer.
+       */
+      const ausFehler = el.dataset.merken === '1';
+      if (!ausFehler && eingabenGeaendert() && !window.confirm(VERWERFEN)) break;
+      if (ausFehler && ui.seite && eingabenGeaendert()) ui.seite.eingaben = eingabenMerken();
       zeigeSeite(el.dataset.seite, el.dataset.param || null);
       break;
+    }
     case 'reiter':
       verlassen(() => zeigeReiter(el.dataset.reiter));
       break;
@@ -1005,7 +1027,8 @@ function aktion(el) {
            */
           if (b.praxis !== wert || !b.praxisAm || wert === 'nochnicht' || neuNachEigener) b.praxisAm = heute;
           b.praxis = wert;
-          if (neuNachEigener) praxisDanachVermerken(s, b.id, heute);
+          // Runde 8 – Nachbesserung: mit der Angabe von vorher, damit der Vermerk an die Änderung kommt, auf die die Karte eben wartete.
+          if (neuNachEigener) praxisDanachVermerken(s, b.id, heute, vorher);
         }
       });
       if (wert === 'geaendert') {
@@ -1329,7 +1352,8 @@ function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
         if (feld === 'praxis') praxisVorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm, vermerk: praxisDanachMerken(s, b.id) };
         b[feld] = wert;
         if (feld === 'praxis') b.praxisAm = heute;
-        if (neuNachEigener) praxisDanachVermerken(s, b.id, heute);
+        // Runde 8 – Nachbesserung: mit der Angabe von vorher (siehe praxis-entscheid).
+        if (neuNachEigener) praxisDanachVermerken(s, b.id, heute, praxisVorher);
         geschrieben = true;
       } else if (ziel === 'profil') {
         if (!(PROFIL_ANTWORTEN[feld] || []).includes(wert)) return;
@@ -1918,6 +1942,8 @@ function zeigeFehler(form, fehler) {
       b.dataset.act = 'seite';
       b.dataset.seite = knopf.seite;
       if (knopf.param) b.dataset.param = knopf.param;
+      // Runde 8 – Nachbesserung (H-N3-Weg): ohne „Verwerfen?", mit gemerkten Eingaben (aktion 'seite').
+      b.dataset.merken = '1';
       b.textContent = knopf.text;
       p.append(document.createElement('br'), b);
     }

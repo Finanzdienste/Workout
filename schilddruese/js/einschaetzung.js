@@ -423,11 +423,28 @@ export function amTagErsetztZeilen(stand, heute) {
  * dosisVerlauf(): `berichtigtDurch` sagt, dass die App-Dosis dieses Tages
  * später als unzutreffend gemeldet wurde – dann ist „Dosis damals" nur, was
  * die App damals wusste (Runde 5: F15).
- * → { d, td, periode, berichtigtDurch } | null
+ * Runde 8 – Nachbesserung („Dosis damals“ bei einer Anordnung am Tag der
+ * Abnahme): Mit dem Befund (`befund`) zählt eine Anordnung der Praxis, die
+ * an seinem Tag beginnt und am selben Tag NACH der Entscheidung zu ihm
+ * eingetragen wurde (dieselbe Regel wie js/dosis.js anordnungEingetragen:
+ * praxis true, ab = Tag der Abnahme, eingetragenAm ≥ praxisAm), nicht als
+ * Dosis dieses Tages – der Wert entstand unter der Menge davor. Vorher stand
+ * im Bericht „Dosis damals 125 µg“, während die Karte zum selben Stand
+ * sagte, die Dosis sei nach dieser Blutabnahme schon geändert worden. Gibt
+ * es keine Menge davor (die Anordnung steht an erster Stelle, die Karte
+ * fragt gerade danach), ist „Dosis damals“ offen.
+ * → { d, td, periode, berichtigtDurch } | { d: null, td: null, offen: true } | null
  */
-export function dosisDamals(stand, tag, heute) {
-  const d = dosisAmIn(stand, tag);
+export function dosisDamals(stand, tag, heute, befund = null) {
+  let d = dosisAmIn(stand, tag);
   if (!d) return null;
+  const nachAbnahme = Boolean(befund) && d.praxis === true && d.ab === tag && !d.berichtigung && !istBerichtigung(stand, d, heute)
+    && istISO(d.eingetragenAm) && Boolean(befund.praxisAm) && d.eingetragenAm >= befund.praxisAm;
+  if (nachAbnahme) {
+    const anordnung = d;
+    d = [...sp.gueltigeDosen(stand)].reverse().find((x) => x.ab <= tag && x !== anordnung && sp.tagesdosis(x) !== sp.tagesdosis(anordnung)) || null;
+    if (!d) return { d: null, td: null, periode: null, berichtigtDurch: null, offen: true };
+  }
   const periode = dosisVerlauf(stand, heute).find((p) => p.eintraege.includes(d)) || null;
   return { d, td: sp.tagesdosis(d), periode, berichtigtDurch: periode ? periode.berichtigtDurch : null };
 }
@@ -1399,8 +1416,18 @@ function verlaufTexte(befund, stand, info, stufe, tsh, { hypophyse = false, heut
       const dazwischen = dosisVerlauf(stand, heute || befund.datum).filter((p) => p.ab > v.datum && p.ab <= befund.datum);
       const nurBerichtigt = (p) => p.berichtigung && !p.ersetzt;
       const geaendert = dazwischen.some((p) => !nurBerichtigt(p) && sp.tagesdosis(p.d) !== sp.tagesdosis(dA));
+      /*
+       * Runde 8 – Nachbesserung (Trendsatz bei offenem „Nein“): Hat die
+       * Patientin zu diesem Befund „Nein, ich nehme etwas anderes“ gesagt
+       * und wartet das „Nein“ nach einer eingetragenen Anordnung noch auf die
+       * Menge für die Zeit davor (neinVorAnordnung, Entscheidung (3)), kann
+       * der Satz nicht behaupten, die Dosis sei gleich geblieben – der
+       * Bericht sagt wenige Zeilen darüber das Gegenteil.
+       */
+      const offen = (() => { const n = neinVorAnordnung(stand, heute || befund.datum); return Boolean(n && n.bezug === befund.id); })();
       s += geaendert ? ' Dazwischen wurde die Dosis geändert.'
-        : dazwischen.some(nurBerichtigt) ? ' Dazwischen wurde die eingetragene Dosis berichtigt.' : ' Die Dosis war in dieser Zeit gleich.';
+        : dazwischen.some(nurBerichtigt) ? ' Dazwischen wurde die eingetragene Dosis berichtigt.'
+          : offen ? ' Was die Patientin in dieser Zeit genommen hat, ist offen (siehe Angabe der Patientin).' : ' Die Dosis war in dieser Zeit gleich.';
     }
     if (v.abnahmeUhr && befund.abnahmeUhr) {
       const min = (u) => Number(u.slice(0, 2)) * 60 + Number(u.slice(3));

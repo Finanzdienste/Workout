@@ -34,7 +34,7 @@
  * der App, und sie soll immer frisch vom Netz kommen.
  */
 
-const VERSION = 'v16';
+const VERSION = 'v17';
 const CACHE = `schilddruese-${VERSION}`;
 
 const SHELL = [

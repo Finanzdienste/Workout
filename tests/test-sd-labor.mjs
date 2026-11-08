@@ -218,10 +218,14 @@ await page.waitForTimeout(700);
 await page.click('dialog.rueckfrage [data-act="befund-korrigieren"]');
 await page.waitForTimeout(400);
 s = await gespeichert();
-check(s.labor[0].praxisAm === '2026-04-29' && !(s.nachfragen || []).some((n) => n.art === 'praxis_danach') && await page.locator('form[data-formular="labor"]').count() === 0,
-  `J7b: „Nein, das war vorher" speichert ohne neues Datum (${s.labor[0].praxisAm}), kein Vermerk`);
+// Runde 8 – Nachbesserung (D): die Antwort „Nein" steht als Vermerk mit Antwort „nein" da – kein Vermerk „ja" (nur der zählt).
+check(s.labor[0].praxisAm === '2026-04-29' && !(s.nachfragen || []).some((n) => n.art === 'praxis_danach' && n.antwort === 'ja') && await page.locator('form[data-formular="labor"]').count() === 0,
+  `J7b: „Nein, das war vorher" speichert ohne neues Datum (${s.labor[0].praxisAm}), kein Vermerk „ja"`);
 await page.click('#reiter-heute');
 check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'J7b: … und „Heute" wartet weiter auf die Praxis');
+// Runde 8 – Nachbesserung (D): nach „Nein" käme die Frage nicht mehr – für „Ja, danach" also frisch beginnen.
+await page.evaluate(({ key, st }) => localStorage.setItem(key, JSON.stringify(st)), { key: SCHLUESSEL, st: j7Stand() });
+await uhr(J7, '12:00');
 await j7Oeffnen();
 await page.click('form[data-formular="labor"] button[type=submit]');
 await page.waitForTimeout(1000);
@@ -232,5 +236,48 @@ check(s.labor[0].praxisAm === J7 && (s.nachfragen || []).some((n) => n.art === '
   `J7/J7b: „Ja, danach" – Datum heute und Vermerk PRAXIS_DANACH wie über „Die Praxis hat entschieden" (${s.labor[0].praxisAm}, ${JSON.stringify((s.nachfragen || []).map((n) => n.art))})`);
 await page.click('#reiter-heute');
 check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() === 0, 'J7: danach wartet „Heute" nicht mehr auf die Praxis');
+
+// ---- Runde 8 – Nachbesserung C: Eine Praxis-Angabe zu einem ÄLTEREN Befund
+// (von vor der eigenen Änderung) ist keine Entscheidung danach. Vorher schrieb
+// das Formular auch an den Januar-Befund den Vermerk PRAXIS_DANACH: X3 verlor
+// die Frist, „Heute" schwieg.
+const c3Stand = () => ({ ...j7Stand(), labor: [{ id: 'j0', datum: '2026-01-10', tsh: { wert: 4.8, einheit: 'mU/l', von: 0.4, bis: 4 }, ft4: null, ft3: null, ...J7_FRAGEN, praxis: '', praxisAm: null }, { ...j7Stand().labor[0], praxis: '', praxisAm: null }] });
+await page.evaluate(({ key, st }) => localStorage.setItem(key, JSON.stringify(st)), { key: SCHLUESSEL, st: c3Stand() });
+await uhr(J7, '12:00');
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'C3 Vorbedingung: „Heute" wartet nach der eigenen Erhöhung auf die Praxis');
+await page.click('#reiter-verlauf');
+await page.click('[data-seite="labor-liste"]');
+await page.locator('[data-seite="labor"][data-param="j0"]').first().click();
+await page.waitForTimeout(300);
+await page.check('form[data-formular="labor"] input[name=praxis][value=bleibt]', { force: true });
+await page.click('form[data-formular="labor"] button[type=submit]');
+await page.waitForTimeout(400);
+s = await gespeichert();
+const c3b0 = s.labor.find((l) => l.id === 'j0');
+check(!!c3b0 && c3b0.praxis === 'bleibt' && c3b0.praxisAm === J7 && !(s.nachfragen || []).some((n) => n.art === 'praxis_danach'), `C3: „bleibt" am Januar-Befund gespeichert, ohne Vermerk PRAXIS_DANACH (${JSON.stringify((s.nachfragen || []).map((n) => [n.art, n.bezug]))})`);
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'C3: „Heute" wartet weiter auf die Praxis (X3/B2 mit Frist)');
+
+// ---- Runde 8 – Nachbesserung D: „Nein, das war vorher" wird gemerkt – die
+// Frage kommt beim nächsten Speichern desselben Befunds (nur Notiz) nicht wieder.
+await page.evaluate(({ key, st }) => localStorage.setItem(key, JSON.stringify(st)), { key: SCHLUESSEL, st: j7Stand() });
+await uhr(J7, '12:00');
+await j7Oeffnen();
+await page.click('form[data-formular="labor"] button[type=submit]');
+await page.waitForTimeout(1000);
+check((await k14Dialog()).includes('Nein, das war vorher'), 'D Vorbedingung: die J7b-Frage');
+await page.click('dialog.rueckfrage [data-act="befund-korrigieren"]');
+await page.waitForTimeout(400);
+s = await gespeichert();
+check((s.nachfragen || []).some((n) => n.art === 'praxis_danach' && n.antwort === 'nein' && n.bezug === 'j1' && n.dosis === 'e1'), `D: „Nein, das war vorher" ist als Vermerk mit Antwort „nein" und der Kennung der Änderung gemerkt (${JSON.stringify((s.nachfragen || []).map((n) => [n.art, n.antwort, n.dosis]))})`);
+await j7Oeffnen();
+await page.fill('form[data-formular="labor"] textarea[name=notiz], form[data-formular="labor"] input[name=notiz]', 'Brief liegt vor');
+await page.click('form[data-formular="labor"] button[type=submit]');
+await page.waitForTimeout(600);
+s = await gespeichert();
+check(!(await page.locator('dialog.rueckfrage').count()) && s.labor[0].notiz === 'Brief liegt vor' && s.labor[0].praxisAm === '2026-04-29', `D: eine Notizänderung speichert ohne die Frage (${s.labor[0].notiz}, ${s.labor[0].praxisAm})`);
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]').count() >= 1, 'D: „Heute" wartet weiter auf die Praxis');
 
 await ende();

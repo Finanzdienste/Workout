@@ -228,12 +228,17 @@ export function berichtText(stand, heute) {
       const werte = [...sp.LABORWERTE, ...sp.WEITERE_WERTE].filter(([k]) => l[k]).map(([k, n]) => wertText(n, l[k]));
       // Die Dosis an diesem Tag – und ob ihre Menge später als unzutreffend
       // gemeldet wurde: Dann ist sie nur, was die App damals wusste (F15).
-      const damals = ez.dosisDamals(stand, l.datum, heute);
+      // Runde 8 – Nachbesserung: mit dem Befund – eine Anordnung der Praxis
+      // vom Tag der Abnahme, nach der Entscheidung eingetragen, war nicht die
+      // Dosis dieses Tages (wie die Karte: „nach dieser Blutabnahme schon
+      // geändert"); ohne Menge davor ist „Dosis damals" offen.
+      const damals = ez.dosisDamals(stand, l.datum, heute, l);
       // Runde 8: H-N1 (3) (N2-3) – der Vorbehalt der Patientin nur beim Befund,
       // auf den sich ihr „Nein" bezieht (nicht bei jedem Befund desselben Eintrags).
       const nichtSo = neinOffen && neinOffen.bezug === l.id && !(damals && damals.berichtigtDurch);
       const dosisDamals = damals && damals.td !== null
-        ? ` – Dosis damals ${zahlText(damals.td, 1)} µg am Tag${damals.berichtigtDurch ? ` (laut App; später berichtigt, Berichtigung ab ${datumKurz(damals.berichtigtDurch.ab)})` : nichtSo ? ' (laut App; nach Angabe der Patientin nicht so genommen)' : ''}` : '';
+        ? ` – Dosis damals ${zahlText(damals.td, 1)} µg am Tag${damals.berichtigtDurch ? ` (laut App; später berichtigt, Berichtigung ab ${datumKurz(damals.berichtigtDurch.ab)})` : nichtSo ? ' (laut App; nach Angabe der Patientin nicht so genommen)' : ''}`
+        : damals && damals.offen ? ' – Dosis damals noch nicht eingetragen (die neue Dosis der Praxis gilt erst seit der Abnahme)' : '';
       const notiz = mehrzeilig(l.notiz);
       z.push(`${datumKurz(l.datum)}: ${werte.join(', ')}${dosisDamals}${notiz ? ` – ${notiz}` : ''}`);
     });

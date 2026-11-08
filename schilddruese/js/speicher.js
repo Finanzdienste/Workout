@@ -78,7 +78,8 @@ export const SCHLUESSEL = 'schilddruese.stand.v1';
  * vorhandene ist die Menge davor, kein ersetzter Eintrag (Dosis-Formular,
  * „Haben Sie bis … genommen?“ → Ja). An der Nachfrage `praxis_danach` das
  * Feld `dosis`: die Kennung der Änderung, auf die die Karte wartete (J3,
- * js/dosis.js). An einem „Nein, ich nehme etwas anderes“ (`dosis_stimmt`,
+ * js/dosis.js; mit Antwort „nein“ merkt sich das Befund-Formular „Nein, das
+ * war vorher“ zu dieser Änderung – Runde 8, Nachbesserung). An einem „Nein, ich nehme etwas anderes“ (`dosis_stimmt`,
  * Antwort nein…) das Feld `anordnung`: die Kennung der Anordnung der Praxis,
  * die danach eingetragen wurde – das „Nein“ wartet dann noch auf die Menge
  * für die Zeit davor (H-N1). Fassung 4 ist ausgeliefert, deshalb eine neue
@@ -849,7 +850,8 @@ export function normStand(roh) {
   // (dosisBerichtZeilen gegen RICHTUNG_TITEL, Runde 5: F27).
   // Der Bezug darf 60 Zeichen haben: Kennungen aus einer Sicherung haben bis
   // 40, die W-D4-Frage hängt „-14" oder „-28" an (Runde 5: F28).
-  const kennungOk = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(v) && s.dosen.some((d) => d.id === v);
+  const kennungFormal = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(v);
+  const kennungOk = (v) => kennungFormal(v) && s.dosen.some((d) => d.id === v);
   s.nachfragen = liste(roh.nachfragen, (n) => {
     if (!(typeof n.art === 'string' && /^[a-z0-9_]{1,30}$/.test(n.art)
       && typeof n.bezug === 'string' && n.bezug.length <= 60 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort))) return null;
@@ -862,10 +864,15 @@ export function normStand(roh) {
     // Datenstand ließ sie sich nicht sicher lesen (einschaetzung.wd4Art).
     if (n.art === 'wd4' && ['erhoehung', 'senkung'].includes(n.aenderung)) return { ...eintrag, aenderung: n.aenderung };
     // Runde 8: J3 (Fassung 5) – der Vermerk „Entscheidung, während die Karte
-    // wartete" nennt die Änderung, auf die sie wartete (js/dosis.js). Eine
-    // Kennung ohne Eintrag fällt weg: Dann gilt der Vermerk wie ein älterer
-    // ohne sie.
-    if (n.art === 'praxis_danach') return kennungOk(n.dosis) ? { ...eintrag, dosis: n.dosis } : eintrag;
+    // wartete" nennt die Änderung, auf die sie wartete (js/dosis.js).
+    // Runde 8 – Nachbesserung: Die Kennung bleibt auch, wenn der Eintrag
+    // nicht (mehr) da ist – dann gilt der Vermerk für keine Änderung, so wie
+    // vor dem Neuladen. Fiel sie weg, galt er wie ein älterer Vermerk ohne
+    // Kennung für den ganzen Tag: Nach dem Löschen des gebundenen Eintrags
+    // und einer neuen eigenen Verdopplung zeigte die Karte vor dem Neuladen
+    // X3 mit Frist, danach „Kein besonderer Anlass" – derselbe Stand, zwei
+    // Aussagen (auch beim Einlesen einer Sicherung).
+    if (n.art === 'praxis_danach') return kennungFormal(n.dosis) ? { ...eintrag, dosis: n.dosis } : eintrag;
     // Runde 8: H-N1 (Fassung 5) – ein „Nein, ich nehme etwas anderes", nach
     // dem eine Anordnung der Praxis eingetragen wurde: Es wartet noch auf die
     // Menge für die Zeit davor und nennt die Anordnung. Nur an einem „Nein".
