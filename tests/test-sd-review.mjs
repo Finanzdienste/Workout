@@ -4266,7 +4266,7 @@ for (const fall of ['fT4 im zweiten Fenster', 'im zweiten Fenster gelöscht']) {
   check(dialoge.slice(vor).some((d) => /noch nicht gespeichert/.test(d)), `Runde 8 N2 zwei Fenster (${fall}): „Befund vom … öffnen" fragt wieder „Verwerfen?" (${JSON.stringify(dialoge.slice(vor))})`);
   const p2 = await ctx.newPage();
   p2.on('dialog', (d) => d.accept());
-  await p2.goto(process.env.SCHILDDRUESE_URL, { waitUntil: 'networkidle' });
+  await p2.goto(SD_URL, { waitUntil: 'networkidle' });
   await p2.waitForTimeout(600);
   if (await p2.locator('dialog.begruessung[open]').count()) await p2.click('dialog.begruessung [data-act="begruessung-zu"]');
   await p2.click('#reiter-verlauf');
