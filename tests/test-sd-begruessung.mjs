@@ -100,7 +100,8 @@ check(await fokusId() === 'begruessung-titel', 'der Fokus steht auf der Übersch
 check((await fenster.getAttribute('aria-label')) === 'Einführung: So hilft Ihnen die App', 'das Fenster hat einen Namen für Vorleseprogramme');
 check(await page.evaluate(() => { const d = document.querySelector('dialog.begruessung'); return d.scrollTop === 0 && d.matches(':modal'); }), 'modal und oben angefangen');
 let s = await gespeichert();
-check(s.version === 4 && s.profil.einfuehrung === 1 && s.profil.einfuehrungDaten === false, `gemerkt beim Anzeigen: Fassung 4, einfuehrung 1, Datenseite noch nicht (${s.version}/${s.profil.einfuehrung}/${s.profil.einfuehrungDaten})`);
+// Runde 8: J6 – Datenfassung 5 (dosen[].nach, praxis_danach.dosis, dosis_stimmt.anordnung), weil Fassung 4 ausgeliefert ist.
+check(s.version === 5 && s.profil.einfuehrung === 1 && s.profil.einfuehrungDaten === false, `gemerkt beim Anzeigen: Fassung 5, einfuehrung 1, Datenseite noch nicht (${s.version}/${s.profil.einfuehrung}/${s.profil.einfuehrungDaten})`);
 check(s.profil.name === 'Mama' && s.profil.seit === '2026-09-01' && s.dosen.length === 1 && s.dosen[0].mikrogramm === 75 && s.dosen[0].id === 'mod1abc'
   && JSON.stringify(s.einnahmen) === JSON.stringify(ALT_PR3.einnahmen) && s.labor.length === 1 && s.labor[0].tsh.wert === 6.8
   && s.fragen.length === 1 && s.befinden.length === 1, 'die Daten aus der alten App sind vollständig da (Dosis, Einnahmen samt „nicht genommen", Befund, Frage, Befinden)');

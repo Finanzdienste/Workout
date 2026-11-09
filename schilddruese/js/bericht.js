@@ -155,6 +155,8 @@ export function berichtText(stand, heute) {
   // Berichtigung ersetzt, worauf ihr `statt` zeigt, eine zweite die erste
   // (H1, H7, H11) – was dabei nie genommen wurde, nennt nieGenommenZeilen.
   const perioden = ez.dosisVerlauf(stand, heute);
+  // Runde 8: H-N1 (3) – ein offenes „Nein, ich nehme etwas anderes" nach einer eingetragenen Anordnung.
+  const neinOffen = typeof ez.neinVorAnordnung === 'function' ? ez.neinVorAnordnung(stand, heute) : null;
   z.push('DOSIS');
   if (perioden.length) {
     // Gibt es nur künftige Einträge, gilt der früheste als aktuell (wie sp.aktuelleDosis).
@@ -174,6 +176,20 @@ export function berichtText(stand, heute) {
     ez.nieGenommenZeilen(stand, heute).forEach((x) => z.push(x));
     // Nachprüfung zu Runde 7 (N1): eine am selben Tag ersetzte Anordnung.
     ez.amTagErsetztZeilen(stand, heute).forEach((x) => z.push(x));
+    /*
+     * Runde 8: H-N1, Entscheidung (3) (N2-3) – die Patientin hat auf der
+     * Karte „Nein, ich nehme etwas anderes" gesagt, danach wurde die neue
+     * Dosis der Praxis eingetragen, die Menge für die Zeit davor steht noch
+     * aus (ez.neinVorAnordnung). Das sagt der Bericht – ohne Aussage über den
+     * ganzen Zeitraum des Eintrags: Ein Befund vom Februar, zu dem sie „Ja,
+     * genau 100 µg" gesagt hatte, bleibt unberührt.
+     */
+    if (neinOffen) {
+      const x = neinOffen.menge !== null ? `${zahlText(neinOffen.menge, 1)} µg am Tag` : 'die eingetragene Menge';
+      z.push(neinOffen.anordnung.ab > heute
+        ? `Angabe der Patientin (${datumKurz(neinOffen.am)}): Sie nimmt bis zur neuen Dosis ab ${datumKurz(neinOffen.anordnung.ab)} nicht ${x === 'die eingetragene Menge' ? x : `die eingetragenen ${x}`}; was und seit wann, ist offen.`
+        : `Angabe der Patientin (${datumKurz(neinOffen.am)}): Sie nahm vor der neuen Dosis ab ${datumKurz(neinOffen.anordnung.ab)} nicht ${x === 'die eingetragene Menge' ? x : `die eingetragenen ${x}`}; was und seit wann, ist offen.`);
+    }
     z.push(`Einnahmezeit laut Erinnerung in der App (Angabe): etwa ${uhrText(stand.einstellungen.erinnerung)}`);
     const letzterTsh = [...stand.labor].reverse().find((l) => l.tsh && l.datum <= heute);
     if (letzterTsh && Q2[letzterTsh.einnahmeArt]) {
@@ -212,9 +228,24 @@ export function berichtText(stand, heute) {
       const werte = [...sp.LABORWERTE, ...sp.WEITERE_WERTE].filter(([k]) => l[k]).map(([k, n]) => wertText(n, l[k]));
       // Die Dosis an diesem Tag – und ob ihre Menge später als unzutreffend
       // gemeldet wurde: Dann ist sie nur, was die App damals wusste (F15).
-      const damals = ez.dosisDamals(stand, l.datum, heute);
+      // Runde 8 – Nachbesserung: mit dem Befund – eine Anordnung der Praxis
+      // vom Tag der Abnahme, nach der Entscheidung eingetragen, war nicht die
+      // Dosis dieses Tages (wie die Karte: „nach dieser Blutabnahme schon
+      // geändert"); ohne Menge davor ist „Dosis damals" offen.
+      const damals = ez.dosisDamals(stand, l.datum, heute, l);
+      // Runde 8: H-N1 (3) (N2-3) – der Vorbehalt der Patientin nur beim Befund,
+      // auf den sich ihr „Nein" bezieht (nicht bei jedem Befund desselben Eintrags).
+      // Runde 8 – Nachbesserung 2: und nur zu der Menge, die sie bestritten hat.
+      // Vorher hing er an jeder „Dosis damals" dieses Befunds: Lag die Anordnung
+      // nach dem Zurückdatieren schon vor der Abnahme (die Praxis hatte am 10.09.
+      // umgestellt, Abnahme 17.09.), stand „Dosis damals 88 µg am Tag (laut App;
+      // nach Angabe der Patientin nicht so genommen)" – bestritten hatte sie die
+      // 100 µg, wie die Zeile „Angabe der Patientin" darüber sagt.
+      const bestritten = (x) => (neinOffen.menge !== null ? x.td === neinOffen.menge : x.d === neinOffen.davor);
+      const nichtSo = neinOffen && neinOffen.bezug === l.id && Boolean(damals) && damals.td !== null && !damals.berichtigtDurch && bestritten(damals);
       const dosisDamals = damals && damals.td !== null
-        ? ` – Dosis damals ${zahlText(damals.td, 1)} µg am Tag${damals.berichtigtDurch ? ` (laut App; später berichtigt, Berichtigung ab ${datumKurz(damals.berichtigtDurch.ab)})` : ''}` : '';
+        ? ` – Dosis damals ${zahlText(damals.td, 1)} µg am Tag${damals.berichtigtDurch ? ` (laut App; später berichtigt, Berichtigung ab ${datumKurz(damals.berichtigtDurch.ab)})` : nichtSo ? ' (laut App; nach Angabe der Patientin nicht so genommen)' : ''}`
+        : damals && damals.offen ? ' – Dosis damals noch nicht eingetragen (die neue Dosis der Praxis gilt erst seit der Abnahme)' : '';
       const notiz = mehrzeilig(l.notiz);
       z.push(`${datumKurz(l.datum)}: ${werte.join(', ')}${dosisDamals}${notiz ? ` – ${notiz}` : ''}`);
     });

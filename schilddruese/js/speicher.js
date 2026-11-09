@@ -64,8 +64,52 @@ export const SCHLUESSEL = 'schilddruese.stand.v1';
  * älterer Stand hat ihn nicht: dann an, wie bei einem neuen. Kennung und Tage
  * der Meldung stehen nicht hier, sondern unter einem eigenen Schlüssel – sie
  * gehören zu diesem Gerät, nicht in die Sicherung.
+ *
+ * Runde 8: J6 – Zu Fassung 4 gehören auch die Felder der Runde 7, die damals
+ * ohne eigene Fassung dazukamen: `dosen[].eingetragenAm` (der Tag, an dem
+ * eine Menge eingetragen wurde, H8), `labor[].werteAm` (der Tag je weiterem
+ * Wert, H4/H15/H21) und die Nachfragen `praxis_danach` (Entscheidung der
+ * Praxis, während die Karte wartete) und `wert_bekannt` (Die Praxis weiß von
+ * diesem Wert). Eine Instanz der Fassung 3 (Stand 7e3e74a) strich sie beim
+ * Zurückschreiben; seit Fassung 4 schreibt sie nicht mehr.
+ *
+ * Fassung 5 (Runde 8: J1, J4, J3, H-N1): `dosen[].nach` – ein Eintrag, der am
+ * selben Tag NEBEN einem vorhandenen steht, nennt dessen Kennung: Der
+ * vorhandene ist die Menge davor, kein ersetzter Eintrag (Dosis-Formular,
+ * „Haben Sie bis … genommen?“ → Ja). An der Nachfrage `praxis_danach` das
+ * Feld `dosis`: die Kennung der Änderung, auf die die Karte wartete (J3,
+ * js/dosis.js; mit Antwort „nein“ merkt sich das Befund-Formular „Nein, das
+ * war vorher“ zu dieser Änderung – Runde 8, Nachbesserung). An einem „Nein, ich nehme etwas anderes“ (`dosis_stimmt`,
+ * Antwort nein…) das Feld `anordnung`: die Kennung der Anordnung der Praxis,
+ * die danach eingetragen wurde – das „Nein“ wartet dann noch auf die Menge
+ * für die Zeit davor (H-N1). Fassung 4 ist ausgeliefert, deshalb eine neue
+ * Fassung: Eine noch offene App der Fassung 4 verwürfe die Felder sonst beim
+ * nächsten Speichern (wie J6).
+ *
+ * Ebenfalls Fassung 5 (Nachprüfung der Runde 8, noch vor der Auslieferung):
+ * am Vermerk `praxis_danach` das Feld `praxis` – die Angabe der Praxis, zu
+ * der er gehört (bleibt/geaendert/nachmessen; R4: ein Befund trägt je
+ * Änderung einen Vermerk, und „Die Dosis wird geändert" zählt nach R1 anders
+ * als „bleibt") – und dort die neue Antwort `verfallen` (F1: Die Menge der
+ * Änderung wurde danach geändert; der Vermerk zählt für sie nicht mehr, belegt
+ * aber, dass die Entscheidung ihr galt). An einer Berichtigung `vorgerueckt`:
+ * jedes Vorrücken ihres „Gilt ab" mit dem neu überdeckten Bereich und dem Tag
+ * ([{ ab, von, am }], R2 – für K3 ist dieser Bereich an diesem Tag gesagt).
+ * Ein Stand ohne diese Felder rechnet wie bisher: ein Vermerk ohne `praxis`
+ * mit der Angabe am Befund, eine Berichtigung ohne `vorgerueckt` mit
+ * berichtigtAm für ihren ganzen Bereich.
+ *
+ * Ebenfalls Fassung 5 (Nachprüfung 2 der Runde 8, noch vor der Auslieferung):
+ * am Vermerk `praxis_danach` das Feld `ab` – der Beginn („Gilt ab") der
+ * Änderung, auf die die Karte wartete, am Tag des Vermerks (F-7: R1 b fragt,
+ * ob sie am Tag der Entscheidung schon begonnen hatte; ein später
+ * vorverlegtes „Gilt ab" macht sie nicht nachträglich zu einer damals
+ * laufenden). Ein Vermerk ohne `ab` rechnet wie bisher nur mit dem heutigen
+ * Beginn. Dazu ohne neues Feld: Eine zurückgenommene Angabe der
+ * Praxis („Noch nichts entschieden" oder leer) nimmt alle Vermerke ihres
+ * Befunds mit (F-1, js/dosis.js praxisDanachVerwerfen).
  */
-export const VERSION = 4;
+export const VERSION = 5;
 
 function tageWeiterLokal(iso, n) {
   const d = new Date(`${iso}T12:00:00`);
@@ -515,14 +559,25 @@ const ZEIT_FELDER = { abnahmeUhr: 'Uhrzeit der Abnahme', tabletteUhr: 'Uhrzeit d
 const bereichText = (w) => `${w.von !== null ? rohText(w.von) : '…'}–${w.bis !== null ? rohText(w.bis) : '…'}`;
 const verschieden = (a, b) => a !== null && b !== null && a !== b;
 
+/*
+ * Runde 8: J5 – Geht ein Eintrag in einem anderen auf, zeigen die Nachfragen
+ * zu seiner Kennung ins Leere: „Die Praxis weiß davon“ (wert_bekannt) galt
+ * nicht mehr, der Gefahrenwert stand wieder auf „Heute anrufen“. Deshalb
+ * liefert die Funktion die aufgelösten Kennungen mit (`umbenannt`: alte
+ * Kennung → Kennung des Ziel-Eintrags); normStand schreibt damit
+ * nachfragen[].bezug um.
+ * → { labor, umbenannt }
+ */
 function zusammenfuehren(labor) {
   const ergebnis = [];
+  const umbenannt = new Map();
   // Je Ziel-Eintrag die Felder, die wegen eines Widerspruchs geleert wurden –
   // ein dritter Eintrag desselben Tages darf sie nicht still wieder füllen.
   const geleert = new Map();
   labor.forEach((l) => {
     const ziel = [...ergebnis].reverse().find((x) => x.datum === l.datum);
     if (!ziel || WERTE().some(([k]) => wertWiderspruch(ziel[k], l[k]))) { ergebnis.push(l); return; }
+    umbenannt.set(l.id, ziel.id);
     // Erst an einer Kopie zusammenführen: Passen die beiden Notizen samt
     // Vermerk nicht zusammen in GRENZEN.notiz, bleiben die Einträge getrennt,
     // statt die neuere Notiz still abzuschneiden (Runde 5: F23). Vorher wurde
@@ -549,8 +604,15 @@ function zusammenfuehren(labor) {
       if (da[k] && l[k] && da[k] !== l[k]) { da[k] = ''; offen.add(k); } else if (!da[k]) da[k] = l[k];
     });
     // Die Angabe der Praxis gehört mit ihrem Datum zusammen (R1).
+    // Runde 8 – Nachprüfung (R4): Sagen beide dasselbe, gilt der spätere Tag
+    // der Angabe. Beide Befunde können einen Vermerk PRAXIS_DANACH tragen (je
+    // Änderung einer, normStand hängt sie an diesen Befund); ein Vermerk zählt
+    // nur bis zum Tag der Angabe (js/dosis.js). Mit dem früheren Tag fiel die
+    // spätere Entscheidung samt ihrem Vermerk weg – die Änderung, zu der sie
+    // kam, galt nach dem Neuladen wieder als offen.
     if (offen.has('praxis')) { /* widersprüchlich – bleibt offen */ } else if (da.praxis && l.praxis && da.praxis !== l.praxis) { da.praxis = ''; da.praxisAm = null; offen.add('praxis'); } else if (!da.praxis && l.praxis) { da.praxis = l.praxis; da.praxisAm = l.praxisAm; }
     else if (da.praxis && !da.praxisAm) da.praxisAm = l.praxis === da.praxis ? l.praxisAm : null;
+    else if (da.praxis && l.praxis === da.praxis && istISO(l.praxisAm) && l.praxisAm > da.praxisAm) da.praxisAm = l.praxisAm;
     Object.entries(ZEIT_FELDER).forEach(([k, name]) => {
       if (offen.has(k)) {
         if (l[k]) zweite.push(`${name} auch ${l[k]}`);
@@ -592,7 +654,7 @@ function zusammenfuehren(labor) {
     Object.assign(ziel, da);
     geleert.set(ziel, offen);
   });
-  return ergebnis;
+  return { labor: ergebnis, umbenannt };
 }
 
 /**
@@ -698,17 +760,32 @@ export function normStand(roh) {
       // den wahren Beginn – die Bitte, der Praxis Bescheid zu sagen, gilt
       // aber ab diesem Tag (js/dosis.js, berichtigtAm). Nur bei einer Berichtigung.
       ...(bool(d.berichtigung) && istISO(d.berichtigtAm) ? { berichtigtAm: d.berichtigtAm } : {}),
+      // Runde 8 – Nachprüfung (R2, Fassung 5): jedes Vorrücken von „Gilt ab"
+      // einer Berichtigung – der neu überdeckte Bereich (ab bis vor von) und
+      // der Tag (am), an dem sie ihn gesagt hat (ersetztDurchBerichtigung, K3).
+      // Nur bei einer Berichtigung, höchstens die letzten zehn.
+      ...(() => {
+        const zuege = bool(d.berichtigung) && Array.isArray(d.vorgerueckt)
+          ? d.vorgerueckt.filter((v) => v && istISO(v.ab) && istISO(v.von) && istISO(v.am) && v.ab < v.von).map((v) => ({ ab: v.ab, von: v.von, am: v.am })).slice(-10) : [];
+        return zuege.length ? { vorgerueckt: zuege } : {};
+      })(),
       // Runde 7: H8 – der Tag, an dem Menge oder „Auf Anweisung der Praxis"
       // eingetragen oder zuletzt geändert wurden (vom Dosis-Formular). Seit
       // ihm weiß die App von einer eigenen Änderung; eine Angabe der Praxis
       // von davor ist keine Entscheidung danach (js/dosis.js, bekanntSeit).
       // Ältere Einträge haben ihn nicht – dann gilt „Gilt ab".
       ...(istISO(d.eingetragenAm) ? { eingetragenAm: d.eingetragenAm } : {}),
+      // Runde 8: J1/J4 (Fassung 5) – der Eintrag steht am selben Tag NEBEN
+      // dem genannten (Dosis-Formular, „Haben Sie bis … genommen?“ → Ja):
+      // Der genannte ist die Menge davor und galt bis zu diesem Tag, kein am
+      // selben Tag ersetzter Eintrag (js/einschaetzung.js, dosisVerlauf).
+      ...(typeof d.nach === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(d.nach) ? { nach: d.nach } : {}),
     };
   }, 'ab').sort((a, b) => a.ab.localeCompare(b.ab));
   // Ein Verweis auf einen Eintrag, den es nicht (mehr) gibt, sagt nichts mehr.
   s.dosen.forEach((d) => {
     if (d.statt && !s.dosen.some((x) => x !== d && x.id === d.statt)) delete d.statt;
+    if (d.nach && !s.dosen.some((x) => x !== d && x.id === d.nach)) delete d.nach;
   });
 
   if (roh.einnahmen && typeof roh.einnahmen === 'object' && !Array.isArray(roh.einnahmen)) {
@@ -769,7 +846,9 @@ export function normStand(roh) {
     if (Object.keys(werteAm).length) eintrag.werteAm = werteAm;
     return [...LABORWERTE, ...WEITERE_WERTE].some(([k]) => eintrag[k]) ? eintrag : null;
   }).sort((a, b) => a.datum.localeCompare(b.datum));
-  s.labor = zusammenfuehren(s.labor);
+  // Runde 8: J5 – die aufgelösten Kennungen für die Nachfragen (unten).
+  const zusammen = zusammenfuehren(s.labor);
+  s.labor = zusammen.labor;
 
   s.befinden = liste(roh.befinden, (b) => ({
     datum: b.datum,
@@ -810,14 +889,51 @@ export function normStand(roh) {
   // (dosisBerichtZeilen gegen RICHTUNG_TITEL, Runde 5: F27).
   // Der Bezug darf 60 Zeichen haben: Kennungen aus einer Sicherung haben bis
   // 40, die W-D4-Frage hängt „-14" oder „-28" an (Runde 5: F28).
+  const kennungFormal = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(v);
+  const kennungOk = (v) => kennungFormal(v) && s.dosen.some((d) => d.id === v);
   s.nachfragen = liste(roh.nachfragen, (n) => {
     if (!(typeof n.art === 'string' && /^[a-z0-9_]{1,30}$/.test(n.art)
       && typeof n.bezug === 'string' && n.bezug.length <= 60 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort))) return null;
-    const eintrag = { art: n.art, bezug: n.bezug, antwort: n.antwort, am: n.am };
+    // Runde 8: J5 – zeigt der Bezug auf einen Befund, der eben in einem
+    // anderen desselben Tages aufgegangen ist, gilt die Antwort für diesen.
+    const bezug = zusammen.umbenannt.get(n.bezug) || n.bezug;
+    const eintrag = { art: n.art, bezug, antwort: n.antwort, am: n.am };
     // Runde 6 – Rest (W-D4-Art): Die Antwort auf W-D4 trägt die Art der
     // Frage – nach einer Erhöhung oder einer Senkung. Aus dem heutigen
     // Datenstand ließ sie sich nicht sicher lesen (einschaetzung.wd4Art).
     if (n.art === 'wd4' && ['erhoehung', 'senkung'].includes(n.aenderung)) return { ...eintrag, aenderung: n.aenderung };
+    // Runde 8: J3 (Fassung 5) – der Vermerk „Entscheidung, während die Karte
+    // wartete" nennt die Änderung, auf die sie wartete (js/dosis.js).
+    // Runde 8 – Nachbesserung: Die Kennung bleibt auch, wenn der Eintrag
+    // nicht (mehr) da ist – dann gilt der Vermerk für keine Änderung, so wie
+    // vor dem Neuladen. Fiel sie weg, galt er wie ein älterer Vermerk ohne
+    // Kennung für den ganzen Tag: Nach dem Löschen des gebundenen Eintrags
+    // und einer neuen eigenen Verdopplung zeigte die Karte vor dem Neuladen
+    // X3 mit Frist, danach „Kein besonderer Anlass" – derselbe Stand, zwei
+    // Aussagen (auch beim Einlesen einer Sicherung).
+    // Runde 8 – Nachprüfung (R4, Fassung 5): dazu `praxis` – die Angabe der
+    // Praxis, zu der der Vermerk gehört (bleibt/geaendert/nachmessen,
+    // js/dosis.js praxisDanachVermerken). Ein Befund trägt seit R4 je Änderung
+    // einen Vermerk, also oft mehrere; die Antwort „verfallen" (F1) bleibt wie
+    // jede Antwort. Gehen zwei Befunde eines Tages in einem auf (J5), kommen
+    // die Vermerke beider an ihn – keiner fällt weg: Jeder sagt, dass die
+    // Praxis zu genau dieser Änderung entschieden hat, und js/dosis.js zählt
+    // jeden, der zur Angabe des Befunds passt (eine neue Entscheidung zu der
+    // Änderung ersetzt dann beide).
+    // Runde 8 – Nachprüfung 2 (F-7, Fassung 5): dazu `ab` – der Beginn der
+    // Änderung am Tag des Vermerks (R1 b, js/dosis.js praxisDanachVermerken).
+    if (n.art === 'praxis_danach') {
+      return {
+        ...eintrag,
+        ...(kennungFormal(n.dosis) ? { dosis: n.dosis } : {}),
+        ...(['bleibt', 'geaendert', 'nachmessen'].includes(n.praxis) ? { praxis: n.praxis } : {}),
+        ...(istISO(n.ab) ? { ab: n.ab } : {}),
+      };
+    }
+    // Runde 8: H-N1 (Fassung 5) – ein „Nein, ich nehme etwas anderes", nach
+    // dem eine Anordnung der Praxis eingetragen wurde: Es wartet noch auf die
+    // Menge für die Zeit davor und nennt die Anordnung. Nur an einem „Nein".
+    if (n.art === 'dosis_stimmt') return /^nein/.test(n.antwort) && kennungOk(n.anordnung) ? { ...eintrag, anordnung: n.anordnung } : eintrag;
     if (n.art !== 'karte_gezeigt') return eintrag;
     if (!['mehr', 'weniger', 'gleich'].includes(n.antwort)) return null;
     const titel = zeile(n.titel, GRENZEN.titel);
@@ -1044,6 +1160,32 @@ export function aendern(fn) {
  *      strich sonst die 75 µg, die die Praxis am 14.05.2024 angeordnet hatte,
  *      als „nie genommen; stattdessen 75 µg". Ob das ungefähre Datum vor den
  *      genaueren Eintrag gehört, fragt das Dosis-Formular.
+ *
+ * Runde 8: K3 – Ein Kopf ersetzt nur, was VOR ihm gesagt wurde. Zwei Köpfe
+ *      mit verschiedenen Zielen: 50 µg ab 01.01. (statt der 100 µg ab 01.03.,
+ *      gesagt am 10.03.) und später 25 µg ab 01.02. (statt der 75 µg ab
+ *      01.05., gesagt am 25.06.). Die 25 µg lagen im Bereich der 50 µg und
+ *      galten als „nie genommen; stattdessen 50 µg" – die eben eingetragene
+ *      Menge war weg, aktuell galten wieder 50 µg. Maßgeblich ist der Tag, an
+ *      dem ein Eintrag gesagt wurde (gesagtAm: bei einer Berichtigung
+ *      `berichtigtAm`, sonst `eingetragenAm`); bei Gleichstand gilt der
+ *      spätere im Speicher als jünger. Liegt ein Eintrag im Bereich zweier
+ *      Köpfe, ersetzt ihn der später gesagte. Ihr Ziel ersetzt eine
+ *      Berichtigung immer – es war da, als sie es berichtigt hat. Ohne Tage
+ *      (ältere Daten) bleibt es wie bisher.
+ * Runde 8: K4 – Die Ersetzungen eines abgelösten Glieds bleiben beim Kopf:
+ *      50 µg ab 01.01. statt der 100 µg ab 01.03. (nie genommen), dann 25 µg
+ *      ab 01.04. statt der 50 µg. Das Ziel der Kette (die 100 µg) lag VOR dem
+ *      Kopf, die Schleife ab dem Kopf traf es nicht mehr – die als nie
+ *      genommen gemeldete Anordnung lebte wieder auf („Dosis damals 100 µg").
+ *      Jetzt rechnet auch jedes abgelöste Glied seinen eigenen Bereich (sein
+ *      Ziel und die Einträge dazwischen mit anderer Menge, die vor ihm gesagt
+ *      wurden), und alles zusammen gilt als ersetzt durch den Kopf – wenn das
+ *      Glied an einem FRÜHEREN Tag gesagt wurde als der Kopf. Ein Glied vom
+ *      selben Tag (oder ohne Tage) löst der Kopf ganz ab, wie bisher: Die
+ *      Nutzerin hat sich am selben Tag verbessert (H7: 175 µg, gleich darauf
+ *      150 µg „ab heute") – dann gilt wieder, was die App vorher wusste
+ *      („laut App; später berichtigt"), statt einer Lücke ohne Dosis.
  */
 export function ersetztDurchBerichtigung(s) {
   const dosen = s.dosen;
@@ -1054,23 +1196,98 @@ export function ersetztDurchBerichtigung(s) {
     return t && t !== b ? t : null;
   };
   const abgeloest = new Set(dosen.map(ziel).filter((t) => t && t.berichtigung));
+  // K3: wann ein Eintrag gesagt wurde – null bei älteren Daten ohne Tag.
+  const gesagtAm = (d) => {
+    const tag = d.berichtigung ? d.berichtigtAm : d.eingetragenAm;
+    return istISO(tag) ? tag : null;
+  };
+  /*
+   * Runde 8 – Nachprüfung (R2), schränkt K3 ein: Rückt „Gilt ab" einer
+   * Berichtigung nach vorn, ist der neu überdeckte Bereich an diesem Tag
+   * gesagt (H18: wer „Gilt ab" ändert, sagt es zuletzt). Das Dosis-Formular
+   * merkt sich jedes Vorrücken (`vorgerueckt`: [{ ab, von, am }] – der Bereich
+   * von `ab` bis vor `von`, gesagt am `am`). Vorher galt für den ganzen
+   * Bereich der Tag der Berichtigung (berichtigtAm), der beim Verschieben
+   * stehen bleibt (X3b): 100 µg „ab heute" am 31.03. (statt 175 µg ab 18.03.),
+   * gleich danach 112,5 µg ab 17.03. „auf Anweisung der Praxis", am 06.04.
+   * „Gilt ab" der 100 µg auf 12.03. – ihre letzte Aussage war „seit 12.03.
+   * 100 µg", die 112,5 µg zählten trotzdem als nach der Berichtigung gesagt
+   * und blieben die aktuelle Dosis („Dosis damals 112,5 µg", W-D4 „seit Ihre
+   * Dosis erhöht wurde", X3b weg). Jetzt gelten Einträge in diesem Bereich,
+   * die bis zum Vorrücken gesagt wurden, als nie genommen (wie 7029062);
+   * später gesagte bleiben (K3). berichtigtAm bleibt, wie er ist.
+   * → { tag, zug } – `zug`: der Tag kommt vom Vorrücken.
+   */
+  const gesagtFuer = (b, x) => {
+    const t = gesagtAm(b);
+    const z = (Array.isArray(b.vorgerueckt) ? b.vorgerueckt : []).filter((v) => v.ab <= x.ab && x.ab < v.von).map((v) => v.am).sort().pop() || null;
+    return z && (!t || z >= t) ? { tag: z, zug: true } : { tag: t, zug: false };
+  };
+  // K3: wurde `x` vor `b` gesagt – für den Bereich, in dem `x` liegt (R2)?
+  // Ohne Tage ja (wie bisher); am selben Tag ist der spätere im Speicher der
+  // jüngere – nach einem Vorrücken an diesem Tag gilt das Vorrücken als später (H18).
+  const vorGesagt = (x, b) => {
+    const tx = gesagtAm(x);
+    const { tag: tb, zug } = gesagtFuer(b, x);
+    if (!tx || !tb) return true;
+    return tx !== tb ? tx < tb : zug || dosen.indexOf(x) < dosen.indexOf(b);
+  };
+  // Zwei Köpfe, in deren Bereich `x` liegt: der für diesen Bereich später gesagte (K3, R2).
+  const spaeter = (a, b, x) => {
+    const ta = gesagtFuer(a, x).tag;
+    const tb = gesagtFuer(b, x).tag;
+    if (!ta || !tb) return b;
+    if (ta !== tb) return ta < tb ? b : a;
+    return dosen.indexOf(a) < dosen.indexOf(b) ? b : a;
+  };
+  // K4: ein Glied wurde an einem FRÜHEREN Tag gesagt als der Kopf – seine
+  // Ersetzungen waren eine eigene, frühere Aussage und bleiben. Am selben Tag
+  // (oder ohne Tage) löst der Kopf das Glied ganz ab, wie bisher: Die
+  // Nutzerin hat sich am selben Tag verbessert, ihre erste Angabe gilt als
+  // Versehen – dann gilt wieder, was die App vorher wusste (H7: eine zweite
+  // Berichtigung „ab heute" lässt die 125 µg als „laut App; später
+  // berichtigt" stehen, statt eine Lücke ohne Dosis zu hinterlassen).
+  const frueherGesagt = (g, kopf) => {
+    const tg = gesagtAm(g);
+    const tk = gesagtAm(kopf);
+    return Boolean(tg && tk && tg < tk);
+  };
+  // Der Bereich eines Glieds `b` bis zum Ziel `t` der Kette (ein Eintrag,
+  // keine Berichtigung; liegt es vor `b`, gilt die übliche Regel: nichts):
+  // das Ziel selbst und die Einträge dazwischen mit anderer Menge am Tag,
+  // die vor `b` gesagt wurden (K3).
+  const bereichBis = (b, t) => {
+    if (!t || t.berichtigung) return [];
+    const i = dosen.indexOf(b);
+    const j = dosen.indexOf(t);
+    if (j < i) return [];
+    const menge = tagesdosis(b);
+    return [t, ...dosen.slice(i + 1, j).filter((x) => tagesdosis(x) !== menge && vorGesagt(x, b))];
+  };
   const weg = new Map();
-  dosen.forEach((kopf, i) => {
+  dosen.forEach((kopf) => {
     if (!ziel(kopf) || abgeloest.has(kopf)) return;
-    const kette = new Set([kopf]);
+    const kette = [kopf];
+    const gesehen = new Set([kopf]);
     let t = ziel(kopf);
-    while (t && t.berichtigung && !kette.has(t)) {
-      kette.add(t);
-      if (!weg.has(t)) weg.set(t, kopf);
+    while (t && t.berichtigung && !gesehen.has(t)) {
+      gesehen.add(t);
+      kette.push(t);
       t = ziel(t);
     }
-    if (!t || kette.has(t)) return;
-    const menge = tagesdosis(kopf);
-    const j = dosen.indexOf(t);
-    for (let k = i + 1; k <= j; k++) {
-      const x = dosen[k];
-      if (!kette.has(x) && !weg.has(x) && (k === j || tagesdosis(x) !== menge)) weg.set(x, kopf);
-    }
+    // Das Ziel der Kette – im Kreis (Altdaten) gibt es keins.
+    const zielDerKette = t && !gesehen.has(t) ? t : null;
+    // Liegt ein Eintrag im Bereich zweier Köpfe, ersetzt ihn der später gesagte (K3).
+    const setzen = (x) => {
+      if (gesehen.has(x)) return;
+      const bisher = weg.get(x);
+      if (!bisher || bisher === kopf || spaeter(kopf, bisher, x) === kopf) weg.set(x, kopf);
+    };
+    kette.slice(1).forEach((g) => { if (!weg.has(g)) weg.set(g, kopf); });
+    // Der Bereich des Kopfs bis zum Ziel der Kette – wie bisher (H11).
+    bereichBis(kopf, zielDerKette).forEach(setzen);
+    // K4: dazu die Bereiche der Glieder, die an einem früheren Tag gesagt wurden.
+    kette.slice(1).forEach((g) => { if (frueherGesagt(g, kopf)) bereichBis(g, zielDerKette).forEach(setzen); });
   });
   // Ersetzt ein Kopf einen anderen, ersetzt er auch, was jener ersetzte.
   weg.forEach((b, x) => {
@@ -1096,6 +1313,17 @@ export function dosisAm(tag = heuteISO()) {
   return gefunden;
 }
 
+/*
+ * Runde 8: K9 – der Rückfall, wenn es nur künftige Einträge gibt: der letzte
+ * Eintrag des frühesten Tages. Vorher der erste Eintrag der Liste – stehen
+ * ab demselben Tag zwei (1 Tablette, daneben 1¼), zählt der letzte (H18,
+ * dosisAm), und der Vorrat rechnete sonst mit der überholten Menge.
+ */
+function ersteDosis() {
+  const g = gueltigeDosen(stand);
+  return g.length ? dosisAm(g[0].ab) : null;
+}
+
 /**
  * Die Dosis, die heute gilt. Eine schon eingetragene, aber erst später
  * geltende Dosis („ab Montag 100 µg") ist das nicht – die steht in
@@ -1103,13 +1331,25 @@ export function dosisAm(tag = heuteISO()) {
  * Irgendeine muss „Heute" nennen.
  */
 export function aktuelleDosis(tag = heuteISO()) {
-  return dosisAm(tag) || gueltigeDosen(stand)[0] || null;
+  return dosisAm(tag) || ersteDosis();
 }
 
-/** Die nächste Dosis, die erst nach `tag` gilt – oder null. */
+/*
+ * Die nächste Dosis, die erst nach `tag` gilt – oder null.
+ * Runde 8: K9 – je Wechseltag die Dosis, die an dem Tag gilt (dosisAm: der
+ * letzte Eintrag des Tages). Vorher der erste künftige Eintrag der Liste:
+ * Stand ab demselben Tag eine Anordnung (125 µg) und daneben die eigene
+ * Änderung (112,5 µg), kündigte „Heute" die 125 µg an, die an dem Tag schon
+ * überholt sind.
+ */
 export function naechsteDosis(tag = heuteISO()) {
   const jetzt = aktuelleDosis(tag);
-  return gueltigeDosen(stand).find((d) => d.ab > tag && d !== jetzt) || null;
+  const tage = [...new Set(gueltigeDosen(stand).filter((d) => d.ab > tag).map((d) => d.ab))].sort();
+  for (const t of tage) {
+    const d = dosisAm(t);
+    if (d && d !== jetzt) return d;
+  }
+  return null;
 }
 
 /**
@@ -1246,9 +1486,10 @@ export function naechsterTermin(heute = heuteISO()) {
 /*
  * Tabletten am Tag `tag`: aus der Dosis, die an dem Tag gilt. Vor der ersten
  * Dosis (oder ganz ohne) die früheste bzw. eine Tablette – wie aktuelleDosis().
+ * Runde 8: K9 – die früheste ist der letzte Eintrag des frühesten Tages (ersteDosis).
  */
 function tablettenAm(tag) {
-  const d = dosisAm(tag) || gueltigeDosen(stand)[0];
+  const d = dosisAm(tag) || ersteDosis();
   return d ? d.tabletten : 1;
 }
 

@@ -435,13 +435,21 @@ function zusatzZeile(z) {
 export function befundKarte(l, stand, heute, { kurz = false, aendern = false, dosisKnopf = false } = {}) {
   const e = ez.befundEinschaetzen(l, stand, heute);
   const aktiv = ez.aktiv(stand);
-  const dosis = ez.dosisAmIn(stand, l.datum);
-  const tag = sp.tagesdosis(dosis);
+  /*
+   * Runde 8 – Nachbesserung 2 („Dosis damals" überall gleich): wie die
+   * Befundzeile des Berichts (ez.dosisDamals mit dem Befund) – eine Anordnung
+   * der Praxis vom Tag der Abnahme, nach der Entscheidung zu ihr eingetragen,
+   * war nicht die Dosis dieses Tages. Vorher nannte die Karte hier „Dosis
+   * damals 125 µg", der Bericht zur selben Abnahme „100 µg" und die
+   * Dosis-Karte „nach dieser Blutabnahme schon geändert".
+   */
+  const damals = ez.dosisDamals(stand, l.datum, heute, l);
+  const tag = damals ? damals.td : null;
   const teile = [];
   teile.push(`
     <div class="befund-kopf">
       <span class="befund-datum">${esc(datumKurz(l.datum))}</span>
-      <span class="gedaempft klein">${tag !== null ? `Dosis damals ${esc(zahlText(tag, 1))} µg am Tag` : ''}</span>
+      <span class="gedaempft klein">${tag !== null ? `Dosis damals ${esc(zahlText(tag, 1))} µg am Tag` : damals && damals.offen ? 'Dosis damals noch nicht eingetragen' : ''}</span>
     </div>`);
   teile.push(werteZeilen(e));
   hinweiseOhneDoppelte(e).forEach((h) => teile.push(`<p class="klein hinweis-zeile">${esc(h)}</p>`));

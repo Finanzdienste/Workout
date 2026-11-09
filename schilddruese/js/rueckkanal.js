@@ -61,7 +61,7 @@ export const BETREIBER = 'Tobi';
  * demselben Vorrat wie der übrige Code, nennt also genau die Fassung, die
  * gerade läuft – auch ohne Worker und ohne Warten auf seine Antwort.
  */
-export const APP_FASSUNG = 'v15';
+export const APP_FASSUNG = 'v19';
 
 /*
  * Das Supabase-Projekt der Workout-App (dort js/config.js). Adresse und

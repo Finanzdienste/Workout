@@ -125,4 +125,48 @@ await page.click('button[type=submit]');
 await page.click('#reiter-heute');
 check(!(await ansichtText(page)).includes('fehlt noch'), 'eingetragen: der Hinweis ist weg');
 
+// Runde 8 (K1): Eine eigene Änderung im Voraus („ab Montag 125 statt 75",
+// Praxis: Nein) zählt schon vor dem Starttag: „Heute" nennt X3 mit 112 als
+// Anruf, die Dosis-Karte wartet (Tage). Vorher sank die Karte bis zum Starttag
+// auf „Beim nächsten Termin", und „Heute" schwieg zur geplanten Verdopplung.
+await page.waitForTimeout(400);   // ein ausstehendes Speichern der App abwarten, sonst überschreibt es den Stand
+await page.evaluate(({ key, tag, befund }) => {
+  const st = JSON.parse(localStorage.getItem(key));
+  st.profil = { ...st.profil, behandelt: true, geburtsjahr: 1966, herz: 'nein', krebs: 'nein', kortison: 'nein', ursache: 'hashimoto', praeparatArt: 't4', zielNiedrig: 'nein', hypophyseOderNiedrig: 'nein', diabetes: 'nein', schwanger: 'nein', bundesland: 'BY' };
+  st.dosen = [{ id: 'd1', ab: '2025-05-01', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '', praxis: true }];
+  st.labor = [{ id: 'b1', datum: befund, tsh: { wert: 6.0, einheit: 'mU/l', von: 0.4, bis: 4 }, ft4: { wert: 15, einheit: 'pmol/l', von: 12, bis: 22 }, ft3: null, notiz: '',
+    abnahmeUhr: '08:00', vorAbnahme: 'nein', tabletteUhr: '', biotin: 'nein', krank: 'nein', kortison: 'nein', kontrastmittel: 'nein', mittelGeaendert: 'nein', einnahmeGeaendert: 'nein',
+    packung: 'nein', vergessen: 'nein', einnahmeArt: 'ja', abstandOk: 'ja', verwechselt: 'nein', laborName: '', praxis: 'nochnicht', praxisAm: befund, bestaetigt: false }];
+  st.nachfragen = [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: befund }];
+  st.einnahmen = {};
+  for (let i = 1; i <= 60; i++) { const d = new Date(`${tag}T12:00:00`); d.setDate(d.getDate() - i); st.einnahmen[d.toISOString().slice(0, 10)] = { uhr: '07:00' }; }
+  localStorage.setItem(key, JSON.stringify(st));
+}, { key: 'schilddruese.stand.v1', tag: TAG, befund: plus(TAG, -10) });
+await uhr(TAG, '06:00');
+await page.click('#reiter-verlauf');
+await page.click('[data-seite="dosis"]');
+await page.fill('input[name=mikrogramm]', '125');
+await page.fill('input[name=ab]', montag);
+await page.check('input[name=praxis][value=nein]');
+await page.click('button[type=submit]');
+await page.waitForTimeout(900);
+// „mehr als die Hälfte": Ja, stimmt.
+if (await page.locator('dialog.rueckfrage [data-act="befund-bestaetigen"]').count()) await page.click('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+await page.waitForTimeout(500);
+s = await gespeichert();
+check(s.dosen.length === 2 && s.dosen[1].mikrogramm === 125 && s.dosen[1].ab === montag && s.dosen[1].praxis === false, 'Runde 8 (K1): die geplante eigene Änderung ist gespeichert');
+await page.click('#reiter-heute');
+const x3 = page.locator('#ansicht [data-regel="X3"]');
+const x3Text = (await x3.count()) ? (await x3.first().innerText()).replace(/\s+/g, ' ') : '';
+check(/ohne Anweisung der Praxis ändern/.test(x3Text) && /bevor Sie damit beginnen/.test(x3Text) && await x3.first().locator('a[href="tel:112"]').count() === 1,
+  `Runde 8 (K1): „Heute" nennt die geplante eigene Änderung schon vor Montag, mit 112 als Anruf („${x3Text.slice(0, 120)}")`);
+await page.click('#reiter-mehr');
+// Nach dem Reiterwechsel sperrt die App 0,6 s lang den nächsten Tipp (Entscheidung Runde 5).
+await page.waitForTimeout(700);
+await page.locator('#ansicht [data-seite="dosis-karte"]').first().click();
+const karte = page.locator('#dosis-karte');
+await karte.waitFor({ timeout: 10000 });
+check(await karte.getAttribute('data-stufe') === 'tage' && /bevor Sie damit beginnen/.test(await karte.innerText()),
+  `Runde 8 (K1): die Dosis-Karte wartet (Tage) und rät, vor dem Beginn anzurufen (${await karte.getAttribute('data-stufe')})`);
+
 await ende();
