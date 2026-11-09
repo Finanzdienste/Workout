@@ -24,7 +24,8 @@ import { einschaetzungSeite } from './ansicht-einschaetzung.js';
 import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS, PRAXIS_NOCH_NICHT } from './ansicht-dosis.js';
 import { fragenVorschlaege, abnahmeHeute } from './einschaetzung.js';
 import {
-  dosisHinweise, wd4FrageArt, entscheidungNachEigener, praxisDanachVermerken, praxisDanachMerken, praxisDanachZuruecksetzen, anordnungEingetragen,
+  dosisHinweise, wd4FrageArt, entscheidungNachEigener, praxisDanachVermerken, praxisDanachMerken, praxisDanachZuruecksetzen, praxisDanachVerwerfen,
+  anordnungEingetragen,
 } from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, willkommenEntwurf, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import {
@@ -1071,6 +1072,8 @@ function aktion(el) {
           b.praxis = wert;
           // Runde 8 – Nachbesserung: mit der Angabe von vorher, damit der Vermerk an die Änderung kommt, auf die die Karte eben wartete.
           if (neuNachEigener) praxisDanachVermerken(s, b.id, heute, vorher);
+          // Runde 8 – Nachprüfung 2 (F-1): „Noch nichts entschieden" nimmt die Angabe zurück – mit allen ihren Vermerken.
+          if (wert === 'nochnicht') praxisDanachVerwerfen(s, b.id);
         }
       });
       if (wert === 'geaendert') {
@@ -1396,6 +1399,8 @@ function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
         if (feld === 'praxis') b.praxisAm = heute;
         // Runde 8 – Nachbesserung: mit der Angabe von vorher (siehe praxis-entscheid).
         if (neuNachEigener) praxisDanachVermerken(s, b.id, heute, praxisVorher);
+        // Runde 8 – Nachprüfung 2 (F-1): F8 „Noch nicht" nimmt die Angabe zurück – mit allen ihren Vermerken.
+        if (feld === 'praxis' && !['bleibt', 'geaendert', 'nachmessen'].includes(wert)) praxisDanachVerwerfen(s, b.id);
         geschrieben = true;
       } else if (ziel === 'profil') {
         if (!(PROFIL_ANTWORTEN[feld] || []).includes(wert)) return;
@@ -1908,8 +1913,14 @@ function praxisNachfrage(vorher, weiter) {
            * zählte damit als danach – Karte „Kein besonderer Anlass", „Heute"
            * ohne X3 zur eigenen Verdopplung. Der vorherige Vermerk (oder
            * keiner) gilt wieder.
+           * Runde 8 – Nachprüfung 2 (F-1): „Nein – es gilt weiter …" stellt die
+           * gemerkte Liste wieder her; „Nein, noch nichts entschieden" nimmt die
+           * Angabe zurück (auf „Noch nichts entschieden") – dann fallen alle
+           * Vermerke des Befunds weg, wie bei jeder Rücknahme (js/dosis.js,
+           * praxisDanachVerwerfen).
            */
-          praxisDanachZuruecksetzen(s, b.id, vorher.vermerk || null);
+          if (entschieden) praxisDanachZuruecksetzen(s, b.id, vorher.vermerk || null);
+          else praxisDanachVerwerfen(s, b.id);
         }
       });
       weiter();

@@ -98,6 +98,16 @@ export const SCHLUESSEL = 'schilddruese.stand.v1';
  * Ein Stand ohne diese Felder rechnet wie bisher: ein Vermerk ohne `praxis`
  * mit der Angabe am Befund, eine Berichtigung ohne `vorgerueckt` mit
  * berichtigtAm für ihren ganzen Bereich.
+ *
+ * Ebenfalls Fassung 5 (Nachprüfung 2 der Runde 8, noch vor der Auslieferung):
+ * am Vermerk `praxis_danach` das Feld `ab` – der Beginn („Gilt ab") der
+ * Änderung, auf die die Karte wartete, am Tag des Vermerks (F-7: R1 b fragt,
+ * ob sie am Tag der Entscheidung schon begonnen hatte; ein später
+ * vorverlegtes „Gilt ab" macht sie nicht nachträglich zu einer damals
+ * laufenden). Ein Vermerk ohne `ab` rechnet wie bisher nur mit dem heutigen
+ * Beginn. Dazu ohne neues Feld: Eine zurückgenommene Angabe der
+ * Praxis („Noch nichts entschieden" oder leer) nimmt alle Vermerke ihres
+ * Befunds mit (F-1, js/dosis.js praxisDanachVerwerfen).
  */
 export const VERSION = 5;
 
@@ -910,11 +920,14 @@ export function normStand(roh) {
     // Praxis zu genau dieser Änderung entschieden hat, und js/dosis.js zählt
     // jeden, der zur Angabe des Befunds passt (eine neue Entscheidung zu der
     // Änderung ersetzt dann beide).
+    // Runde 8 – Nachprüfung 2 (F-7, Fassung 5): dazu `ab` – der Beginn der
+    // Änderung am Tag des Vermerks (R1 b, js/dosis.js praxisDanachVermerken).
     if (n.art === 'praxis_danach') {
       return {
         ...eintrag,
         ...(kennungFormal(n.dosis) ? { dosis: n.dosis } : {}),
         ...(['bleibt', 'geaendert', 'nachmessen'].includes(n.praxis) ? { praxis: n.praxis } : {}),
+        ...(istISO(n.ab) ? { ab: n.ab } : {}),
       };
     }
     // Runde 8: H-N1 (Fassung 5) – ein „Nein, ich nehme etwas anderes", nach

@@ -3545,7 +3545,8 @@ const FELDER_FASSUNG_5 = ['befinden', 'befinden[].beschwerden', 'befinden[].datu
   'labor[].werteAm', 'labor[].werteAm.natrium', 'letzteSicherung', 'mittel', 'mittelAbstand', 'mittelWechsel', 'mittelWechsel[].am', 'mittelWechsel[].art', 'mittelWechsel[].id', 'mittelWechsel[].key',
   // Runde 8 (Fassung 5): `anordnung` am „Nein" (H-N1) und `dosis` am Vermerk praxis_danach (J3).
   // Runde 8 – Nachprüfung (R4, Fassung 5): `praxis` am Vermerk praxis_danach – die Angabe, zu der er gehört.
-  'nachfragen', 'nachfragen[].aenderung', 'nachfragen[].am', 'nachfragen[].anordnung', 'nachfragen[].antwort', 'nachfragen[].art', 'nachfragen[].bezug', 'nachfragen[].dosis', 'nachfragen[].id', 'nachfragen[].praxis', 'nachfragen[].titel',
+  // Runde 8 – Nachprüfung 2 (F-7, Fassung 5): `ab` am Vermerk praxis_danach – der Beginn der Änderung an diesem Tag.
+  'nachfragen', 'nachfragen[].ab', 'nachfragen[].aenderung', 'nachfragen[].am', 'nachfragen[].anordnung', 'nachfragen[].antwort', 'nachfragen[].art', 'nachfragen[].bezug', 'nachfragen[].dosis', 'nachfragen[].id', 'nachfragen[].praxis', 'nachfragen[].titel',
   'profil', 'profil.begruesst', 'profil.behandelt', 'profil.bundesland', 'profil.diabetes',
   // Begrüßung/Heute (Nov. 2026): welche Fassung des Begrüßungsfensters angezeigt wurde, mit der Seite „Ihre Daten".
   'profil.einfuehrung', 'profil.einfuehrungDaten', 'profil.geburtsjahr', 'profil.herz', 'profil.hypophyseOderNiedrig',
@@ -3565,8 +3566,8 @@ const R7_VOLL = {
   mittelWechsel: [{ id: 'w1', key: 'kaffee', art: 'beginn', am: '2026-01-01' }],
   uhrWechsel: [{ id: 'u1', am: '2026-01-01', von: '07:00', nach: '11:00' }],
   nachfragen: [{ id: 'n1', art: 'wd4', bezug: 'd1-14', antwort: 'ja', am: '2026-01-01', aenderung: 'erhoehung' }, { id: 'n2', art: 'karte_gezeigt', bezug: 'b1', antwort: 'mehr', am: '2026-01-01', titel: 'T' },
-    // Runde 8 – Nachprüfung (R4): der Vermerk mit der Angabe, zu der er gehört.
-    { id: 'n3', art: 'praxis_danach', bezug: 'b1', antwort: 'ja', am: '2026-01-05', dosis: 'd1', praxis: 'bleibt' }, { id: 'n4', art: 'dosis_stimmt', bezug: 'b1', antwort: 'nein_75', am: '2026-01-06', anordnung: 'd1' }],
+    // Runde 8 – Nachprüfung (R4): der Vermerk mit der Angabe, zu der er gehört; Nachprüfung 2 (F-7): mit dem Beginn der Änderung an diesem Tag.
+    { id: 'n3', art: 'praxis_danach', bezug: 'b1', antwort: 'ja', am: '2026-01-05', dosis: 'd1', praxis: 'bleibt', ab: '2024-01-01' }, { id: 'n4', art: 'dosis_stimmt', bezug: 'b1', antwort: 'nein_75', am: '2026-01-06', anordnung: 'd1' }],
   // Rückkanal (Nov. 2026): mit dem Schalter der täglichen Meldung.
   einstellungen: { erinnerung: '07:00', schrift: 'gross', farbe: 'hell', hinweisTablette: true, rueckkanal: false },
   // Runde 8 – Nachprüfung (R2): die Berichtigung mit einem Vorrücken von „Gilt ab".
@@ -4158,6 +4159,9 @@ function r8PraxisEntscheid(befundId, wert, heute) {
       s.nachfragen = s.nachfragen.filter((n) => !(n.art === dzR7.PRAXIS_DANACH && n.bezug === b.id));
       s.nachfragen.push({ id: spR5.kennung(), art: dzR7.PRAXIS_DANACH, bezug: b.id, antwort: 'ja', am: heute });
     }
+    // Runde 8 – Nachprüfung 2 (F-1): wie js/app.js – „Noch nichts entschieden" nimmt alle Vermerke des
+    // Befunds mit (ein Stand ohne die Hilfe rechnet wie sein js/app.js).
+    if (wert === 'nochnicht' && typeof dzR7.praxisDanachVerwerfen === 'function') dzR7.praxisDanachVerwerfen(s, b.id);
   });
 }
 const r8Verlauf = (st, heute) => ez.dosisVerlauf(st, heute).map((p) => `${spR5.tagesdosis(p.d)}${p.berichtigung ? 'B' : ''}`).join('→');
@@ -5472,6 +5476,183 @@ const r8AbWert = (html) => (/name="ab"[^>]*value="([^"]*)"/.exec(html) || [])[1]
       check('R2: im Bereich des zweiten Vorrückens gilt die vorher gesagte 125 µg als nie genommen', weg.has(id('X2')) && weg.get(id('X2')).id === 'B', r8Dosen(st));
       check('R2 Gegenprobe: im Bereich des ersten Vorrückens bleibt die danach gesagte 112,5 µg (K3)', !weg.has(id('X1')), r8Dosen(st));
       check('R2 Gegenprobe: das Ziel (175 µg) ersetzt die Berichtigung wie immer', weg.has(id('d1')), r8Dosen(st));
+    });
+
+    // ================================================================ Nachprüfung 2 der Runde 8 (F-1, F-2, F-6, F-7)
+    // Randfälle der Korrektur cc8b219, über die echten Formularwege. Jede
+    // Prüfung außer den Vorbereitungen und Gegenproben scheiterte vor dieser
+    // Korrektur (Stand cc8b219).
+    /** Die Felder des Befund-Formulars aus einem gespeicherten Befund, dazu `aenderung`. */
+    const r9Felder = (b, aenderung = {}) => {
+      const f = { datum: b.datum, laborName: b.laborName || '', notiz: b.notiz || '', abnahmeUhr: b.abnahmeUhr || '08:00', praxis: b.praxis || '' };
+      ['vorAbnahme', 'biotin', 'krank', 'kortison', 'kontrastmittel', 'mittelGeaendert', 'einnahmeGeaendert', 'packung', 'abstandOk', 'vergessen', 'einnahmeArt'].forEach((k) => { f[k] = b[k] || 'nein'; });
+      [...spR5.LABORWERTE, ...spR5.WEITERE_WERTE].forEach(([k]) => {
+        if (!b[k]) return;
+        f[`${k}_wert`] = String(b[k].wert).replace('.', ',');
+        f[`${k}_einheit`] = b[k].einheit;
+        if (b[k].von !== null && b[k].von !== undefined) f[`${k}_von`] = String(b[k].von).replace('.', ',');
+        if (b[k].bis !== null && b[k].bis !== undefined) f[`${k}_bis`] = String(b[k].bis).replace('.', ',');
+      });
+      return { ...f, ...aenderung };
+    };
+    /** Das Befund-Formular abschicken; Rückfragen nach `antworten` (ohne Eintrag „ja"). → { ok, fragen: [Name] } */
+    const r9Befund = (id, felder, heute, antworten = {}) => {
+      const fragen = [];
+      let f = { ...felder };
+      for (let i = 0; i < 6; i++) {
+        const r = afR7.absenden('labor', id, f, heute);
+        if (r.ok || !r.rueckfragen) return { ...r, fragen };
+        const name = r.rueckfrageName || 'bestaetigt';
+        fragen.push(name);
+        f = { ...f, [name]: Object.prototype.hasOwnProperty.call(antworten, name) ? antworten[name] : 'ja' };
+      }
+      return { ok: false, fragen };
+    };
+    const r9B = (id = 'b1') => spR5.getStand().labor.find((l) => l.id === id);
+    const r9Vermerke = () => JSON.stringify(nbVermerke(spR5.getStand()).map((n) => [n.antwort, n.am, n.dosis || '-', n.praxis || '-']));
+
+    fall('Nachprüfung 2 (F-1): die Angabe der Praxis im Befund-Formular zurückgenommen – alle Vermerke des Befunds fallen weg', () => {
+      // Wie s2b-r4-nochnicht-formular: E 100 → 150 µg ab 10.04., geplante G
+      // 150 → 200 µg ab 01.05. (eingetragen 11.04.). 12.04. und 13.04. „Die
+      // Praxis hat entschieden: bleibt" (Vermerke E und G). 14.04. im
+      // Befund-Formular zurückgenommen, 15.04. dort „Die Dosis bleibt so" (die
+      // Karte wartete auf E). Vorher zählte der Vermerk der zurückgenommenen
+      // Entscheidung zu G wieder: G ohne Frist, „Heute" leer, auch am Starttag.
+      const anfang = () => {
+        r8Laden(r8Stand({ dosen: [r8Dosis('d1', '2025-12-01', 100, { praxis: true })], labor: [r8Befund('b1', '2026-04-02', 2.0)] }));
+        const r1 = r8Senden(null, r8Felder('2026-04-10', 150, { praxis: 'nein' }), '2026-04-10', {});
+        const r2 = r8Senden(null, r8Felder('2026-05-01', 200, { praxis: 'nein' }), '2026-04-11', {});
+        r8PraxisEntscheid('b1', 'bleibt', '2026-04-12');
+        r8PraxisEntscheid('b1', 'bleibt', '2026-04-13');
+        return r1.ok && r2.ok;
+      };
+      for (const [name, weg] of [['„Noch nichts entschieden"', (h) => r9Befund('b1', r9Felder(r9B(), { praxis: 'nochnicht' }), h)],
+        ['leer', (h) => r9Befund('b1', r9Felder(r9B(), { praxis: '' }), h)],
+        ['neuer Befund desselben Tages mit „Noch nichts entschieden" („Ja, der neue Wert gilt")', (h) => r9Befund(null, r9Felder(r9B(), { praxis: 'nochnicht' }), h, { uebernehmen: 'ja' })]]) {
+        const ok = anfang();
+        check(`F-1 Formular (${name}) Vorbereitung: zwei Entscheidungen über die Karte – je ein Vermerk für E und G`, ok && nbVermerke(spR5.getStand()).length === 2, r9Vermerke());
+        const r = weg('2026-04-14');
+        check(`F-1 Formular (${name}): die Rücknahme nimmt alle Vermerke des Befunds mit`, r.ok && !['bleibt', 'geaendert', 'nachmessen'].includes(r9B().praxis) && nbVermerke(spR5.getStand()).length === 0,
+          `${JSON.stringify(r.fehler || r.fragen)} | ${r9B().praxis} | ${r9Vermerke()}`);
+        const rb = r9Befund('b1', r9Felder(r9B(), { praxis: 'bleibt' }), '2026-04-15');
+        const st = spR5.getStand();
+        check(`F-1 Formular (${name}) Vorbereitung: „Die Dosis bleibt so" am 15.04. ist eine Entscheidung nach E (J7, Vermerk für E)`,
+          rb.ok && r9B().praxisAm === '2026-04-15' && nbVermerke(st).some((n) => n.am === '2026-04-15'), `${r8Fragen(rb)} | ${r9Vermerke()}`);
+        for (const tag of ['2026-04-15', '2026-05-01']) {
+          const g = nbGrund(st, tag);
+          check(`F-1 Formular (${name}) am ${tag}: G (150 → 200 µg ab 01.05.) hat X3 mit Frist, „Heute" nennt X3`,
+            npFrist(st, tag) && npHeute(st, tag) && !!g && /01\.05\.2026/.test(g.text), npInfo(st, tag));
+        }
+        const geladen = r8NeuGeladen();
+        check(`F-1 Formular (${name}) Neuladen: am Starttag von G X3 mit Frist`, npFrist(geladen, '2026-05-01'), npInfo(geladen, '2026-05-01'));
+      }
+    });
+
+    fall('Nachprüfung 2 (F-2): die neue Dosis der Praxis vor „Die Dosis wird geändert" eingetragen – über die Formulare', () => {
+      // Wie s1-r1-dosis-vor-entscheidung (VARIANTE=formular): eigene 200 µg ab
+      // 10.04.; 12.04. die Dosis der Praxis 125 µg ab 20.04. (Praxis: Ja); 13.04.
+      // im Befund-Formular „Die Dosis wird geändert" (J7). Vorher: X3 „… heute
+      // oder morgen … wieder Ihre bisherige Menge", ab 20.04. ohne J8-Satz.
+      r8Laden(r8Stand({ dosen: [r8Dosis('d1', '2025-12-01', 100, { praxis: true })], labor: [r8Befund('b1', '2026-04-02', 2.0)] }));
+      const re = r8Senden(null, r8Felder('2026-04-10', 200, { praxis: 'nein' }), '2026-04-10', {});
+      const rp = r8Senden(null, r8Felder('2026-04-20', 125, { praxis: 'ja' }), '2026-04-12', {});
+      check('F-2 Formular Vorbereitung: eigene 200 µg ab 10.04. und die Dosis der Praxis 125 µg ab 20.04. gespeichert, die Karte wartet (X3 mit Frist)',
+        re.ok && rp.ok && npFrist(spR5.getStand(), '2026-04-12'), `${r8Fragen(re)} / ${r8Fragen(rp)} | ${npInfo(spR5.getStand(), '2026-04-12')}`);
+      const rb = r9Befund('b1', r9Felder(r9B(), { praxis: 'geaendert' }), '2026-04-13');
+      const st = spR5.getStand();
+      check('F-2 Formular Vorbereitung: „Die Dosis wird geändert" im Befund-Formular – Vermerk für die eigene 200 µg (J7)',
+        rb.ok && nbVermerke(st).length === 1 && nbVermerke(st)[0].praxis === 'geaendert', `${r8Fragen(rb)} | ${r9Vermerke()}`);
+      for (const tag of ['2026-04-13', '2026-04-16', '2026-04-19']) {
+        check(`F-2 Formular am ${tag}: die neue Dosis der Praxis steht schon da – kein X3 mit Frist, „Heute" ohne X3`, !npFrist(st, tag) && !npHeute(st, tag), npInfo(st, tag));
+      }
+      const g = nbGrund(st, '2026-04-20');
+      check('F-2 Formular ab 20.04.: der J8-Satz „Seit 20.04.2026 gilt die Dosis, die die Praxis festgelegt hat – nehmen Sie diese"',
+        !!g && /Seit 20\.04\.2026 gilt die Dosis, die die Praxis festgelegt hat/.test(g.text), npInfo(st, '2026-04-20'));
+    });
+
+    fall('Nachprüfung 2 (F-6): J7b fragt nicht, wenn die Angabe schon nach der wartenden Änderung liegt', () => {
+      // Wie repro-j7b-hb (Seed 7150, Schritt 22–25): eigene 75 µg ab 08.05.
+      // (eingetragen 16.05.); 22.05. der Befund vom 21.05. mit TSH 1,5, Hb 6,5 und
+      // „Die Dosis wird geändert"; (A) danach die frühere Dosis der Praxis 200 µg
+      // ab 30.03. nachgetragen; 25.05. den Befund noch einmal gespeichert (TSH
+      // korrigiert). Vorher: J7b „Hat die Praxis das nach Ihrer eigenen Änderung
+      // vom 16.05. gesagt?", „Ja, danach" datierte die Angabe auf heute – das Hb
+      // 6,5 galt als der Praxis bekannt, das Gesamtbild sank von „heute" auf „Tage".
+      const E = r8Dosis('e1', '2026-05-08', 75, { praxis: false, eingetragenAm: '2026-05-16' });
+      const D0 = r8Dosis('d0', '2026-03-30', 200, { praxis: true, eingetragenAm: '2026-03-30' });
+      const felder = (tsh) => ({ ...r8Labor('2026-05-21', { tsh_wert: tsh, praxis: 'geaendert' }), hb_wert: '6,5', hb_einheit: 'g/dl', hb_von: '12', hb_bis: '16' });
+      for (const variante of ['A', 'B']) {
+        if (variante === 'A') {
+          r8Laden(r8Stand({ dosen: [E] }));
+          const r1 = r9Befund(null, felder('1,5'), '2026-05-22');
+          const r2 = r8Senden(null, r8Felder('2026-03-30', 200, { praxis: 'ja' }), '2026-05-22', { abAlt: 'ja' });
+          check('F-6 A Vorbereitung: Befund mit „geändert" und die frühere Dosis der Praxis gespeichert', r1.ok && r2.ok, `${JSON.stringify(r1.fragen)} / ${r8Fragen(r2)} ${r8Dosen(spR5.getStand())}`);
+        } else {
+          r8Laden(r8Stand({ dosen: [D0, E], labor: [{ ...r8Befund('b2', '2026-05-21', 1.5, { praxis: 'geaendert', praxisAm: '2026-05-22' }), hb: { wert: 6.5, einheit: 'g/dl', von: 12, bis: 16, unter: false }, werteAm: { hb: '2026-05-22' } }] }));
+        }
+        const b = spR5.getStand().labor.find((l) => l.datum === '2026-05-21');
+        const vor = dzR7.gesamtbildMitDosis(spR5.getStand(), '2026-05-25').stufe;
+        check(`F-6 ${variante} Vorbedingung: Hb 6,5 – Gesamtbild „heute", die Karte wartet auf die neue Dosis (R1 a)`, vor === 'heute' && npFrist(spR5.getStand(), '2026-05-25'), npInfo(spR5.getStand(), '2026-05-25'));
+        const r3 = r9Befund(b.id, r9Felder(b, { tsh_wert: '3,8' }), '2026-05-25', { praxisDanach: 'ja' });
+        const nach = r9B(b.id);
+        check(`F-6 ${variante}: kein „Hat die Praxis das nach Ihrer eigenen Änderung … gesagt?" – die Angabe vom 22.05. liegt schon danach; sie behält ihren Tag`,
+          r3.ok && !r3.fragen.includes('praxisDanach') && nach.praxisAm === '2026-05-22', `${JSON.stringify(r3.fragen)} | praxisAm ${nach.praxisAm}`);
+        check(`F-6 ${variante}: nach dem erneuten Speichern bleibt das Gesamtbild bei „heute" (Hb 6,5)`, dzR7.gesamtbildMitDosis(spR5.getStand(), '2026-05-25').stufe === 'heute',
+          npInfo(spR5.getStand(), '2026-05-25'));
+        const r4 = r8Senden(null, r8Felder('2026-05-25', 100, { praxis: 'ja', weg: 'praxis' }), '2026-05-25', {});
+        check(`F-6 ${variante}: nach der neuen Dosis der Praxis weiter „heute" (Hb 6,5)`, r4.ok && dzR7.gesamtbildMitDosis(spR5.getStand(), '2026-05-25').stufe === 'heute', npInfo(spR5.getStand(), '2026-05-25'));
+      }
+      // Gegenprobe (J7b): Die Angabe stammt von VOR der eigenen Änderung – die Rückfrage kommt wie bisher.
+      r8Laden(r8Stand({ dosen: [D0, E], labor: [r8Befund('b3', '2026-05-07', 2.0, { praxis: 'bleibt', praxisAm: '2026-05-09' })] }));
+      const rg = r9Befund('b3', r9Felder(r9B('b3'), { notiz: 'Notiz' }), '2026-05-25', { praxisDanach: 'nein' });
+      check('F-6 Gegenprobe: eine Angabe von vor der eigenen Änderung (09.05.) – J7b fragt „Hat die Praxis das nach Ihrer eigenen Änderung vom 16.05.2026 gesagt?"',
+        rg.ok && rg.fragen.includes('praxisDanach'), JSON.stringify(rg.fragen));
+    });
+
+    fall('Nachprüfung 2 (F-7): „Gilt ab" einer geplanten Änderung nach „Erst nachmessen" vor den Tag der Entscheidung verlegt', () => {
+      // Wie repro-r1b-gilt-ab (Seed 5949): geplante eigene Halbierung 50 → 25 µg
+      // ab 24.03. (eingetragen 22.03.), am 22.03. „Erst nachmessen" (Vermerk);
+      // am 28.03. „Gilt ab" auf 17.03. Vorher: X3 ohne Frist, „Heute" leer.
+      r8Laden(r8Stand({
+        dosen: [r8Dosis('d0', '2025-09-01', 50, { praxis: true, eingetragenAm: '2025-09-01' }), r8Dosis('g1', '2026-03-24', 25, { praxis: false, eingetragenAm: '2026-03-22' })],
+        labor: [r8Befund('b1', '2026-03-10', 0.6)],
+      }));
+      r8PraxisEntscheid('b1', 'nachmessen', '2026-03-22');
+      check('F-7 Formular Vorbedingung (R1 b): nach dem Starttag 24.03. X3 mit Frist', npFrist(spR5.getStand(), '2026-03-28') && npHeute(spR5.getStand(), '2026-03-28'), npInfo(spR5.getStand(), '2026-03-28'));
+      const r = r8Senden('g1', r8Felder('2026-03-17', 25, { praxis: 'nein' }), '2026-03-28', { bestaetigt: 'ja', nieGenommen: 'ja', abAlt: 'ja' });
+      const st = spR5.getStand();
+      check('F-7 Formular Vorbereitung: „Gilt ab" der Halbierung auf 17.03. gespeichert, Tag des Eintrags bleibt 22.03.',
+        r.ok && st.dosen.find((d) => d.id === 'g1').ab === '2026-03-17' && st.dosen.find((d) => d.id === 'g1').eingetragenAm === '2026-03-22', `${r8Fragen(r)} ${JSON.stringify(st.dosen.find((d) => d.id === 'g1'))}`);
+      check('F-7 Formular: X3 mit Frist bleibt (die Praxis kannte nur den Plan ab 24.03.), „Heute" nennt X3, Gesamtbild „Tage"',
+        npFrist(st, '2026-03-28') && npHeute(st, '2026-03-28') && ['tage', 'heute'].includes(dzR7.gesamtbildMitDosis(st, '2026-03-28').stufe), npInfo(st, '2026-03-28'));
+      const geladen = r8NeuGeladen();
+      check('F-7 Formular Neuladen: X3 mit Frist bleibt', npFrist(geladen, '2026-03-28'), npInfo(geladen, '2026-03-28'));
+    });
+
+    fall('Nachprüfung 3 (F-7 über J7b): nach dem Vorverlegen fragt das Befund-Formular nicht noch einmal „danach?"', () => {
+      // Wie b2-f7-j7b-ja-danach (Prüfer, Nachprüfung 2): Aufbau wie „Nachprüfung
+      // 2 (F-7)" oben, danach am 28.03. den Befund b1 noch einmal gespeichert
+      // (nur eine Notiz). Vorher fragte J7b „Hat die Praxis das nach Ihrer
+      // eigenen Änderung vom 22.03.2026 gesagt?"; die wahre Antwort „Ja, danach"
+      // datierte „Erst nachmessen" auf den 28.03. und schrieb einen Vermerk mit
+      // dem vorverlegten Beginn – R1 (b) griff nicht mehr: X3 ohne Frist, „Heute"
+      // leer, obwohl die Praxis nur den Plan ab 24.03. kannte.
+      r8Laden(r8Stand({
+        dosen: [r8Dosis('d0', '2025-09-01', 50, { praxis: true, eingetragenAm: '2025-09-01' }), r8Dosis('g1', '2026-03-24', 25, { praxis: false, eingetragenAm: '2026-03-22' })],
+        labor: [r8Befund('b1', '2026-03-10', 0.6)],
+      }));
+      r8PraxisEntscheid('b1', 'nachmessen', '2026-03-22');
+      const r0 = r8Senden('g1', r8Felder('2026-03-17', 25, { praxis: 'nein' }), '2026-03-28', { bestaetigt: 'ja', nieGenommen: 'ja', abAlt: 'ja' });
+      check('Nachprüfung 3 F-7/J7b Vorbereitung: „Gilt ab" auf 17.03. – X3 mit Frist', r0.ok && npFrist(spR5.getStand(), '2026-03-28'), npInfo(spR5.getStand(), '2026-03-28'));
+      const r1 = r9Befund('b1', r9Felder(r9B('b1'), { notiz: 'Brief abgeheftet' }), '2026-03-28', { praxisDanach: 'ja' });
+      check('Nachprüfung 3 F-7/J7b: keine Rückfrage „danach?" – der Vermerk vom 22.03. belegt es schon; „Erst nachmessen" behält den 22.03.',
+        r1.ok && !r1.fragen.includes('praxisDanach') && r9B('b1').praxisAm === '2026-03-22', `${JSON.stringify(r1.fragen)} | praxisAm ${r9B('b1').praxisAm}`);
+      check('Nachprüfung 3 F-7/J7b: X3 mit Frist bleibt, „Heute" nennt X3 – auch am 02.04.',
+        npFrist(spR5.getStand(), '2026-03-28') && npHeute(spR5.getStand(), '2026-03-28') && npFrist(spR5.getStand(), '2026-04-02'), npInfo(spR5.getStand(), '2026-03-28'));
+      // Auch eine mitgeschickte Antwort „Ja, danach" (etwa aus einem noch offenen Formular) datiert nicht um.
+      const r2 = r9Befund('b1', { ...r9Felder(r9B('b1'), { notiz: 'Brief abgeheftet, Kopie' }), praxisDanach: 'ja' }, '2026-03-28', {});
+      check('Nachprüfung 3 F-7/J7b: auch mit mitgeschicktem „Ja, danach" kein Umdatieren – die Frist bleibt',
+        r2.ok && r9B('b1').praxisAm === '2026-03-22' && npFrist(spR5.getStand(), '2026-03-28'), `praxisAm ${r9B('b1').praxisAm} | ${npInfo(spR5.getStand(), '2026-03-28')}`);
     });
   } finally {
     globalThis.FormData = vorherFormData;

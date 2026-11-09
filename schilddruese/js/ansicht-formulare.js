@@ -1681,10 +1681,36 @@ function laborAbsenden(id, f, heute) {
      * diese Änderung). Die Rückfrage klärt dann nichts – „Ja, danach" schriebe
      * denselben Vermerk, und sie käme bei jedem Speichern wieder. Es fehlt die
      * neue Dosis (D0.5 bittet darum), nicht die Antwort.
+     * Runde 8 – Nachprüfung 3: für jede Angabe, nicht nur „geändert" – ein
+     * Vermerk „ja" für genau die wartende Änderung vom Tag der Angabe, zu
+     * derselben Angabe, belegt „danach" schon. Vorher fragte das Formular nach
+     * dem Vorverlegen von „Gilt ab" einer geplanten Änderung (F-7) beim nächsten
+     * Speichern des Befunds noch einmal; die wahre Antwort „Ja, danach"
+     * datierte „Erst nachmessen" auf heute und schrieb einen Vermerk mit dem
+     * vorverlegten Beginn – R1 (b) griff nicht mehr: X3 ohne Frist, „Heute"
+     * leer, obwohl die Praxis nur den Plan kannte. Wie bei F-6 dann auch kein
+     * Umdatieren durch eine mitgeschickte Antwort.
      */
-    const schonDanach = Boolean(wartend) && bezug.praxis === 'geaendert' && stand.nachfragen.some((n) => n.art === dz.PRAXIS_DANACH && n.bezug === bezug.id
-      && n.antwort === 'ja' && n.dosis === wartend.d.id && n.am === bezug.praxisAm && (!n.praxis || n.praxis === 'geaendert'));
-    if (!schonVerneint && !schonDanach && praxisDanach !== 'ja' && praxisDanach !== 'nein') {
+    const schonDanach = Boolean(wartend) && stand.nachfragen.some((n) => n.art === dz.PRAXIS_DANACH && n.bezug === bezug.id
+      && n.antwort === 'ja' && n.dosis === wartend.d.id && n.am === bezug.praxisAm && (!n.praxis || n.praxis === bezug.praxis));
+    /*
+     * Runde 8 – Nachprüfung 2 (F-6): Die Rückfrage nur, wenn die vorhandene
+     * Angabe am oder vor dem Tag liegt, seit dem die wartende Änderung bekannt
+     * ist (wartend.tag). Liegt sie schon danach, klärt „danach?" nichts – die
+     * Karte wartet aus einem anderen Grund (nach „Die Dosis wird geändert" auf
+     * die neue Dosis, R1 a; D0.5 bittet darum, F-3). Vorher kam die Frage
+     * trotzdem, und die wahre Antwort „Ja, danach" datierte die Angabe auf
+     * heute: Werte, die zwischen ihrem Tag und heute dazukamen (Hb 6,5 vom Tag
+     * der Entscheidung), galten als der Praxis bekannt – das Gesamtbild sank
+     * von „heute" auf „Tage". Jetzt keine Frage und kein Umdatieren.
+     * Das gilt auch, wenn die Karte nach K1/F2 auf eine geplante Änderung
+     * wartet, weil die Entscheidung einer anderen Änderung galt: Die geplante
+     * behält ihre Frist; eine Entscheidung zu ihr lässt sich über „Die Praxis
+     * hat entschieden" auf der Karte eintragen (Prüfer, Nachprüfung 2; Fuzzer
+     * 8712, Schritt 28).
+     */
+    const schonNachher = Boolean(wartend) && istISO(bezug.praxisAm) && istISO(wartend.tag) && bezug.praxisAm > wartend.tag;
+    if (!schonVerneint && !schonDanach && !schonNachher && praxisDanach !== 'ja' && praxisDanach !== 'nein') {
       const wortlaut = { bleibt: 'Die Dosis bleibt so', geaendert: 'Die Dosis wird geändert', nachmessen: 'Erst nachmessen' }[praxis];
       // Runde 8 – Nachbesserung 2: eine geplante eigene Änderung mit dem Tag ihres Eintrags und ihrem Beginn.
       const frage = !wartend ? 'Hat die Praxis das gesagt, nachdem Sie die Dosis selbst geändert hatten?'
@@ -1701,7 +1727,9 @@ function laborAbsenden(id, f, heute) {
         rueckfrageNeinSendet: true,
       };
     }
-    if (praxisDanach === 'ja') {
+    if (schonNachher || schonDanach) {
+      // F-6, Nachprüfung 3: ohne Rückfrage – die Angabe behält ihren Tag, kein neuer Vermerk.
+    } else if (praxisDanach === 'ja') {
       ziel.praxisAm = heute;
       vermerkt = true;
     } else if (praxisDanach === 'nein' && !schonVerneint) {
@@ -1722,6 +1750,16 @@ function laborAbsenden(id, f, heute) {
     }
     s.labor.sort((a, b) => a.datum.localeCompare(b.datum));
     if (vermerkt && befundId) vermerkPraxisDanach(s, befundId, heute, praxisVorher);
+    /*
+     * Runde 8 – Nachprüfung 2 (F-1): Steht nach dem Speichern keine
+     * Entscheidung der Praxis mehr am Befund („Noch nichts entschieden" oder
+     * leer – auch nach dem Zusammenführen mit dem Befund desselben Tages), ist
+     * die Angabe zurückgenommen: alle Vermerke PRAXIS_DANACH dieses Befunds
+     * fallen weg (js/dosis.js, praxisDanachVerwerfen). Sonst lebte mit der
+     * nächsten Entscheidung ein Vermerk der zurückgenommenen wieder auf.
+     */
+    const gespeichert = befundId ? s.labor.find((l) => l.id === befundId) : null;
+    if (gespeichert && !ENTSCHIEDEN.includes(gespeichert.praxis)) dz.praxisDanachVerwerfen(s, befundId);
     // Runde 8 – Nachbesserung (D): die Antwort „Nein, das war vorher" merken (ein „ja"-Vermerk zu diesem Befund bleibt unberührt).
     // Runde 8 – Nachprüfung (R4): je Änderung ein Vermerk – ersetzt wird nur das „Nein" zu derselben Änderung.
     if (verneint && befundId) {
