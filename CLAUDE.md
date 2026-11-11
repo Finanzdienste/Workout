@@ -7,6 +7,29 @@ eine Aufgabe, die zu groß für einen einzelnen Agenten ist), schlag mir in eine
 Satz vor, sie mit „ultracode“ laufen zu lassen, und warte auf meine Antwort.
 Bei normalen Aufgaben erwähnst du Ultracode nicht.
 
+## Modell und Aufwand
+Bevor du mit einer Aufgabe anfängst: Passt sie deutlich besser zu einem anderen
+Modell oder Aufwand als dem laufenden, schlag mir das in einem Satz vor – mit
+Grund und dem Befehl, den ich als Nachricht schicke (`/model fable|opus|sonnet`,
+`/effort low|medium|high|xhigh|max`). Was gerade läuft, zeigt `get_session`
+(`model`, `effort_level`); am 11.11.2026 war es Opus 5.5 mit Aufwand max. Bei
+normalen Rückmeldungen erwähnst du beides nicht.
+- **Mehr** – vorschlagen und auf meine Antwort warten: `/model fable`, dazu
+  `/effort high`, wenn die Ursache nach dem ersten Durchgang unklar ist, ein
+  Fehler nach einer Korrektur wiederkommt oder viel ineinandergreift (Service
+  Worker, Pausen-Uhr, Kalender-Sync, Sicherung, Planberechnung). Fable kann
+  Nutzungsguthaben kosten (im Modellmenü „Requires usage credits“) – das gehört
+  in den Vorschlag. Ist der Aufwand gerade gesenkt, zuerst zurück auf
+  `/effort max`.
+- **Weniger** – nicht warten, erledigen und am Ende in einem Satz sagen, dass
+  für Aufgaben dieser Art `/effort high` (oder `medium`) reicht: Texte und
+  Zahlen in `tools/exercise-meta.json`, Formulierungen im README. Für eine
+  einzelne schwere Frage genügt dann „ultrathink“ in meiner Nachricht.
+- Lieber den Aufwand senken als zu Sonnet wechseln, und nicht hin und her: Nach
+  einem Modellwechsel wird der ganze Verlauf ohne Zwischenspeicher neu gelesen.
+- `/fast` (dasselbe Modell schneller, kostet Guthaben extra) nur, wenn ich auf
+  etwas warte, das eilt.
+
 ## Das Repository
 - **Workout-App** (Wurzel): PWA für Tobi, live unter
   https://finanzdienste.github.io/Workout/. Kein Bauschritt außer zwei
@@ -109,6 +132,11 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `cdn.playwright.dev` und `playwright.download.prss.microsoft.com`. Beide
   stehen nicht in der Standardliste „Trusted“ – in der Umgebung unter
   Netzwerkzugriff „Custom“ eintragen (mit der Standardliste) oder „Full“.
+  Vorinstalliert ist nur Chromium 1243 (für ein neueres Playwright), der
+  Download (rund 280 MB) ist also in jeder neuen Sitzung nötig. Die Umgebung
+  „Default“ hat volles Netz; dort ging er am 11.11. durch.
 - Die Pages-API ist über den GitHub-Proxy gesperrt: den Deploy über
   `gh run list … pages-build-deployment` prüfen. GraphQL über `gh` geht
-  nicht, REST (`gh api repos/...`) schon.
+  nicht, REST (`gh api repos/...`) schon. Gibt die Sitzung `gh` nur für die
+  Suche frei: GitHub-MCP `actions_list`, `list_workflow_runs` mit Workflow
+  339307472 (`pages-build-deployment`).
