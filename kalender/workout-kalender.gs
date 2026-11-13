@@ -198,6 +198,13 @@ const TODO_VERGESSEN = 14;
 // die ganze Zeit, und die Aufgabe hakte sich erst eine Stunde nach dem
 // Training ab. Was der Kalender liegen lässt, macht „weiter" ohnehin.
 const TODO_POST_MS = 6 * 1000;
+// Kommt To Do so lange nicht durch – Lauf für Lauf „später" (Microsoft bremst,
+// hakt, ist nicht erreichbar), ohne einen Abgleich, der klappt –, ist es ein
+// Fehler: mit dem Grund, einmal als Mail, und in der App (seit v258). Bis dahin
+// hieß „später" immer nur „der nächste Lauf versucht es wieder", ohne Grund
+// und ohne Ende: Am 13.11.2026 stand die Aufgabe von gestern so einen halben
+// Tag in To Do. Drei Stunden wie KAL_TODO_STILL in js/kalender-sync.js.
+const TODO_STILL_MS = 3 * 60 * 60 * 1000;
 
 // Zeit und Kontingent schonen. Ein Lauf darf bei Google sechs Minuten; nach
 // viereinhalb hört dieser auf, und der Rest kommt im nächsten. Die Antwort an
@@ -1807,7 +1814,8 @@ function todoEinrichten_(P, bis) {
 
 /** Ein Ergebnis des Abgleichs mit To Do. */
 function todoErgebnis_(mehr) {
-  const t = { gelaufen: false, geaendert: 0, spaeter: false, fehler: null, hinweis: null, melden: false };
+  // grund: warum „später" (todoSpaeter_()); still: seit wann es so nicht durchkommt, wenn das ein Fehler wurde.
+  const t = { gelaufen: false, geaendert: 0, spaeter: false, grund: null, still: null, fehler: null, hinweis: null, melden: false };
   Object.keys(mehr || {}).forEach((k) => {
     t[k] = mehr[k];
   });
@@ -1831,11 +1839,30 @@ function todoAbgleichenSicher_(P, bis, melden, alleWeg) {
   if (!t.gelaufen) return t;
   try {
     const st = todoStand_(P);
-    const neu = { fehler: t.fehler || null };
+    // „Später" seit über drei Stunden (TODO_STILL_MS): ein Fehler, mit dem
+    // Grund. Gezählt ab dem ersten „später" nach dem letzten Abgleich, der
+    // klappte (spaeterSeit) – ein Bremsen nach einer ruhigen Nacht ist kein
+    // Ausfall. Ein Stand von vor v258 kennt spaeterSeit nicht: dann ab dem
+    // letzten Abgleich, der klappte, sonst ab dem Verbinden – so meldet sich ein
+    // Ausfall, der schon läuft, gleich mit dem ersten Lauf des neuen Codes.
+    // Gemeldet wird er einmal je Ausfall, nicht bei jedem neuen Grund.
+    let spaeterSeit = null;
+    if (t.spaeter && !t.fehler) {
+      const neuerStand = Object.prototype.hasOwnProperty.call(st, 'spaeterSeit');
+      const vorher = neuerStand ? st.spaeterSeit : Number.isFinite(st.zuletzt) ? st.zuletzt : st.seit;
+      spaeterSeit = Number.isFinite(vorher) ? vorher : Date.now();
+      if (Date.now() - spaeterSeit > TODO_STILL_MS) {
+        t.fehler = 'To Do kommt seit ' + zeitDe_(spaeterSeit) + ' nicht mehr durch (' + (t.grund || 'ohne Grund')
+          + ') – der nächste Lauf versucht es wieder.';
+        t.still = spaeterSeit;
+      }
+    }
+    const neu = { fehler: t.fehler || null, spaeter: t.spaeter ? t.grund || null : null, spaeterSeit: spaeterSeit };
     if (!t.fehler && !t.spaeter) neu.zuletzt = Date.now();
     if (melden) {
-      t.melden = !!t.fehler && t.fehler !== st.gemeldet;
-      neu.gemeldet = t.fehler || null;
+      const schluessel = t.still ? 'still ' + t.still : t.fehler;
+      t.melden = !!t.fehler && schluessel !== st.gemeldet;
+      neu.gemeldet = t.fehler ? schluessel : null;
     }
     todoStandSetzen_(P, neu);
   } catch (err) {
@@ -1875,13 +1902,18 @@ function todoAbgleichen_(P, bis, alleWeg) {
   for (let i = 0; i < arbeit.length; i++) {
     if (Date.now() > bis) {
       t.spaeter = true;
+      t.grund = 'keine Zeit mehr in diesem Lauf';
       break;
     }
     try {
       t.geaendert += todoSchritt_(P, soll, auf, arbeit[i]);
     } catch (err) {
-      if (err && err.todo === 'spaeter') t.spaeter = true;
-      else t.fehler = todoFehlerSatz_(err);
+      if (err && err.todo === 'spaeter') {
+        t.spaeter = true;
+        t.grund = err.grund || bereinigt_(err);
+      } else {
+        t.fehler = todoFehlerSatz_(err);
+      }
       break;
     } finally {
       // Nach jedem Schritt: Bricht der Lauf ab, weiß der nächste, was steht.
@@ -2082,8 +2114,15 @@ function todoGraph_(P, methode, pfad, aenderung) {
   const url = absolut ? pfad : TODO_GRAPH + pfad;
   let r = todoHolen_(methode, url, aenderung, todoZugang_(P, false));
   if (r.code === 401) r = todoHolen_(methode, url, aenderung, todoZugang_(P, true));
-  if (r.code === 0 || r.code === 429 || r.code >= 500) throw todoSpaeter_(r);
+  if (r.code === 0 || r.code === 429 || r.code >= 500) throw todoSpaeter_(r, todoWas_(methode, pfad));
   return r;
+}
+
+/** Welcher Aufruf bei To Do das war – für den Grund von „später": „Aufgabe ändern", „Listen lesen" … */
+function todoWas_(methode, pfad) {
+  const tun = { get: 'lesen', post: 'anlegen', patch: 'ändern', delete: 'löschen' }[methode] || methode;
+  if (/\/tasks/.test(pfad)) return 'Aufgabe ' + tun;
+  return (methode === 'get' ? 'Listen ' : 'Liste ') + tun;
 }
 
 function todoHolen_(methode, url, aenderung, zugang) {
@@ -2137,7 +2176,7 @@ function todoZugang_(P, neu) {
     P.deleteProperty(P_TODO_ZUGANG);
     throw todoAnmeldungWeg_();
   }
-  throw todoSpaeter_(a);
+  throw todoSpaeter_(a, 'Anmeldung');
 }
 
 function todoZugangMerken_(P, j) {
@@ -2199,7 +2238,7 @@ function todoStandFuerApp_(P) {
 function todoSatz_(t) {
   if (!t || !t.gelaufen) return 'To Do: nicht verbunden.';
   const teile = [t.geaendert ? t.geaendert + (t.geaendert === 1 ? ' Änderung' : ' Änderungen') : 'nichts zu tun'];
-  if (t.spaeter) teile.push('der Rest folgt mit dem nächsten Lauf');
+  if (t.spaeter && !t.still) teile.push('der Rest folgt mit dem nächsten Lauf' + (t.grund ? ' (' + t.grund + ')' : ''));
   if (t.fehler) teile.push('✗ ' + t.fehler);
   else if (t.hinweis) teile.push(t.hinweis);
   return 'To Do: ' + teile.join(' · ');
@@ -2233,10 +2272,32 @@ function todoFehler_(was, r) {
   return e;
 }
 
-function todoSpaeter_(r) {
+/**
+ * Microsoft hat gerade nicht geantwortet, wie es soll – der nächste Lauf
+ * versucht es wieder. `was`: welcher Aufruf („Anmeldung", „Aufgabe ändern" …);
+ * `grund` trägt ihn mit dem Code und dem, was Microsoft dazu sagte, ins
+ * Protokoll und, hält es an, in den Fehler (todoAbgleichenSicher_()).
+ */
+function todoSpaeter_(r, was) {
   const e = new Error('To Do antwortet gerade nicht (' + todoGrund_(r) + ') – der nächste Lauf versucht es wieder.');
   e.todo = 'spaeter';
+  e.grund = bereinigt_((was ? was + ': ' : '') + todoGrund_(r) + todoErklaerung_(r));
   return e;
+}
+
+/**
+ * Was Microsoft zu einer Absage sagt, kurz: die Beschreibung der Anmeldung
+ * (ohne „Trace ID" und was danach kommt) oder die Meldung von Graph – höchstens
+ * ein Satz, höchstens 120 Zeichen, mit führendem „ – ". Leer, wenn nichts da ist.
+ */
+function todoErklaerung_(r) {
+  const j = (r && r.json) || {};
+  let s = typeof j.error_description === 'string' ? j.error_description
+    : j.error && typeof j.error.message === 'string' ? j.error.message : '';
+  s = s.split(/\s+Trace ID:|\r?\n/)[0].trim();
+  const punkt = s.indexOf('. ');
+  if (punkt > 0) s = s.slice(0, punkt + 1);
+  return s ? ' – ' + s.slice(0, 120) : '';
 }
 
 function todoAnmeldungWeg_() {

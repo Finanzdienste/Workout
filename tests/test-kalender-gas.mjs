@@ -2120,6 +2120,9 @@ class Microsoft {
     Object.assign(this, {
       welt, app, aufrufe: [], codes: new Map(), erneuern: new Set(), zugaenge: new Map(), listen: [], nr: 0, drossel: 0, gilt: 3600,
       letzter: null, ausgegeben: [], erledigtGeloescht: 0, tokenStoerung: null,
+      // Störungen, die bleiben (v258): Graph antwortet auf `methode` (oder auf
+      // alles) mit { code, json }; die Anmeldung antwortet beim Erneuern so.
+      stoerung: null, tokenAus: null,
     });
   }
 
@@ -2167,6 +2170,7 @@ class Microsoft {
       this.tokenStoerung = null;
       return Microsoft.antwort(st.code, st.json);
     }
+    if (this.tokenAus && f.grant_type === 'refresh_token') return Microsoft.antwort(this.tokenAus.code, this.tokenAus.json);
     if (f.client_id !== this.app) return Microsoft.antwort(400, { error: 'unauthorized_client' });
     if (f.grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
       const c = this.codes.get(f.device_code);
@@ -2221,6 +2225,7 @@ class Microsoft {
       this.drossel -= 1;
       return Microsoft.antwort(429, { error: { code: 'TooManyRequests', message: 'Too many requests.' } });
     }
+    if (this.stoerung && (!this.stoerung.methode || this.stoerung.methode === methode)) return Microsoft.antwort(this.stoerung.code, this.stoerung.json);
     if (o.payload !== undefined && o.contentType !== 'application/json') throw new Error('Graph nimmt hier nur JSON');
     const body = o.payload !== undefined ? JSON.parse(o.payload) : null;
     const nicht = () => Microsoft.antwort(404, { error: { code: 'ErrorItemNotFound', message: 'The specified object was not found in the store.' } });
@@ -2541,6 +2546,85 @@ class Microsoft {
   const vor = w.netzAufrufe;
   p.g.todoWarten();
   check(!warten().length && w.netzAufrufe === vor, 'ein übrig gebliebener „todoWarten" ohne Anmeldung räumt sich selbst weg, ohne Netz');
+}
+
+{
+  // v258: Ein Ausfall bei Microsoft, der bleibt. Am 13.11.2026 kam To Do einen
+  // halben Tag nicht durch – Lauf für Lauf „später", ohne Grund im Protokoll und
+  // ohne Mail, und die Aufgabe von gestern stand weiter in To Do. Jetzt steht
+  // der Grund im Protokoll, und nach drei Stunden „später" ist es ein Fehler:
+  // einmal eine Mail, und die App erfährt ihn (todo.hinweis).
+  const w = new Welt('2026-10-26T10:00:00+01:00');
+  const p = mitWelt(w, mitApp(CODE, TEST_APP));
+  p.g.einrichten();
+  w.jetzt = um('2026-10-26T12:00:05+01:00');
+  post(p, N2.TodoVor);
+  const ms = new Microsoft(w, TEST_APP);
+  w.ms = ms;
+  w.jetzt = um('2026-10-26T13:10:00+01:00');
+  p.g.todoVerbinden();
+  ms.erlauben();
+  w.jetzt = um('2026-10-26T13:11:00+01:00');
+  p.g.todoWarten();
+  const id = ms.offen()[0].id;
+  const lauf = (uhr) => {
+    const vor = p.protokoll.length;
+    let wurf = null;
+    try { feuern(p, uhr); } catch (e) { wurf = e; }
+    return { wurf, todo: p.protokoll.slice(vor).filter((z) => /^To Do:/.test(z)).join(' | ') };
+  };
+  // Der Abend: ruhige Stunden, angeglichen.
+  lauf('2026-10-26T22:05:00+01:00');
+  lauf('2026-10-26T23:05:00+01:00');
+  // Ab Mitternacht antwortet Graph auf das Ändern mit 500 – und bleibt dabei.
+  ms.stoerung = { methode: 'patch', code: 500, json: { error: { code: 'InternalServerError', message: 'An internal server error occurred. Please retry later.' } } };
+  const GRUND = 'Aufgabe ändern: HTTP 500, InternalServerError – An internal server error occurred.';
+  const frueh = ['00:05', '01:05', '02:05', '03:05'].map((u) => lauf(`2026-10-27T${u}:00+01:00`));
+  const pr1 = probe(p).todo;
+  check(frueh.every((x) => !x.wurf && x.todo.includes(`der Rest folgt mit dem nächsten Lauf (${GRUND})`))
+    && ms.aufgabe(id).dueDateTime.dateTime === '2026-10-26T00:00:00' && pr1.verbunden === true && pr1.hinweis === null,
+  `Graph antwortet auf das Ändern mit 500, bis 03:05: noch kein Fehler, aber der Grund im Protokoll („${frueh[0].todo.slice(0, 140)}")`);
+  const w4 = lauf('2026-10-27T04:05:00+01:00');
+  const pr2 = probe(p).todo;
+  const SATZ = `To Do kommt seit 27.10.2026 00:05 nicht mehr durch (${GRUND}) – der nächste Lauf versucht es wieder.`;
+  check(!!w4.wurf && w4.wurf.message.includes(SATZ) && pr2.verbunden === true && pr2.hinweis === SATZ,
+    `über drei Stunden „später": ein Fehler – der Lauf wirft einmal (Mail von Google), die App erfährt „${SATZ.slice(0, 70)}…"`);
+  const w5 = lauf('2026-10-27T05:05:00+01:00');
+  check(!w5.wurf && w5.todo.includes(`✗ ${SATZ}`), 'die Stunde danach: keine zweite Mail, das Protokoll sagt es weiter');
+  ms.stoerung = null;
+  const w6 = lauf('2026-10-27T06:05:00+01:00');
+  const pr3 = probe(p).todo;
+  check(!w6.wurf && ms.aufgabe(id).dueDateTime.dateTime === '2026-10-27T00:00:00' && ms.offen().length === 1 && pr3.hinweis === null
+    && pr3.zuletzt === um('2026-10-27T06:05:00+01:00'),
+  'Microsoft antwortet wieder: dieselbe Aufgabe rückt auf heute, der Fehler ist weg, angeglichen um 06:05');
+
+  // Die Anmeldung antwortet mit 503: der Grund mit Microsofts Beschreibung,
+  // ohne Trace ID; der Erneuerungs-Token bleibt.
+  lauf('2026-10-27T23:05:00+01:00');
+  ms.tokenAus = {
+    code: 503,
+    json: { error: 'temporarily_unavailable', error_description: 'AADSTS90033: A transient error has occurred. Please try again. Trace ID: 5f1c4e Correlation ID: 9e2a71' },
+  };
+  p.props.delete('workout.todo.zugang');
+  const t1 = lauf('2026-10-28T00:05:00+01:00');
+  check(!t1.wurf && t1.todo.includes('der Rest folgt mit dem nächsten Lauf (Anmeldung: HTTP 503, temporarily_unavailable – AADSTS90033: A transient error has occurred.)')
+    && !/Trace|Correlation/.test(t1.todo) && p.props.has('workout.todo.erneuern'),
+  `die Anmeldung antwortet mit 503: „später" mit Grund, ohne Trace ID, der Token bleibt („${t1.todo.slice(0, 120)}")`);
+  ms.tokenAus = null;
+  lauf('2026-10-28T01:05:00+01:00');
+  check(ms.aufgabe(id).dueDateTime.dateTime === '2026-10-28T00:00:00', '… eine Stunde später klappt es, die Aufgabe rückt auf heute');
+
+  // Ein Stand von vor v258 (ohne spaeterSeit), der letzte gelungene Abgleich
+  // lange her – so stand es am 13.11. bei Tobi: Der erste Lauf des neuen Codes
+  // meldet den Ausfall, der schon läuft, gleich.
+  const st = JSON.parse(p.props.get('workout.todo'));
+  delete st.spaeterSeit;
+  p.props.set('workout.todo', JSON.stringify(st));
+  ms.stoerung = { methode: 'patch', code: 500, json: { error: { code: 'InternalServerError', message: 'An internal server error occurred.' } } };
+  const alt = lauf('2026-10-29T14:05:00+01:00');
+  check(!!alt.wurf && alt.wurf.message.includes('To Do kommt seit 28.10.2026 01:05 nicht mehr durch (Aufgabe ändern: HTTP 500, InternalServerError'),
+    `ein Stand von vor v258, zuletzt angeglichen vor 37 Std.: Der erste Lauf des neuen Codes meldet den Ausfall gleich („${alt.wurf ? alt.wurf.message.slice(0, 90) : '–'}…")`);
+  ms.stoerung = null;
 }
 
 /* ------------------------------------------------------------------ *

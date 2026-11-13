@@ -4047,7 +4047,8 @@ da (`todoTag_()`).
 **Fehler bei To Do treffen den Kalender nicht.** To Do läuft nach dem Kalender
 und wirft nie in ihn hinein (`todoAbgleichenSicher_()`). Bremst Microsoft,
 hakt es oder ist es nicht erreichbar, versucht es der nächste Lauf wieder,
-ohne Meldung. Ein Fehler, der bleibt – vor allem eine Anmeldung, die nicht
+ohne Meldung – seit v258 mit dem Grund im Protokoll, und hält es über drei
+Stunden an, als Fehler (unten, *Wenn To Do nicht durchkommt*). Ein Fehler, der bleibt – vor allem eine Anmeldung, die nicht
 mehr gilt (Zugriff entzogen, Passwort geändert, Token abgelaufen) –, lässt
 den stündlichen Lauf **einmal** werfen, dann schickt Google die Mail „Summary
 of failures", wie beim Kalender; die Stunden danach bleibt es still. Bei einer
@@ -4207,6 +4208,76 @@ gefunden – das sagt erst die nächste Antwort an Tobis App. Die App kennt den
 Stand nur aus Antworten: Schickt sie nichts und fragt nicht, bleibt er so alt
 wie die letzte. Was der Service Worker im Hintergrund nachschickt, liest sie
 dafür nicht; die nächste Sendung im Vordergrund holt es nach.
+
+#### Wenn To Do nicht durchkommt, sagt das Skript warum (v258)
+
+> Auf Tobis Bildschirmfoto von v257, Fr 13.11., 12:29: *„Microsoft To Do:
+> verbunden, aber seit 13 Std. nicht mehr angeglichen – eigentlich gleicht das
+> Skript jede Stunde an. Bleibt es dabei, dem Assistenten Bescheid geben."*
+
+Die erste Antwort an die App mit v257 sagte also: verbunden, kein Fehler, aber
+der letzte Abgleich, der klappte, war am Abend davor gegen 23 Uhr. Der Kalender
+war um 12:28 angeglichen, nur To Do nicht. So steht es nur, wenn jeder Lauf mit
+„später" endet: Microsoft bremst (429), hakt (5xx) oder ist nicht erreichbar,
+oder die Anmeldung sagt beim Erneuern etwas anderes als „gilt nicht mehr".
+**Den Grund warf das Skript weg.** `todoAbgleichen_()` merkte sich nur „später",
+`todoSatz_()` schrieb ins Protokoll „der Rest folgt mit dem nächsten Lauf", und
+eine Mail kam nie. So stand die Aufgabe von gestern einen halben Tag in To Do,
+und nirgends stand, warum.
+
+Jetzt:
+
+- **Der Grund steht im Protokoll**, mit dem Aufruf, dem Code und dem, was
+  Microsoft dazu sagt (`todoSpaeter_()`, `todoWas_()`, `todoErklaerung_()`):
+  „der Rest folgt mit dem nächsten Lauf (Aufgabe ändern: HTTP 500,
+  InternalServerError – An internal server error occurred.)", oder bei der
+  Anmeldung „(Anmeldung: HTTP 503, temporarily_unavailable – AADSTS90033: A
+  transient error has occurred.)". Von Microsofts Beschreibung nur der erste
+  Satz, ohne „Trace ID" und „Correlation ID", höchstens 120 Zeichen, Adressen
+  entfernt (`bereinigt_()`).
+- **Nach drei Stunden „später" ist es ein Fehler** (`TODO_STILL_MS`, wie
+  `KAL_TODO_STILL` in der App): „To Do kommt seit 27.10.2026 00:05 nicht mehr
+  durch (Aufgabe ändern: HTTP 500, …) – der nächste Lauf versucht es wieder."
+  Der stündliche Lauf wirft einmal – Google schickt die Mail „Summary of
+  failures" mit diesem Satz –, die App zeigt ihn auf der Karte und auf der
+  Startseite (v257, „ein Fehler beim Abgleich"). Gemeldet wird einmal je
+  Ausfall, nicht bei jedem neuen Grund. Klappt ein Abgleich, ist er weg.
+- **Gezählt ab dem ersten „später"** nach dem letzten Abgleich, der klappte
+  (`spaeterSeit` in `workout.todo`): Ein Bremsen am Morgen nach einer ruhigen
+  Nacht ist kein Ausfall. Ein Stand von vor v258 kennt `spaeterSeit` nicht –
+  dann zählt es ab dem letzten gelungenen Abgleich. So meldet der neue Code
+  einen Ausfall, der schon läuft, gleich mit seinem ersten Lauf: bei Tobi „seit
+  12.11.2026 23:03".
+
+`FASSUNG` bleibt 2: Was die App schickt und was das Skript antwortet, ist
+dasselbe, nur der Satz in `todo.hinweis` kommt jetzt auch für diesen Fall.
+
+**Was Tobi tut, einmal:**
+
+1. In der App *Mehr → Kalender → Code kopieren*.
+2. In Chrome *script.google.com* öffnen, im Drei-Punkte-Menü *Desktopwebsite*
+   anhaken, das Projekt öffnen, den ganzen Code durch den kopierten ersetzen
+   und speichern.
+3. Oben *einrichten* wählen und *Ausführen*. Unten im Protokoll steht eine Zeile
+   zu Microsoft To Do, mit dem Grund – die als Bildschirmfoto an den
+   Assistenten.
+4. *Bereitstellen → Bereitstellungen verwalten → Bearbeiten* (Stift) *→
+   Version: Neue Version → Bereitstellen*.
+
+Geprüft in `tests/test-kalender-gas.mjs`, Abschnitt 13, mit zwei Störungen der
+Attrappe, die bleiben: Graph antwortet auf das Ändern mit 500 – nach ruhigen
+Abendstunden bis 03:05 kein Fehler, aber der Grund in jedem Lauf; um 04:05 ein
+Fehler, der Lauf wirft einmal, die Probe sagt ihn der App; 05:05 keine zweite
+Mail; 06:05 antwortet Microsoft wieder, dieselbe Aufgabe rückt auf heute, der
+Fehler ist weg. Die Anmeldung antwortet mit 503: der Grund mit der
+Beschreibung, ohne Trace ID, und der Erneuerungs-Token bleibt. Ein Stand von
+vor v258, zuletzt angeglichen vor 37 Stunden: Der erste Lauf meldet den Ausfall.
+Das Bremsen von früher (429, einmal) bleibt ohne Fehler und ohne Mail. Gegen
+v257 rot: fünf Prüfungen.
+
+*Grenzen, ehrlich:* Den Ausfall vom 13.11. behebt das noch nicht – es sagt, wo
+er sitzt. Erst mit dem Grund ist klar, was zu tun ist: neu verbinden, warten,
+bis Microsoft wieder antwortet, oder den Aufruf anders bauen.
 
 ## Übungsvorrat
 

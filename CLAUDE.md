@@ -127,13 +127,16 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (13.11.2026)
-- Workout v257. Zuletzt: Was das Skript über Microsoft To Do sagt, steht auf
-  der Kalender-Karte und, wo Tobi etwas tun muss, auf der Startseite (v257);
-  davor je Bein zwei Haken mit eigener Seitenpause (v255), lautere Töne (v256).
-- Offen: Warum To Do am 13.11. bei gestern blieb, obwohl der Kalender Workout
-  17 um 00:03 verschoben hatte – die erste Antwort an Tobis App mit v257 sagt
-  es. Bei Tobi: ob ihm die halbe Seitenpause reicht (sonst die volle nach
-  jeder Seite); die Kalender-Erinnerung stellt er in der App auf „keine“.
+- Workout v258. Zuletzt: Das Skript sagt, warum To Do nicht durchkommt – der
+  Grund im Protokoll, nach drei Stunden „später“ ein Fehler mit Mail und in der
+  App (v258, neuer Code für Apps Script, `FASSUNG` bleibt 2); v257 zeigt den
+  To-Do-Stand auf der Kalender-Karte und, wo nötig, auf der Startseite.
+- Offen: Seit 13.11. 00:03 kommt To Do nicht durch (v257 zeigte „verbunden,
+  aber seit 13 Std. nicht mehr angeglichen“), der Kalender läuft. Tobi spielt
+  den Code von v258 ein und schickt die Zeile zu To Do aus dem Protokoll von
+  `einrichten` – danach die Ursache beheben. Bei Tobi: ob ihm die halbe
+  Seitenpause reicht (sonst die volle nach jeder Seite). Die
+  Kalender-Erinnerung steht auf „keine“.
 
 ## Cloud-Sitzungen (Claude Code im Browser oder in der Claude-App)
 - Chromium für playwright 1.56.1 lädt `npx playwright install chromium` von
