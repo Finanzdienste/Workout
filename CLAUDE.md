@@ -120,11 +120,19 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   (seit v251), verbunden über `todoVerbinden`.
 - **Sicherung**: verschlüsselt und automatisch (README „Sicherung“); in Tests
   nachgebildet durch `tests/sicherung-labor.mjs`.
+- **Nachsehen, was das Skript getan hat**: Über den Google-Kalender-Connector
+  (`list_calendars`, dann `list_events` auf „Workout“) – die Beschreibung des
+  Kalenders nennt den letzten Abgleich, den Tag der Liste und die letzte
+  Sendung der App, die Termine zeigen, ob verschoben wurde. Den Stand von To Do
+  sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
-## Stand (11.11.2026)
-- Workout v256 live. Zuletzt: je Bein zwei Haken mit eigener Seitenpause
-  (halbe Satzpause, v255), Chin-ups für Anfänger 3–10, lautere Töne (v256).
-- Offen bei Tobi: ob ihm die halbe Seitenpause reicht (sonst die volle nach
+## Stand (13.11.2026)
+- Workout v257. Zuletzt: Was das Skript über Microsoft To Do sagt, steht auf
+  der Kalender-Karte und, wo Tobi etwas tun muss, auf der Startseite (v257);
+  davor je Bein zwei Haken mit eigener Seitenpause (v255), lautere Töne (v256).
+- Offen: Warum To Do am 13.11. bei gestern blieb, obwohl der Kalender Workout
+  17 um 00:03 verschoben hatte – die erste Antwort an Tobis App mit v257 sagt
+  es. Bei Tobi: ob ihm die halbe Seitenpause reicht (sonst die volle nach
   jeder Seite); die Kalender-Erinnerung stellt er in der App auf „keine“.
 
 ## Cloud-Sitzungen (Claude Code im Browser oder in der Claude-App)

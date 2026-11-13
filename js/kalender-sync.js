@@ -153,6 +153,11 @@ const KAL_FRAGEN_MIN = 10 * 1000;
 // Erst so lange nach der letzten Auskunft lohnt es, nach dem Stand zu fragen:
 // Ein Lauf „weiter" kommt frühestens drei Minuten nach dem vorigen.
 const KAL_STAND_FRAGEN = 3 * 60 * 1000;
+// Microsoft To Do: Das Skript gleicht jede Stunde an, auch wenn es nichts zu
+// tun gibt, und merkt sich dabei die Zeit (todoAbgleichenSicher_()). Liegt sie
+// in einer Antwort so weit zurück, kommt der Abgleich dort nicht mehr durch –
+// ohne dass ein Fehler gemeldet wäre (kalenderTodoArt(), v257).
+const KAL_TODO_STILL = 3 * 60 * 60 * 1000;
 // Sinkt `offen` so lange nicht, obwohl so viele Proben danach gefragt haben,
 // trägt das Skript nichts nach (kalStockenMerken()). 75 Minuten, weil ein
 // stündlicher Lauf dazwischen gelegen haben muss – ein „weiter" kommt sonst
@@ -533,6 +538,7 @@ async function kalLesen(erg) {
     ...kalAbgleich(roh),
     status: res.status,
     stand: kalStandLesen(roh.stand),
+    todo: kalTodoLesen(roh),
   };
 }
 
@@ -565,6 +571,84 @@ function kalAbgleich(roh) {
     folge: typeof r.folge === 'boolean' ? r.folge : null,
     morgen: typeof r.morgen === 'boolean' ? r.morgen : null,
   };
+}
+
+/**
+ * Was eine Antwort über Microsoft To Do sagt (v257). Seit v248 steht es in
+ * jeder Antwort auf „Verbinden" und auf eine angenommene Sendung
+ * (todoStandFuerApp_() in kalender/workout-kalender.gs) – gelesen hat die App
+ * es bis v257 nicht. Als am 13.11. die Aufgabe von gestern noch offen in To Do
+ * stand, während der Kalender das Workout längst auf heute geschoben hatte,
+ * war von hier aus nicht zu sehen, warum.
+ *
+ *   { verbunden, wartet, zuletzt, hinweis }  wie im Skript: verbunden, ob
+ *              eine Anmeldung aussteht, wann es zuletzt angeglichen hat (ms
+ *              oder null) und der Satz zum letzten Fehler (oder null)
+ *   null       das Skript kennt keine App-ID (`todo: null`) – To Do gibt es dort
+ *              nicht
+ *   undefined  die Antwort sagt nichts dazu (ein älteres Skript, eine Absage,
+ *              etwas, das nicht so aussieht) – dann gilt, was die App wusste
+ *
+ * Nur zwei Wahrheitswerte, eine Zahl und ein kurzer Satz: Es kommt aus fremder
+ * Hand und wird nur angezeigt.
+ */
+function kalTodoLesen(roh) {
+  if (!roh || typeof roh !== 'object' || !Object.prototype.hasOwnProperty.call(roh, 'todo')) return undefined;
+  const t = roh.todo;
+  if (t === null) return null;
+  if (!t || typeof t !== 'object' || typeof t.verbunden !== 'boolean' || typeof t.wartet !== 'boolean') return undefined;
+  const zuletzt = Number.isFinite(t.zuletzt) && t.zuletzt > 0 ? Math.round(t.zuletzt) : null;
+  const hinweis = typeof t.hinweis === 'string' && t.hinweis.trim() ? t.hinweis.trim().slice(0, 300) : null;
+  return { verbunden: t.verbunden, wartet: t.wartet, zuletzt, hinweis };
+}
+
+/**
+ * Der Vermerk `todo` zu einer Antwort von `zeit` an die Verbindung `ziel` –
+ * undefined, wenn es nichts zu vermerken gibt: Die Antwort sagt nichts dazu,
+ * oder die App weiß schon Neueres.
+ */
+function kalTodoVermerk(m, ziel, todo, zeit) {
+  if (!ziel || todo === undefined) return undefined;
+  const alt = m.todo && m.todo.ziel === ziel && Number.isFinite(m.todo.zeit) ? m.todo : null;
+  if (alt && alt.zeit > zeit) return undefined;
+  return todo ? { ziel, zeit, ...todo } : null;
+}
+
+/** Der vermerkte Stand von To Do zu dieser Verbindung – oder null. */
+function kalTodoLage(m, ziel) {
+  const t = m.todo;
+  if (!ziel || !t || t.ziel !== ziel || !Number.isFinite(t.zeit) || typeof t.verbunden !== 'boolean' || typeof t.wartet !== 'boolean') return null;
+  return {
+    verbunden: t.verbunden, wartet: t.wartet, zuletzt: Number.isFinite(t.zuletzt) ? t.zuletzt : null,
+    hinweis: typeof t.hinweis === 'string' && t.hinweis ? t.hinweis : null, zeit: t.zeit,
+  };
+}
+
+/**
+ * Wie es um Microsoft To Do steht (kalenderLage().todo), für Karte und
+ * Startseite:
+ *
+ *   'wartet'    eine Anmeldung steht aus („todoVerbinden" läuft)
+ *   'getrennt'  nicht (mehr) verbunden, und das Skript sagt, warum – oder es
+ *               hat schon einmal angeglichen
+ *   'fehler'    verbunden, aber der letzte Abgleich ging schief
+ *   'still'     verbunden und ohne Fehler, aber die Antwort sagt, dass seit
+ *               über drei Stunden nicht mehr angeglichen wurde (KAL_TODO_STILL)
+ *   'ok'        verbunden und angeglichen
+ *   null        nichts zu sagen: kein Stand, oder To Do war dort nie verbunden
+ */
+export function kalenderTodoArt(t) {
+  if (!t) return null;
+  if (t.wartet) return 'wartet';
+  if (!t.verbunden) return t.hinweis || t.zuletzt ? 'getrennt' : null;
+  if (t.hinweis) return 'fehler';
+  if (t.zuletzt && t.zeit - t.zuletzt > KAL_TODO_STILL) return 'still';
+  return 'ok';
+}
+
+/** Steht To Do so, dass Tobi etwas tun muss (oder dem Assistenten Bescheid geben)? Dann auch auf der Startseite. */
+export function kalenderTodoHandeln(t) {
+  return ['getrennt', 'fehler', 'still'].includes(kalenderTodoArt(t));
 }
 
 /**
@@ -963,6 +1047,9 @@ function kalVermerken(art, a, mehr = {}) {
     vertrag: mehr.vertrag ?? null, fern: mehr.fern ?? null, gekuerzt: mehr.gekuerzt ?? null, fernFehler: !!mehr.fernFehler,
   };
   const teil = { letzte };
+  // Und wie es um To Do steht, wenn die Antwort es sagt (kalTodoLesen()).
+  const todo = kalTodoVermerk(m0, ziel, a.todo, letzte.zeit);
+  if (todo !== undefined) teil.todo = todo;
   // Gilt beim Skript der Plan eines anderen Geräts (kalFremd())? „aelter"
   // sagt es, mit dem Stand, der dort gilt – die Karte sagt, wann dort zuletzt
   // trainiert wurde. Vorbei ist es erst, wenn eine eigene Sendung ankam; ein
@@ -1307,10 +1394,16 @@ function kalNachfragenNoetig({ sofort = false } = {}) {
   const ziel = kalZiel(store.kalender());
   if (!ziel || !kalenderVerbunden()) return null;
   if (Date.now() - kalFassungGefragt < (sofort ? KAL_FRAGEN_MIN : KAL_FASSUNG_FRAGEN)) return null;
-  const stand = kalStand(kalMeta(), ziel);
+  const m = kalMeta();
+  const stand = kalStand(m, ziel);
   const code = kalNeuerCode(kalFassung(ziel));
   const eintragen = !!stand && stand.offen > 0 && Date.now() - stand.zeit >= KAL_STAND_FRAGEN;
-  return code || eintragen ? { code } : null;
+  // To Do braucht Tobi (kalenderTodoHandeln()): Hat er es eben in Apps Script
+  // gerichtet, sagt es die nächste Probe – beim Zeichnen der Karte und beim
+  // Zurückkommen, nicht von selbst im Hintergrund.
+  const t = kalTodoLage(m, ziel);
+  const todo = kalenderTodoHandeln(t) && Date.now() - t.zeit >= KAL_STAND_FRAGEN;
+  return code || eintragen || todo ? { code } : null;
 }
 
 /**
@@ -1342,6 +1435,8 @@ async function kalNachfragen({ sofort = false } = {}) {
     // Stands: Ohne Bezug gilt der, den die App bis eben kannte.
     if (a.ok && a.ergebnis === 'probe') kalStockenMerken(ziel, a, 'probe');
     const teil = { fassung: { ziel, version: a.version, zeit: Date.now() } };
+    const todo = kalTodoVermerk(kalMeta(), ziel, a.todo, teil.fassung.zeit);
+    if (todo !== undefined) teil.todo = todo;
     if (a.ok && a.ergebnis === 'probe' && Number.isInteger(a.offen) && a.bis) {
       teil.abgleich = {
         ziel, zeit: Date.now(), offen: a.offen, bis: a.bis, stehen: a.stehen || null, folge: a.folge ?? null, morgen: a.morgen ?? null,
@@ -1972,6 +2067,7 @@ export function kalenderLage() {
     stand,
     stockt: ziel ? kalStockt(m, ziel) : null,
     fremd,
+    todo: kalTodoLage(m, ziel),
   };
 }
 
@@ -2009,5 +2105,7 @@ export function kalenderKurz() {
     + ` · Vertrag ${l.vertrag}${l.neuerCode ? ' · neuer Code steht aus' : ''}`
     + `${l.stand && l.stand.offen > 0 ? ` · ${l.stand.offen} offen${l.stockt ? ', trägt nichts nach' : ''}` : ''}`
     + `${l.fremd ? ' · beim Skript gilt ein anderes Gerät' : ''}`
-    + `${l.letzte && !l.letzte.ok ? ` · zuletzt ${l.letzte.ergebnis}` : ''}${l.ausstehend ? ` · ${l.ausstehend} Abschalten offen` : ''}`;
+    + `${l.letzte && !l.letzte.ok ? ` · zuletzt ${l.letzte.ergebnis}` : ''}${l.ausstehend ? ` · ${l.ausstehend} Abschalten offen` : ''}`
+    // Microsoft To Do: nur die Art und die Zeiten, nicht der Satz des Skripts.
+    + `${kalenderTodoArt(l.todo) ? ` · To Do ${kalenderTodoArt(l.todo)}${l.todo.zuletzt ? `, angeglichen ${z(l.todo.zuletzt)}` : ''} (Stand ${z(l.todo.zeit)})` : ''}`;
 }

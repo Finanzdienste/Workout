@@ -102,6 +102,15 @@
  *      löschen" und eine neue URL schicken dann kein „aus", und ihre Sätze
  *      sagen es; trainiert Tobi hier, ist es vorbei. Eine alte Auskunft
  *      verspricht nichts mehr („in den nächsten Minuten", „morgen").
+ *  19. Microsoft To Do (v257: „Eigentlich müßte das gestrige Workout doch weg
+ *      und für heute ein neues angelegt worden sein oder nicht?"): Was das
+ *      Skript in seinen Antworten über To Do sagt, steht auf der Karte –
+ *      verbunden und angeglichen, Anmeldung offen, getrennt, ein Fehler, seit
+ *      Stunden still –, und wo Tobi etwas tun muss, auch auf der Startseite,
+ *      mit „Ansehen". Hat er es gerichtet, sagt es die nächste Probe beim
+ *      Zeichnen der Karte; ist alles gut, fragt die Karte nicht nach. Ohne
+ *      To Do im Skript (kein Feld, null, nie verbunden) steht nichts da. Der
+ *      Kopf des Diagnoseprotokolls nennt die Art, nicht den Satz.
  *
  *     node tests/test-kalender-sync.mjs            # alles
  *     node tests/test-kalender-sync.mjs 3 7        # nur Abschnitt 3 und 7
@@ -171,6 +180,10 @@ function skriptAttrappe() {
     // Bei „aelter" antwortet das Skript mit dem Stand, der gilt – dem des
     // anderen Geräts (`stand: alt.stand` in kalender/workout-kalender.gs).
     fremdStand: null,
+    // Microsoft To Do (Abschnitt 19): wie todoStandFuerApp_() – in jeder
+    // Antwort, die etwas annimmt (Probe, Sendung, „aus"); undefined: ein
+    // Skript ohne To Do (das Feld fehlt), null: ohne App-ID.
+    todo: undefined,
   };
   s.route = async (route) => {
     const req = route.request();
@@ -235,6 +248,7 @@ function skriptAttrappe() {
         } : {}),
         ...(j && j.probe && s.probeStand ? s.probeStand : {}),
         ...(s.hinweis !== undefined ? { hinweis: s.hinweis } : a.hinweis ? { hinweis: a.hinweis } : {}),
+        ...(s.todo !== undefined && a.ok ? { todo: s.todo } : {}),
       };
       await route.fulfill({ status: 200, contentType: 'application/json', headers: ACAO, body: JSON.stringify(antwort) });
     } catch { /* die Seite hat aufgegeben (Abbruch) – dann eben ohne Antwort */ }
@@ -2828,6 +2842,133 @@ await abschnitt(18, async () => {
     && /Den Rest bis 08\.10\.2027 trägt das Skript nach – noch 150 Änderungen \(Stand vor 16 Std\.\)\./.test(fMorgen) && !/morgen nach/.test(fMorgen),
   `„morgen" gilt am Tag der Auskunft; am nächsten Tag ohne neuere Auskunft kein Versprechen („${fMorgen.replace(/^.*?(Im Kalender)/, '$1').slice(0, 130)}")`);
   await zu(f);
+});
+
+/* ------------------------------------------------------------------ *
+ * 19. Microsoft To Do: was das Skript dazu sagt, steht in der App (v257)
+ * ------------------------------------------------------------------ */
+
+await abschnitt(19, async () => {
+  const MIN = 60 * 1000;
+  const STD = 60 * MIN;
+  // Ein verbundenes Gerät, dessen erste Sendung das Skript mit diesem To-Do-Stand beantwortet.
+  const mitTodo = async (name, todo) => {
+    const g = await geraet(name, { kalender: { token: TOKEN, url: URL_A } });
+    g.skript.todo = todo;
+    await vor(g.page, 4000, 1500);
+    await bis(() => g.skript.vorschauen().length >= 1, 8000);
+    await echteWarte(300);
+    return g;
+  };
+  const zeile = async (page) => {
+    await zuMehr(page);
+    await zumDashboard(page);
+    return (await page.locator('#kalenderTodoZeile').count()) ? text(page, '#kalenderTodoZeile') : null;
+  };
+  const karte = async (page) => {
+    await zuMehr(page);
+    return (await page.locator('#kalenderTodo').count()) ? text(page, '#kalenderTodo') : null;
+  };
+  const warnfarbe = async (page) => /color:var\(--accent\)/.test((await page.locator('#kalenderTodo').getAttribute('style')) || '');
+  const WEG = 'Die Anmeldung bei Microsoft To Do gilt nicht mehr – in Apps Script oben „todoVerbinden" ausführen.';
+
+  // a) Verbunden und angeglichen: eine ruhige Zeile auf der Karte, nichts auf
+  // der Startseite – und keine Probe nur dafür, auch Minuten später nicht.
+  const a = await mitTodo('19 To Do angeglichen', { verbunden: true, wartet: false, zuletzt: START - 20 * MIN, hinweis: null });
+  const aZeile = await zeile(a.page);
+  const aKarte = await karte(a.page);
+  const aMeta = (await meta(a.page)).todo;
+  check(aZeile === null && /^Microsoft To Do: ✓ Verbunden – zuletzt angeglichen vor 20 Min\.$/.test((aKarte || '').trim()) && !(await warnfarbe(a.page))
+    && aMeta && aMeta.ziel === zielVon(URL_A, TOKEN) && aMeta.verbunden === true && aMeta.zuletzt === START - 20 * MIN,
+  `angeglichen: auf der Karte „${(aKarte || '–').trim()}", ohne Warnfarbe, auf der Startseite nichts – vermerkt zur Verbindung`);
+  const aP = a.skript.proben().length;
+  await vor(a.page, 5 * MIN, 300);
+  await zumDashboard(a.page);
+  await zuMehr(a.page);
+  await echteWarte(800);
+  check(a.skript.proben().length === aP, 'ist alles gut, fragt die Karte auch fünf Minuten später nicht nach');
+  await zu(a);
+
+  // b) Getrennt: Die Anmeldung gilt nicht mehr. Die Startseite sagt es mit dem
+  // Satz des Skripts, „Ansehen" führt zur Karte; dort steht dazu, wann zuletzt
+  // angeglichen wurde. Hat Tobi „todoVerbinden" ausgeführt, sagt es die Probe
+  // beim Zeichnen der Karte – danach ist die Zeile auf der Startseite weg.
+  const b = await mitTodo('19 To Do getrennt', { verbunden: false, wartet: false, zuletzt: START - 34 * STD, hinweis: WEG });
+  const bZeile = await zeile(b.page);
+  check(bZeile !== null && bZeile.includes(`Microsoft To Do: ${WEG}`) && !/To Do: To Do/.test(bZeile)
+    && await b.page.locator('#kalenderTodoZeile [data-act="kalender-ansehen"]').count() === 1,
+  `getrennt: auf der Startseite „${(bZeile || '–').trim().slice(0, 120)}", mit „Ansehen"`);
+  const bP = b.skript.proben().length;
+  await b.page.locator('#kalenderTodoZeile [data-act="kalender-ansehen"]').click();
+  await echteWarte(400);
+  const bKarte = await text(b.page, '#kalenderTodo');
+  check(await b.page.locator('#kalenderTodo').isVisible() && bKarte.includes(WEG) && /Zuletzt angeglichen am .*07\.10\./.test(bKarte)
+    && await warnfarbe(b.page) && b.skript.proben().length === bP,
+  `„Ansehen": die Karte, in Warnfarbe „${bKarte.trim().slice(0, 150)}" – keine Probe, die Auskunft ist eben erst gekommen`);
+  b.skript.todo = { verbunden: true, wartet: false, zuletzt: START + 4 * MIN, hinweis: null };
+  await vor(b.page, 4 * MIN, 300);
+  await zumDashboard(b.page);
+  await zuMehr(b.page);
+  await bis(() => b.skript.proben().length > bP, 5000);
+  await bis(async () => /✓ Verbunden/.test(await text(b.page, '#kalenderTodo')), 4000);
+  const bNeu = await text(b.page, '#kalenderTodo');
+  const bDanach = await zeile(b.page);
+  check(b.skript.proben().length === bP + 1 && /✓ Verbunden – zuletzt angeglichen gerade eben\./.test(bNeu) && bDanach === null,
+    `wieder verbunden: eine Probe beim Zeichnen der Karte, dort „${bNeu.trim()}" – auf der Startseite nichts mehr`);
+  await zu(b);
+
+  // c) Verbunden, aber der Abgleich geht schief: der Satz des Skripts (ohne
+  // doppeltes „To Do:"), und dass Tobi Bescheid geben soll, wenn es bleibt.
+  // Was aus fremder Hand kommt, steht als Text da.
+  const FEHLER = 'To Do: Aufgabe ändern ging nicht (HTTP 400, invalidRequest). <img src=x id=fremd>';
+  const c = await mitTodo('19 To Do Fehler', { verbunden: true, wartet: false, zuletzt: START - 30 * MIN, hinweis: FEHLER });
+  const cZeile = await zeile(c.page);
+  const cKarte = await karte(c.page);
+  check(cZeile !== null && cZeile.includes('Microsoft To Do: Aufgabe ändern ging nicht (HTTP 400, invalidRequest).') && !/To Do: To Do/.test(cZeile)
+    && /Microsoft To Do: Aufgabe ändern ging nicht \(HTTP 400, invalidRequest\)\. <img src=x id=fremd>\. Bleibt es dabei, dem Assistenten Bescheid geben\. Zuletzt angeglichen vor 30 Min\./.test(cKarte || '')
+    && await warnfarbe(c.page) && await c.page.locator('#fremd').count() === 0,
+  `ein Fehler: Startseite „${(cZeile || '–').trim().slice(0, 90)}", Karte „${(cKarte || '–').trim().slice(0, 170)}" – als Text, kein Element`);
+  await zu(c);
+
+  // d) Seit Stunden still: verbunden, kein Fehler, aber seit neun Stunden nicht
+  // angeglichen – das Skript tut es sonst jede Stunde.
+  const d = await mitTodo('19 To Do still', { verbunden: true, wartet: false, zuletzt: START - 9 * STD, hinweis: null });
+  const dZeile = await zeile(d.page);
+  const dKarte = await karte(d.page);
+  check(dZeile !== null && /Microsoft To Do: seit 9 Std\. nicht mehr angeglichen\./.test(dZeile)
+    && /Microsoft To Do: verbunden, aber seit 9 Std\. nicht mehr angeglichen – eigentlich gleicht das Skript jede Stunde an\. Bleibt es dabei, dem Assistenten Bescheid geben\./.test(dKarte || '')
+    && await warnfarbe(d.page),
+  `seit Stunden still: Startseite „${(dZeile || '–').trim().slice(0, 80)}", Karte in Warnfarbe`);
+  await zu(d);
+
+  // e) Die Anmeldung steht aus („todoVerbinden" läuft): auf der Karte, was zu
+  // tun ist – auf der Startseite nichts, Tobi ist gerade dabei.
+  const e = await mitTodo('19 To Do wartet', { verbunden: false, wartet: true, zuletzt: null, hinweis: null });
+  const eZeile = await zeile(e.page);
+  const eKarte = await karte(e.page);
+  check(eZeile === null && /Microsoft To Do: Die Anmeldung steht noch aus – den Code aus dem Protokoll von „todoVerbinden" unter microsoft\.com\/link eingeben\./.test(eKarte || '')
+    && !(await warnfarbe(e.page)),
+  `Anmeldung offen: auf der Karte „${(eKarte || '–').trim().slice(0, 110)}", auf der Startseite nichts`);
+  await zu(e);
+
+  // f) Ohne To Do im Skript: kein Feld (älteres Skript), null (keine App-ID),
+  // oder nie verbunden – nirgends eine Zeile.
+  for (const [wie, todo] of [['ohne Feld', undefined], ['ohne App-ID', null], ['nie verbunden', { verbunden: false, wartet: false, zuletzt: null, hinweis: null }]]) {
+    const g = await mitTodo(`19 To Do ${wie}`, todo);
+    const gZeile = await zeile(g.page);
+    const gKarte = await karte(g.page);
+    check(gZeile === null && gKarte === null && await g.page.locator('#kalenderStand').count() === 1,
+      `${wie}: weder auf der Startseite noch auf der Karte eine Zeile zu To Do`);
+    await zu(g);
+  }
+
+  // g) Der Kopf des Diagnoseprotokolls: Art und Zeiten, nicht der Satz des Skripts.
+  const h = await mitTodo('19 To Do Diagnose', { verbunden: false, wartet: false, zuletzt: START - 34 * STD, hinweis: WEG });
+  await zuMehr(h.page);
+  const kopf = await text(h.page, '#diagnoseLage');
+  check(/ · To Do getrennt, angeglichen 07\.10\. 00:00 \(Stand 08\.10\. 10:00\)/.test(kopf) && !/gilt nicht mehr/.test(kopf),
+    `Diagnoseprotokoll: „${(kopf.match(/To Do [^·]*/) || ['–'])[0].trim()}" – ohne den Satz des Skripts`);
+  await zu(h);
 });
 
 check(seitenFehler.length === 0, `keine Fehler auf den Seiten${seitenFehler.length ? `: ${seitenFehler.slice(0, 4).join(' | ')}` : ''}`);

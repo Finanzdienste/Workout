@@ -48,8 +48,9 @@ import {
 } from './sicherung.js';
 import {
   KALENDER_JAHR, KALENDER_STOCKT, kalenderCode, kalenderCodeKopiert, kalenderEinrichten, kalenderGeaendert, kalenderJahrGesehen, kalenderJetzt,
-  kalenderKurz, kalenderLage, kalenderNachfragen, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen,
-  kalenderVerbinden, kalenderVergessen, kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
+  kalenderKurz, kalenderLage, kalenderNachfragen, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTodoArt,
+  kalenderTodoHandeln, kalenderTrennen, kalenderVerbinden, kalenderVergessen, kalenderVerbunden, kalenderVerstecken,
+  kalenderVorlage,
 } from './kalender-sync.js';
 import {
   initAudio, playSound, scheduleSound, cancelSound, signalStand, probeSpielen, tonStand, onTonStand,
@@ -801,10 +802,66 @@ function kalenderErsterSatz(satz) {
   return i > 0 ? satz.slice(0, i + 1) : satz;
 }
 
-/** Die Zeile auf dem Dashboard: nur, wenn Tobi selbst etwas richten muss. */
+/**
+ * Microsoft To Do (v257) – was das Skript in seiner letzten Antwort dazu sagte
+ * (kalenderLage().todo, kalenderTodoArt()):
+ *
+ *     „Eigentlich müßte das gestrige Workout doch weg und für heute ein neues
+ *      angelegt worden sein oder nicht?"
+ *
+ * Ja. Der Kalender hatte Workout 17 um 00:03 auf heute geschoben; To Do blieb
+ * bei gestern, und warum, stand nur im Protokoll in Apps Script und in einer
+ * Mail von Google, die einmal kommt. Seit v248 sagt das Skript es in jeder
+ * Antwort – die App las es nur nicht. Der Satz des Skripts sagt selbst, was zu
+ * tun ist („todoVerbinden" ausführen); vorn steht dort oft „To Do:", hier
+ * steht davor schon „Microsoft To Do:".
+ */
+function kalenderTodoSatz(t) {
+  return String(t.hinweis || '').replace(/^To Do:\s*/, '');
+}
+
+/** Die Zeile zu To Do auf der Karte unter Mehr → Kalender – leer, wenn es nichts zu sagen gibt. */
+function kalenderTodoText(t) {
+  const art = kalenderTodoArt(t);
+  if (!art) return '';
+  const wann = (ms) => vorWann(new Date(ms).toISOString());
+  const zuletzt = t.zuletzt ? ` Zuletzt angeglichen ${punkt(wann(t.zuletzt))}` : '';
+  const bescheid = ' Bleibt es dabei, dem Assistenten Bescheid geben.';
+  if (art === 'ok') return `Microsoft To Do: ✓ Verbunden${t.zuletzt ? ` – zuletzt angeglichen ${punkt(wann(t.zuletzt))}` : '.'}`;
+  if (art === 'wartet') {
+    return 'Microsoft To Do: Die Anmeldung steht noch aus – den Code aus dem Protokoll von „todoVerbinden" '
+      + 'unter microsoft.com/link eingeben.';
+  }
+  if (art === 'still') {
+    return `Microsoft To Do: verbunden, aber seit ${dauerKurz(Date.now() - t.zuletzt)} nicht mehr angeglichen – `
+      + `eigentlich gleicht das Skript jede Stunde an.${bescheid}`;
+  }
+  if (art === 'fehler') return `Microsoft To Do: ${punkt(kalenderTodoSatz(t))}${bescheid}${zuletzt}`;
+  const satz = kalenderTodoSatz(t) || 'Nicht mehr verbunden – in Apps Script oben „todoVerbinden" ausführen.';
+  return `Microsoft To Do: ${punkt(satz)}${zuletzt}`;
+}
+
+/** Dasselbe kurz, für die Startseite – nur, wenn Tobi etwas tun muss (kalenderTodoHandeln()). */
+function kalenderTodoKurz(t) {
+  const art = kalenderTodoArt(t);
+  if (art === 'still') return `seit ${dauerKurz(Date.now() - t.zuletzt)} nicht mehr angeglichen.`;
+  if (art === 'fehler') return punkt(kalenderTodoSatz(t));
+  return punkt(kalenderTodoSatz(t) || 'Nicht mehr verbunden – in Apps Script oben „todoVerbinden" ausführen.');
+}
+
+/**
+ * Die Zeile auf dem Dashboard: nur, wenn Tobi selbst etwas richten muss. Erst
+ * der Kalender; ist dort alles gut, To Do (v257) – dieselbe Stelle, derselbe
+ * Knopf zur Karte.
+ */
 function kalenderZeile() {
   const l = kalenderLage();
-  if (!l.verbunden || !(l.handeln || l.zuAlt)) return '';
+  if (!l.verbunden) return '';
+  if (!(l.handeln || l.zuAlt)) {
+    if (!kalenderTodoHandeln(l.todo)) return '';
+    return `<div class="notice warn zeile" id="kalenderTodoZeile">☑️ <span>Microsoft To Do: ${esc(kalenderTodoKurz(l.todo))}</span>
+      <button type="button" class="btn" data-act="kalender-ansehen">Ansehen</button></div>`;
+  }
   // Ein Hinweis des Skripts selbst ist kurz und sagt im zweiten Satz, was zu
   // tun ist – der bleibt ganz. Die langen Sätze der App kommen unter Mehr.
   const satz = l.zuAlt ? 'Der Code in Apps Script ist älter als die App – „Kalender-Code erneuern".'
@@ -1174,12 +1231,15 @@ function kalenderKarte() {
   // Welchen Stand dieses Gerät schickt, und dass nur eins verbunden sein soll
   // (kalenderGeraetStand()) – kurz, unter dem Stand des Skripts.
   const geraetStand = kalenderGeraetStand();
+  // Microsoft To Do, wenn das Skript dazu etwas gesagt hat (kalenderTodoText()).
+  const todo = kalenderTodoText(l.todo);
   const geraet = `<div class="small muted" id="kalenderGeraet" style="margin-top:6px">Dieses Gerät schickt:
         ${esc(/\.$/.test(geraetStand) ? geraetStand : `${geraetStand}.`)} Verbunden sein soll nur das Gerät, auf dem du
         trainierst – jedes Gerät hat seinen eigenen Stand, und ein zweites schickt einen Plan, der hinterherhinkt.</div>`;
   return `<div class="card" id="kalenderAuto">${was}
       <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
       ${l.stockt ? `<div class="small" id="kalenderStockt" style="margin-top:6px;color:var(--accent)">${esc(KALENDER_STOCKT)}</div>` : ''}
+      ${todo ? `<div class="small" id="kalenderTodo" style="margin-top:6px${kalenderTodoHandeln(l.todo) ? ';color:var(--accent)' : ''}">${esc(todo)}</div>` : ''}
       ${l.fremd ? `<div class="notice warn" id="kalenderFremd" style="margin-top:8px">${esc(kalenderFremdText(l))}</div>` : ''}
       ${geraet}
       ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}

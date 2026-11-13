@@ -4069,7 +4069,7 @@ nicht, und wer To Do nicht will, braucht den neuen Code nicht – mit Fassung 3
 bäte die App jeden darum. Wer To Do will, tauscht den Code einmal wie gewohnt.
 Seit v248 steht in „Verbinden" und jeder Antwort auf eine Sendung das Feld
 `todo` (`verbunden`, `wartet`, `zuletzt`, `hinweis`; null ohne App-ID); die App
-liest es noch nicht.
+las es bis v256 nicht – seit v257 sagt sie es (unten, *Was mit To Do los ist*).
 
 **Einrichten, einmal:**
 
@@ -4130,11 +4130,83 @@ Beschreibung gebaut (Gerätecode, Fehlernamen, Graph) – gesehen ist es erst be
 Tobi. In „Mein Tag" kann das Skript nichts legen; dafür hat Graph keine
 Eigenschaft. Die Aufgabe steht in „Workout" und unter „Geplant". Wer in To Do
 abhakt, ohne in der App zu trainieren, hat sie am nächsten Tag wieder: Die App
-ist die Quelle, wie für den Kalender. Die App zeigt den Stand von To Do (noch)
-nicht; bleibt etwas schief, kommt die Mail von Google, einmal. Und dass die
-App-Registrierung nach den 30 Tagen der Azure-Testphase weiter gilt, folgt
-daraus, dass sie zum Verzeichnis gehört und nicht zum Abo – gesehen ist es
-erst danach.
+ist die Quelle, wie für den Kalender. Bis v256 zeigte die App den Stand von To
+Do nicht; blieb etwas schief, kam nur die Mail von Google, einmal – seit v257
+steht er auf der Karte und, wo etwas zu tun ist, auf der Startseite (unten).
+Und dass die App-Registrierung nach den 30 Tagen der Azure-Testphase weiter
+gilt, folgt daraus, dass sie zum Verzeichnis gehört und nicht zum Abo –
+gesehen ist es erst danach.
+
+#### Was mit To Do los ist, steht in der App (v257)
+
+> *„Eigentlich müßte das gestrige Workout doch weg und für heute ein neues
+> angelegt worden sein oder nicht?"* – mit einem Bildschirmfoto aus To Do,
+> Fr 13.11., 07:35: „Workout 17 · 7 Übungen · 20 Sätze", fällig gestern.
+
+Ja, so ist es gedacht (oben, „verpasst"): Mit dem ersten stündlichen Lauf nach
+Mitternacht rückt dieselbe Aufgabe auf den Tag, auf den die App die Einheit
+schiebt. Der Kalender hatte das getan. In „Workout" stand Workout 17 seit 00:03
+am Freitag um 17:30, 18 und 19 waren mitgerückt, und die Beschreibung des
+Kalenders sagte „Zuletzt abgeglichen: 13.11.2026 07:03 – Liste für 13.11.2026".
+Aus derselben Liste liest `todoSoll_()`, was heute in To Do stehen soll. Blieb
+die Aufgabe bei gestern, kam der To-Do-Teil der Läufe nicht durch: getrennt,
+ein Fehler bei Microsoft, oder still. Welches davon, stand nur im Protokoll in
+Apps Script und in einer Mail von Google, die einmal kommt.
+
+Dabei sagt das Skript es seit v248 in jeder Antwort, die App las es nur nicht.
+Jetzt liest sie es (`kalTodoLesen()` in `js/kalender-sync.js`), merkt es sich
+zur Verbindung (`todo` in `workout.kalender.v1`) und sagt es
+(`kalenderTodoArt()`, die Sätze in `kalenderTodoText()` in `js/app.js`):
+
+| Stand laut Skript | Karte unter *Mehr → Kalender* | Startseite |
+| --- | --- | --- |
+| verbunden, angeglichen | „Microsoft To Do: ✓ Verbunden – zuletzt angeglichen vor 20 Min." | nichts |
+| Anmeldung offen (`todoVerbinden` läuft) | wo der Code hin muss | nichts – Tobi ist gerade dabei |
+| getrennt (die Anmeldung gilt nicht mehr) | der Satz des Skripts, was zu tun ist, und wann zuletzt angeglichen | der Satz, mit „Ansehen" |
+| ein Fehler beim Abgleich | der Satz des Skripts und „Bleibt es dabei, dem Assistenten Bescheid geben." | der Satz, mit „Ansehen" |
+| seit über drei Stunden still, ohne Fehler | „verbunden, aber seit 9 Std. nicht mehr angeglichen" | dasselbe kurz, mit „Ansehen" |
+| kein To Do im Skript (kein Feld, keine App-ID, nie verbunden) | nichts | nichts |
+
+Wo etwas zu tun ist, steht die Zeile auf der Karte in Warnfarbe, und auf der
+Startseite dort, wo sonst die Zeile zum Kalender steht – der Kalender geht vor.
+
+**Still** ist der Weg, auf dem es ohne Fehlermeldung schiefgeht: Bremst
+Microsoft oder ist es nicht erreichbar, versucht es der nächste Lauf wieder,
+ohne Meldung. Das Skript gleicht aber jede Stunde an, auch wenn nichts zu tun
+ist, und merkt sich dabei die Zeit (`zuletzt`). Liegt sie in einer Antwort mehr
+als drei Stunden zurück (`KAL_TODO_STILL`), kommt der Abgleich dort nicht durch.
+
+**Gerichtet – und dann?** Hat Tobi in Apps Script `todoVerbinden` ausgeführt,
+erfährt die App es mit der nächsten Antwort. Damit die Zeile auf der Startseite
+nicht bis zur nächsten Sendung stehen bleibt, fragt die Karte beim Zeichnen
+nach, ebenso die App beim Zurückkommen – solange To Do etwas braucht und die
+letzte Auskunft drei Minuten alt ist. Ist alles gut, fragt sie dafür nicht:
+Jede Probe ist ein Aufruf bei Google.
+
+Neuen Code fürs Skript braucht es nicht, das Feld schickt es seit v248. Der Kopf
+des Diagnoseprotokolls nennt die Art und die Zeiten („To Do getrennt,
+angeglichen 07.10. 00:00 (Stand 08.10. 10:00)"), nicht den Satz des Skripts.
+
+**Was Tobi jetzt tut:** die App einmal mit Netz öffnen. Sie schickt den Plan für
+heute, und die Antwort sagt, wie es um To Do steht. Steht auf der Startseite
+„Die Anmeldung bei Microsoft To Do gilt nicht mehr": in Apps Script oben
+`todoVerbinden` wählen, *Ausführen*, die Adresse aus dem Protokoll öffnen, den
+Code eingeben, mit dem Microsoft-Konto anmelden, erlauben. Spätestens eine
+Minute danach steht die Aufgabe auf heute.
+
+Geprüft in `tests/test-kalender-sync.mjs`, Abschnitt 19: jede Zeile der
+Tabelle, mit Warnfarbe, wo etwas zu tun ist; „Ansehen" führt zur Karte, ohne
+Probe; nach dem Richten genau eine Probe beim Zeichnen der Karte, dann ist die
+Zeile auf der Startseite weg; ist alles gut, auch fünf Minuten später keine
+Probe; ein Satz mit `<img …>` steht als Text da; kein doppeltes „To Do:"; der
+Kopf des Protokolls. Gegen v256 rot: Die Zeilen fehlen, der Abschnitt bricht
+beim „Ansehen" ab.
+
+*Grenzen, ehrlich:* Warum To Do am 13.11. stehen blieb, ist damit noch nicht
+gefunden – das sagt erst die nächste Antwort an Tobis App. Die App kennt den
+Stand nur aus Antworten: Schickt sie nichts und fragt nicht, bleibt er so alt
+wie die letzte. Was der Service Worker im Hintergrund nachschickt, liest sie
+dafür nicht; die nächste Sendung im Vordergrund holt es nach.
 
 ## Übungsvorrat
 
