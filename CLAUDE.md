@@ -127,8 +127,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (14.11.2026)
-- Workout v260. Zuletzt: Knieheben im Liegen nennt den Weg nach oben (zu
-  leicht → Tempo, dann das + zur hängenden Fassung, v260); Chin-ups und
+- Workout v261. Zuletzt: Knieheben im Liegen nennt den Weg nach oben (zu
+  leicht → Oberkörper leicht mit anheben, v261; Tempo, dann das + zur
+  hängenden Fassung, v260); Chin-ups und
   Pull-ups sagen, wie man das Schwingen abstellt (v259); das Volumen für
   Anfänger im Cut bleibt, wie es ist (README
   „Anfänger heißt leichter, nicht weniger“, 14.11.). Davor: Das Skript sagt,

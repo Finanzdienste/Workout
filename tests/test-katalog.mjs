@@ -251,6 +251,14 @@ check(!!liegend && liegend.cues.length === 2 && liegend.cues.every(nachOben)
   && /Gesäß nicht bei jeder Wiederholung vom Boden ab/.test(zuLeicht) && /Das \+ an der Übung macht daraus das hängende Knieheben/.test(zuLeicht),
 `Knieheben im Liegen: Hinweis und Erklärung nennen den Weg nach oben${liegend ? '' : ' – die Übung fehlt'}`);
 
+// „Wenn ichs meinen Oberkörper leicht anhebe merk ichs richtig im Bauch, das
+// bockt. Ist ok?" (v261) – ja: der Bauch von beiden Enden. Der Hinweis nennt es
+// unter „Zu leicht?" zuerst, die Erklärung sagt, wie es den Nacken schont.
+check(!!liegend && liegend.cues.every((s) => /Zu leicht\? Den Oberkörper leicht mit anheben/.test(s))
+  && /Schulterblätter vom Boden/.test(zuLeicht) && /Kinn bleibt eine Faust vor der Brust/.test(zuLeicht)
+  && /aus dem Bauch, nicht aus dem Nacken/.test(zuLeicht) && /Hände bleiben unter dem Gesäß/.test(zuLeicht),
+'Knieheben im Liegen: den Oberkörper leicht mit anheben – im Hinweis und in der Erklärung, mit Kinn, Nacken und Händen');
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs[0] : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

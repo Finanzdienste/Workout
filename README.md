@@ -8859,6 +8859,18 @@ kommen"*): Es steht im Text der Übung, und tippen muss Tobi selbst. Geprüft in
 v259 rot; dass das + die hängende Fassung bringt, hält
 `tests/test-anfaenger.mjs`, Abschnitt 6.
 
+**Den Oberkörper leicht mit anheben (v261).** *„Wenn ichs meinen Oberkörper
+leicht anhebe merk ichs richtig im Bauch, das bockt. Ist ok?"* – ja. Dann
+rollt der Bauch von beiden Enden ein: unten das Becken, oben die
+Schulterblätter (der „Double Crunch"). Die Muskelanteile bleiben dieselben
+(Bauch 1,0), es ist dieselbe Übung, nur schwerer. Im Hinweis steht es unter
+„Zu leicht?" jetzt zuerst, vor Tempo und Füßen; die Erklärung (*Wenn es zu
+leicht ist*) sagt, wie es den Nacken schont: das Kinn eine Faust vor der Brust,
+der Nacken locker, die Hände bleiben unter dem Gesäß – hoch kommt der
+Oberkörper aus dem Bauch, nicht aus dem Nacken –, und beim Hochkommen
+ausatmen. Geprüft im selben Abschnitt von `tests/test-katalog.mjs`, gegen v260
+rot.
+
 #### Und der Folgefehler, den diese Änderung ausgelöst hat
 
 > „Aber heute ist doch erst Dienstag? Montag stand ein Training an, Dienstag
