@@ -4279,6 +4279,17 @@ v257 rot: fünf Prüfungen.
 er sitzt. Erst mit dem Grund ist klar, was zu tun ist: neu verbinden, warten,
 bis Microsoft wieder antwortet, oder den Aufruf anders bauen.
 
+**Was dann kam (14.11.).** Tobi hat den Code am 14.11. um 21:31 eingespielt –
+erst im Editor mit der Auswahl `myFunction`, die nach dem Ersetzen nicht mehr
+existiert („Es wurde versucht, die Funktion "myFunction" auszuführen, sie wurde
+aber gelöscht"); das richtige Projekt verriet der Trigger `stuendlich`
+(zuletzt 21:03). `einrichten` lief dann durch: „✓ Microsoft To Do verbunden
+(Liste „Workout"). To Do: nichts zu tun". Der Ausfall war also vorbei, bevor
+der neue Code seinen Grund hätte nennen können, und für das Skript war in To
+Do nichts mehr offen – das Training von 21:19 stand schon als erledigt.
+Warum To Do anderthalb Tage nicht durchkam, ist damit nicht mehr zu sehen. Kommt es wieder, steht der Grund im
+Protokoll, nach drei Stunden in einer Mail und auf der Startseite der App.
+
 ## Übungsvorrat
 
 ### Die Langhantel war ein Jahr lang unsichtbar

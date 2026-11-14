@@ -139,11 +139,14 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   „später“ ein Fehler mit Mail und in der App (v258, neuer Code für Apps
   Script, `FASSUNG` bleibt 2); v257 zeigt den To-Do-Stand auf der
   Kalender-Karte und, wo nötig, auf der Startseite.
-- Offen: Seit 13.11. 00:03 kommt To Do nicht durch (v257 zeigte „verbunden,
-  aber seit 13 Std. nicht mehr angeglichen“), der Kalender läuft. Tobi spielt
-  den Code von v258 ein und schickt die Zeile zu To Do aus dem Protokoll von
-  `einrichten` – danach die Ursache beheben. Bei Tobi: ob ihm die halbe
-  Seitenpause reicht (sonst die volle nach jeder Seite). Die
+- To Do kam vom 13.11. 00:03 bis zum 14.11. nicht durch (Grund unbekannt). Am
+  14.11. um 21:31 hat Tobi den Code von v258 eingespielt; `einrichten`:
+  „✓ Microsoft To Do verbunden … nichts zu tun“. Kommt es wieder, nennt v258
+  den Grund (Protokoll, nach drei Stunden Mail und Startseite).
+  Apps-Script-Projekt: „Unbenanntes Projekt“, erkennbar am Trigger
+  `stuendlich` – im Editor vor *Ausführen* die Funktion wählen und speichern.
+- Offen bei Tobi: ob ihm die halbe Seitenpause reicht (sonst die volle nach
+  jeder Seite); „Neue Version“ für den Code von v258 bereitstellen. Die
   Kalender-Erinnerung steht auf „keine“.
 
 ## Cloud-Sitzungen (Claude Code im Browser oder in der Claude-App)
