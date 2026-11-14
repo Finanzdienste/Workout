@@ -126,11 +126,14 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Sendung der App, die Termine zeigen, ob verschoben wurde. Den Stand von To Do
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
-## Stand (13.11.2026)
-- Workout v258. Zuletzt: Das Skript sagt, warum To Do nicht durchkommt – der
-  Grund im Protokoll, nach drei Stunden „später“ ein Fehler mit Mail und in der
-  App (v258, neuer Code für Apps Script, `FASSUNG` bleibt 2); v257 zeigt den
-  To-Do-Stand auf der Kalender-Karte und, wo nötig, auf der Startseite.
+## Stand (14.11.2026)
+- Workout v259. Zuletzt: Chin-ups und Pull-ups sagen, wie man das Schwingen
+  abstellt (v259); das Volumen für Anfänger im Cut bleibt, wie es ist (README
+  „Anfänger heißt leichter, nicht weniger“, 14.11.). Davor: Das Skript sagt,
+  warum To Do nicht durchkommt – der Grund im Protokoll, nach drei Stunden
+  „später“ ein Fehler mit Mail und in der App (v258, neuer Code für Apps
+  Script, `FASSUNG` bleibt 2); v257 zeigt den To-Do-Stand auf der
+  Kalender-Karte und, wo nötig, auf der Startseite.
 - Offen: Seit 13.11. 00:03 kommt To Do nicht durch (v257 zeigte „verbunden,
   aber seit 13 Std. nicht mehr angeglichen“), der Kalender läuft. Tobi spielt
   den Code von v258 ein und schickt die Zeile zu To Do aus dem Protokoll von

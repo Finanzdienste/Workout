@@ -621,9 +621,9 @@
     "tier": 1,
     "dbEquip": "Klimmzugstange + Rucksack",
     "bwEquip": "Klimmzugstange (+ Stuhl)",
-    "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Erst die sauberen, so viele gehen. Reicht es nicht bis zur unteren Zahl des Bereichs, die Füße auf einem Stuhl abstützen und mit den Beinen nur so viel nachhelfen, wie nötig – eine einzelne Wiederholung ist ein Maximalversuch, kein Trainingssatz. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Hantelscheiben, in ein Handtuch gewickelt) und in den Schritten deiner Scheiben hoch. Bis dahin bleibt das Feld auf 0.",
+    "dbCue": "Untergriff, schulterbreit. Aus dem ruhigen, vollen Hang starten – Bauch und Po fest, nicht schwingen. Brust zur Stange, langsam ablassen. Erst die sauberen, so viele gehen. Reicht es nicht bis zur unteren Zahl des Bereichs, die Füße auf einem Stuhl abstützen und mit den Beinen nur so viel nachhelfen, wie nötig – eine einzelne Wiederholung ist ein Maximalversuch, kein Trainingssatz. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Hantelscheiben, in ein Handtuch gewickelt) und in den Schritten deiner Scheiben hoch. Bis dahin bleibt das Feld auf 0.",
     "dbHeben": "Rucksack im Stehen aufsetzen, Gurte fest, dann vom Stuhl aus an die Stange – nicht hochspringen, der Rucksack schwingt sonst. Am Ende zurück auf den Stuhl, dort erst loslassen, Rucksack abnehmen. Solange das Feld auf 0 steht, gibt es nichts zu tragen.",
-    "bwCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Die Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, wie nötig ist – der ganze Weg bleibt, und die Hilfe wird von Woche zu Woche kleiner.",
+    "bwCue": "Untergriff, schulterbreit. Aus dem ruhigen, vollen Hang starten – Bauch und Po fest, nicht schwingen. Brust zur Stange, langsam ablassen. Zu schwer? Die Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, wie nötig ist – der ganze Weg bleibt, und die Hilfe wird von Woche zu Woche kleiner.",
     "detail": [
       [
         "Griff",
@@ -634,12 +634,16 @@
         "Unten die Arme ganz strecken, aber die Schultern aktiv lassen – zuerst die Schulterblätter nach unten ziehen, dann erst beugen die Arme. Wer aus dem passiven Hängen anreißt, belastet nur die Gelenkkapsel."
       ],
       [
+        "Ruhig hängen statt schwingen",
+        "Vor jeder Wiederholung unten kurz still hängen, bis nichts mehr pendelt. Bauch und Po fest, die Beine geschlossen und die Füße ein Stück vor dem Körper – so bleibt der Körper ein Stück und schaukelt nicht. Langsam ablassen, zwei bis drei Sekunden: Der Schwung kommt fast immer vom schnellen Fallenlassen und Abfedern unten. Pendelst du trotzdem, die Fußspitzen leicht auf den Stuhl hinter dir – er bremst, und du hilfst nur so viel nach wie nötig."
+      ],
+      [
         "Wenn es noch nicht geht",
         "Füße auf einem Stuhl hinter dir, und mit den Beinen nur so viel nachhelfen, wie nötig ist: Der ganze Weg bleibt, die Hilfe wird von Woche zu Woche kleiner, und du bestimmst sie in jeder Wiederholung selbst. Drei bis vier Wochen davon, dann kommt die erste freie. Negative üben nur das Ablassen, und Bänder nehmen unten am meisten ab – also genau dort, wo es schwer ist."
       ],
       [
         "Typische Fehler",
-        "Schwingen und mit den Beinen nachhelfen. Nur bis zur Nasenspitze kommen. Unten nicht ganz ausstrecken und so den halben Bewegungsweg verschenken."
+        "Schwung holen – aus dem Pendeln oder mit einem Tritt der Beine. Nur bis zur Nasenspitze kommen. Unten nicht ganz ausstrecken und so den halben Bewegungsweg verschenken."
       ]
     ],
     "schmerz": [
@@ -706,9 +710,9 @@
     "bwReps": "4–10",
     "dbEquip": "Klimmzugstange + Rucksack",
     "bwEquip": "Klimmzugstange (+ Stuhl)",
-    "dbCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann die Füße auf einem Stuhl und mit den Beinen so viel nachhelfen, dass der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
+    "dbCue": "Obergriff, etwas weiter als schulterbreit. Aus dem ruhigen, vollen Hang starten – Bauch und Po fest, nicht schwingen. Schulterblätter zuerst nach unten ziehen, Brust zur Stange, langsam ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann die Füße auf einem Stuhl und mit den Beinen so viel nachhelfen, dass der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
     "dbHeben": "Rucksack im Stehen aufsetzen, Gurte fest, dann vom Stuhl aus an die Stange – nicht hochspringen, der Rucksack schwingt sonst. Am Ende zurück auf den Stuhl, dort erst loslassen, Rucksack abnehmen. Solange das Feld auf 0 steht, gibt es nichts zu tragen.",
-    "bwCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Schulterblätter zuerst nach unten ziehen, Brust zur Stange, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Die Füße auf einem Stuhl abstützen und mit den Beinen nur so viel nachhelfen, wie nötig ist. Drei bis vier Wochen, dann geht die erste freie.",
+    "bwCue": "Obergriff, etwas weiter als schulterbreit. Aus dem ruhigen, vollen Hang starten – Bauch und Po fest, nicht schwingen. Schulterblätter zuerst nach unten ziehen, Brust zur Stange, langsam ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Die Füße auf einem Stuhl abstützen und mit den Beinen nur so viel nachhelfen, wie nötig ist. Drei bis vier Wochen, dann geht die erste freie.",
     "detail": [
       [
         "Griff",
@@ -717,6 +721,10 @@
       [
         "Warum weniger gehen als bei Chin-ups",
         "Der Bizeps steht im Obergriff schlechter und kann weniger beitragen – der Rücken macht mehr Arbeit. Zwei bis vier Wiederholungen Unterschied sind normal und kein Rückschritt."
+      ],
+      [
+        "Ruhig hängen statt schwingen",
+        "Vor jeder Wiederholung unten kurz still hängen, bis nichts mehr pendelt. Bauch und Po fest, die Beine geschlossen und die Füße ein Stück vor dem Körper – so bleibt der Körper ein Stück und schaukelt nicht. Langsam ablassen, zwei bis drei Sekunden: Der Schwung kommt fast immer vom schnellen Fallenlassen und Abfedern unten. Pendelst du trotzdem, die Fußspitzen leicht auf den Stuhl hinter dir – er bremst, und du hilfst nur so viel nach wie nötig."
       ],
       [
         "Typische Fehler",

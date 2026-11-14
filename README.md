@@ -8686,6 +8686,24 @@ Kilo-Schritten" stand dort noch. Die Pause ist die des Katalogs, 180 s – die
 120 s waren für Sätze aus ein bis drei Wiederholungen gedacht. Die Pull-ups
 bleiben, wie sie sind: Zu ihnen gab es keine Zahl.
 
+**Ruhig hängen statt schwingen (v259).** *„Irgendwie schwing ich bei den chin
+ups ziemlich hin und her"* – mitten im Training, Workout 17, nach dem ersten
+Supersatz. Die Erklärung nannte Schwingen nur unter *Typische Fehler*, aber
+nicht, wie man es abstellt. Jetzt steht bei Chin-ups und Pull-ups ein eigener
+Abschnitt *Ruhig hängen statt schwingen*: vor jeder Wiederholung unten still
+hängen, bis nichts mehr pendelt; Bauch und Po fest, Beine geschlossen, die Füße
+ein Stück vor dem Körper; langsam ablassen, zwei bis drei Sekunden, weil der
+Schwung fast immer vom Fallenlassen und Abfedern unten kommt; und wer trotzdem
+pendelt, stellt die Fußspitzen leicht auf den Stuhl hinter sich – der bremst.
+Der Hinweis an der Übung sagt es gleich im ersten Satz („Aus dem ruhigen,
+vollen Hang starten – Bauch und Po fest, nicht schwingen … langsam ablassen"),
+in beiden Modi. Unter *Typische Fehler* stand „Schwingen und mit den Beinen
+nachhelfen" – zwei Abschnitte unter „mit den Beinen nur so viel nachhelfen, wie
+nötig". Der Fehler ist der Tritt, nicht der Stuhl: jetzt „Schwung holen – aus
+dem Pendeln oder mit einem Tritt der Beine". Geprüft in
+`tests/test-katalog.mjs` („Klimmzüge: Erklärung und Hinweis …"), gegen v258 rot
+an allen vier Stellen.
+
 Die Ausnahme steht als `dbStufen`/`bwStufen` an der Übung selbst, nicht als
 Sonderfall im Code – so lässt sich jede weitere Übung nachziehen, ohne dass
 `js/app.js` Übungsnamen kennen muss.
@@ -8784,6 +8802,20 @@ einfachere Fassung der Übung** — dieselben Sätze wie im Plan. Das ist auch d
 ehrlichere Lesart: Wer neu ist, braucht eine Last, die er beherrscht, und eine
 Bewegung, die er kann, nicht ein Drittel weniger Reiz. Fortgeschritten legt
 weiterhin ein Drittel zu; dort ist mehr Volumen der Reiz, der fehlt.
+
+**Nachgefragt am 14.11. (v259, ohne Änderung am Plan).** *„Meinst 7 Übungen und
+20 Sätze sind im cut fürn Anfänger bisschen viel oder ist ok? Hab jetzt zwei
+Übungen und insg 6 Sätze gemacht und bin schon bisschen erschöpft"* – Workout
+17 im Cut, nach dem ersten Supersatz (Goblet Squat und einbeiniges Wadenheben,
+das je Bein zweimal zählt). Es bleibt bei denselben Sätzen. Je Muskelgruppe
+sind das rund sechs bis neun Sätze die Woche, der Bereich, in dem ein Anfänger
+fast so viel wächst wie mit mehr, und im Defizit hält gerade das Volumen die
+Muskeln. Nach den Beinen etwas platt zu sein, ist im Cut normal; der Rest der
+Einheit trifft andere Muskeln. Was an einem Tag nicht mehr sauber geht, bleibt
+liegen – *Abschließen* behält das Abgehakte, und die Nacharbeit holt bis zu drei
+Sätze in den nächsten Einheiten derselben Woche nach. Gekürzt wird erst, wenn
+es kein Tag ist, sondern eine Lage: wenn über ein, zwei Wochen Einheiten
+regelmäßig unfertig bleiben oder die Gewichte sinken.
 
 #### Die leichtere Fassung hat ein − und die schwerere ein +
 

@@ -208,6 +208,30 @@ const unklar = handtuch.filter((s) => !/beide \S+ zugleich/.test(s.cue)).map((s)
 check(handtuch.some((s) => s.k === 'sliding-leg-curl.db') && unklar.length === 0,
   `ein Handtuch je Ferse, aber beide zugleich – so steht es im Hinweis${unklar.length ? ': fehlt bei ' + unklar.join(', ') : ''}`);
 
+// --- Klimmzüge: ruhig hängen statt schwingen (v259) -------------------------
+//
+// „Irgendwie schwing ich bei den chin ups ziemlich hin und her" – mitten im
+// Training. Die Erklärung nannte Schwingen nur als typischen Fehler, nicht, wie
+// man es abstellt. Jetzt sagt sie es bei beiden Griffen, und der Hinweis an der
+// Übung – in beiden Modi – nennt es gleich im ersten Satz. „Mit den Beinen
+// nachhelfen" ist kein Fehler mehr: Mit den Füßen auf dem Stuhl ist es der Weg
+// für den, der die untere Zahl noch nicht schafft; der Fehler ist der Tritt.
+const stange = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  return ['chin-ups', 'pull-ups'].map((id) => {
+    const e = EXERCISES.find((x) => x.id === id);
+    return { id, detail: e ? e.detail || [] : [], cues: e ? ['db', 'bw'].map((m) => e[m].cue || '') : [] };
+  });
+});
+const ruhig = (s) => /still hängen/.test(s) && /Bauch und Po fest/.test(s) && /Langsam ablassen/.test(s) && /Stuhl hinter dir/.test(s);
+const ohneErklaerung = stange.filter((s) => !s.detail.some(([titel, text]) => /schwingen/.test(titel) && ruhig(text))).map((s) => s.id);
+const ohneHinweis = stange.filter((s) => s.cues.length !== 2 || !s.cues.every((c) => /nicht schwingen/.test(c) && /langsam ablassen/.test(c)))
+  .map((s) => s.id);
+const fehlerChin = ((stange[0].detail.find(([titel]) => titel === 'Typische Fehler') || [])[1]) || '';
+check(ohneErklaerung.length === 0 && ohneHinweis.length === 0 && !/mit den Beinen nachhelfen/.test(fehlerChin) && /Tritt der Beine/.test(fehlerChin),
+  `Klimmzüge: Erklärung und Hinweis sagen, wie man das Schwingen abstellt${ohneErklaerung.length || ohneHinweis.length
+    ? `: fehlt bei ${[...ohneErklaerung.map((i) => `${i} (Erklärung)`), ...ohneHinweis.map((i) => `${i} (Hinweis)`)].join(', ')}` : ''}`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs[0] : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();
