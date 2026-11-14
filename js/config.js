@@ -6,6 +6,11 @@
  * dann schickt die App nichts, fragt niemanden um Erlaubnis und läuft wie
  * vorher rein lokal. Genau so ist der Auslieferungszustand.
  *
+ * Ausnahme seit v263: die Bildschirmzeit für Tobis Widget (js/bildschirmzeit.js)
+ * hat ihre eigene Adresse und hängt nicht an diesen Feldern. Sie schickt nur,
+ * nachdem der Verbinden-Link aus der Widget-App sie verbunden hat – ohne ihn
+ * nie (README „Bildschirmzeit für das Widget").
+ *
  * Ist sie ausgefüllt, meldet jedes Gerät seinen Stand an eine Supabase-Tabelle:
  * Name, Trainingsfokus, Erfahrung, wie viele Einheiten und Sätze, wann zuletzt
  * trainiert wurde. Das steht dann auch in der App, im Einstieg und unter Mehr,

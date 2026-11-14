@@ -13,7 +13,10 @@ Training verschlüsselt in die [Sicherung](#automatische-sicherung) – beides
 offengelegt und abschaltbar. Daneben führt die App ein
 [Diagnoseprotokoll](#diagnoseprotokoll) über sich selbst – was sie wann
 technisch getan hat, ohne Gewichte und Namen. Es bleibt auf dem Gerät und geht
-nur auf Tipp unter *Mehr → Daten* als Textdatei weiter.
+nur auf Tipp unter *Mehr → Daten* als Textdatei weiter. Verbindet Tobi die App
+aus seiner Widget-App, meldet sie dazu, wie lange sie heute offen war
+([Bildschirmzeit](#bildschirmzeit-für-das-widget-v263)) – ohne diesen Link
+nichts.
 
 > **Daneben, im selben Repository:** [`schilddruese/`](schilddruese/README.md)
 > – eine zweite, eigenständige App für den Alltag mit
@@ -50,7 +53,7 @@ wäre eine App ohne Navigation.
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
 | **Statistik** | Kennzahlen, **Vergleich mit Freunden**, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
-| **Mehr** | Einstiege zu **Kalender**, **Eigenes Workout**, **Übungen** und **Verletzt**; **Womit trainierst du** (Hanteln oder Bodyweight), Pause zwischen den Sätzen, Leiste unten, Erfahrung, Trainingsfokus, Farbe, Teilen, Ablauf (Supersätze, Aufwärmsätze), Übungsvorrat, Töne und Hinweise, Sport außerhalb des Plans, Plan neu starten, **Kalenderdatei für Google Kalender**, Daten (Sicherung, Export/Import als JSON, Alles löschen), Fassung. |
+| **Mehr** | Einstiege zu **Kalender**, **Eigenes Workout**, **Übungen** und **Verletzt**; **Womit trainierst du** (Hanteln oder Bodyweight), Pause zwischen den Sätzen, Leiste unten, Erfahrung, Trainingsfokus, Farbe, Teilen, Ablauf (Supersätze, Aufwärmsätze), Übungsvorrat, Töne und Hinweise, Sport außerhalb des Plans, Plan neu starten, **Kalenderdatei für Google Kalender**, **Bildschirmzeit** (nur wenn mit dem Widget verbunden), Daten (Sicherung, Export/Import als JSON, Alles löschen), Fassung. |
 
 Unter *Mehr* erreichbar:
 
@@ -5489,6 +5492,8 @@ js/chart.js             Verlaufskarten für die Statistik
 js/audio.js             Erzeugte Töne, Freischalten mit der ersten Berührung, das vorausgeplante Pausensignal
 js/config.js            Adresse des Rückkanals – leer heißt: kein Server
 js/telemetry.js         Melden, löschen, Betreiber-Übersicht (siehe Rückkanal)
+js/sicherung.js         Die automatische, verschlüsselte Sicherung (siehe Sicherung)
+js/bildschirmzeit.js    Wie lange die App offen war, für Tobis Widget – wortgleich aus Finanzdienste/Bildschirmzeit, nur nach dem Verbinden-Link
 js/ics.js               Trainingstermine als Kalenderdatei (.ics)
 sw.js                   Service Worker für den Offline-Betrieb
 manifest.webmanifest    Installierbar als App auf dem Homescreen
@@ -9608,6 +9613,7 @@ Eine Zeile je Ereignis, an der Stelle, an der es passiert (`notieren()` in
 | `datei` | Sicherung teilen, herunterladen, Export, Import |
 | `sicherung` | Ergebnis jedes Versuchs (gelungen, keine Verbindung, Server kennt sie nicht, Konflikt, zu oft), Holen, Löschen, Löschauftrag |
 | `rueckkanal` | Ergebnis der Meldung |
+| `bildschirmzeit` | nur der Wechsel: verbunden, getrennt, nicht durch (mit Grund), wieder durch – nie die Kennung, nicht jede Meldung (siehe [Bildschirmzeit](#bildschirmzeit-für-das-widget-v263)) |
 | `kalender` | Google Kalender automatisch: Anlass (erster Haken, Abschluss, Start, online, Einstellung, Wiederholung, Zurückkommen), Ergebnis jeder Sendung mit Fassung des Skripts, geänderten Terminen, Größe in Byte, Rechenzeit im Worker und im Fenster, Zähler, ob mit keepalive oder in den Ausgang des Service Workers, ob eine Wiederholung aussteht oder alle scheiterten (`wieder`, `erschoepft`); Verbinden samt Nachfrage per GET nach einer undurchsichtigen Probe (`probe-get`, Befund), Trennen, nachgesendet (mit dem Ergebnis, wenn der Service Worker es lesen konnte), Code kopiert – nie Kennwort, Adresse oder den Hinweistext des Skripts |
 | `speicher` | Zusage des Browsers, Speicherlage, Platz gemacht, Satzuhr |
 | `diagnose` | das Protokoll selbst: an, aus, geleert, geteilt, kopiert, heruntergeladen |
@@ -9620,7 +9626,9 @@ Der Kopf über dem Text (acht Zeilen, beim Ansehen, Teilen und Kopieren frisch
 gebaut, nie gespeichert): Zeit und Zeitzone; Fassung, Anzeige, Browser,
 Fenster, Netz; Speicher, Zusage und Größen; Ton mit seinen Zählern und den
 Schaltern; laufende Einheit, Pause, Plan, Service Worker; Sicherung,
-Rückkanal und Kalender (verbunden, wann zuletzt angekommen); Fehler, Einträge heute, wie oft und wie lange in dieser Sitzung
+Rückkanal, Kalender (verbunden, wann zuletzt angekommen) und – nur wenn
+verbunden, auf derselben Zeile – die Bildschirmzeit (heute in Minuten, wann
+zuletzt gemeldet, ein Fehler; seit v263); Fehler, Einträge heute, wie oft und wie lange in dieser Sitzung
 geschrieben wurde; der volle User-Agent.
 
 Zwei Angaben darin waren beim Gegenlesen falsch und sind es nicht mehr:
@@ -9750,6 +9758,102 @@ und Löschen, Ringpuffer, volle Ablage, „nichts geht raus", Einzeldatei, und
 was das Gegenlesen der Zusammenführung fand: Abschalten im Arbeitsspeicher,
 „aus" bei vollem Speicher, der Uhr-Deckel beim Satz (`uhr gedeckelt wo=satz`)
 und ein verfallener Gong, der nicht zweimal im Protokoll steht.
+
+## Bildschirmzeit für das Widget (v263)
+
+> *„Ich will ein eigenes Bildschirmzeit-Widget für meinen Startbildschirm
+> (Samsung Galaxy S24), weil Androids Bildschirmzeit meine Web-Apps
+> Boxenstopp, Freizeit und Workout nur als „Chrome" zählt."* – und dazu:
+> *„Push, Daten und alles andere in den drei Apps müssen weiter funktionieren
+> wie bisher."*
+
+Bis v262 wusste die App nichts davon, wie lange sie offen war; Android rechnete
+jede Minute darin Chrome zu. Jetzt kann sie es Tobis Widget sagen. Die
+Widget-App (Repo **Finanzdienste/Bildschirmzeit**, öffentlich) liest Androids
+Nutzungsdaten, holt sich von Supabase, wie lange Boxenstopp, Freizeit und
+Workout heute offen waren, zieht die Summe von Chrome ab und zeigt die drei
+mit eigenem Namen und Symbol im Ring.
+
+**Ohne Verbinden-Link passiert nichts.** Keine Anfrage, kein Eintrag im
+Speicher, keine Uhr, kein Wort in der App – nicht unter *Mehr*, nicht im
+Einstieg, nicht in einem Hinweis. Für alle, die die App ohne das Widget
+benutzen, bleibt alles wie vorher.
+
+**Verbunden wird aus der Widget-App**: Ihr Knopf „Verbinden" bei Workout öffnet
+`https://finanzdienste.github.io/Workout/#bildschirmzeit=<Kennung>`. Die
+Kennung (43 Zeichen, base64url) hat die Widget-App einmal zufällig erzeugt.
+
+| | |
+| --- | --- |
+| **Wer misst** | `js/bildschirmzeit.js` – eine **wortgleiche Kopie** von `web/bildschirmzeit.js` aus Finanzdienste/Bildschirmzeit; dieselbe Datei liegt in Boxenstopp und Freizeit. Geändert wird dort (mit `tests/test-web.mjs`), dann in alle drei kopiert – hier nie von Hand. |
+| **Wann der Link gelesen wird** | als allererste Anweisung von `js/app.js`, gleich unter den Importen (`bildschirmzeitStarten()`). Die importierten Module lesen beim Auswerten weder `location.hash` noch hören sie auf `hashchange`; das tut nur `js/app.js`, weiter unten. Die Datei nimmt ihren Link mit `replaceState` aus der Adresse und hört vor der App auf `hashchange` – `#stand=`, `#eisen=` und `#sicherung=` sehen ihn nie. |
+| **Was der Link tut** | kalt geöffnet: dieselbe Startansicht wie ohne ihn, dazu kurz „Bildschirmzeit verbunden: Diese App meldet ab jetzt ihre Minuten an dein Widget." Auf die offene App: Sie bleibt, wo sie ist – auch mitten in der Einheit in der Fokusansicht. Chrome meldet den Sprung im selben Dokument zuerst als `popstate` ohne Stand, und bei jedem anderen Anker geht die App dabei aufs Dashboard; den Verbinden-Link erkennt der `popstate`-Lauscher (`kennungAus()`), schreibt den Stand der Oberfläche in den neuen Eintrag und tut sonst nichts. Zurück führt danach höchstens einmal auf dieselbe Ansicht. Und sofort eine erste Meldung mit heute = 0, damit die Widget-App „verbunden" sieht. |
+| **Was gezählt wird** | nur, solange die Seite sichtbar ist: Takt 15 s, eine Lücke zählt höchstens 60 s (das Gerät schlief, ohne dass die Seite es merkte), an Mitternacht geteilt. |
+| **Was hinausgeht** | `POST /rest/v1/rpc/bildschirmzeit_melden` an das Supabase-Projekt vjyohppohmvhhxgwouti mit `{ p_kennung, p_app: 'workout', p_tage: { "JJJJ-MM-TT": Sekunden } }` – der Tagesstand, kein Zuwachs; der Server nimmt je Tag den größeren Wert. Kopf nur `apikey` (der öffentliche Schlüssel ist kein JWT). Alle fünf Minuten, beim Zurückkommen und beim Wegschalten. |
+| **Wo die Kennung liegt** | im `localStorage` unter `bildschirmzeit.workout` – nicht im Zustand der App (`workout.state.v1`). Alle drei Apps liegen auf finanzdienste.github.io und teilen sich den Speicher; der Name trennt sie. |
+| **Unter Mehr** | ein Abschnitt **Bildschirmzeit**, nur wenn verbunden: „Verbunden mit deinem Widget. Heute 1 Std. 5 Min. offen, zuletzt gemeldet um 14:05." (sonst „noch nichts gemeldet"; war es nicht heute, „am 13.11. um 14:05"), bei einem Fehler „Zuletzt nicht durchgekommen: kein Netz." und der Knopf **Trennen**. Die Karte zieht nach, sobald die Datei Bescheid sagt (`BZ_EREIGNIS`) – an Ort und Stelle, ohne die Seite neu aufzubauen. |
+| **Trennen** | *Mehr → Bildschirmzeit → Trennen* (mit Rückfrage): Die App misst und meldet nichts mehr, der Speicher ist leer. Was das Widget schon hat, bleibt bei Supabase; löschen kann es die Widget-App. Neu verbinden geht nur dort. *Alle Daten löschen* trennt mit und sagt das in der Rückfrage – nicht verbunden steht dort kein Wort davon. Und antwortet der Server `false` (die Widget-App hat die Verbindung gelöscht), trennt sich die App von selbst: „Bildschirmzeit getrennt: Die Widget-App kennt diese Verbindung nicht mehr." |
+
+### Beim Wegschalten zuletzt
+
+Sicherung (`sicherungVerstecken()`, bis 60 KiB) und Kalender
+(`kalenderVerstecken()`) teilen sich beim Wegschalten die 64 KiB, die Chrome
+je Seite für keepalive annimmt. Die Bildschirmzeit (rund 100 Byte) darf ihnen
+davon nichts nehmen. Sie wird deshalb mit `verstecken: false` angeschlossen –
+ihr eigener Lauscher hält beim Wegschalten nur die Uhr an – und
+`bildschirmzeitVerstecken()` steht als Letztes im bestehenden
+visibilitychange-Lauscher, per `queueMicrotask()`: Sicherung und Kalender
+reihen ihre Anfrage in eine Warteschlange und schicken im ersten Mikrotakt
+danach; ein Aufruf gleich dahinter ginge *vor* ihnen hinaus (so nachgestellt).
+Der Mikrotakt bleibt im selben Takt, die Anfrage geht also auch beim Schließen
+der Seite noch los – mit `setTimeout()` nicht sicher.
+
+### Getrennt vom Rückkanal
+
+Der [Rückkanal](#rückkanal-und-betreiber-übersicht) (`js/telemetry.js`,
+`js/config.js`) meldet von allein, wenn ein Server eingetragen ist – deshalb
+der Satz im Einstieg mit dem Schalter daneben, „ohne diesen Satz wäre es
+Schnüffelei". Die Bildschirmzeit meldet nie von allein: **Die Einwilligung ist
+der Tipp auf „Verbinden" in Tobis eigener Widget-App**, und sichtbar ist sie
+danach unter *Mehr* mit „Trennen". Darum steht im Einstieg nichts davon. Am
+Rückkanal hat sich nichts geändert; beide teilen sich nur das Supabase-Projekt.
+
+**Die Kennung geht nirgendwohin sonst.** Nicht in die Sicherung (weder auf den
+Server noch in die Datei), nicht in den Export, nicht ins
+Diagnoseprotokoll, nicht auf den Bildschirm – `bildschirmzeitStand()` gibt sie
+gar nicht heraus. Das Diagnoseprotokoll vermerkt nur den Wechsel
+(`bildschirmzeit was=verbunden`, `getrennt`, `nicht durch grund=…`,
+`wieder durch`), und sein Kopf sagt verbunden, heute, zuletzt gemeldet – nichts
+davon, solange nicht verbunden. Ehrlich dazugesagt: Wie beim
+Wiederherstellungs-Link (siehe `sicherungAusAdresse()`) bleibt die Adresse samt
+Anker in Chromes Browserverlauf; `replaceState` nimmt sie dort nicht heraus.
+Mit der Kennung lassen sich nur Bildschirmzeit-Zahlen dieser drei Apps melden,
+lesen und löschen.
+
+### Im Bündel
+
+`dist/workout.html` hängt alle Module in einen Gültigkeitsbereich. Die
+wortgleiche Datei brachte Namen mit, die es dort schon gab (`anhalten` in
+`js/sicherung.js`, `KENNUNG` in `js/kalender.js`), und umbenennen geht nicht.
+`tools/build-single.py` legt sie deshalb in eine eigene Funktion
+(`EIGENER_BEREICH`) und gibt nach außen genau die Namen, die `js/app.js`
+importiert. `dauerText` hat die App selbst gebraucht („48 min" in der
+Statistik) – ihre Funktion heißt jetzt `dauerGesprochen()`; den Namen trägt die
+Bildschirmzeit („1 Std. 5 Min.", wie das Widget).
+
+Geprüft in `tests/test-bildschirmzeit.mjs` (Supabase und das Skript gespielt,
+Kennungen erfunden): ohne Link keine Anfrage, kein Speicher, kein Wort, auch
+nach Minuten und beim Wegschalten; der Link kalt (dieselbe Ansicht wie ohne,
+Adresse ohne Anker, Hinweis, erste Meldung mit heute = 0, `p_app` 'workout',
+nur `apikey`) und auf die offene App (sie bleibt auf ihrem Reiter und mitten
+in der Einheit in der Fokusansicht, ein unbekannter Anker geht zum Vergleich
+weiter aufs Dashboard); die Zeit nur sichtbar, alle fünf Minuten
+und beim Wegschalten mit keepalive; ein Fehler unter *Mehr*, die Antwort
+`false`, „Trennen", *Alle Daten löschen*; `#stand=` und `#eisen=` wie bisher,
+verbunden oder nicht; Wegschalten mit Sicherung und Kalender – dieselben
+Anfragen wie ohne Bildschirmzeit, sie selbst als Letzte; die Kennung weder in
+der entschlüsselten Sicherung noch im Export, im Diagnoseprotokoll oder einer
+anderen Anfrage; die Einzeldatei. Gegen v262 rot.
 
 ## Rückkanal und Betreiber-Übersicht
 

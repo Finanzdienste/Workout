@@ -2873,6 +2873,397 @@ try {
   window.addEventListener('storage', diagFremd);
 } catch { /* kein Fenster – dann gibt es auch nichts mitzuschreiben */ }
 
+/* ===== js/bildschirmzeit.js ===== */
+const { BZ_EREIGNIS, bildschirmzeitStand, bildschirmzeitStarten, bildschirmzeitTrennen, bildschirmzeitVerstecken, dauerText, kennungAus } = (() => {
+/*
+ * Bildschirmzeit – wie lange diese App heute sichtbar offen war, für das
+ * Widget auf Tobis Startbildschirm.
+ *
+ * Quelle: Finanzdienste/Bildschirmzeit, web/bildschirmzeit.js. Boxenstopp,
+ * Freizeit und Workout haben je eine wortgleiche Kopie als js/bildschirmzeit.js
+ * – geändert wird dort, dann in alle drei kopiert.
+ *
+ * Warum es das gibt: Android zählt die drei Web-Apps als „Chrome“. Die
+ * Widget-App liest Androids Nutzungsdaten, holt sich von Supabase, wie lange
+ * jede der drei heute offen war, zieht das von Chrome ab und zeigt die drei
+ * unter eigenem Namen.
+ *
+ * Verbunden wird nur über den Link aus der Widget-App:
+ *
+ *     https://finanzdienste.github.io/<App>/#bildschirmzeit=<Kennung>
+ *
+ * Ohne ihn bleibt diese Datei still: Sie misst nichts, schickt nichts und
+ * zeigt nichts. Wer die App ohne das Widget benutzt, merkt von ihr nichts.
+ *
+ * Gemessen wird, solange die Seite sichtbar ist (visibilityState), in
+ * Schritten von höchstens LUECKE_MS: Schlief das Gerät, ohne dass die Seite es
+ * erfuhr, zählt die Lücke nicht. Über Mitternacht wird geteilt.
+ *
+ * Geschickt wird der Tagesstand, kein Zuwachs – beim Wegschalten mit
+ * keepalive, sonst alle fünf Minuten und beim Zurückkommen. Der Server nimmt
+ * je Tag den größeren Wert; doppelt schicken schadet also nicht. Antwortet er
+ * false, kennt er die Kennung nicht mehr (die Widget-App hat ihre Daten
+ * gelöscht) – dann trennt sich die App von selbst.
+ *
+ * Gespeichert wird im localStorage unter „bildschirmzeit.<app>“. Alle drei
+ * Apps liegen auf finanzdienste.github.io und teilen sich deshalb den
+ * Speicher; der Name trennt sie.
+ */
+
+const BZ_SERVER = {
+  url: 'https://vjyohppohmvhhxgwouti.supabase.co',
+  // Öffentlich: Damit erreicht man nur die vier bildschirmzeit_-Funktionen,
+  // und jede will die Kennung (supabase/bildschirmzeit.sql im Repo Bildschirmzeit).
+  key: 'sb_publishable_wTUNShIKMFjCOmZzQuuN-A_vFHPkKUI',
+};
+const BZ_APPS = ['boxenstopp', 'freizeit', 'workout'];
+/** Ereignis auf window, wenn sich der Stand ändert (verbunden, getrennt, gemeldet). */
+const BZ_EREIGNIS = 'bildschirmzeit';
+
+const TAKT_MS = 15 * 1000;
+const LUECKE_MS = 60 * 1000;
+const SENDE_MS = 5 * 60 * 1000;
+const NICHT_OEFTER_MS = 10 * 1000;
+const ANTWORT_MS = 10 * 1000;
+const TAGE = 8;
+const KENNUNG = /^[A-Za-z0-9_-]{32,128}$/;
+const LINK = /[#&]bildschirmzeit=([A-Za-z0-9_-]{32,128})(?=&|$)/;
+
+let app = '';
+let letzter = 0; // Zeitpunkt des letzten Messpunkts; 0 = misst gerade nicht
+let uhr = 0;
+let zuletztGesendet = 0;
+let letzteNutzlast = '';
+let anfrageNr = 0; // nur die jüngste Anfrage schreibt den Fehler
+let meldung = null;
+
+const speicherName = (a) => `bildschirmzeit.${a}`;
+
+/** Der Kalendertag auf dem Gerät: 'JJJJ-MM-TT'. */
+function tagVon(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Die Zeit von `von` bis `bis` (ms), an Mitternacht geteilt: { tag: sekunden }. */
+function verteilen(von, bis) {
+  const aus = {};
+  let a = von;
+  while (a < bis) {
+    const d = new Date(a);
+    const mitternacht = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+    const e = Math.min(bis, mitternacht);
+    const t = tagVon(a);
+    aus[t] = (aus[t] || 0) + (e - a) / 1000;
+    a = e;
+  }
+  return aus;
+}
+
+/** Die Kennung aus dem Teil hinter #, sonst ''. */
+function kennungAus(hash) {
+  const m = LINK.exec(hash || '');
+  return m ? m[1] : '';
+}
+
+/** „1 Std. 5 Min.“, „12 Min.“, „unter 1 Min.“ – wie das Widget. */
+function dauerText(sekunden) {
+  const min = Math.floor((Number(sekunden) || 0) / 60);
+  if (min < 1) return 'unter 1 Min.';
+  const std = Math.floor(min / 60);
+  const rest = min % 60;
+  if (!std) return `${rest} Min.`;
+  return rest ? `${std} Std. ${rest} Min.` : `${std} Std.`;
+}
+
+function lesen() {
+  if (!app) return null;
+  try {
+    const s = JSON.parse(localStorage.getItem(speicherName(app)) || 'null');
+    if (!s || typeof s !== 'object' || !KENNUNG.test(s.kennung || '')) return null;
+    if (!s.tage || typeof s.tage !== 'object') s.tage = {};
+    if (!s.gemeldet || typeof s.gemeldet !== 'object') s.gemeldet = {};
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+function schreiben(s) {
+  try {
+    localStorage.setItem(speicherName(app), JSON.stringify(s));
+  } catch {
+    // Speicher voll oder gesperrt: dann eben nicht.
+  }
+}
+
+/** Alte Tage weg – mehr als TAGE braucht niemand, und der Server nähme sie nicht. */
+function aufraeumen(s, jetzt) {
+  const grenze = tagVon(jetzt - (TAGE - 1) * 86400000);
+  for (const t of Object.keys(s.tage)) if (t < grenze || !(Number(s.tage[t]) >= 0)) delete s.tage[t];
+  for (const t of Object.keys(s.gemeldet)) if (!(t in s.tage)) delete s.gemeldet[t];
+}
+
+/** Liest, ändert, schreibt sofort – mehrere Fenster derselben App teilen sich den Speicher. */
+function aendern(f) {
+  const s = lesen();
+  if (!s) return null;
+  f(s);
+  aufraeumen(s, Date.now());
+  schreiben(s);
+  return s;
+}
+
+function bescheid() {
+  try {
+    window.dispatchEvent(new globalThis.CustomEvent(BZ_EREIGNIS, { detail: bildschirmzeitStand() }));
+  } catch {
+    // ohne window (Node) gibt es niemanden, dem man Bescheid sagt
+  }
+}
+
+/** Die Zeit seit dem letzten Messpunkt gutschreiben. */
+function messpunkt() {
+  if (!letzter) return;
+  const jetzt = Date.now();
+  const d = jetzt - letzter;
+  letzter = jetzt;
+  if (!(d > 0)) return; // Uhr zurückgestellt
+  const teile = verteilen(jetzt - Math.min(d, LUECKE_MS), jetzt);
+  aendern((s) => {
+    for (const [t, sek] of Object.entries(teile)) s.tage[t] = (Number(s.tage[t]) || 0) + sek;
+  });
+}
+
+function messen() {
+  if (!lesen()) {
+    anhalten();
+    return;
+  }
+  if (!letzter) letzter = Date.now();
+  if (!uhr) uhr = setInterval(takt, TAKT_MS);
+}
+
+function anhalten() {
+  messpunkt();
+  letzter = 0;
+  if (uhr) {
+    globalThis.clearInterval(uhr);
+    uhr = 0;
+  }
+}
+
+function takt() {
+  if (document.visibilityState !== 'visible') {
+    anhalten();
+    return;
+  }
+  messpunkt();
+  if (Date.now() - zuletztGesendet >= SENDE_MS) bildschirmzeitSenden();
+}
+
+function vermerken(nr, fehler) {
+  if (nr !== anfrageNr) return;
+  aendern((s) => {
+    s.fehler = fehler;
+  });
+  bescheid();
+}
+
+/**
+ * Den Stand an Supabase schicken – nur Tage, die mehr haben als zuletzt
+ * bestätigt, oder die noch nie bestätigt wurden (auch mit 0: Gleich nach dem
+ * Verbinden soll die Widget-App sehen, dass die Verbindung steht).
+ * `keepalive` beim Wegschalten: Dann trägt der Browser die Anfrage zu Ende,
+ * auch wenn die Seite gleich einfriert. Dieselbe Anfrage zweimal kurz
+ * hintereinander (visibilitychange und pagehide kommen oft zusammen) geht nur
+ * einmal. Gibt { ok, grund } zurück und wirft nie.
+ */
+async function bildschirmzeitSenden({ keepalive = false } = {}) {
+  const s = lesen();
+  if (!s) return { ok: false, grund: 'nicht verbunden' };
+  const jetzt = Date.now();
+  if (!keepalive && jetzt - zuletztGesendet < NICHT_OEFTER_MS) return { ok: false, grund: 'gerade erst' };
+  const tage = {};
+  for (const [t, sek] of Object.entries(s.tage)) {
+    const r = Math.min(86400, Math.round(Number(sek) || 0));
+    if (!(t in s.gemeldet) || r > (Number(s.gemeldet[t]) || 0)) tage[t] = r;
+  }
+  if (!Object.keys(tage).length) return { ok: true, grund: 'nichts Neues' };
+  const nutzlast = JSON.stringify({ p_kennung: s.kennung, p_app: app, p_tage: tage });
+  if (nutzlast === letzteNutzlast && jetzt - zuletztGesendet < NICHT_OEFTER_MS) return { ok: false, grund: 'gerade erst' };
+  zuletztGesendet = jetzt;
+  letzteNutzlast = nutzlast;
+  const nr = ++anfrageNr;
+
+  const abbruch = keepalive || typeof AbortController === 'undefined' ? null : new AbortController();
+  const wecker = abbruch ? setTimeout(() => abbruch.abort(), ANTWORT_MS) : 0;
+  let res;
+  try {
+    res = await fetch(`${BZ_SERVER.url}/rest/v1/rpc/bildschirmzeit_melden`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: BZ_SERVER.key },
+      body: nutzlast,
+      ...(keepalive ? { keepalive: true } : {}),
+      ...(abbruch ? { signal: abbruch.signal } : {}),
+    });
+  } catch {
+    if (wecker) clearTimeout(wecker);
+    vermerken(nr, 'kein Netz');
+    return { ok: false, grund: 'kein Netz' };
+  }
+  if (wecker) clearTimeout(wecker);
+  if (!res.ok) {
+    const grund = `Fehler ${res.status}`;
+    vermerken(nr, grund);
+    return { ok: false, grund };
+  }
+  let antwort = null;
+  try {
+    antwort = await res.json();
+  } catch {
+    // Antwort unlesbar – als gemeldet zählt es dann nicht.
+  }
+  if (antwort === false) {
+    bildschirmzeitTrennen();
+    if (meldung) meldung('Bildschirmzeit getrennt: Die Widget-App kennt diese Verbindung nicht mehr.');
+    return { ok: false, grund: 'unbekannt' };
+  }
+  if (antwort !== true) {
+    vermerken(nr, 'Antwort unklar');
+    return { ok: false, grund: 'Antwort unklar' };
+  }
+  aendern((st) => {
+    for (const [t, r] of Object.entries(tage)) st.gemeldet[t] = Math.max(Number(st.gemeldet[t]) || 0, r);
+    st.zuletzt = new Date().toISOString();
+    if (nr === anfrageNr) st.fehler = '';
+  });
+  bescheid();
+  return { ok: true, grund: '' };
+}
+
+/** Beim Wegschalten: messen, anhalten, mit keepalive schicken. */
+function bildschirmzeitVerstecken() {
+  if (!lesen()) return;
+  anhalten();
+  bildschirmzeitSenden({ keepalive: true });
+}
+
+/** Steht ein Link aus der Widget-App in der Adresse? Dann verbinden. */
+function linkNehmen() {
+  const k = kennungAus(location.hash);
+  if (!k) return false;
+  try {
+    history.replaceState(history.state, '', location.pathname + location.search);
+  } catch {
+    // dann bleibt der Link eben stehen
+  }
+  const alt = lesen();
+  const heute = tagVon(Date.now());
+  if (alt && alt.kennung === k) {
+    // Schon so verbunden – heute noch einmal bestätigen lassen.
+    aendern((s) => {
+      if (!(heute in s.tage)) s.tage[heute] = 0;
+      delete s.gemeldet[heute];
+    });
+  } else {
+    anhalten();
+    // Was diese App vorher schon gemessen hat, gehört zum selben Tag – aber
+    // dem neuen Gerät muss es erst noch gemeldet werden.
+    const tage = alt ? alt.tage : {};
+    if (!(heute in tage)) tage[heute] = 0;
+    schreiben({
+      v: 1, kennung: k, seit: new Date().toISOString(), tage, gemeldet: {}, zuletzt: '', fehler: '',
+    });
+  }
+  if (document.visibilityState === 'visible') messen();
+  zuletztGesendet = 0;
+  letzteNutzlast = '';
+  bildschirmzeitSenden();
+  bescheid();
+  if (meldung) {
+    const m = meldung;
+    setTimeout(() => m('Bildschirmzeit verbunden: Diese App meldet ab jetzt ihre Minuten an dein Widget.'), 0);
+  }
+  return true;
+}
+
+/**
+ * Einmal beim Start aufrufen, bevor die App selbst location.hash liest – die
+ * Datei nimmt dann ihren Link heraus und hört auf hashchange, bevor die App es
+ * tut. `name` ist 'boxenstopp', 'freizeit' oder 'workout'. `optionen.meldung`
+ * (text) zeigt einen kurzen Hinweis an (Toast o. Ä.); sie kommt frühestens im
+ * nächsten Takt. `optionen.verstecken: false`, wenn die App
+ * bildschirmzeitVerstecken() selbst aus ihrem eigenen visibilitychange-Handler
+ * aufrufen will (etwa um Reihenfolge und keepalive-Budget zu steuern).
+ *
+ * Gibt true zurück, wenn gerade ein Link aus der Widget-App verbunden hat.
+ */
+function bildschirmzeitStarten(name, optionen = {}) {
+  if (!BZ_APPS.includes(name)) throw new Error(`Bildschirmzeit: unbekannte App ${name}`);
+  const erstes = !app;
+  app = name;
+  meldung = typeof optionen.meldung === 'function' ? optionen.meldung : null;
+  if (erstes) {
+    window.addEventListener('hashchange', linkNehmen);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        messen();
+        bildschirmzeitSenden();
+      } else if (optionen.verstecken !== false) {
+        bildschirmzeitVerstecken();
+      } else {
+        anhalten();
+      }
+    });
+    window.addEventListener('pagehide', () => {
+      if (optionen.verstecken !== false) bildschirmzeitVerstecken();
+      else anhalten();
+    });
+    window.addEventListener('pageshow', () => {
+      if (document.visibilityState === 'visible') messen();
+    });
+  }
+  const verbunden = linkNehmen();
+  if (!verbunden && lesen()) {
+    if (document.visibilityState === 'visible') messen();
+    bildschirmzeitSenden();
+  }
+  return verbunden;
+}
+
+/**
+ * Für die Einstellungen: null, wenn nicht verbunden – sonst
+ * { seit, heute, gemeldet, zuletzt, fehler } (Sekunden, ISO-Zeiten).
+ */
+function bildschirmzeitStand() {
+  const s = lesen();
+  if (!s) return null;
+  if (letzter) messpunkt();
+  const t = tagVon(Date.now());
+  const frisch = lesen() || s;
+  return {
+    seit: frisch.seit || '',
+    heute: Math.round(Number(frisch.tage[t]) || 0),
+    gemeldet: Number(frisch.gemeldet[t]) || 0,
+    zuletzt: frisch.zuletzt || '',
+    fehler: frisch.fehler || '',
+  };
+}
+
+/** Trennen: nichts mehr messen, nichts mehr schicken. Die Zahlen bei Supabase bleiben. */
+function bildschirmzeitTrennen() {
+  anhalten();
+  try {
+    localStorage.removeItem(speicherName(app));
+  } catch {
+    // nichts zu tun
+  }
+  bescheid();
+}
+return { BZ_EREIGNIS, bildschirmzeitStand, bildschirmzeitStarten, bildschirmzeitTrennen, bildschirmzeitVerstecken, dauerText, kennungAus };
+})();
+
 /* ===== js/data.js ===== */
 // Auto-generiert von tools/build-data.py aus data/Workoutplan_mit_Bodyweight_Equivalent.xlsx.
 // Nicht von Hand bearbeiten - Plan in der Excel aendern und neu generieren.
@@ -12763,6 +13154,11 @@ document.addEventListener('visibilitychange', () => {
  * überhaupt von einem Server weiß. Bleiben die Felder leer, gibt es keinen –
  * dann schickt die App nichts, fragt niemanden um Erlaubnis und läuft wie
  * vorher rein lokal. Genau so ist der Auslieferungszustand.
+ *
+ * Ausnahme seit v263: die Bildschirmzeit für Tobis Widget (js/bildschirmzeit.js)
+ * hat ihre eigene Adresse und hängt nicht an diesen Feldern. Sie schickt nur,
+ * nachdem der Verbinden-Link aus der Widget-App sie verbunden hat – ohne ihn
+ * nie (README „Bildschirmzeit für das Widget").
  *
  * Ist sie ausgefüllt, meldet jedes Gerät seinen Stand an eine Supabase-Tabelle:
  * Name, Trainingsfokus, Erfahrung, wie viele Einheiten und Sätze, wann zuletzt
@@ -27002,6 +27398,8 @@ function musterKarte() {
 // Als Erstes: Das Diagnoseprotokoll hängt seine Fehler-Lauscher ein, bevor
 // data.js und store.js ausgewertet werden (siehe js/diagnose.js).
 
+// Die Bildschirmzeit für Tobis Widget (v263). Beim Auswerten tut die Datei
+// nichts; angeschlossen wird sie gleich unter den Importen – siehe dort.
 
 
 
@@ -27033,6 +27431,32 @@ function musterKarte() {
 
 
 
+
+
+/*
+ * Bildschirmzeit (v263): als Allererstes, vor jeder anderen Zeile dieser Datei.
+ *
+ *     „Ich will ein eigenes Bildschirmzeit-Widget für meinen Startbildschirm
+ *      (Samsung Galaxy S24), weil Androids Bildschirmzeit meine Web-Apps
+ *      Boxenstopp, Freizeit und Workout nur als „Chrome" zählt."
+ *
+ * Verbunden wird nur über den Link aus Tobis Widget-App
+ * (…/Workout/#bildschirmzeit=<Kennung>). Die Datei nimmt ihn aus der Adresse
+ * und hört auf hashchange – beides, bevor diese Datei es tut: Die Module, die
+ * oben importiert werden, lesen beim Auswerten weder location.hash noch melden
+ * sie einen hashchange-Lauscher an (das tut nur diese Datei, weiter unten:
+ * standAusAdresse(), eisenAusAdresse(), sicherungAusAdresse()). Ohne Link
+ * bleibt sie still – keine Anfrage, kein Speicher, kein Text.
+ *
+ * `verstecken: false`: Beim Wegschalten schickt sie erst, wenn Sicherung und
+ * Kalender ihre keepalive-Anfragen abgesetzt haben (unten im
+ * visibilitychange-Lauscher) – die teilen sich die 64 KiB, die Chrome dafür
+ * annimmt, und die Bildschirmzeit nimmt ihnen davon nichts weg.
+ *
+ * Die Meldung („verbunden", „getrennt") kommt frühestens im nächsten Takt,
+ * also nach dem Start dieser Datei – toast() ist dann bereit.
+ */
+const bildschirmzeitDurchLink = bildschirmzeitStarten('workout', { meldung: (text) => toast(text), verstecken: false });
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -31856,9 +32280,9 @@ function renderStats() {
       <div class="stat"><div class="stat-v">🏋️ ${modusDb} · 🤸 ${modusBw}</div><div class="stat-l">Modus-Verteilung</div></div>
       ${leben.tage.size ? `<div class="stat"><div class="stat-v">${leben.tage.size}</div>
         <div class="stat-l">Trainingstage</div></div>` : ''}
-      ${seconds ? `<div class="stat"><div class="stat-v">${esc(dauerText(seconds))}</div>
+      ${seconds ? `<div class="stat"><div class="stat-v">${esc(dauerGesprochen(seconds))}</div>
         <div class="stat-l">Zeit im Training${mitZeit > 1
-          ? ` <span class="muted">(Ø ${esc(dauerText(Math.round(seconds / mitZeit)))})</span>` : ''}</div></div>` : ''}
+          ? ` <span class="muted">(Ø ${esc(dauerGesprochen(Math.round(seconds / mitZeit)))})</span>` : ''}</div></div>` : ''}
       ${eich ? `<div class="stat"><div class="stat-v">${eich.faktor < 1 ? '−' : '+'}${
         Math.abs(Math.round((eich.faktor - 1) * 100))} %</div>
         <div class="stat-l">gegen die Schätzung <span class="muted">(${eich.einheiten} Einheiten)</span></div></div>` : ''}
@@ -33743,8 +34167,12 @@ function zeitEichung() {
  *
  * Nicht 0:48:00 – das liest sich wie eine Stoppuhr, und hier geht es um eine
  * Größenordnung, nicht um Sekundengenauigkeit.
+ *
+ * Bis v262 hieß sie dauerText(). Den Namen hat seit v263 die Bildschirmzeit
+ * (js/bildschirmzeit.js, „1 Std. 5 Min." wie das Widget) – die Datei ist eine
+ * wortgleiche Kopie aus Finanzdienste/Bildschirmzeit und wird nicht angepasst.
  */
-function dauerText(sek) {
+function dauerGesprochen(sek) {
   const min = Math.round(sek / 60);
   if (min < 60) return `${min} min`;
   return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`;
@@ -34061,6 +34489,66 @@ function adminOeffnen(pass) {
   });
 }
 
+/* ------------------------------------------------------------------ *
+ * Bildschirmzeit für Tobis Widget (v263) – was davon unter Mehr steht
+ *
+ *     „Ich will ein eigenes Bildschirmzeit-Widget für meinen Startbildschirm
+ *      (Samsung Galaxy S24), weil Androids Bildschirmzeit meine Web-Apps
+ *      Boxenstopp, Freizeit und Workout nur als „Chrome" zählt."
+ *
+ * Gemessen und geschickt wird in js/bildschirmzeit.js (wortgleich aus
+ * Finanzdienste/Bildschirmzeit). Hier steht nur die Anzeige: ein kleiner
+ * Abschnitt unter Mehr – und den gibt es **nur, wenn verbunden**. Wer die App
+ * ohne das Widget benutzt, sieht nirgends ein Wort davon. Verbunden wird aus
+ * der Widget-App (ihr Knopf „Verbinden" öffnet
+ * …/Workout/#bildschirmzeit=<Kennung>); hier gibt es deshalb nur „Trennen".
+ *
+ * Die Kennung steht nie auf dem Bildschirm und nie im Diagnoseprotokoll –
+ * bildschirmzeitStand() gibt sie gar nicht heraus.
+ * ------------------------------------------------------------------ */
+
+/** „um 14:05" – oder „am 13.11. um 14:05", wenn es nicht heute war. */
+function bildschirmzeitWann(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const zwei = (n) => String(n).padStart(2, '0');
+  const uhr = `um ${zwei(d.getHours())}:${zwei(d.getMinutes())}`;
+  return toISO(d) === todayISO() ? uhr : `am ${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}. ${uhr}`;
+}
+
+/** Was in der Karte steht – auch fürs Neuzeichnen an Ort und Stelle (BZ_EREIGNIS). */
+function bildschirmzeitInhalt(st) {
+  const wann = st.zuletzt ? bildschirmzeitWann(st.zuletzt) : '';
+  const gemeldet = wann ? `zuletzt gemeldet ${wann}` : 'noch nichts gemeldet';
+  return `
+      <div class="small" id="bildschirmzeitStand">Verbunden mit deinem Widget. Heute ${esc(dauerText(st.heute))} offen,
+        ${esc(gemeldet)}.</div>
+      ${st.fehler ? `<div class="small" id="bildschirmzeitFehler" style="margin-top:6px;color:var(--accent)">Zuletzt
+        nicht durchgekommen: ${esc(st.fehler)}.</div>` : ''}
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-act="bildschirmzeit-trennen">Trennen</button>
+      </div>
+      <div class="small muted" style="margin-top:6px">„Trennen": Diese App misst und meldet dann nichts mehr; was
+        dein Widget schon hat, bleibt dort. Neu verbinden geht in der Widget-App.</div>`;
+}
+
+/** Mehr → Bildschirmzeit: Überschrift und Karte, oder nichts, solange nicht verbunden. */
+function bildschirmzeitKarte() {
+  const st = bildschirmzeitStand();
+  if (!st) return '';
+  return `<div class="section-title" id="bildschirmzeit">Bildschirmzeit</div>
+    <div class="card" id="bildschirmzeitKarte">${bildschirmzeitInhalt(st)}
+    </div>`;
+}
+
+/** Für den Kopf des Diagnoseprotokolls – nichts, solange nicht verbunden. */
+function bildschirmzeitKurz() {
+  const st = bildschirmzeitStand();
+  if (!st) return '';
+  const wann = st.zuletzt ? zeitpunktKurz(st.zuletzt) : 'noch nie';
+  return ` · Bildschirmzeit verbunden, heute ${Math.round(st.heute / 60)} Min., gemeldet ${wann}`
+    + `${st.fehler ? ` · zuletzt nicht durchgekommen: ${diagnoseSauber(st.fehler).slice(0, 40)}` : ''}`;
+}
 
 function renderUebungen() {
   view.innerHTML = uebungsListe();
@@ -34348,6 +34836,8 @@ function renderSettings() {
       </div>
     </div>
 
+    ${bildschirmzeitKarte()}
+
     <div class="section-title" id="daten">Daten</div>
     ${sicherungKarte()}
     <div class="card">
@@ -34504,7 +34994,7 @@ function diagnoseKopf() {
       + `Satz-Tupfer ${s.soundSets ? 'an' : 'aus'}, Hinweise ${s.notify ? 'an' : 'aus'} (${erlaubnis})`,
     `${s.session ? `Einheit ${s.session.n} läuft` : 'keine Einheit läuft'} · ${pause} · Plan ${s.focus || 'standard'}, `
       + `shift ${s.shift || 0} · Service Worker ${navigator.serviceWorker && navigator.serviceWorker.controller ? 'aktiv' : 'keiner'}`,
-    `${sicherung} · ${rueck} · ${kalenderKurz()}`,
+    `${sicherung} · ${rueck} · ${kalenderKurz()}${bildschirmzeitKurz()}`,
     `Fehler im Protokoll ${st.fehler} · Einträge heute ${st.heute} · Schreibungen diese Sitzung ${st.schreibungen}`
       + `${st.schreibungen ? `, längste ${msKurz(st.schreibMsMax)}, Mittel ${msKurz(st.schreibMsMittel)}` : ''}`,
     `UA: ${navigator.userAgent || '?'}`,
@@ -34980,6 +35470,21 @@ window.addEventListener('hashchange', () => {
 });
 
 window.addEventListener('popstate', (e) => {
+  // Der Verbinden-Link der Widget-App auf die schon offene App: Chrome meldet
+  // den Sprung im selben Dokument zuerst als popstate ohne state, danach als
+  // hashchange – den nimmt js/bildschirmzeit.js. Die App bleibt, wo sie ist:
+  // Mitten in der Einheit warf der Link sonst aufs Dashboard. Der neue Eintrag
+  // bekommt den Stand der Oberfläche; das Modul behält ihn, wenn es den Link
+  // aus der Adresse nimmt. Zurück führt dann höchstens einmal auf dieselbe
+  // Ansicht.
+  if (kennungAus(location.hash)) {
+    try {
+      history.replaceState({ tab: ui.tab, listView: ui.listView, focus: ui.focus }, '');
+    } catch {
+      // dann eben ohne Stand – Zurück führt wie bei jedem Anker aufs Dashboard
+    }
+    return;
+  }
   if (abbauen) {
     // Noch eine Fokusansicht oder Liste darunter? Weiter zurück, bis die
     // Ebene erreicht ist, aus der man hineingegangen war. Die zeigt jetzt, was
@@ -36137,6 +36642,14 @@ view.addEventListener('click', (e) => {
       if (!ui.kalenderLaeuft && confirm('Kalender trennen? Die Termine ab heute verschwinden aus „Workout", und das '
         + 'Skript schiebt nichts mehr. Was vorbei ist, bleibt stehen.')) kalenderTrennenTipp();
       break;
+    case 'bildschirmzeit-trennen':
+      // Die Zahlen bei Supabase bleiben; löschen kann sie die Widget-App.
+      if (!confirm('Bildschirmzeit trennen? Diese App meldet dann nichts mehr an dein Widget. '
+        + 'Neu verbinden geht in der Widget-App.')) break;
+      bildschirmzeitTrennen();
+      toast('Bildschirmzeit getrennt');
+      render();
+      break;
     case 'schluessel-sichern':
       // Ein Tipp: Passwortmanager, wo es ihn gibt – sonst, oder wenn der
       // Browser ablehnt (Chrome ohne Oberfläche tut das), der Link.
@@ -36504,8 +37017,11 @@ view.addEventListener('click', (e) => {
       const kalSatz = !kalenderVerbunden() ? ''
         : kalenderLage().fremd ? ' Dieses Gerät wird vom Kalender „Workout" getrennt; die Termine des anderen Geräts bleiben dort stehen.'
           : ' Der Kalender „Workout" wird getrennt: Die Termine ab heute verschwinden dort.';
+      // Die Bildschirmzeit (v263) gehört zu „alle Daten" dieser App: Danach
+      // meldet sie dem Widget nichts mehr. Nicht verbunden: kein Wort davon.
+      const bzSatz = bildschirmzeitStand() ? ' Die Bildschirmzeit wird getrennt: Diese App meldet deinem Widget nichts mehr.' : '';
       if (confirm(`Wirklich alle protokollierten Sätze und Einstellungen löschen?${
-        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${kalSatz}`)) {
+        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${kalSatz}${bzSatz}`)) {
         // Die Sicherung auf dem Server gehört dazu: Bliebe sie stehen, schriebe
         // das erste Training danach einen fast leeren Stand darüber – oder sie
         // läge für immer dort, ohne Schlüssel auf diesem Gerät, der an sie
@@ -36530,6 +37046,7 @@ view.addEventListener('click', (e) => {
         // Wochen lang nach der alten Vorschau weiter. Das „aus" geht nach,
         // wenn gerade kein Netz ist (js/kalender-sync.js).
         kalenderVergessen();
+        if (bzSatz) bildschirmzeitTrennen();
         store.resetAll();
         // Das Diagnoseprotokoll räumt mit; sein Schalter bleibt, wie er war –
         // ein Löschen soll nie dazu führen, dass mehr mitgeschrieben wird
@@ -36754,6 +37271,15 @@ document.addEventListener('visibilitychange', () => {
     // beide teilen sich die 64 KiB für keepalive. Passt der Kalender nicht
     // mehr hinein, geht er über den Service Worker nach (js/kalender-sync.js).
     kalenderVerstecken();
+    // Und als Letztes die Bildschirmzeit (js/bildschirmzeit.js, rund 100 Byte):
+    // erst, wenn Sicherung und Kalender ihre Anfrage abgesetzt haben. Beide
+    // reihen sie in ihre Warteschlange ein und schicken im ersten Mikrotakt
+    // danach – ein Aufruf gleich hier ginge vor ihnen hinaus und nähme ihnen
+    // von den 64 KiB. queueMicrotask() reiht sich dahinter ein und bleibt im
+    // selben Takt: Auch beim Schließen der Seite geht die Anfrage noch los,
+    // anders als mit setTimeout(). Die Reihenfolge prüft
+    // tests/test-bildschirmzeit.mjs. Ohne Verbindung tut der Aufruf nichts.
+    queueMicrotask(bildschirmzeitVerstecken);
     return;
   }
   notieren('sicht', {
@@ -37262,6 +37788,41 @@ kalenderEinrichten({
 // `was` 'pause' (nur die Pause geändert) und 'ansicht' (Reiter, offene
 // Einheit): die rechnen die Vorschau nicht neu.
 store.subscribe((s, was) => { kalenderGeaendert(was); });
+
+/*
+ * Die Bildschirmzeit (js/bildschirmzeit.js) sagt Bescheid, wenn sich ihr Stand
+ * ändert: verbunden, gemeldet, nicht durchgekommen, getrennt. Unter Mehr wird
+ * die Karte dann an Ort und Stelle nachgezogen – alle fünf Minuten ein ganzer
+ * Neuaufbau nähme dem, der gerade dort scrollt oder tippt, die Seite weg. Nur
+ * wenn der Abschnitt kommt oder geht, wird neu gezeichnet, und nie, während
+ * jemand tippt.
+ *
+ * Ins Diagnoseprotokoll kommt nur der Wechsel (verbunden, getrennt, nicht
+ * durchgekommen, wieder durch) – nie die Kennung, und nicht jede Meldung.
+ */
+{
+  const lageVon = (st) => (!st ? 'aus' : st.fehler ? `fehler:${st.fehler}` : 'ok');
+  let lage = lageVon(bildschirmzeitStand());
+  if (bildschirmzeitDurchLink) notieren('bildschirmzeit', { was: 'verbunden' });
+  window.addEventListener(BZ_EREIGNIS, (e) => {
+    const st = e.detail || null;
+    const neu = lageVon(st);
+    if (neu !== lage) {
+      const was = neu === 'aus' ? 'getrennt' : lage === 'aus' ? 'verbunden' : neu === 'ok' ? 'wieder durch' : 'nicht durch';
+      notieren('bildschirmzeit', { was, grund: st && st.fehler ? st.fehler : undefined });
+      lage = neu;
+    }
+    if (ui.tab !== 'settings') return;
+    const karte = document.getElementById('bildschirmzeitKarte');
+    if (karte && st) {
+      karte.innerHTML = bildschirmzeitInhalt(st);
+      return;
+    }
+    if (!karte && !st) return;
+    const tippt = !!document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if (!tippt) render();
+  });
+}
 
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist

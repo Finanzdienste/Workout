@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v262';
+const VERSION = 'v263';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -70,6 +70,9 @@ const SHELL = [
   './js/kalender-worker.js',
   // Das Senden an das Skript (Karte unter Mehr → Kalender, Takt, Antwort).
   './js/kalender-sync.js',
+  // Die Bildschirmzeit für Tobis Widget (v263) – wortgleich aus
+  // Finanzdienste/Bildschirmzeit; ohne Verbinden-Link tut sie nichts.
+  './js/bildschirmzeit.js',
   // Die Vorlage für das Skript in Tobis Google-Konto: „Code kopieren" setzt
   // dort das Kennwort ein. Kein Modul – sie läuft nur bei Google.
   './kalender/workout-kalender.gs',

@@ -28,6 +28,10 @@ MODULES = ['js/dates.js',
            # diagnose.js importiert nichts; audio.js, sicherung.js und app.js
            # benutzen es (notieren) - es muss vor ihnen stehen.
            'js/diagnose.js',
+           # bildschirmzeit.js importiert nichts und tut beim Auswerten nichts;
+           # app.js schliesst es als Erstes an (v263). Es steht in
+           # EIGENER_BEREICH, siehe dort.
+           'js/bildschirmzeit.js',
            'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js',
            'js/injuries.js', 'js/audio.js', 'js/config.js', 'js/telemetry.js',
            # sicherung.js nach telemetry.js: Es nimmt denselben Weg zum Server
@@ -101,6 +105,44 @@ EXPORTED_NAME_RE = re.compile(
 # hier abbrechen und den Namen im Modul gerade ziehen.
 ALIAS_RE = re.compile(r'^\s*import\s*\{[^}]*\bas\b[^}]*\}\s*from', re.MULTILINE | re.DOTALL)
 
+# Module mit eigenem Gueltigkeitsbereich. js/bildschirmzeit.js ist eine
+# wortgleiche Kopie aus dem Repo Finanzdienste/Bildschirmzeit (dieselbe Datei
+# liegt in Boxenstopp und Freizeit) und wird hier nicht angepasst - ihre
+# inneren Namen stiessen im Buendel aber mit denen der App zusammen
+# (`anhalten` in sicherung.js, `KENNUNG` in kalender.js). Deshalb kommt sie in
+# eine eigene Funktion, und nach aussen gibt es genau die Namen, die ein
+# anderes Modul von ihr importiert:
+#
+#     const { a, b } = (() => { ...Modul ohne export... return { a, b }; })();
+#
+# Die Namenskollisionspruefung sieht dann auch nur diese Namen.
+EIGENER_BEREICH = {'js/bildschirmzeit.js'}
+
+
+def importiert_aus(rel):
+    """Die Namen, die die anderen Module aus `rel` importieren."""
+    datei = rel.split('/')[-1]
+    muster = re.compile(r"^\s*import\s*(\{[^}]*\}|\*\s+as\s+\w+)\s*from\s*'\./"
+                        + re.escape(datei) + r"';", re.MULTILINE)
+    namen = set()
+    for anderes in MODULES:
+        if anderes == rel:
+            continue
+        for teil in muster.findall((ROOT / anderes).read_text(encoding='utf-8')):
+            if not teil.startswith('{'):
+                sys.exit(f'{anderes}: importiert {rel} als Namensraum - fuer ein Modul '
+                         f'mit eigenem Gueltigkeitsbereich gibt es nur benannte Importe')
+            namen.update(n.strip() for n in teil[1:-1].split(',') if n.strip())
+    if not namen:
+        sys.exit(f'{rel}: niemand importiert etwas daraus - dann gehoert es nicht in MODULES')
+    return sorted(namen)
+
+
+def eigener_bereich(rumpf, rel):
+    namen = importiert_aus(rel)
+    liste = ', '.join(namen)
+    return f'const {{ {liste} }} = (() => {{\n{rumpf}\nreturn {{ {liste} }};\n}})();'
+
 
 def strip_module_syntax(src, path):
     if 'export {' in src or 'export default' in src or 'export *' in src:
@@ -121,7 +163,10 @@ def main():
     for rel in MODULES:
         path = ROOT / rel
         src = path.read_text(encoding='utf-8')
-        chunks.append(f'/* ===== {rel} ===== */\n{strip_module_syntax(src, rel)}')
+        rumpf = strip_module_syntax(src, rel)
+        if rel in EIGENER_BEREICH:
+            rumpf = eigener_bereich(rumpf, rel)
+        chunks.append(f'/* ===== {rel} ===== */\n{rumpf}')
         if rel == 'js/store.js':
             names = EXPORTED_NAME_RE.findall(src)
             if not names:
@@ -134,7 +179,9 @@ def main():
     # modulare Fassung weiterlaeuft. Deshalb hier hart pruefen.
     seen = {}
     for rel in MODULES:
-        for name in TOPLEVEL_RE.findall((ROOT / rel).read_text(encoding='utf-8')):
+        namen = (importiert_aus(rel) if rel in EIGENER_BEREICH
+                 else TOPLEVEL_RE.findall((ROOT / rel).read_text(encoding='utf-8')))
+        for name in namen:
             if name in seen:
                 sys.exit(f'Namenskollision {name!r}: {seen[name]} und {rel} '
                          f'- im Buendel teilen sich alle Module einen Gueltigkeitsbereich')
