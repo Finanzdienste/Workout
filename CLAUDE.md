@@ -127,7 +127,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (14.11.2026)
-- Workout v261. Zuletzt: Knieheben im Liegen nennt den Weg nach oben (zu
+- Workout v262. Zuletzt: Im Supersatz aus zwei Teilen derselben Partie sagt
+  der Wechselhinweis, welche es sind („Schulter vorn und Schulter seitlich:
+  verschiedene Muskeln …“, v262). Knieheben im Liegen nennt den Weg nach oben (zu
   leicht → Oberkörper leicht mit anheben, v261; Tempo, dann das + zur
   hängenden Fassung, v260); Chin-ups und
   Pull-ups sagen, wie man das Schwingen abstellt (v259); das Volumen für

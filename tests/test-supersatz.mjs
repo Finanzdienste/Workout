@@ -1215,5 +1215,85 @@ const ruestZeile = async (p) => (await p.locator('.ruest').count()
 }
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
+// --- 14. Zwei aus derselben Partie: die Zeile sagt, warum es passt (v262) -----
+// „Unterschiedliche Schulterpartien im supersatz trainieren - ok?" – Tobis
+// eigene Regel für Supersätze war „wenns nicht gleiche Muskelgruppen sind".
+// Gepaart wird nur ohne gemeinsamen Muskel, und vorn, seitlich und hinten an
+// der Schulter sind drei; zweimal „Schulter" im selben Paar las sich aber wie
+// derselbe. Jetzt nennt der Wechselhinweis die beiden Teile – und nur dort, wo
+// beide zur selben Partie gehören.
+let schulterGeprueft = 0;
+for (const mode of ['db', 'bw']) {
+  const p = await neueSeite();
+  await mitStand(p, { greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {}, supersatz: true, mode, focus: 'cut' });
+  const fall = await p.evaluate(async (m) => {
+    const P = await import('./js/plan.js');
+    const S = await import('./js/supersatz.js');
+    const { PLAN } = await import('./js/data.js');
+    const schulter = (x) => /^Schulter/.test(x.group || '');
+    let gleich = null;
+    let anders = null;
+    for (const w of PLAN) {
+      const gruppen = S.paare(P.workoutByNo(w.n, m).ex.map((x) => P.resolve(x, m)), m).filter((g) => g.length === 2);
+      if (!gleich) {
+        const g = gruppen.find((x) => x.every(schulter));
+        if (g) gleich = { n: w.n, a: g[0].name, b: g[1].name };
+      }
+      if (!anders) {
+        const g = gruppen.find((x) => !x.some(schulter) && x[0].group !== x[1].group);
+        if (g) anders = { n: w.n, a: g[0].name, b: g[1].name };
+      }
+      if (gleich && anders) break;
+    }
+    return { gleich, anders };
+  }, mode);
+  console.log(`     ${mode}: Schulterpaar ${JSON.stringify(fall.gleich)}, anderes Paar ${JSON.stringify(fall.anders)}`);
+  check(!!fall.anders, `${mode}: im Cut gibt es ein Paar aus zwei Partien`);
+  const hinweis = async (f) => {
+    await p.reload({ waitUntil: 'networkidle' });
+    await p.waitForTimeout(300);
+    for (let i = 0; i < 100; i++) {
+      const t = await p.locator('#view').textContent();
+      if (new RegExp(`Workout ${f.n}\\b`).test(t)) break;
+      await p.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+      await p.waitForTimeout(80);
+    }
+    await p.locator('[data-act="start-session"]').first().click();
+    await p.waitForTimeout(400);
+    await zeige(p, f.a);
+    const h = await leisteAuf(p);
+    const zahl = await p.locator('.super-hin').count();
+    return { ...h, zahl };
+  };
+  if (fall.gleich) schulterGeprueft += 1;
+  if (fall.gleich && fall.anders) {
+    const s = await hinweis(fall.gleich);
+    check(s.hin.includes(`Im Wechsel mit ${fall.gleich.b}`)
+      && /– Schulter \S+ und Schulter \S+: verschiedene Muskeln, jeder hat seine volle Pause/.test(s.hin) && s.zahl === 1,
+    `${mode}: ${fall.gleich.a} ↔ ${fall.gleich.b} sagt, welche Teile der Schulter es sind („${s.hin}")`);
+    const ctx2 = await neueSeite();
+    await mitStand(ctx2, { greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {}, supersatz: true, mode, focus: 'cut' });
+    const q = ctx2;
+    const anders = await (async () => {
+      for (let i = 0; i < 100; i++) {
+        const t = await q.locator('#view').textContent();
+        if (new RegExp(`Workout ${fall.anders.n}\\b`).test(t)) break;
+        await q.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+        await q.waitForTimeout(80);
+      }
+      await q.locator('[data-act="start-session"]').first().click();
+      await q.waitForTimeout(400);
+      await zeige(q, fall.anders.a);
+      return leisteAuf(q);
+    })();
+    check(anders.hin.includes(`Im Wechsel mit ${fall.anders.b}`) && !/verschiedene Muskeln/.test(anders.hin),
+      `${mode}: ${fall.anders.a} ↔ ${fall.anders.b} bleibt ohne Begründung („${anders.hin}")`);
+    await q.context().close();
+  }
+  await p.context().close();
+}
+// Mit Hanteln ist das Tobis Fall im Cut: Schulterdrücken mit Kurzhanteln, Seitheben mit dem Band.
+check(schulterGeprueft === 2, `im Cut gibt es mit und ohne Hanteln ein Paar aus zwei Schulterübungen (${schulterGeprueft} von 2)`);
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

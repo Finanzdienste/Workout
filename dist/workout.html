@@ -29361,6 +29361,28 @@ function superPartner(n, mode, id) {
 }
 
 /**
+ * Warum zwei aus derselben Partie im Wechsel laufen dürfen (v262):
+ *
+ *     „Unterschiedliche Schulterpartien im supersatz trainieren - ok?"
+ *
+ * Gepaart wird nur, was keinen Muskel teilt (passtZusammen() in
+ * js/supersatz.js), und vorn, seitlich und hinten an der Schulter sind drei.
+ * Die Kopfzeile nennt sie (gruppeLabel()), aber zweimal „Schulter" im selben
+ * Paar las sich wie zweimal derselbe Muskel – also genau das, was Tobis eigene
+ * Regel für Supersätze ausschließt („wenns nicht gleiche Muskelgruppen sind").
+ * Gehören beide zur selben Partie, sagt die Zeile deshalb, welche Teile es
+ * sind und dass jeder seine volle Pause hat: Sie wird gefüllt, nicht gekürzt.
+ * Sonst nichts – ein Paar aus Beinen und Rücken braucht keine Begründung.
+ */
+function superWarum(it, partner, mode) {
+  const a = String(gruppeLabel(it, mode) || '').replace(/\s*\(([^)]+)\)/, ' $1');
+  const b = String(gruppeLabel(partner, mode) || '').replace(/\s*\(([^)]+)\)/, ' $1');
+  const partie = (s) => s.split(' ')[0].toLowerCase();
+  if (!a || !b || a === b || partie(a) !== partie(b)) return '';
+  return ` <span class="super-mit">– ${esc(a)} und ${esc(b)}: verschiedene Muskeln, jeder hat seine volle Pause</span>`;
+}
+
+/**
  * Was die Rüstzeile im Supersatz zusätzlich wissen muss (ruestHint() in
  * js/gewichte.js): in welcher Reihenfolge die Übungen wirklich drankommen, und
  * mit welcher Belegung diese Übung neben ihrem Partner steht. Ohne Supersatz
@@ -29653,7 +29675,7 @@ function renderFocus() {
       // aber wissen, sonst steht man vor der leeren Stange.
       const knapp = scheibenReichen(it, partner, mode) ? ''
         : '<div class="super-hin knapp">Die Scheiben reichen nicht für beide Aufbauten – zwischen den Sätzen umstecken.</div>';
-      return `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}</div>${knapp}`;
+      return `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}${superWarum(it, partner, mode)}</div>${knapp}`;
     })()}
 
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `

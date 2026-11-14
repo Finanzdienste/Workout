@@ -9254,6 +9254,31 @@ käme ihr Ton, während man noch auf die andere wartet. Dran ist sie trotzdem
 rechtzeitig: Nach dem nächsten Satz rechnet der Wechsel ihre Restzeit aus der
 Uhr und legt dann ihr Signal.
 
+**Zwei aus derselben Partie (v262).** *„Unterschiedliche Schulterpartien im
+supersatz trainieren - ok?"* – ja. Tobis eigene Regel war „wenns nicht gleiche
+Muskelgruppen sind", und die App prüft genau das, nur feiner: Gepaart wird
+nichts, was einen Muskel ab einem Anteil von 0,5 teilt, und vorn, seitlich und
+hinten an der Schulter sind drei (`frontDelts`, `sideDelts`, `rearDelts`).
+Im Cut trifft es mit Hanteln die Pike-Liegestütze und das Sitzende Seitheben,
+ohne Hanteln das Band-Schulterdrücken und das Sitzende Band-Seitheben; in
+Workout 17 Schulterdrücken und Band-Seitheben. In der Kopfzeile stand zwar
+„Schulter vorn" und „Schulter seitlich" (`gruppeLabel()`), im Wechselhinweis
+aber nur der Name des Partners – zweimal Schulter im selben Paar las sich wie
+derselbe Muskel. Jetzt sagt der Hinweis es, wenn beide zur selben Partie
+gehören (`superWarum()` in `js/app.js`): „↔ Im Wechsel mit Sitzendes Seitheben –
+Schulter vorn und Schulter seitlich: verschiedene Muskeln, jeder hat seine volle
+Pause". Bei einem Paar aus zwei Partien, Beine und Rücken etwa, steht wie
+bisher nur der Partner.
+
+*Ehrlich dazu:* Beim Drücken arbeitet die seitliche Schulter ein Stück mit
+(0,45 – knapp unter der Schwelle, ab der die App einen Muskel als getroffen
+zählt). Das Seitheben fühlt sich nach dem Drücken deshalb etwas schwerer an;
+die Pause jeder Übung bleibt trotzdem voll, und schafft man die untere Zahl
+nicht mehr, ist das leichtere Band der Weg, nicht die Trennung des Paars.
+Geprüft in `tests/test-supersatz.mjs`, Abschnitt 14, mit und ohne Hanteln im
+Cut: der Hinweis beim Schulterpaar, keiner bei einem Paar aus Beinen und
+Rücken, und es bleibt ein Hinweis je Übung. Gegen v261 rot.
+
 ### Drei Minuten waren zu viel
 
 > *„Und sicher 3 min Pause?"*
