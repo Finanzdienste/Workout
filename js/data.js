@@ -2672,6 +2672,10 @@ export const EXERCISES = [
       [
         "Warum überhaupt im Liegen",
         "Die hängende Fassung ist die stärkere Übung – aber nur für den, dessen Griff sie überlebt. Wer nach zwei Wiederholungen loslässt, hat den Unterarm trainiert und den Bauch nicht. Im Liegen fällt der Griff als Begrenzer weg. Dass dafür der Hüftbeuger als neuer Begrenzer auftaucht, ist der Preis – siehe oben, und er lässt sich wegnehmen."
+      ],
+      [
+        "Wenn es zu leicht ist",
+        "Erst die Ausführung: Hebt das Gesäß nicht bei jeder Wiederholung vom Boden ab, arbeitet der Hüftbeuger, und der Bauch merkt nichts – leicht fühlt sich die Übung dann an, weil sie den Bauch gar nicht erreicht. Dann das Tempo: oben kurz halten, drei Sekunden ablassen und die Füße unten nicht absetzen, sodass der Bauch zwischen den Wiederholungen keine Pause hat. Gehen so 20 saubere, ist der Schritt fällig: Das + an der Übung macht daraus das hängende Knieheben, auch auf der Anfängerstufe, und die Wahl bleibt; − führt zurück."
       ]
     ],
     "schmerz": [
@@ -2684,7 +2688,7 @@ export const EXERCISES = [
       "name": "Knieheben im Liegen",
       "reps": "10–20",
       "equip": "Ohne Gerät",
-      "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
+      "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen. Zu leicht? Oben kurz halten, drei Sekunden ablassen, die Füße unten nicht absetzen – und gehen so 20 saubere, auf + tippen: das hängende Knieheben.",
       "rest": 120,
       "pattern": "kneeraisefloor",
       "shares": {
@@ -2700,7 +2704,7 @@ export const EXERCISES = [
       "name": "Knieheben im Liegen",
       "reps": "10–20",
       "equip": "Ohne Gerät",
-      "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
+      "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen. Zu leicht? Oben kurz halten, drei Sekunden ablassen, die Füße unten nicht absetzen – und gehen so 20 saubere, auf + tippen: das hängende Knieheben.",
       "rest": 120,
       "pattern": "kneeraisefloor",
       "shares": {

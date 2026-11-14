@@ -8842,6 +8842,23 @@ so"*). Der Knopf ist so breit wie der Name, höchstens ein gutes Drittel der
 Zeile, und der Name bricht um, statt über den Rand zu laufen. „statt …" in der
 Mitte entfällt, wenn dieselbe Übung schon auf einem der Knöpfe steht.
 
+**Auch die unterste Fassung sagt, wann das + dran ist (v260).** *„Find
+beinheben im Liegen iwie noch immer null anstrengend"* – das Knieheben im
+Liegen, die Fassung, die ein Anfänger statt des hängenden bekommt. Ihr Hinweis
+kannte nur „Zu schwer? Ein Bein nach dem anderen."; den Schritt nach oben gab es
+längst – das + an der Übung, auch auf der Anfängerstufe, und die Wahl bleibt –,
+aber nirgends stand, wann er fällig ist. Jetzt steht im Hinweis, in beiden
+Modi: „Zu leicht? Oben kurz halten, drei Sekunden ablassen, die Füße unten nicht
+absetzen – und gehen so 20 saubere, auf + tippen: das hängende Knieheben." Die
+Erklärung hat dazu den Abschnitt *Wenn es zu leicht ist*: Meist hebt das Gesäß
+nicht bei jeder Wiederholung ab – dann arbeitet der Hüftbeuger, und die Übung
+fühlt sich leicht an, weil sie den Bauch gar nicht erreicht. Ein Vorschlag, der
+von selbst kommt, ist das nicht (*„Es sollen nie Steigerungsvorschläge
+kommen"*): Es steht im Text der Übung, und tippen muss Tobi selbst. Geprüft in
+`tests/test-katalog.mjs` („Knieheben im Liegen: … den Weg nach oben"), gegen
+v259 rot; dass das + die hängende Fassung bringt, hält
+`tests/test-anfaenger.mjs`, Abschnitt 6.
+
 #### Und der Folgefehler, den diese Änderung ausgelöst hat
 
 > „Aber heute ist doch erst Dienstag? Montag stand ein Training an, Dienstag

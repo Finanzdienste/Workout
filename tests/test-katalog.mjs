@@ -232,6 +232,25 @@ check(ohneErklaerung.length === 0 && ohneHinweis.length === 0 && !/mit den Beine
   `Klimmzüge: Erklärung und Hinweis sagen, wie man das Schwingen abstellt${ohneErklaerung.length || ohneHinweis.length
     ? `: fehlt bei ${[...ohneErklaerung.map((i) => `${i} (Erklärung)`), ...ohneHinweis.map((i) => `${i} (Hinweis)`)].join(', ')}` : ''}`);
 
+// --- Knieheben im Liegen: auch ein Weg nach oben (v260) ---------------------
+//
+// „Find beinheben im Liegen iwie noch immer null anstrengend" – die
+// Anfängerfassung des hängenden Kniehebens. Ihr Hinweis kannte nur „Zu
+// schwer?". Dabei gibt es den Schritt nach oben längst: das + an der Übung
+// (tests/test-anfaenger.mjs, Abschnitt 6). Jetzt sagt der Hinweis in beiden
+// Modi, wie es schwerer wird und wann das + dran ist, und die Erklärung, woran
+// es meist liegt, wenn sie sich leicht anfühlt.
+const liegend = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const e = EXERCISES.find((x) => x.id === 'liegendes-knieheben');
+  return e ? { detail: e.detail || [], cues: ['db', 'bw'].map((m) => e[m].cue || '') } : null;
+});
+const nachOben = (s) => /Zu leicht\?/.test(s) && /drei Sekunden ablassen/.test(s) && /nicht absetzen/.test(s) && /auf \+ tippen: das hängende Knieheben/.test(s);
+const zuLeicht = liegend ? ((liegend.detail.find(([titel]) => titel === 'Wenn es zu leicht ist') || [])[1]) || '' : '';
+check(!!liegend && liegend.cues.length === 2 && liegend.cues.every(nachOben)
+  && /Gesäß nicht bei jeder Wiederholung vom Boden ab/.test(zuLeicht) && /Das \+ an der Übung macht daraus das hängende Knieheben/.test(zuLeicht),
+`Knieheben im Liegen: Hinweis und Erklärung nennen den Weg nach oben${liegend ? '' : ' – die Übung fehlt'}`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs[0] : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();
