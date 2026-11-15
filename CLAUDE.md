@@ -126,8 +126,18 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Sendung der App, die Termine zeigen, ob verschoben wurde. Den Stand von To Do
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
-## Stand (14.11.2026)
-- Workout v262. Zuletzt: Im Supersatz aus zwei Teilen derselben Partie sagt
+## Stand (15.11.2026)
+- Workout v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
+  das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
+  Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,
+  dann in Workout, Boxenstopp und Freizeit kopieren. Ohne Verbinden-Link
+  (`#bildschirmzeit=…` aus der Widget-App) passiert nichts. Die Widget-App
+  (Android, Release v1) liegt in Finanzdienste/Bildschirmzeit.
+- CI „Prüfung“, Job Browsertests: Playwright 1.56.1 kennt das Ubuntu 26.04
+  der Runner nicht („does not support chromium on ubuntu26.04-x64“) – schon
+  seit vor v263 rot, der Job „Pläne und erzeugte Dateien“ ist grün. Freizeit
+  hat dafür auf Playwright 1.64.1 gewechselt.
+- Davor v262. Im Supersatz aus zwei Teilen derselben Partie sagt
   der Wechselhinweis, welche es sind („Schulter vorn und Schulter seitlich:
   verschiedene Muskeln …“, v262). Knieheben im Liegen nennt den Weg nach oben (zu
   leicht → Oberkörper leicht mit anheben, v261; Tempo, dann das + zur
