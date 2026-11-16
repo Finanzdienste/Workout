@@ -12,8 +12,15 @@ Bevor du mit einer Aufgabe anfängst: Passt sie deutlich besser zu einem anderen
 Modell oder Aufwand als dem laufenden, schlag mir das in einem Satz vor – mit
 Grund und dem Befehl, den ich als Nachricht schicke (`/model fable|opus|sonnet`,
 `/effort low|medium|high|xhigh|max`). Was gerade läuft, zeigt `get_session`
-(`model`, `effort_level`); am 11.11.2026 war es Opus 5.5 mit Aufwand max. Bei
-normalen Rückmeldungen erwähnst du beides nicht.
+(`model`, `effort_level`); am 11.11.2026 war es Opus 5.5 mit Aufwand max.
+- **Immer am Ende**: In jeder Antwort, mit der du eine Aufgabe abschließt
+  (nicht bei Zwischenständen), ein Satz: was lief und ob es passte – mit dem
+  genauen Befehl, wenn etwas anderes besser passt. Etwa „Opus 5.5 mit
+  `/effort max`, passt – nichts umstellen“. Tobi, 16.11.: „Sowas sollst du
+  immer konkret mit angeben“ und „So eine nachricht gibst du mir irgendwie nur
+  in diesen chat, nicht in den anderen“ – bis dahin stand hier „Bei normalen
+  Rückmeldungen erwähnst du beides nicht“. Gleich in Boxenstopp, Freizeit und
+  Bildschirmzeit.
 - **Mehr** – vorschlagen und auf meine Antwort warten: `/model fable`, dazu
   `/effort high`, wenn die Ursache nach dem ersten Durchgang unklar ist, ein
   Fehler nach einer Korrektur wiederkommt oder viel ineinandergreift (Service
