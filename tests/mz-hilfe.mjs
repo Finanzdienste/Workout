@@ -62,6 +62,9 @@ export async function oeffne({
   await ctx.addInitScript(vorbereiten, { tag, zeit, stand, schluessel: SCHLUESSEL, weitere });
   await ctx.addInitScript(uhrStellen);
   for (const skript of skripte) await ctx.addInitScript(skript);
+  // Nie ins echte Netz: Die KI kostet Geld, Open Food Facts ist nicht unser
+  // Prüfstand. Tests, die es brauchen, legen page.route darüber.
+  await ctx.route(/supabase\.co|openfoodfacts\.org/, (r) => r.abort());
   const page = await ctx.newPage();
   const fehler = [];
   const dialoge = [];

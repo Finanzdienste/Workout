@@ -13,8 +13,10 @@
 import { BEREICHE, LEBENSMITTEL, BELIEBT, NACH_ID } from './lebensmittel.js';
 import * as R from './rechnen.js';
 import { lesen, aendern, allesLoeschen, neueId, SCHLUESSEL } from './speicher.js';
+import * as S from './strichcode.js';
+import * as K from './ki.js';
 
-export const FASSUNG = 'v2';
+export const FASSUNG = 'v3';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -185,6 +187,7 @@ const SYMBOL = {
   plus: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg>',
   punkte: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><circle class="voll" cx="12" cy="5.5" r="1.8"/><circle class="voll" cx="12" cy="12" r="1.8"/><circle class="voll" cx="12" cy="18.5" r="1.8"/></svg>',
   kompass: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path class="voll" d="M15.5 8.5 13 13l-4.5 2.5L11 11z"/></svg>',
+  strich: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7V4.5h3M20.5 7V4.5h-3M3.5 17v2.5h3M20.5 17v2.5h-3"/><path d="M7 8v8M9.5 8v8M12 8v8M15.5 8v8M17.5 8v8" stroke-width="1.6"/></svg>',
 };
 
 function installierenHtml() {
@@ -205,6 +208,10 @@ function installierenHtml() {
         ${wichtig}`;
     }
     const neu = safari >= 26;
+    const code = K.kiCode();
+    const codeZeile = code
+      ? `<p class="klein" id="install-code">Dein KI-Code: <strong>${esc(code)}</strong> <button type="button" class="link" data-tun="code-kopieren">kopieren</button> – das iPhone gibt der App vom Home-Bildschirm einen eigenen Speicher. Nach dem Hinzufügen dort einmal unter „Mehr“ einfügen.</p>`
+      : '';
     return `<ol class="schritte" id="install-schritte">
         ${neu
     ? `<li>Unten rechts auf ${SYMBOL.mehr} <strong>„⋯“</strong> tippen, dann auf ${SYMBOL.teilen} <strong>„Teilen“</strong>.<small>Siehst du unten gleich ${SYMBOL.teilen} „Teilen“? Dann direkt das antippen.</small></li>`
@@ -215,6 +222,7 @@ function installierenHtml() {
       </ol>
       ${danach}
       <p class="klein">Aus WhatsApp geöffnet? Dann erst unten rechts auf ${SYMBOL.kompass} (in Safari öffnen) – dort geht es weiter.</p>
+      ${codeZeile}
       ${wichtig}`;
   }
   return `<ol class="schritte" id="install-schritte">
@@ -561,6 +569,14 @@ function seiteMehr(stand) {
       <button type="button" class="weg" data-tun="eigen-weg" data-id="${esc(e.id)}" aria-label="${esc(e.n)} vergessen">✕</button></li>`).join('')}</ul>`
     : '<p class="klein leise">Noch keine. Unter „Essen eintragen“ → „Selbst eintragen“ merkt sich die App, was du dort einträgst.</p>'}
   </section>
+  <section class="karte" id="karte-ki">
+    <h3>✨ KI und Strichcode</h3>
+    ${K.kiCode()
+    ? `<p id="ki-status">Freigeschaltet (Code ${esc(K.kiCode().slice(0, 5))}-•••••). Rezepte, Kochbuchseiten und Nährwerttabellen rechnet die KI aus – unter „Essen eintragen“ → „Rezept oder Foto“.</p>
+      <button type="button" class="knopf leise" data-tun="ki-code-weg">Code entfernen</button>`
+    : freischaltenHtml()}
+    <p class="klein leise">Was dabei das Handy verlässt: beim Strichcode nur die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel. Beim Rezept der Text bzw. die Fotos – an die KI Claude von Anthropic, über Tobis Zugang. Sonst nichts.</p>
+  </section>
   <section class="karte" id="karte-sicherung">
     <h3>💾 Sicherung</h3>
     <p>Alles liegt nur auf diesem Handy. Mit einer Sicherung kommst du auf einem neuen Handy wieder dran.</p>
@@ -576,7 +592,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
-    <p>Mahlzeit fragt nichts und schickt nichts weg: kein Konto, keine Werbung, keine Zählung. Alles bleibt auf deinem Handy.</p>
+    <p>Mahlzeit fragt nichts und schickt von sich aus nichts weg: kein Konto, keine Werbung, keine Zählung. Deine Einträge bleiben auf deinem Handy. Nur wenn du einen Strichcode nachschlägst oder die KI fragst, geht genau das hinaus (siehe „KI und Strichcode“).</p>
     <p>Die Kalorien sind Richtwerte für übliche Portionen – ein Döner vom Imbiss nebenan kann 100 kcal mehr oder weniger haben. Für den Überblick reicht das; genauer wird es mit der Packung in der Hand („Selbst eintragen“).</p>
     <p>Die App ersetzt keine ärztliche Beratung. Was die Hafertage angeht, steht die Quelle unter „Hafer“.</p>
     <p class="klein leise">Fassung ${FASSUNG}</p>
@@ -609,6 +625,7 @@ function schliesseEbene({ ausVerlauf = false } = {}) {
   el.hidden = true;
   el.innerHTML = '';
   document.body.classList.remove('ebene-offen');
+  kameraAus();
   if (!ausVerlauf && history.state?.mahlzeitEbene) history.back();
   zeige();
   if (neuLaden) location.reload();
@@ -617,6 +634,7 @@ function schliesseEbene({ ausVerlauf = false } = {}) {
 function zeigeEbene() {
   const el = $('#ebene');
   el.hidden = false;
+  kameraAus();
   const stand = lesen();
   if (ebene.art === 'suche') {
     el.innerHTML = `
@@ -629,10 +647,21 @@ function zeigeEbene() {
         <label class="suchfeld"><span class="unsichtbar">Suchen</span>
           <input type="search" id="suche" value="${esc(ebene.q)}" placeholder="z. B. Brötchen, Döner, Cola" autocomplete="off" autocapitalize="off" enterkeyhint="search">
         </label>
+        <div class="werkzeuge">
+          <button type="button" class="knopf leise" data-tun="scan" id="scan-knopf">${SYMBOL.strich} Strichcode</button>
+          <button type="button" class="knopf leise" data-tun="rezept" id="rezept-knopf">✨ Rezept oder Foto</button>
+        </div>
         <div id="treffer">${trefferHtml(stand)}</div>
       </div>`;
     const feld = $('#suche');
     if (!ebene.zuletzt && !ebene.bereich) feld.focus({ preventScroll: true });
+  } else if (ebene.art === 'scan') {
+    el.innerHTML = scanHtml();
+    if (S.kannLive() && !ebene.nichtGefunden) kameraAn();
+  } else if (ebene.art === 'rezept') {
+    el.innerHTML = rezeptHtml();
+  } else if (ebene.art === 'ki-ergebnis') {
+    el.innerHTML = ergebnisHtml();
   } else if (ebene.art === 'sache') {
     el.innerHTML = sacheHtml(stand);
   } else if (ebene.art === 'eigen') {
@@ -687,18 +716,26 @@ function sacheHtml(stand) {
   const l = sucheSache(stand, ebene.id);
   if (!l) return '';
   const e = { kcal: l.kcal, kh: l.kh, m: ebene.m };
+  const hat100 = Number.isFinite(l.kcal100) && l.kcal100 !== null;
+  const g = R.leseZahl(ebene.gramm || '');
+  const inGramm = hat100 && Number.isFinite(g) && g > 0 && g <= 5000;
+  const werte = inGramm ? R.fuerGramm(l, g) : { kcal: R.kcalVon(e), kh: R.khVon(e) };
+  const herkunft = { off: 'aus Open Food Facts', ki: 'von der KI ausgerechnet' }[l.quelle] || '';
   return `
     <div class="ebene-kopf">
       <button type="button" class="rund" data-tun="zurueck-suche" aria-label="Zurück">‹</button>
       <h2>${esc(l.n)}</h2>
     </div>
     <div class="ebene-inhalt">
-      <p class="leise">${esc(l.p || '')}${ebene.m !== 1 ? ` · ${R.menge(ebene.m)} ×` : ''}</p>
-      <p class="gross"><span id="sache-kcal">${R.zahl(R.kcalVon(e))}</span> <span class="einheit">kcal</span></p>
-      ${l.kh ? `<p class="leise klein">etwa ${R.zahl(R.khVon(e))} g Kohlenhydrate</p>` : ''}
+      <p class="leise">${esc(l.p || '')}${ebene.m !== 1 && !inGramm ? ` · ${R.menge(ebene.m)} ×` : ''}</p>
+      <p class="gross"><span id="sache-kcal">${R.zahl(werte.kcal)}</span> <span class="einheit">kcal</span></p>
+      ${l.kh ? `<p class="leise klein" id="sache-kh">etwa ${R.zahl(werte.kh)} g Kohlenhydrate</p>` : ''}
+      ${hat100 ? `<p class="klein leise" id="sache-100">${R.zahl(l.kcal100)} kcal je 100 g${herkunft ? ` · ${herkunft}` : ''}</p>` : ''}
       ${l.t ? `<p class="tipp" id="tipp">💡 ${esc(l.t)}</p>` : ''}
       <h3>Wie viel?</h3>
-      ${mengenChips(ebene.m)}
+      ${mengenChips(inGramm ? null : ebene.m)}
+      ${hat100 ? `<label class="feld gramm-feld"><span>oder genau</span><input id="gramm" inputmode="decimal" autocomplete="off" placeholder="Gramm" value="${esc(ebene.gramm || '')}"><span class="einheit">g</span></label>` : ''}
+      ${l.zutaten?.length ? `<details class="rechnung"><summary>So hat die KI gerechnet</summary><ul class="punkte">${l.zutaten.map((z) => `<li>${esc(z.menge)} ${esc(z.name)} – ${R.zahl(z.kcal)} kcal</li>`).join('')}</ul>${l.hinweis ? `<p class="klein leise">${esc(l.hinweis)}</p>` : ''}</details>` : ''}
       <h3>Wann?</h3>
       ${zeitChips(ebene.z)}
       <button type="button" class="knopf haupt gross-knopf" data-tun="eintragen" id="eintragen">Eintragen</button>
@@ -752,6 +789,270 @@ function bearbeitenHtml(stand) {
     </div>`;
 }
 
+// --- Strichcode, Rezept und Foto (v3) --------------------------------------
+
+/*
+ * Tobi: „ihm fehlen viele rezepte und zutaten. Lass doch per Api ne ki
+ * einbauen …" und „und barcode scanner". Drei Wege zu einer eigenen Sache,
+ * alle mit kcal je 100 g, damit man auch in Gramm eintragen kann:
+ *
+ *   Strichcode   live (Android) oder Nummer eintippen → Open Food Facts;
+ *                auf dem iPhone ein Foto, die KI liest die Nummer ab.
+ *   Rezept       Text oder Foto der Kochbuchseite → die KI rechnet.
+ *   Packung      Foto der Nährwerttabelle → die KI liest ab.
+ */
+
+let kamera = null;
+function kameraAus() {
+  if (kamera) { kamera(); kamera = null; }
+}
+
+async function kameraAn() {
+  const video = $('#scan-video');
+  if (!video) return;
+  const meine = ebene;
+  try {
+    const stopp = await S.liveLesen(video, { gefunden: (code) => { kamera = null; strichcodeGefunden(code); } });
+    if (ebene !== meine || ebene?.art !== 'scan') { stopp(); return; }
+    kamera = stopp;
+  } catch (e) {
+    scanStatus(e?.name === 'NotAllowedError'
+      ? 'Die Kamera ist nicht erlaubt. Tipp die Nummer unten ein – oder erlaube die Kamera in den Einstellungen des Browsers.'
+      : 'Die Kamera startet nicht. Tipp die Nummer unten ein.');
+  }
+}
+
+const scanStatus = (text) => { const el = $('#scan-status'); if (el) el.textContent = text; };
+
+function freischaltenHtml() {
+  return `<div class="karte hinweis ki-freischalten">
+    <p><strong>Die KI ist noch nicht freigeschaltet.</strong> Dafür brauchst du den Code aus dem Link, mit dem du die App bekommen hast – er sieht aus wie ABCDE-FGHJK.</p>
+    <form class="werteform" data-form="ki-code">
+      <label class="feld"><span class="unsichtbar">Freischalt-Code</span><input class="ki-code-feld" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCDE-FGHJK"></label>
+      <button type="submit" class="knopf haupt">Freischalten</button>
+    </form>
+    <p class="fehler" role="alert"></p>
+  </div>`;
+}
+
+function scanHtml() {
+  const live = S.kannLive();
+  const code = K.kiCode();
+  const ng = ebene.nichtGefunden;
+  return `
+    <div class="ebene-kopf">
+      <button type="button" class="rund" data-tun="zurueck-suche" aria-label="Zurück">‹</button>
+      <h2>Strichcode</h2>
+    </div>
+    <div class="ebene-inhalt">
+      ${ng ? `<div class="karte hinweis" id="nicht-gefunden">
+          <p><strong>${esc(ng.code)}</strong>${ng.name ? ` (${esc(ng.name)})` : ''}: ${ng.name ? 'Open Food Facts kennt das Produkt, aber ohne Kalorien.' : 'Diese Nummer kennt Open Food Facts nicht.'}</p>
+          <div class="reihe">
+            ${code ? '<button type="button" class="knopf haupt" data-tun="packung-foto">🧾 Nährwerttabelle fotografieren</button>' : ''}
+            <button type="button" class="knopf leise" data-tun="eigen">✎ Selbst eintragen</button>
+            <button type="button" class="knopf leise" data-tun="scan-neu">Anderen Strichcode</button>
+          </div>
+        </div>`
+    : live ? `<div class="scan-bild"><video id="scan-video" playsinline muted autoplay></video><div class="scan-rahmen" aria-hidden="true"></div></div>
+        <p class="klein" id="scan-hilfe">Halte den Strichcode in den Rahmen – die App liest ihn von selbst.</p>`
+      : `<p id="scan-hilfe">${geraet() === 'ios' ? 'Das iPhone lässt Webseiten Strichcodes nicht selbst lesen.' : 'Dieser Browser kann Strichcodes nicht selbst lesen.'} ${code ? 'Fotografier ihn – die KI liest die Nummer ab.' : 'Tipp die Nummer unter den Strichen ein.'}</p>
+        ${code ? `<label class="knopf haupt breit">📷 Strichcode fotografieren<input type="file" id="scan-foto" accept="image/*" class="unsichtbar"></label>` : ''}`}
+      <p id="scan-status" class="scan-status" role="status"></p>
+      <form class="werteform" data-form="ean">
+        <label class="feld"><span class="unsichtbar">Nummer unter dem Strichcode</span><input id="ean" inputmode="numeric" autocomplete="off" placeholder="Nummer, z. B. 4001234567891" maxlength="16"></label>
+        <button type="submit" class="knopf">Nachschlagen</button>
+      </form>
+      <p class="klein leise">Die Nummer geht an Open Food Facts, eine freie Datenbank für Lebensmittel. Einmal gefunden, kennt die App das Produkt auch ohne Netz.</p>
+    </div>`;
+}
+
+function zeigeSache(id) {
+  kameraAus();
+  ebene = { ...ebene, art: 'sache', id, m: 1, gramm: '', nichtGefunden: null };
+  zeigeEbene();
+  $('#ebene').scrollTo(0, 0);
+}
+
+async function strichcodeGefunden(roh) {
+  const code = S.eanOrdnen(roh);
+  if (!S.eanOk(code)) {
+    scanStatus(`${code || 'Die Nummer'} stimmt so nicht – bitte noch einmal genau abtippen (meist 13 Ziffern).`);
+    return;
+  }
+  const da = R.eigeneMitEan(lesen(), code);
+  if (da) { zeigeSache(da.id); return; }
+  const meine = ebene;
+  scanStatus(`Suche ${code} …`);
+  let produkt;
+  try {
+    produkt = await S.nachschlagen(code);
+  } catch {
+    if (ebene === meine) scanStatus('Keine Verbindung zu Open Food Facts. Ist das Handy online?');
+    return;
+  }
+  if (ebene !== meine || ebene.art !== 'scan') return;
+  if (!produkt || produkt.ohneWerte) {
+    kameraAus();
+    ebene.nichtGefunden = { code, name: produkt?.name || '' };
+    zeigeEbene();
+    return;
+  }
+  const sache = S.sacheAusProdukt(produkt, neueId('eigen'));
+  aendern((s) => { s.eigene.unshift(sache); });
+  zeigeSache(sache.id);
+}
+
+async function strichcodeFoto(datei) {
+  const meine = ebene;
+  scanStatus('Die KI liest die Nummer …');
+  try {
+    const bild = await K.fotoVorbereiten(datei, 1280);
+    URL.revokeObjectURL(bild.url);
+    const { ergebnis: e } = await K.kiFragen({ art: 'auswerten', text: '', bilder: [{ typ: bild.typ, daten: bild.daten }], portionen: null, hinweis: 'strichcode' });
+    if (ebene !== meine) return;
+    if (e.ean) { strichcodeGefunden(e.ean); return; }
+    if (e.art === 'packung' && e.kcal_100g > 0) { kiErgebnisZeigen(e, null); return; }
+    scanStatus(`Auf dem Foto war keine Nummer zu lesen.${e.hinweis ? ` (${e.hinweis})` : ''} Noch einmal näher und gerade – oder die Nummer eintippen.`);
+  } catch (err) {
+    if (ebene === meine) scanStatus(err.message);
+  }
+}
+
+function rezeptHtml() {
+  const packung = ebene.hinweis === 'packung';
+  const kopf = `<div class="ebene-kopf">
+      <button type="button" class="rund" data-tun="zurueck-suche" aria-label="Zurück">‹</button>
+      <h2>${packung ? 'Packung auswerten' : 'Rezept ausrechnen'}</h2>
+    </div>`;
+  if (!K.kiCode()) return `${kopf}<div class="ebene-inhalt">${freischaltenHtml()}</div>`;
+  return `${kopf}
+    <div class="ebene-inhalt">
+      <div class="chips" role="group" aria-label="Was ist es?">
+        <button type="button" class="chip" data-tun="rezept-art" data-art="rezept" aria-pressed="${!packung}">Rezept</button>
+        <button type="button" class="chip" data-tun="rezept-art" data-art="packung" aria-pressed="${packung}">Packung, Nährwerte</button>
+      </div>
+      <p>${packung
+    ? 'Fotografier die Nährwerttabelle auf der Packung – die KI liest die Werte je 100 g ab.'
+    : 'Schreib dein Rezept hier rein oder fotografier die Seite aus dem Kochbuch – die KI rechnet die Kalorien aus, je 100 g und je Portion.'}</p>
+      ${packung ? '' : `<label class="textfeld"><span class="unsichtbar">Rezept</span><textarea id="rezept-text" rows="6" maxlength="6000" placeholder="z. B. 500 g Rinderhack, 1 Zwiebel, 1 Dose Tomaten, 250 g Spaghetti, 50 g Parmesan – für 4 Personen">${esc(ebene.text)}</textarea></label>`}
+      ${ebene.bilder.length ? `<div class="fotos" id="fotos">${ebene.bilder.map((b, i) => `<figure><img src="${b.url}" alt="Foto ${i + 1}"><button type="button" class="weg" data-tun="foto-weg" data-i="${i}" aria-label="Foto ${i + 1} entfernen">✕</button></figure>`).join('')}</div>` : ''}
+      ${ebene.bilder.length < 3 ? `<label class="knopf breit" id="foto-knopf">📷 ${ebene.bilder.length ? 'Noch ein Foto' : packung ? 'Nährwerttabelle fotografieren' : 'Kochbuchseite fotografieren'}<input type="file" id="rezept-foto" accept="image/*" class="unsichtbar"></label>` : ''}
+      ${packung ? '' : `<h3>Für wie viele Portionen?</h3>
+        <div class="chips" role="group" aria-label="Portionen">${[0, 1, 2, 3, 4, 6, 8].map((n) => `<button type="button" class="chip" data-tun="rezept-portionen" data-n="${n}" aria-pressed="${(ebene.portionen || 0) === n}">${n || 'weiß nicht'}</button>`).join('')}</div>`}
+      <p class="fehler" id="ki-fehler" role="alert">${esc(ebene.fehler || '')}</p>
+      <button type="button" class="knopf haupt gross-knopf" data-tun="ausrechnen" id="ausrechnen" ${ebene.laeuft ? 'disabled' : ''}>${ebene.laeuft ? 'Die KI rechnet … (bis zu einer Minute)' : 'Ausrechnen'}</button>
+      <p class="klein leise">Text und Fotos gehen dafür an die KI Claude von Anthropic – sonst nichts von dir.</p>
+    </div>`;
+}
+
+function oeffneRezept(hinweis = 'rezept', mehr = {}) {
+  kameraAus();
+  ebene = { ...ebene, art: 'rezept', hinweis, text: ebene.text || '', bilder: [], portionen: null, laeuft: false, fehler: '', nichtGefunden: null, ...mehr };
+  zeigeEbene();
+  $('#ebene').scrollTo(0, 0);
+}
+
+async function ausrechnen() {
+  const text = (ebene.hinweis === 'packung' ? '' : ($('#rezept-text')?.value ?? ebene.text)).trim();
+  ebene.text = text;
+  if (!text && !ebene.bilder.length) {
+    ebene.fehler = ebene.hinweis === 'packung' ? 'Bitte erst die Nährwerttabelle fotografieren.' : 'Bitte das Rezept hineinschreiben oder ein Foto machen.';
+    zeigeEbene();
+    return;
+  }
+  const meine = ebene;
+  ebene.laeuft = true;
+  ebene.fehler = '';
+  zeigeEbene();
+  try {
+    const { ergebnis: e } = await K.kiFragen({
+      art: 'auswerten', text, bilder: meine.bilder.map(({ typ, daten }) => ({ typ, daten })), portionen: meine.portionen || null, hinweis: meine.hinweis,
+    });
+    if (ebene !== meine) return;
+    meine.laeuft = false;
+    if (e.art === 'unklar' || !(e.kcal_100g > 0 || e.gesamt_kcal > 0)) {
+      if (e.ean) { oeffneScan(); strichcodeGefunden(e.ean); return; }
+      meine.fehler = `Daraus ließ sich nichts ausrechnen.${e.hinweis ? ` ${e.hinweis}` : ''}`;
+      zeigeEbene();
+      return;
+    }
+    kiErgebnisZeigen(e, meine.portionen);
+  } catch (err) {
+    if (ebene !== meine) return;
+    meine.laeuft = false;
+    meine.fehler = err.message;
+    zeigeEbene();
+  }
+}
+
+function kiErgebnisZeigen(e, portionen) {
+  kameraAus();
+  ebene = { ...ebene, art: 'ki-ergebnis', e, portionen: portionen || e.portionen || 1, name: e.name, laeuft: false };
+  zeigeEbene();
+  $('#ebene').scrollTo(0, 0);
+}
+
+function ergebnisHtml() {
+  const { e } = ebene;
+  const packung = e.art === 'packung';
+  const vorschau = R.sacheAusKi({ ...e, name: ebene.name }, ebene.portionen, 'vorschau');
+  return `
+    <div class="ebene-kopf">
+      <button type="button" class="rund" data-tun="zurueck-rezept" aria-label="Zurück">‹</button>
+      <h2>Ausgerechnet</h2>
+    </div>
+    <div class="ebene-inhalt">
+      <label class="textfeld">Name<input id="erg-name" maxlength="60" autocomplete="off" value="${esc(ebene.name)}"></label>
+      <p class="gross"><span id="erg-100">${R.zahl(e.kcal_100g)}</span> <span class="einheit">kcal je 100 g</span></p>
+      <p class="leise klein">${String(e.kh_100g).replace('.', ',')} g Kohlenhydrate je 100 g</p>
+      ${packung
+    ? `<p id="erg-portion">${esc(vorschau.p)}: <strong>${R.zahl(vorschau.kcal)} kcal</strong></p>`
+    : `<div class="karte">
+          <p id="erg-gesamt">Ganzes Rezept: <strong>${R.zahl(e.gesamt_kcal)} kcal</strong>${e.gesamt_gramm ? ` · etwa ${R.zahl(e.gesamt_gramm)} g fertig` : ''}</p>
+          <h3>In wie viele Portionen teilst du es?</h3>
+          <div class="chips" role="group" aria-label="Portionen">${[1, 2, 3, 4, 5, 6, 8].map((n) => `<button type="button" class="chip" data-tun="erg-portionen" data-n="${n}" aria-pressed="${ebene.portionen === n}">${n}</button>`).join('')}</div>
+          <p id="erg-portion">1 Portion: <strong>${R.zahl(vorschau.kcal)} kcal</strong>${vorschau.g ? ` (${R.zahl(vorschau.g)} g)` : ''}</p>
+        </div>
+        ${e.zutaten.length ? `<details class="rechnung"><summary>So hat die KI gerechnet</summary><ul class="punkte">${e.zutaten.map((z) => `<li>${esc(z.menge)} ${esc(z.name)} – ${R.zahl(z.kcal)} kcal</li>`).join('')}</ul></details>` : ''}`}
+      ${e.hinweis ? `<p class="klein leise" id="erg-hinweis">ℹ️ ${esc(e.hinweis)}</p>` : ''}
+      <p class="klein leise">Die KI schätzt – so gut wie das Rezept genau ist. Für den Überblick reicht es.</p>
+      <button type="button" class="knopf haupt gross-knopf" data-tun="erg-speichern" data-eintragen="1" id="erg-eintragen">Speichern und eintragen</button>
+      <button type="button" class="knopf leise breit" data-tun="erg-speichern" data-eintragen="" id="erg-merken">Nur speichern</button>
+    </div>`;
+}
+
+function ergebnisSpeichern(dannEintragen) {
+  const name = ($('#erg-name')?.value || ebene.name || '').trim() || ebene.e.name;
+  const sache = R.sacheAusKi({ ...ebene.e, name }, ebene.portionen, neueId('eigen'));
+  if (ebene.ean && !sache.ean) sache.ean = ebene.ean;
+  aendern((s) => { s.eigene.unshift(sache); });
+  if (dannEintragen) { zeigeSache(sache.id); return; }
+  ebene = { art: 'suche', tag: ebene.tag, z: ebene.z, q: '', bereich: null, zuletzt: `${sache.n} gespeichert – du findest es unter „⭐ Eigene“ und in der Suche.` };
+  zeigeEbene();
+}
+
+function oeffneScan() {
+  ebene = { ...ebene, art: 'scan', nichtGefunden: null };
+  zeigeEbene();
+}
+
+async function freischalten(form) {
+  const feld = form.querySelector('input');
+  const fehler = form.parentElement.querySelector('.fehler');
+  const code = K.codeOrdnen(feld.value);
+  if (!code) { fehler.textContent = 'So sieht der Code nicht aus – zehn Zeichen, etwa ABCDE-FGHJK.'; return; }
+  fehler.textContent = 'Prüfe …';
+  try {
+    await K.codePruefen(code);
+  } catch (e) {
+    fehler.textContent = e.message;
+    return;
+  }
+  K.kiCodeSetzen(code);
+  meldung('KI freigeschaltet ✨');
+  zeige();
+}
+
 // --- Handlungen ------------------------------------------------------------
 
 function eintragen() {
@@ -760,6 +1061,16 @@ function eintragen() {
   if (!l) return;
   const id = neueId('e');
   const tag = ebene.tag;
+  const g = R.leseZahl(ebene.gramm || '');
+  if (Number.isFinite(l.kcal100) && l.kcal100 !== null && Number.isFinite(g) && g > 0 && g <= 5000) {
+    const w = R.fuerGramm(l, g);
+    aendern((s) => {
+      (s.tage[tag] ||= []).push({ id, f: l.id, n: l.n, p: `${R.zahl(g)} g`, m: 1, kcal: w.kcal, kh: Math.round(w.kh), z: ebene.z });
+    });
+    ebene = { art: 'suche', tag, z: ebene.z, q: '', bereich: null, zuletzt: `${R.zahl(g)} g ${l.n} (${R.zahl(w.kcal)} kcal) eingetragen – noch etwas?` };
+    zeige();
+    return;
+  }
   aendern((s) => {
     (s.tage[tag] ||= []).push({ id, f: l.id, n: l.n, p: l.p || '', m: ebene.m, kcal: l.kcal, kh: l.kh || 0, z: ebene.z });
   });
@@ -787,8 +1098,16 @@ function eigenEintragen() {
   const tag = ebene.tag;
   const z = ebene.z;
   const sacheId = merken ? neueId('eigen') : null;
+  const pro100 = R.leseZahl($('#eigen-100')?.value || '');
+  const gramm = R.leseZahl($('#eigen-g')?.value || '');
+  const mit100 = Number.isFinite(pro100) && pro100 >= 0 && pro100 <= 950 && Number.isFinite(gramm) && gramm > 0;
   aendern((s) => {
-    if (merken) s.eigene.unshift({ id: sacheId, n: name, p: '', kcal: Math.round(kcal), kh: Math.round(kh) });
+    if (merken) {
+      s.eigene.unshift({
+        id: sacheId, n: name, p: mit100 ? `${R.zahl(gramm)} g` : '', kcal: Math.round(kcal), kh: Math.round(kh),
+        ...(mit100 ? { kcal100: Math.round(pro100), kh100: Math.round((kh / gramm) * 1000) / 10, g: Math.round(gramm) } : {}),
+      });
+    }
     (s.tage[tag] ||= []).push({ id: neueId('e'), f: sacheId, n: name, p: '', m: 1, kcal: Math.round(kcal), kh: Math.round(kh), z });
   });
   ebene = { art: 'suche', tag, z, q: '', bereich: null, zuletzt: `${name} (${R.zahl(kcal)} kcal) eingetragen – noch etwas?` };
@@ -967,7 +1286,7 @@ document.addEventListener('click', (ev) => {
       ebene = { ...ebene, art: 'suche', zuletzt: null };
       zeigeEbene();
       break;
-    case 'menge': ebene.m = Number(el.dataset.m); zeigeEbene(); break;
+    case 'menge': ebene.m = Number(el.dataset.m); ebene.gramm = ''; zeigeEbene(); break;
     case 'zeit': {
       ebene.z = el.dataset.z;
       if (ebene.art === 'eigen') {
@@ -977,7 +1296,45 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'eintragen': eintragen(); break;
-    case 'eigen': ebene = { ...ebene, art: 'eigen' }; zeigeEbene(); break;
+    case 'eigen': kameraAus(); ebene = { ...ebene, art: 'eigen', nichtGefunden: null }; zeigeEbene(); break;
+    case 'scan': oeffneScan(); break;
+    case 'scan-neu': oeffneScan(); break;
+    case 'rezept': oeffneRezept('rezept'); break;
+    case 'packung-foto': oeffneRezept('packung', { ean: ebene.nichtGefunden?.code || '' }); break;
+    case 'rezept-art': ebene.hinweis = el.dataset.art; ebene.text = $('#rezept-text')?.value ?? ebene.text; ebene.fehler = ''; zeigeEbene(); break;
+    case 'rezept-portionen':
+      ebene.portionen = Number(el.dataset.n) || null;
+      ebene.text = $('#rezept-text')?.value ?? ebene.text;
+      el.parentElement.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c === el)));
+      break;
+    case 'foto-weg': {
+      const [weg] = ebene.bilder.splice(Number(el.dataset.i), 1);
+      if (weg) URL.revokeObjectURL(weg.url);
+      ebene.text = $('#rezept-text')?.value ?? ebene.text;
+      zeigeEbene();
+      break;
+    }
+    case 'ausrechnen': ausrechnen(); break;
+    case 'zurueck-rezept': ebene = { ...ebene, art: 'rezept', laeuft: false }; zeigeEbene(); break;
+    case 'erg-portionen':
+      ebene.portionen = Number(el.dataset.n);
+      ebene.name = $('#erg-name')?.value ?? ebene.name;
+      zeigeEbene();
+      break;
+    case 'erg-speichern': ergebnisSpeichern(!!el.dataset.eintragen); break;
+    case 'ki-code-weg':
+      if (confirm('Den Freischalt-Code von diesem Handy entfernen? Die KI geht dann erst wieder mit dem Code.')) {
+        K.kiCodeWeg();
+        zeige();
+      }
+      break;
+    case 'code-kopieren': {
+      const code = K.kiCode();
+      if (!code) break;
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(() => meldung('Code kopiert.'), () => meldung(code));
+      else meldung(code);
+      break;
+    }
     case 'bearbeiten': {
       const tag = zustand.tag || h;
       const e = (lesen().tage[tag] || []).find((x) => x.id === el.dataset.id);
@@ -1129,6 +1486,21 @@ document.addEventListener('input', (ev) => {
     $('#treffer').innerHTML = trefferHtml(lesen());
   } else if (ev.target.id === 'eigen-100' || ev.target.id === 'eigen-g') {
     umrechnen();
+  } else if (ev.target.id === 'gramm' && ebene?.art === 'sache') {
+    // Live rechnen, ohne neu zu zeichnen – sonst wäre die Tastatur weg.
+    ebene.gramm = ev.target.value;
+    const l = sucheSache(lesen(), ebene.id);
+    const g = R.leseZahl(ebene.gramm);
+    const gut = Number.isFinite(g) && g > 0 && g <= 5000;
+    const w = gut ? R.fuerGramm(l, g) : { kcal: R.kcalVon({ kcal: l.kcal, m: ebene.m }), kh: R.khVon({ kh: l.kh, m: ebene.m }) };
+    $('#sache-kcal').textContent = R.zahl(w.kcal);
+    const kh = $('#sache-kh');
+    if (kh) kh.textContent = `etwa ${R.zahl(w.kh)} g Kohlenhydrate`;
+    document.querySelectorAll('#ebene [data-tun="menge"]').forEach((c) => c.setAttribute('aria-pressed', String(!gut && Number(c.dataset.m) === ebene.m)));
+  } else if (ev.target.id === 'rezept-text' && ebene) {
+    ebene.text = ev.target.value;
+  } else if (ev.target.id === 'erg-name' && ebene) {
+    ebene.name = ev.target.value;
   }
 });
 
@@ -1137,6 +1509,8 @@ document.addEventListener('submit', (ev) => {
   if (!form) return;
   ev.preventDefault();
   if (form.dataset.form === 'eigen') eigenEintragen();
+  else if (form.dataset.form === 'ean') strichcodeGefunden($('#ean').value);
+  else if (form.dataset.form === 'ki-code') freischalten(form);
   else wertEintragen(form.dataset.form);
 });
 
@@ -1153,6 +1527,18 @@ document.addEventListener('change', (ev) => {
   if (ev.target.id === 'einlesen' && ev.target.files?.[0]) {
     einlesen(ev.target.files[0]);
     ev.target.value = '';
+  } else if (ev.target.id === 'rezept-foto' && ev.target.files?.[0] && ebene?.art === 'rezept') {
+    const datei = ev.target.files[0];
+    const meine = ebene;
+    meine.text = $('#rezept-text')?.value ?? meine.text;
+    K.fotoVorbereiten(datei).then((bild) => {
+      if (ebene !== meine) { URL.revokeObjectURL(bild.url); return; }
+      meine.bilder.push(bild);
+      meine.fehler = '';
+      zeigeEbene();
+    }, () => { meine.fehler = 'Das Foto ließ sich nicht lesen.'; zeigeEbene(); });
+  } else if (ev.target.id === 'scan-foto' && ev.target.files?.[0]) {
+    strichcodeFoto(ev.target.files[0]);
   }
 });
 
@@ -1169,6 +1555,9 @@ window.addEventListener('storage', (ev) => {
 // Über Mitternacht offen geblieben: beim Zurückkommen stimmt „Heute" wieder.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !ebene) zeige();
+  // Die Kamera nicht im Hintergrund laufen lassen; zurück, geht sie wieder an.
+  if (document.visibilityState === 'hidden') kameraAus();
+  else if (ebene?.art === 'scan' && !ebene.nichtGefunden) zeigeEbene();
 });
 
 // --- Offline und Aktualisierung --------------------------------------------
@@ -1188,6 +1577,15 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     if (!ebene) location.reload();
   });
   navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// Der Freischalt-Code aus dem Link („#ki=ABCDE-FGHJK"): merken und aus der
+// Adresse nehmen – sonst stünde er in jedem Lesezeichen und Bildschirmfoto.
+const ausLink = K.codeAusAdresse(location.hash);
+if (ausLink) {
+  K.kiCodeSetzen(ausLink);
+  history.replaceState(history.state, '', location.pathname + location.search);
+  setTimeout(() => meldung('KI freigeschaltet ✨ – Rezepte und Fotos rechnet jetzt die KI aus.'), 200);
 }
 
 zeige();

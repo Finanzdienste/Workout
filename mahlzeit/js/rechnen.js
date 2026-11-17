@@ -389,6 +389,52 @@ export function haferIcs(tage, jetzt = new Date()) {
   return zeilen.map(falten).join(NL) + NL;
 }
 
+// --- Aus der KI und vom Strichcode (v3) --------------------------------------
+
+const eine = (x) => Math.round(x * 10) / 10;
+
+/**
+ * Aus einer Auswertung der KI eine eigene Sache. Ein Rezept wird auf
+ * `portionen` geteilt (Gewicht und Kalorien je Portion aus der Summe), eine
+ * Packung nimmt ihre Portion (sonst 100 g). Dazu immer kcal je 100 g – damit
+ * lässt sich auch in Gramm eintragen.
+ */
+export function sacheAusKi(e, portionen, id) {
+  const basis = { id, n: e.name, kcal100: e.kcal_100g, kh100: e.kh_100g, quelle: 'ki', hinweis: e.hinweis || '' };
+  if (e.art === 'packung') {
+    const g = e.portion_gramm > 0 ? Math.round(e.portion_gramm) : 100;
+    return {
+      ...basis,
+      p: e.portion_text || (g === 100 ? '100 g' : `1 Portion (${g} g)`),
+      g,
+      kcal: Math.round((e.kcal_100g * g) / 100),
+      kh: Math.round((e.kh_100g * g) / 100),
+      ean: e.ean || undefined,
+    };
+  }
+  const n = Math.max(1, Math.round(portionen || e.portionen || 1));
+  const g = e.gesamt_gramm > 0 ? Math.round(e.gesamt_gramm / n) : 0;
+  const kcal = e.gesamt_kcal > 0 ? Math.round(e.gesamt_kcal / n) : Math.round((e.kcal_100g * g) / 100);
+  const kh = e.gesamt_kh > 0 ? Math.round(e.gesamt_kh / n) : Math.round((e.kh_100g * g) / 100);
+  return {
+    ...basis,
+    p: g ? `1 Portion (${g} g)` : '1 Portion',
+    g: g || undefined,
+    kcal,
+    kh,
+    portionen: n,
+    zutaten: (e.zutaten || []).slice(0, 30),
+  };
+}
+
+/** kcal und Kohlenhydrate für so viele Gramm einer Sache mit Werten je 100 g. */
+export function fuerGramm(sache, g) {
+  return { kcal: Math.round(((sache.kcal100 || 0) * g) / 100), kh: eine(((sache.kh100 || 0) * g) / 100) };
+}
+
+/** Eine Sache mit diesem Strichcode unter den eigenen – dann braucht es kein Netz. */
+export const eigeneMitEan = (stand, ean) => stand.eigene.find((e) => e.ean && e.ean === ean) || null;
+
 // --- Gerät -----------------------------------------------------------------
 
 /**

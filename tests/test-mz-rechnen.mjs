@@ -8,6 +8,8 @@
  */
 import { BEREICHE, LEBENSMITTEL, BELIEBT, NACH_ID } from '../mahlzeit/js/lebensmittel.js';
 import * as R from '../mahlzeit/js/rechnen.js';
+import * as S from '../mahlzeit/js/strichcode.js';
+import * as K from '../mahlzeit/js/ki.js';
 import { pruefer } from './mz-hilfe.mjs';
 
 const { check, ende } = pruefer();
@@ -109,6 +111,47 @@ check(R.safariFassung('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) Ap
   'Safari 26 meldet „iPhone OS 18_6" – gezählt wird „Version/26"');
 check(R.safariFassung('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1') === 17, 'Safari 17');
 check(R.safariFassung('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/119.0 Mobile/15E148 Safari/604.1') === null, 'Chrome auf dem iPhone ist kein Safari');
+
+// --- Strichcode (v3)
+check(S.eanOk('4008400401621') && S.eanOk('96385074') && S.eanOk('036000291452'), 'Prüfziffer: EAN-13, EAN-8, UPC-A');
+check(!S.eanOk('4008400401622') && !S.eanOk('12345') && !S.eanOk('abc'), 'falsche Prüfziffer, zu kurz, Buchstaben: nein');
+check(S.eanOrdnen(' 4008 4004 0162 1') === '4008400401621' && S.eanOrdnen('036000291452') === '0036000291452', 'Leerzeichen weg, UPC-A mit führender 0');
+const off = { status: 1, product: { product_name: 'Kernige Haferflocken', brands: 'Kölln, Peter Kölln', serving_quantity: '40', serving_size: '40 g', nutriments: { 'energy-kcal_100g': 372, carbohydrates_100g: 58.7 } } };
+const prod = S.produktAusOff(off, '4000540000108');
+check(prod.kcal100 === 372 && prod.kh100 === 58.7 && prod.portionGramm === 40 && prod.marke === 'Kölln', 'Open Food Facts: kcal, KH, Portion, Marke');
+const sache = S.sacheAusProdukt(prod, 'eigen-1');
+check(sache.n === 'Kernige Haferflocken (Kölln)' && sache.p === '1 Portion: 40 g' && sache.kcal === 149 && sache.kcal100 === 372 && sache.ean === '4000540000108',
+  `daraus eine eigene Sache je Portion (${sache.n}, ${sache.p}, ${sache.kcal} kcal)`);
+const nurKj = S.produktAusOff({ status: 1, product: { product_name_de: 'Saft', nutriments: { energy_100g: 188 } } }, '1');
+check(nurKj.kcal100 === 45 && S.sacheAusProdukt(nurKj, 'x').p === '100 g', 'nur kJ: umgerechnet (188 kJ = 45 kcal), ohne Portion je 100 g');
+check(S.produktAusOff({ status: 1, product: { product_name: 'Ohne', nutriments: {} } }, '1').ohneWerte === true, 'ohne Nährwerte: ohneWerte');
+check(S.produktAusOff({ status: 0 }, '1') === null, 'unbekannt: null');
+check(S.offAdresse('4008400401621').startsWith('https://world.openfoodfacts.org/api/v2/product/4008400401621.json?fields='), 'Adresse bei Open Food Facts');
+const gefragt = [];
+const p404 = await S.nachschlagen('4008400401621', { holen: async (u) => { gefragt.push(u); return { status: 404, ok: false, json: async () => ({ status: 0 }) }; } });
+check(p404 === null && gefragt.length === 1, 'nicht gefunden (404): null');
+let geworfen = false;
+try { await S.nachschlagen('4008400401621', { holen: async () => { throw new TypeError('Failed to fetch'); } }); } catch { geworfen = true; }
+check(geworfen, 'ohne Netz: Fehler (die App sagt dann „Keine Verbindung")');
+
+// --- KI-Code (v3)
+check(K.codeOrdnen('abcde fghjk') === 'ABCDE-FGHJK' && K.codeOrdnen('ABCDE-FGHJK') === 'ABCDE-FGHJK', 'Code: groß, mit Bindestrich');
+check(K.codeOrdnen('ABCDE-FGHJ') === null && K.codeOrdnen('ABCDE-FGH1K') === null && K.codeOrdnen('ABCDO-FGHJK') === null, 'zu kurz, mit 1 oder O: kein Code');
+check(K.codeAusAdresse('#ki=ABCDE-FGHJK') === 'ABCDE-FGHJK' && K.codeAusAdresse('#x=1&ki=abcdefghjk') === 'ABCDE-FGHJK' && K.codeAusAdresse('#nichts') === null, 'Code aus dem Link');
+
+// --- Aus der KI (v3)
+const ki = { art: 'rezept', name: 'Gulasch', portionen: 4, gesamt_gramm: 1800, gesamt_kcal: 2400, gesamt_kh: 120, kcal_100g: 133, kh_100g: 6.7, zutaten: [{ name: 'Rind', menge: '1 kg', gramm: 1000, kcal: 1500 }], hinweis: 'h' };
+const s4 = R.sacheAusKi(ki, null, 'e1');
+check(s4.p === '1 Portion (450 g)' && s4.kcal === 600 && s4.kh === 30 && s4.kcal100 === 133 && s4.portionen === 4, `Rezept auf 4 Portionen: ${s4.p}, ${s4.kcal} kcal`);
+const s3 = R.sacheAusKi(ki, 3, 'e1');
+check(s3.p === '1 Portion (600 g)' && s3.kcal === 800, 'auf 3 Portionen: 600 g, 800 kcal');
+const pk = R.sacheAusKi({ art: 'packung', name: 'Riegel', portion_gramm: 50, portion_text: '1 Riegel (50 g)', kcal_100g: 480, kh_100g: 60, ean: '4008400401621' }, null, 'e2');
+check(pk.p === '1 Riegel (50 g)' && pk.kcal === 240 && pk.g === 50 && pk.ean === '4008400401621', 'Packung: die Portion von der Packung');
+check(R.fuerGramm(s4, 300).kcal === 399 && R.fuerGramm(pk, 25).kh === 15, 'in Gramm: 300 g Gulasch, 25 g Riegel');
+const mitEan = R.leererStand();
+mitEan.eigene = [pk];
+check(R.eigeneMitEan(mitEan, '4008400401621') === pk && R.eigeneMitEan(mitEan, '1') === null, 'schon gescannt: ohne Netz wiedergefunden');
+check(R.ordnen({ eigene: [pk] }).eigene[0].kcal100 === 480, 'eigene Sachen behalten kcal je 100 g und Strichcode im Speicher');
 
 // --- Kalenderdatei
 const ics = R.haferIcs(['2026-11-22', '2026-11-21'], new Date(Date.UTC(2026, 10, 17, 9, 30)));

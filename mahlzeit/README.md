@@ -109,6 +109,68 @@ Ein Stand aus v1 bekommt die Frage; wer dort „aus“ gewählt hatte
 Geprüft in `tests/test-mz-einrichten.mjs` (gegen v1 rot) und
 `tests/test-mz-rechnen.mjs` (Läufe, Monate, Safari-Fassung).
 
+## Rezepte, Kochbuchseiten, Strichcodes – mit KI (v3, 17.11.2026)
+
+> Tobi: „ihm fehlen viele rezepte und zutaten. Lass doch per Api ne ki
+> einbauen in der er seine eigenen rezepte in textform reinschreiben kann
+> oder ne seite ausm kochbuch fotografieren aknn. Dann kann man ja kalorien
+> je 100g sagen“ – und gleich danach: „und barcode scanner“.
+
+Vorher (v1, v2) kannte die App ihre rund 200 Sachen, und was fehlte, trug man
+von Hand ein. Jetzt gibt es unter der Suche zwei Knöpfe:
+
+- **Strichcode.** Android (Chrome) liest ihn live mit der Kamera
+  (`BarcodeDetector`, nur EAN/UPC), das iPhone kann das in Webseiten nicht –
+  dort fotografiert man ihn, und die KI liest die Ziffern ab (wie Boxenstopp).
+  Eintippen geht immer, die Prüfziffer wird geprüft. Nachgeschlagen wird bei
+  **Open Food Facts** (frei, ohne Schlüssel; nur die Nummer geht hinaus). Das
+  Produkt wird eine eigene Sache mit kcal je 100 g und der Portion der
+  Packung; beim zweiten Scan kommt es ohne Netz aus den eigenen Sachen. Kennt
+  Open Food Facts die Nummer nicht (oder ohne Kalorien): „Nährwerttabelle
+  fotografieren“ (KI) oder „Selbst eintragen“.
+- **Rezept oder Foto.** Rezept als Text oder Foto der Kochbuchseite (bis zu
+  drei Fotos), dazu auf Wunsch die Zahl der Portionen; oder „Packung,
+  Nährwerte“ mit dem Foto der Nährwerttabelle. Die KI liefert kcal und
+  Kohlenhydrate je 100 g, das ganze Rezept, das Gewicht des fertigen Gerichts
+  und „So hat die KI gerechnet“ (je Zutat). Die Portionen stellt man im
+  Ergebnis um (1 bis 8), dann „Speichern und eintragen“ oder „Nur speichern“.
+- **In Gramm eintragen:** Jede Sache mit kcal je 100 g (Strichcode, KI, und
+  „Selbst eintragen“ mit „pro 100 g“) hat im Eintragen ein Feld „oder genau
+  … g“, das sofort rechnet.
+
+**Wo die KI läuft.** In der Supabase-Funktion `mahlzeit-ki`
+(`supabase/functions/mahlzeit-ki/`, Projekt „Finanzdienste's Project“, neben
+`amy-chat`) mit dem Anthropic-Schlüssel, der dort schon für „Frag mal“ liegt –
+auf dem Handy liegt kein Schlüssel. Modell Claude Opus 5.5, Aufwand mittel,
+festes JSON-Schema, bei einer Ablehnung springt ein anderes Modell ein
+(`fallbacks: "default"`). Die Funktion kappt unmögliche Zahlen (mehr als
+950 kcal je 100 g) und rechnet beim Rezept je 100 g aus Summe und Gewicht.
+Kosten: rund 2 bis 5 Cent je Auswertung; sie stehen in `mahlzeit_ki` und, für
+die Übersicht in „Frag mal“, in `fragmal_kosten` (App „mahlzeit“).
+
+**Freischalt-Code.** Die Funktion antwortet nur mit einem Code (Kopf
+`x-zugang`); gespeichert ist nur seine Prüfsumme in `mahlzeit_zugang`. Uwe
+bekommt ihn im Link: `…/mahlzeit/#ki=ABCDE-FGHJK` – die App merkt ihn sich
+(eigener Schlüssel `mahlzeit.ki.v1`, nicht in der Sicherung) und nimmt ihn aus
+der Adresse. Unter *Mehr → KI und Strichcode* lässt er sich eintippen oder
+entfernen. **iPhone:** Die App vom Home-Bildschirm hat einen eigenen Speicher,
+deshalb zeigt die Startbildschirm-Karte in Safari den Code mit „kopieren“.
+Grenzen: 30 Auswertungen je Code und Tag, 100 für alle zusammen.
+
+- Code sperren: `update mahlzeit_zugang set aktiv = false where name = 'Uwe';`
+- Neuer Code: zehn Zeichen aus `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, die
+  SHA-256 der Zeichen (ohne Bindestrich, groß) als `hash` eintragen.
+
+**Am 17.11. war das Anthropic-Guthaben leer** („Your credit balance is too
+low“) – die Funktion lief, die KI nicht, „Frag mal“ genauso. Für so einen
+Fehler (400/401/403/404 von Anthropic) sagt die App „Die KI ist gerade nicht
+verfügbar. Sag Tobi Bescheid“ statt „gleich noch einmal versuchen“.
+
+Geprüft in `tests/test-mz-ki.mjs` (die Funktion in Node, mit nachgebauter
+Datenbank und KI), `tests/test-mz-scan.mjs` (die App, mit nachgebautem Open
+Food Facts, nachgebauter Funktion und nachgebauter Kamera) und
+`tests/test-mz-rechnen.mjs` (Prüfziffer, Open Food Facts lesen, Portionen).
+
 ## Heute
 
 Tagessumme groß, darunter die Kohlenhydrate (für den Blutzucker zählen die
@@ -182,8 +244,10 @@ Grenze, die `schilddruese/README.md` („Keine Weitergabe an Dritte“) zieht.
 
 ## Daten
 
-Alles in einem Schlüssel im localStorage des Handys, `mahlzeit.stand.v1`.
-Nach draußen geht nichts – kein Rückkanal, keine Zählung, kein Server.
+Alles in einem Schlüssel im localStorage des Handys, `mahlzeit.stand.v1`
+(der KI-Code daneben in `mahlzeit.ki.v1`). Von sich aus geht nichts nach
+draußen – kein Rückkanal, keine Zählung. Nur auf Tipp: die Nummer eines
+Strichcodes an Open Food Facts, Rezepttext und Fotos an die KI (v3).
 
 - **Im selben Ursprung** (`finanzdienste.github.io`) wohnen Workout,
   Schilddrüse, Boxenstopp und Body Check, und der localStorage gehört allen
@@ -232,6 +296,9 @@ Startbildschirm müsste er neu anlegen.
 | `js/rechnen.js` | alles Rechnen ohne Seite: Suche, Summen, Tage, Hafertage, Kalenderdatei, Sicherung |
 | `js/lebensmittel.js` | die Liste: Kennung, Name, Portion, kcal, Kohlenhydrate, Bereich, Suchwörter, Tipp |
 | `js/speicher.js` | localStorage, nur Schlüssel mit `mahlzeit.` |
+| `js/strichcode.js` | Prüfziffer, Open Food Facts, Kamera (`BarcodeDetector`) |
+| `js/ki.js` | Freischalt-Code, Anfrage an `mahlzeit-ki`, Fotos verkleinern |
+| `supabase/functions/mahlzeit-ki/` | die Funktion: `handler.ts` (ohne Deno und SDK, in Node geprüft), `index.ts` (SDK und Datenbank) |
 | `sw.js` | Service Worker, Vorrat `mahlzeit-…` |
 | `icon.svg` | Symbol; PNGs mit `node tools/mahlzeit-icons.mjs` |
 
@@ -252,10 +319,14 @@ Die Kennungen in `js/lebensmittel.js` ändern sich nie – alte Einträge und
   der Workout-App.
 - `tests/test-mz-einrichten.mjs`: Startbildschirm je Handy, die Hafer-Frage,
   Runden am Stück.
+- `tests/test-mz-ki.mjs`, `tests/test-mz-scan.mjs`: KI und Strichcode (v3).
+  Kein Test geht ins echte Netz – `mz-hilfe.mjs` sperrt Supabase und Open
+  Food Facts, jeder Test baut sie nach.
 
 `node tests/lauf.mjs test-mz-`
 
 ## Offen
 
-- Strichcode scannen (Open Food Facts) wäre der nächste Schritt für
-  Verpacktes; auf dem iPhone fehlt Safari dafür aber die Schnittstelle.
+- Die erste echte Auswertung, sobald das Anthropic-Guthaben aufgeladen ist.
+- Sportmodus für Uwe (Beweglichkeit, Hanteln, Schwungstäbe, Schwingstab,
+  Wackelkissen) – Tobi, 17.11.: „Lass noch nen Sportmodus einbauen.“

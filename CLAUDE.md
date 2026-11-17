@@ -143,7 +143,12 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Mahlzeit v1 unter https://finanzdienste.github.io/Workout/mahlzeit/ (README
   „Mahlzeit im Unterordner“). Mahlzeit v2: Anleitung zum Startbildschirm je
   Handy (iPhone nach Safari-Fassung, mit Symbolen) und die Hafer-Frage
-  (verteilt oder am Stück) stellt die App dem Kollegen selbst.
+  (verteilt oder am Stück) stellt die App dem Kollegen selbst. Mahlzeit v3:
+  Strichcode (Open Food Facts) und KI für Rezepte/Fotos über die
+  Supabase-Funktion `mahlzeit-ki` (Code in `mahlzeit/supabase/functions/`,
+  ausgeliefert per Supabase-MCP; Freischalt-Codes in `mahlzeit_zugang`, der
+  Kollege heißt Uwe). Am 17.11. war das Anthropic-Guthaben leer – auch für
+  „Frag mal“.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,
