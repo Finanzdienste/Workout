@@ -148,7 +148,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Supabase-Funktion `mahlzeit-ki` (Code in `mahlzeit/supabase/functions/`,
   ausgeliefert per Supabase-MCP; Freischalt-Codes in `mahlzeit_zugang`, der
   Kollege heißt Uwe). Am 17.11. war das Anthropic-Guthaben leer – auch für
-  „Frag mal“.
+  „Frag mal“. Mahlzeit v4: Reiter „Sport“ (Beweglichkeit täglich,
+  Kraft 2–3× mit Uwes Hanteln, Schwungstäben, Schwingstab, Wackelkissen,
+  Heimtrainer; `js/sport.js`).
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

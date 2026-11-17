@@ -15,8 +15,9 @@ import * as R from './rechnen.js';
 import { lesen, aendern, allesLoeschen, neueId, SCHLUESSEL } from './speicher.js';
 import * as S from './strichcode.js';
 import * as K from './ki.js';
+import * as SP from './sport.js';
 
-export const FASSUNG = 'v3';
+export const FASSUNG = 'v4';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -70,6 +71,7 @@ function zeige() {
   const stand = lesen();
   if (zustand.seite === 'hafer') main.innerHTML = seiteHafer(stand);
   else if (zustand.seite === 'werte') main.innerHTML = seiteWerte(stand);
+  else if (zustand.seite === 'sport') main.innerHTML = seiteSport(stand);
   else if (zustand.seite === 'mehr') main.innerHTML = seiteMehr(stand);
   else main.innerHTML = seiteHeute(stand);
   document.querySelectorAll('.leiste [data-seite]').forEach((b) => {
@@ -236,6 +238,7 @@ function installierenHtml() {
 
 function kartenUnten(stand, tag, h) {
   let html = '';
+  if (tag === h) html += sportKarte(stand, h);
   if (tag === h && !R.istHafertag(stand, tag)) html += haferVorschau(stand, h);
   if (tag === h && sicherungFaellig(stand, h)) {
     html += `<section class="karte hinweis" id="sicherung-hinweis">
@@ -620,6 +623,8 @@ function oeffneEbene(neu) {
 
 function schliesseEbene({ ausVerlauf = false } = {}) {
   if (!ebene) return;
+  uhrAus();
+  wachBleibenAus();
   ebene = null;
   const el = $('#ebene');
   el.hidden = true;
@@ -660,6 +665,8 @@ function zeigeEbene() {
     if (S.kannLive() && !ebene.nichtGefunden) kameraAn();
   } else if (ebene.art === 'rezept') {
     el.innerHTML = rezeptHtml();
+  } else if (ebene.art === 'training') {
+    el.innerHTML = trainingHtml();
   } else if (ebene.art === 'ki-ergebnis') {
     el.innerHTML = ergebnisHtml();
   } else if (ebene.art === 'sache') {
@@ -787,6 +794,271 @@ function bearbeitenHtml(stand) {
         <button type="button" class="knopf gefahr" data-tun="loeschen" id="loeschen">Löschen</button>
       </div>
     </div>`;
+}
+
+// --- Sport (v4) ------------------------------------------------------------
+
+/*
+ * Tobi: „Lass noch nen Sportmodus einbauen. Uwe brauch auch bewerglichkeit
+ * und so …" – „er meint er ist sehr steif". Beweglichkeit jeden Tag, Kraft
+ * und Ausdauer zwei- oder dreimal die Woche mit dem, was er zu Hause hat.
+ * Übungen, Auswahl und Gewichte in sport.js; hier nur Anzeige und Uhr.
+ */
+
+const profilVon = (sport) => ({ geraete: sport.geraete, beschwerden: sport.beschwerden });
+
+function sportKarte(stand, h) {
+  const sp = stand.sport;
+  if (!sp.eingerichtet) {
+    if (stand.hinweise.sportNeu) return '';
+    return `<section class="karte hinweis" id="sport-neu">
+      <p>🤸 <strong>Neu: Sport.</strong> Jeden Tag zehn Minuten Beweglichkeit und zwei-, dreimal die Woche Training mit dem, was du zu Hause hast.</p>
+      <div class="reihe"><button type="button" class="knopf" data-tun="seite" data-seite="sport">Ansehen</button>
+      <button type="button" class="knopf leise" data-tun="hinweis-weg" data-hinweis="sportNeu">Später</button></div>
+    </section>`;
+  }
+  const d = SP.heuteDran(sp, h);
+  if (!d.beweglich && !d.kraft) return '';
+  const min = SP.minuten(SP.einheit('beweglich', profilVon(sp)));
+  return `<section class="karte sport-klein" id="sport-heute-karte">
+    <p>🤸 ${d.beweglich ? `<strong>Beweglichkeit:</strong> ${min} Minuten – heute noch nicht.` : '<strong>Beweglichkeit</strong> ✓'}${d.kraft ? ' Kraft und Ausdauer ist auch dran.' : ''}</p>
+    <div class="reihe">
+      ${d.beweglich ? '<button type="button" class="knopf haupt" data-tun="training" data-typ="beweglich">Los geht’s</button>' : ''}
+      ${d.kraft ? '<button type="button" class="knopf" data-tun="training" data-typ="kraft">Kraft &amp; Ausdauer</button>' : ''}
+    </div>
+  </section>`;
+}
+
+function seiteSport(stand) {
+  const sp = stand.sport;
+  const h = heute();
+  if (!sp.eingerichtet || zustand.sportEinrichten) return `<h2 class="seitentitel">Sport 🤸</h2>${sportEinrichtenHtml(sp)}`;
+  const d = SP.heuteDran(sp, h);
+  const beweglich = SP.einheit('beweglich', profilVon(sp));
+  const kraft = SP.einheit('kraft', profilVon(sp));
+  const hafertag = R.istHafertag(stand, h);
+  const radHeute = sp.log.filter((l) => l.art === 'rad' && l.tag === h).reduce((s, l) => s + (l.min || 0), 0);
+  const gewicht = R.werteVon(stand, 'gewicht').at(-1)?.wert;
+  const woche = Array.from({ length: 7 }, (_, i) => R.plusTage(h, i - 6));
+  const zeichen = (tag) => {
+    const an = sp.log.filter((l) => l.tag === tag);
+    return [an.some((l) => l.art === 'beweglich') ? '🤸' : '', an.some((l) => l.art === 'kraft') ? '💪' : '', an.some((l) => l.art === 'rad') ? '🚲' : ''].join('');
+  };
+  return `
+  <h2 class="seitentitel">Sport 🤸</h2>
+  <section class="karte" id="sport-heute">
+    <h3>Heute</h3>
+    <div class="einheit-zeile">
+      <div><strong>Beweglichkeit</strong><small>${SP.minuten(beweglich)} Minuten · ${beweglich.length} Übungen · jeden Tag</small></div>
+      ${d.beweglichHeute ? '<span class="erledigt">✓ gemacht</span>' : '<button type="button" class="knopf haupt" data-tun="training" data-typ="beweglich" id="los-beweglich">Los</button>'}
+    </div>
+    <div class="einheit-zeile">
+      <div><strong>Kraft &amp; Ausdauer</strong><small>${SP.minuten(kraft)} Minuten · ${kraft.length} Übungen · diese Woche ${d.kraftWoche} von ${sp.kraftProWoche}</small></div>
+      ${d.kraftHeute ? '<span class="erledigt">✓ gemacht</span>'
+    : `<button type="button" class="knopf${d.kraft && !hafertag ? ' haupt' : ''}" data-tun="training" data-typ="kraft" id="los-kraft">${d.kraft ? 'Los' : 'Trotzdem'}</button>`}
+    </div>
+    <p class="klein leise" id="sport-hinweis">${hafertag ? '🌾 Heute ist Hafertag – lieber nur Beweglichkeit oder locker Rad fahren.'
+    : d.kraft ? 'Heute ist Kraft dran.' : d.kraftHeute || d.kraftWoche < sp.kraftProWoche ? 'Kraft wieder übermorgen – die Muskeln brauchen einen Tag Pause.' : 'Kraft für diese Woche geschafft.'}</p>
+    ${d.serie >= 2 ? `<p id="sport-serie">🔥 ${d.serie} Tage am Stück beweglich</p>` : ''}
+  </section>
+  ${sp.geraete.includes('rad') ? `<section class="karte" id="sport-rad">
+    <h3>🚲 Heimtrainer</h3>
+    <form class="werteform" data-form="rad">
+      <label class="feld"><span class="unsichtbar">Minuten</span><input id="rad-min" inputmode="numeric" autocomplete="off" placeholder="z. B. 30"><span class="einheit">Min</span></label>
+      <button type="submit" class="knopf haupt">Eintragen</button>
+    </form>
+    <div class="chips" role="group" aria-label="Wie anstrengend">${[['locker', 'locker'], ['mittel', 'mittel'], ['zuegig', 'zügig']].map(([id, n]) => `<button type="button" class="chip" data-tun="rad-stufe" data-stufe="${id}" aria-pressed="${(zustand.radStufe || 'mittel') === id}">${n}</button>`).join('')}</div>
+    ${radHeute ? `<p id="rad-heute">Heute: ${radHeute} Minuten${gewicht ? ` · etwa ${R.zahl(SP.radKcal(radHeute, 'mittel', gewicht))} kcal verbraucht` : ''}</p>` : ''}
+  </section>` : ''}
+  <section class="karte" id="sport-woche">
+    <h3>Die letzten 7 Tage</h3>
+    <div class="sport-woche">${woche.map((t) => `<div class="${t === h ? 'heute' : ''}"><span>${zeichen(t) || '·'}</span><small>${esc(R.wochentag(t).slice(0, 2))}</small></div>`).join('')}</div>
+    <p class="klein leise">🤸 Beweglichkeit · 💪 Kraft &amp; Ausdauer · 🚲 Heimtrainer</p>
+  </section>
+  <section class="karte achtung" id="sport-zucker">
+    <p><strong>Sport senkt den Blutzucker.</strong> Nimmst du Insulin oder Tabletten, die Unterzucker machen können: Traubenzucker in Reichweite. Wird dir zittrig oder schwummrig: aufhören, Traubenzucker essen.</p>
+    <p class="klein">Tut etwas weh (stechend, nicht nur ziehen): die Übung auslassen. Dehnen soll ziehen, nicht schmerzen.</p>
+  </section>
+  <section class="karte" id="sport-geraete">
+    <h3>Deine Sachen</h3>
+    <p>${sp.geraete.length ? sp.geraete.map((g) => esc(SP.GERAETE.find((x) => x.id === g)?.n || g)).join(', ') : 'Keine Geräte – alles mit dem eigenen Körper.'}</p>
+    ${sp.hanteln.length ? `<p class="klein">Hanteln: ${sp.hanteln.map((kg) => `${String(kg).replace('.', ',')} kg`).join(', ')}</p>` : ''}
+    ${sp.beschwerden.length ? `<p class="klein">Schont: ${sp.beschwerden.map((b) => esc(SP.BESCHWERDEN.find((x) => x.id === b)?.n || b)).join(', ')}</p>` : ''}
+    <button type="button" class="knopf leise" data-tun="sport-aendern">Ändern</button>
+  </section>`;
+}
+
+function sportEinrichtenHtml(sp) {
+  const chip = (tun, wert, an, text) => `<button type="button" class="chip" data-tun="${tun}" data-wert="${wert}" aria-pressed="${an}">${text}</button>`;
+  return `<section class="karte" id="sport-einrichten">
+    <p>Jeden Tag zehn Minuten Beweglichkeit – gerade wer steif ist, gewinnt mehr durch „jeden Tag ein bisschen“ als durch eine lange Einheit. Dazu zwei-, dreimal die Woche Kraft und Ausdauer mit dem, was du hast.</p>
+    <h3>Was hast du zu Hause?</h3>
+    <div class="chips" role="group" aria-label="Geräte">${SP.GERAETE.map((g) => chip('sport-geraet', g.id, sp.geraete.includes(g.id), `${g.z} ${g.n}`)).join('')}</div>
+    ${sp.geraete.includes('hanteln') ? `<h4>Welche Hanteln? (Gewicht je Hantel)</h4>
+      <div class="chips" role="group" aria-label="Hanteln" id="sport-hanteln">${SP.HANTEL_KG.map((kg) => chip('sport-kg', kg, sp.hanteln.includes(kg), `${kg} kg`)).join('')}</div>
+      <p class="klein leise">Alle antippen, die du hast. Verstellbare Hanteln: die Gewichte, die du einstellen kannst.</p>` : ''}
+    <h3>Zwickt etwas?</h3>
+    <div class="chips" role="group" aria-label="Beschwerden">${SP.BESCHWERDEN.map((b) => chip('sport-beschwerde', b.id, sp.beschwerden.includes(b.id), b.n)).join('')}</div>
+    <p class="klein leise">Was dafür nicht gut ist, lässt die App weg oder nimmt etwas Sanfteres.</p>
+    <h3>Wie oft Kraft und Ausdauer?</h3>
+    <div class="chips" role="group" aria-label="Wie oft">${[2, 3].map((n) => chip('sport-oft', n, sp.kraftProWoche === n, `${n}× die Woche`)).join('')}</div>
+    <p class="fehler" id="sport-fehler" role="alert"></p>
+    <button type="button" class="knopf haupt gross-knopf" data-tun="sport-fertig" id="sport-fertig">Fertig</button>
+  </section>`;
+}
+
+// --- Die Einheit ------------------------------------------------------------
+
+let uhr = null;
+let wachBleiben = null;
+
+function uhrAus() {
+  if (uhr) { clearInterval(uhr.id); uhr = null; }
+}
+
+function wachBleibenAus() {
+  if (wachBleiben) { wachBleiben.release?.().catch(() => {}); wachBleiben = null; }
+}
+
+/** Abschnitte der Uhr: je Seite zweimal, Runden mit Pausen dazwischen. */
+function phasen(u) {
+  if (u.d.runden) {
+    const p = [];
+    for (let r = 1; r <= u.d.runden; r++) {
+      p.push({ sek: u.d.sek, text: `Runde ${r} von ${u.d.runden} – los!` });
+      if (r < u.d.runden) p.push({ sek: u.d.pause, text: 'Pause' });
+    }
+    return p;
+  }
+  if (u.je) return [{ sek: u.d.sek, text: 'Erste Seite' }, { sek: u.d.sek, text: 'Andere Seite' }];
+  return [{ sek: u.d.sek, text: '' }];
+}
+
+const mmss = (sek) => `${Math.floor(sek / 60)}:${String(Math.max(0, Math.ceil(sek) % 60)).padStart(2, '0')}`;
+
+function piep() {
+  navigator.vibrate?.(150);
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    piep.ctx ||= new Ctx();
+    const o = piep.ctx.createOscillator();
+    const g = piep.ctx.createGain();
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.25, piep.ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, piep.ctx.currentTime + 0.25);
+    o.connect(g).connect(piep.ctx.destination);
+    o.start();
+    o.stop(piep.ctx.currentTime + 0.26);
+  } catch { /* ohne Ton */ }
+}
+
+function uhrStarten() {
+  const u = SP.NACH_ID.get(ebene.liste[ebene.i]);
+  const ph = phasen(u);
+  if (uhr) { // Pause / weiter
+    uhr.laeuft = !uhr.laeuft;
+    uhr.basis = performance.now() - uhr.vergangen * 1000;
+    zeichneUhr();
+    return;
+  }
+  uhr = { ph, idx: 0, laeuft: true, basis: performance.now(), vergangen: 0, fertig: false };
+  uhr.id = setInterval(ticken, 200);
+  zeichneUhr();
+}
+
+function ticken() {
+  if (!uhr || !uhr.laeuft || uhr.fertig) return;
+  uhr.vergangen = (performance.now() - uhr.basis) / 1000;
+  let rest = uhr.vergangen;
+  let idx = 0;
+  while (idx < uhr.ph.length && rest >= uhr.ph[idx].sek) { rest -= uhr.ph[idx].sek; idx++; }
+  if (idx !== uhr.idx) { uhr.idx = idx; piep(); }
+  if (idx >= uhr.ph.length) { uhr.fertig = true; clearInterval(uhr.id); }
+  uhr.rest = idx < uhr.ph.length ? uhr.ph[idx].sek - rest : 0;
+  zeichneUhr();
+}
+
+function zeichneUhr() {
+  const anzeige = $('#uhr');
+  if (!anzeige || !uhr) return;
+  const p = uhr.ph[Math.min(uhr.idx, uhr.ph.length - 1)];
+  anzeige.textContent = uhr.fertig ? '✓' : mmss(uhr.rest ?? p.sek);
+  $('#uhr-text').textContent = uhr.fertig ? 'Geschafft – weiter zur nächsten.' : (p.text || '');
+  $('#uhr-knopf').textContent = uhr.fertig ? 'Noch einmal' : uhr.laeuft ? 'Pause' : 'Weiter';
+}
+
+async function trainingStarten(typ) {
+  const sp = lesen().sport;
+  const liste = SP.einheit(typ, profilVon(sp)).map((u) => u.id);
+  if (!liste.length) return;
+  const kg = {};
+  liste.forEach((id) => { const g = SP.gewichtFuer(SP.NACH_ID.get(id), sp.hanteln, sp.gewichte); if (g) kg[id] = g; });
+  oeffneEbene({ art: 'training', typ, liste, i: 0, kg, urteil: {}, fertig: false, gemacht: 0 });
+  try { wachBleiben = await navigator.wakeLock?.request('screen'); } catch { wachBleiben = null; }
+}
+
+function trainingHtml() {
+  const titel = ebene.typ === 'kraft' ? 'Kraft & Ausdauer' : 'Beweglichkeit';
+  const kopf = `<div class="ebene-kopf">
+      <button type="button" class="rund" data-tun="ebene-zu" aria-label="Beenden">✕</button>
+      <h2>${titel}</h2>
+    </div>`;
+  if (ebene.fertig) {
+    return `${kopf}<div class="ebene-inhalt training-ende" id="training-ende">
+      <p class="gross">💪</p>
+      <h2>Geschafft!</h2>
+      <p>${ebene.gemacht} von ${ebene.liste.length} Übungen, etwa ${ebene.min} Minuten.</p>
+      ${Object.keys(ebene.urteil).length ? '<p class="klein leise">Die Gewichte fürs nächste Mal sind angepasst.</p>' : ''}
+      <button type="button" class="knopf haupt gross-knopf" data-tun="ebene-zu">Fertig</button>
+    </div>`;
+  }
+  const u = SP.NACH_ID.get(ebene.liste[ebene.i]);
+  const kg = ebene.kg[u.id];
+  const zeit = !!u.d.sek;
+  return `${kopf}
+    <div class="ebene-inhalt training">
+      <div class="fortschritt" role="progressbar" aria-valuemin="0" aria-valuemax="${ebene.liste.length}" aria-valuenow="${ebene.i}"><span style="width:${Math.round((ebene.i / ebene.liste.length) * 100)}%"></span></div>
+      <p class="klein leise" id="training-stand">Übung ${ebene.i + 1} von ${ebene.liste.length}</p>
+      <h2 class="uebung-name" id="uebung-name">${esc(u.n)}</h2>
+      <p class="dosis" id="uebung-dosis">${esc(SP.dosis(u))}${kg ? ` · <strong>${String(kg).replace('.', ',')} kg</strong> ${u.eine ? '(eine Hantel)' : 'je Hand'}` : ''}</p>
+      <p id="uebung-text">${esc(u.t)}</p>
+      ${zeit ? `<div class="uhr-block">
+          <p class="uhr" id="uhr" aria-live="off">${mmss(phasen(u)[0].sek)}</p>
+          <p class="klein" id="uhr-text">${esc(phasen(u)[0].text || '')}</p>
+          <button type="button" class="knopf" data-tun="uhr" id="uhr-knopf">Start</button>
+        </div>` : ''}
+      ${kg ? `<h3>Wie war das Gewicht?</h3>
+        <div class="chips" role="group" aria-label="Gewicht">${[['leicht', 'zu leicht'], ['passt', 'passt'], ['schwer', 'zu schwer']].map(([id, n]) => `<button type="button" class="chip" data-tun="urteil" data-urteil="${id}" aria-pressed="${ebene.urteil[u.id] === id}">${n}</button>`).join('')}</div>` : ''}
+      <div class="reihe training-knoepfe">
+        <button type="button" class="knopf haupt" data-tun="training-weiter" id="training-weiter">${ebene.i + 1 < ebene.liste.length ? 'Geschafft – weiter' : 'Geschafft – fertig'}</button>
+        <button type="button" class="knopf leise" data-tun="training-weiter" data-auslassen="1" id="training-auslassen">Auslassen</button>
+      </div>
+    </div>`;
+}
+
+function trainingWeiter(ausgelassen) {
+  uhrAus();
+  if (!ausgelassen) ebene.gemacht++;
+  if (ebene.i + 1 < ebene.liste.length) {
+    ebene.i++;
+    zeigeEbene();
+    $('#ebene').scrollTo(0, 0);
+    return;
+  }
+  // Ende: festhalten, Gewichte fürs nächste Mal
+  const h = heute();
+  const min = SP.minuten(ebene.liste.map((id) => SP.NACH_ID.get(id)));
+  const { typ, urteil, kg, gemacht } = ebene;
+  aendern((s) => {
+    s.sport.log.push({ tag: h, art: typ, min, n: gemacht });
+    Object.entries(urteil).forEach(([id, wert]) => {
+      if (kg[id]) s.sport.gewichte[id] = SP.naechstesGewicht(kg[id], s.sport.hanteln, wert);
+    });
+  });
+  ebene = { ...ebene, fertig: true, min };
+  wachBleibenAus();
+  zeigeEbene();
 }
 
 // --- Strichcode, Rezept und Foto (v3) --------------------------------------
@@ -1244,6 +1516,18 @@ function wertEintragen(art) {
   meldung('Eingetragen.');
 }
 
+function radEintragen() {
+  const min = R.leseZahl($('#rad-min').value);
+  if (!Number.isInteger(min) || min < 1 || min > 300) {
+    meldung('Bitte die Minuten als ganze Zahl, z. B. 30.');
+    return;
+  }
+  const stufe = zustand.radStufe || 'mittel';
+  aendern((s) => { s.sport.log.push({ tag: heute(), art: 'rad', min, stufe }); });
+  zeige();
+  meldung(`${min} Minuten Rad eingetragen. 🚲`);
+}
+
 function wertWeg(id) {
   let alt = null;
   aendern((s) => {
@@ -1383,6 +1667,51 @@ document.addEventListener('click', (ev) => {
       break;
     case 'hafer-mahlzeit': haferMahlzeit(Number(el.dataset.i)); break;
     case 'hafer-tag': haferTag(el.dataset.tag); break;
+    case 'sport-geraet':
+    case 'sport-beschwerde': {
+      const feld = tun === 'sport-geraet' ? 'geraete' : 'beschwerden';
+      const w = el.dataset.wert;
+      aendern((s) => { s.sport[feld] = s.sport[feld].includes(w) ? s.sport[feld].filter((x) => x !== w) : [...s.sport[feld], w]; });
+      zeige();
+      break;
+    }
+    case 'sport-kg': {
+      const kg = Number(el.dataset.wert);
+      aendern((s) => { s.sport.hanteln = s.sport.hanteln.includes(kg) ? s.sport.hanteln.filter((x) => x !== kg) : [...s.sport.hanteln, kg].sort((a, b) => a - b); });
+      zeige();
+      break;
+    }
+    case 'sport-oft':
+      aendern((s) => { s.sport.kraftProWoche = Number(el.dataset.wert); });
+      zeige();
+      break;
+    case 'sport-fertig': {
+      const sp = lesen().sport;
+      if (sp.geraete.includes('hanteln') && !sp.hanteln.length) {
+        $('#sport-fehler').textContent = 'Welche Hanteln hast du? Bitte die Gewichte antippen – oder die Kurzhanteln abwählen.';
+        break;
+      }
+      aendern((s) => { s.sport.eingerichtet = true; });
+      zustand.sportEinrichten = false;
+      zeige();
+      window.scrollTo(0, 0);
+      break;
+    }
+    case 'sport-aendern': zustand.sportEinrichten = true; zeige(); window.scrollTo(0, 0); break;
+    case 'training': trainingStarten(el.dataset.typ); break;
+    case 'training-weiter': trainingWeiter(!!el.dataset.auslassen); break;
+    case 'uhr':
+      if (uhr?.fertig) uhrAus();
+      uhrStarten();
+      break;
+    case 'urteil':
+      ebene.urteil[ebene.liste[ebene.i]] = el.dataset.urteil;
+      el.parentElement.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c === el)));
+      break;
+    case 'rad-stufe':
+      zustand.radStufe = el.dataset.stufe;
+      el.parentElement.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c === el)));
+      break;
     case 'hafer-oft':
       aendern((s) => { s.hafer.proMonat = Number(el.dataset.n); });
       zeige();
@@ -1511,6 +1840,7 @@ document.addEventListener('submit', (ev) => {
   if (form.dataset.form === 'eigen') eigenEintragen();
   else if (form.dataset.form === 'ean') strichcodeGefunden($('#ean').value);
   else if (form.dataset.form === 'ki-code') freischalten(form);
+  else if (form.dataset.form === 'rad') radEintragen();
   else wertEintragen(form.dataset.form);
 });
 

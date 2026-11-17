@@ -6,6 +6,8 @@
  * (tests/test-mz-rechnen.mjs), und die Ansicht zeigt nur an.
  */
 
+import { sportOrdnen } from './sport.js';
+
 // --- Tage ------------------------------------------------------------------
 
 const zwei = (n) => String(n).padStart(2, '0');
@@ -511,6 +513,7 @@ export function leererStand() {
     werte: [],
     hinweise: {},
     sicherung: null,
+    sport: sportOrdnen(null),
   };
 }
 
@@ -539,6 +542,7 @@ export function ordnen(roh) {
   if (Array.isArray(roh.werte)) s.werte = roh.werte.filter((w) => w && ['gewicht', 'zucker', 'hba1c'].includes(w.art) && Number.isFinite(w.wert) && /^\d{4}-\d{2}-\d{2}$/.test(w.tag));
   if (roh.hinweise && typeof roh.hinweise === 'object') s.hinweise = { ...roh.hinweise };
   if (typeof roh.sicherung === 'string') s.sicherung = roh.sicherung;
+  s.sport = sportOrdnen(roh.sport);
   return s;
 }
 

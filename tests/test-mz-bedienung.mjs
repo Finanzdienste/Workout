@@ -173,7 +173,7 @@ check((await page.locator('#karte-hba1c').innerText()).includes('7,2 %'), 'HbA1c
 
 // --- Schmale Handys
 await page.setViewportSize({ width: 340, height: 700 });
-for (const reiter of ['heute', 'hafer', 'werte', 'mehr']) {
+for (const reiter of ['heute', 'hafer', 'sport', 'werte', 'mehr']) {
   await page.click(`#reiter-${reiter}`);
   const breit = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check(breit <= 0, `340 px breit, „${reiter}": nichts läuft über den Rand (${breit})`);

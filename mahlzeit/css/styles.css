@@ -253,7 +253,7 @@ button, .knopf { font: inherit; color: inherit; }
   padding: .2rem .2rem calc(.2rem + env(safe-area-inset-bottom));
 }
 .leiste button {
-  flex: 1; max-width: 160px; display: flex; flex-direction: column; align-items: center; gap: .1rem;
+  flex: 1; max-width: 140px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .1rem;
   min-height: 56px; border: none; background: none; cursor: pointer; font-size: .8rem; color: var(--leise); font-weight: 600;
 }
 .leiste button span { font-size: 1.3rem; }
@@ -290,3 +290,22 @@ button, .knopf { font: inherit; color: inherit; }
 .rechnung { margin: .6rem 0; }
 .rechnung summary { cursor: pointer; font-weight: 600; color: var(--haupt); min-height: 32px; }
 .ki-freischalten .fehler { margin: .3rem 0 0; }
+
+/* Sport (v4) */
+.sport-klein { background: var(--haupt-hell); border-color: transparent; }
+.einheit-zeile { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .5rem 0; border-bottom: 1px solid var(--linie); }
+.einheit-zeile:last-of-type { border-bottom: none; }
+.einheit-zeile small { display: block; color: var(--leise); }
+.erledigt { color: var(--haupt); font-weight: 700; white-space: nowrap; }
+.sport-woche { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; text-align: center; }
+.sport-woche div { padding: .3rem 0; border-radius: 10px; min-width: 0; }
+.sport-woche div.heute { background: var(--haupt-hell); }
+.sport-woche span { display: block; min-height: 1.5em; font-size: .95rem; overflow-wrap: anywhere; }
+.fortschritt { height: 8px; border-radius: 99px; background: var(--linie); overflow: hidden; margin: .5rem 0 .2rem; }
+.fortschritt span { display: block; height: 100%; background: var(--haupt); }
+.uebung-name { font-size: 1.5rem; margin: .4rem 0 .2rem; }
+.dosis { font-size: 1.15rem; font-weight: 600; color: var(--haupt); }
+.uhr-block { text-align: center; margin: .8rem 0; padding: .6rem; border-radius: 16px; background: var(--karte); border: 1px solid var(--linie); }
+.uhr { font-size: 3.2rem; font-weight: 800; margin: 0; font-variant-numeric: tabular-nums; }
+.training-knoepfe .knopf.haupt { flex: 1; min-height: 56px; font-size: 1.1rem; }
+.training-ende { text-align: center; }

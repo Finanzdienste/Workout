@@ -171,6 +171,65 @@ Datenbank und KI), `tests/test-mz-scan.mjs` (die App, mit nachgebautem Open
 Food Facts, nachgebauter Funktion und nachgebauter Kamera) und
 `tests/test-mz-rechnen.mjs` (Prüfziffer, Open Food Facts lesen, Portionen).
 
+## Sport (v4, 17.11.2026)
+
+> Tobi: „Lass noch nen Sportmodus einbauen. Uwe brauch auch bewerglichkeit
+> und so. Können wir ja basierend auf meiner workout app machen. Er soll auch
+> eintragen können was er für Hanteln und Gewichte hat und so“ – dazu Fotos
+> von Schwungstäben (seillose Battle Ropes) und einem Schwingstab, „und n
+> wackelkissen“, „Hometrainer Fahrrad hat er auch“, „er meint er ist sehr
+> steif“.
+
+Ein fünfter Reiter **Sport**. Beim ersten Öffnen dort (nicht beim Start der
+App) drei Fragen: was er zu Hause hat (Kurzhanteln mit den Gewichten je
+Hantel, Heimtrainer, Schwungstäbe, Schwingstab, Wackelkissen, Matte), ob
+etwas zwickt (Rücken, Knie, Schulter, Nacken, Hüfte), und ob Kraft zwei- oder
+dreimal die Woche. „Ändern“ holt die Fragen zurück.
+
+- **Beweglichkeit jeden Tag**, rund zehn Minuten, zehn Übungen von oben nach
+  unten (Schultern, Nacken, Brust, Rumpf drehen, Katze–Kuh, Hüftbeuger,
+  Beinbeuger, Wade, Gesäß, Schwingstab). Weil er sehr steif ist: sanfte
+  Dauer (30–60 s), alles im Stehen oder Sitzen möglich; ohne Matte die
+  Katze–Kuh im Stehen. Die Texte stammen aus der Workout-App (`CARE` in
+  `js/injuries.js`), kopiert, nicht verlinkt – eine Änderung an Tobis Plan
+  verschiebt Uwes App nicht.
+- **Kraft & Ausdauer** zwei- oder dreimal die Woche, nie zwei Tage
+  hintereinander: Rad zum Aufwärmen (sonst auf der Stelle gehen), Kniebeuge
+  zum Stuhl (mit Hantel als Goblet), Liegestütz an der Wand, Rudern,
+  Schulterdrücken im Sitzen, Beckenheben, Bird Dog, Bizeps, Einbeinstand auf
+  dem Wackelkissen, Schwingstab, Schwungstäbe (3 × 30 s), Rad-Intervalle.
+  Fehlt ein Gerät, kommt der Ersatz ohne; verträgt eine Beschwerde eine Übung
+  nicht, fällt sie weg oder wird sanfter (Rücken: Schulterblätter statt
+  vorgebeugtem Rudern; Schulter: kein Drücken, keine Schwungstäbe; Knie:
+  keine Kniebeuge).
+- **Die Hanteln:** Startgewicht ist die schwerste Hantel bis zum Zielwert der
+  Übung (Goblet 8, Rudern 6, Bizeps 5, Schulterdrücken 4 kg). Nach jeder
+  Hantelübung „zu leicht / passt / zu schwer“ – beim nächsten Mal die
+  nächste bzw. leichtere Hantel, die er hat.
+- **Die Einheit** läuft Schritt für Schritt: Name, Dosis, Gewicht,
+  Anleitung, bei Zeitübungen eine Uhr (je Seite in zwei Hälften, Runden mit
+  Pausen, Ton und Vibration beim Wechsel; der Bildschirm bleibt an).
+  „Geschafft – weiter“ oder „Auslassen“; am Ende festgehalten.
+- **Heimtrainer** lässt sich auch einzeln eintragen (Minuten, locker /
+  mittel / zügig); mit einem Gewicht unter „Werte“ steht dabei, wie viele kcal
+  ungefähr verbraucht wurden. Die verbrauchten kcal zählen nicht gegen das
+  Essen – das bleibt eine eigene, ehrliche Zahl.
+- **Auf „Heute“:** ist die Beweglichkeit noch nicht gemacht, eine Karte mit
+  „Los geht’s“ (und, wenn dran, „Kraft & Ausdauer“). Am Hafertag rät die
+  Sportseite zu Beweglichkeit oder lockerem Rad.
+- Fest auf der Sportseite: Sport senkt den Blutzucker – mit Insulin oder
+  solchen Tabletten Traubenzucker in Reichweite; stechender Schmerz heißt
+  auslassen.
+
+Nicht übernommen: die drehbaren 3D-Figuren der Workout-App
+(`js/figure.js`) – für Schwungstäbe, Schwingstab und Wackelkissen gibt es dort
+keine Haltungen, und ohne Figur sind die Anleitungen so geschrieben, dass man
+sie ohne Bild versteht.
+
+Geprüft in `tests/test-mz-sport.mjs` (Auswahl je Gerät und Beschwerde,
+Hanteln, was dran ist, die Einheit mit Uhr im Browser, Gewicht anpassen,
+Heimtrainer, 340 px).
+
 ## Heute
 
 Tagessumme groß, darunter die Kohlenhydrate (für den Blutzucker zählen die
@@ -297,6 +356,7 @@ Startbildschirm müsste er neu anlegen.
 | `js/lebensmittel.js` | die Liste: Kennung, Name, Portion, kcal, Kohlenhydrate, Bereich, Suchwörter, Tipp |
 | `js/speicher.js` | localStorage, nur Schlüssel mit `mahlzeit.` |
 | `js/strichcode.js` | Prüfziffer, Open Food Facts, Kamera (`BarcodeDetector`) |
+| `js/sport.js` | Sport: Übungen, Auswahl nach Geräten und Beschwerden, Hanteln, was heute dran ist |
 | `js/ki.js` | Freischalt-Code, Anfrage an `mahlzeit-ki`, Fotos verkleinern |
 | `supabase/functions/mahlzeit-ki/` | die Funktion: `handler.ts` (ohne Deno und SDK, in Node geprüft), `index.ts` (SDK und Datenbank) |
 | `sw.js` | Service Worker, Vorrat `mahlzeit-…` |
@@ -328,5 +388,4 @@ Die Kennungen in `js/lebensmittel.js` ändern sich nie – alte Einträge und
 ## Offen
 
 - Die erste echte Auswertung, sobald das Anthropic-Guthaben aufgeladen ist.
-- Sportmodus für Uwe (Beweglichkeit, Hanteln, Schwungstäbe, Schwingstab,
-  Wackelkissen) – Tobi, 17.11.: „Lass noch nen Sportmodus einbauen.“
+- Zeichnungen für die Sportübungen.
