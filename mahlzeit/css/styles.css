@@ -309,3 +309,20 @@ button, .knopf { font: inherit; color: inherit; }
 .uhr { font-size: 3.2rem; font-weight: 800; margin: 0; font-variant-numeric: tabular-nums; }
 .training-knoepfe .knopf.haupt { flex: 1; min-height: 56px; font-size: 1.1rem; }
 .training-ende { text-align: center; }
+
+/* Zeichnungen (v5) */
+.figur { display: block; width: 100%; max-width: 260px; height: auto; margin: .3rem auto; background: var(--karte); border-radius: 16px; border: 1px solid var(--linie); }
+.figur line, .figur path, .figur circle, .figur ellipse { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.figur .glied, .figur .rumpf { stroke: var(--text); stroke-width: 3.6; }
+.figur .glied.hinten { stroke: var(--leise); opacity: .75; }
+.figur .kopf { fill: var(--text); stroke: none; }
+.figur .boden { stroke: var(--linie); stroke-width: 1.5; }
+.figur .ding, .figur .rad circle, .figur .rad path { stroke: var(--leise); stroke-width: 2.5; }
+.figur .wand { stroke: var(--linie); }
+.figur .matte { stroke: var(--haupt); opacity: .6; }
+.figur .eisen { stroke: var(--gefahr); }
+.figur .stab { stroke: var(--haupt); }
+.figur .stab.hinten { opacity: .6; }
+.figur .kissen { fill: var(--haupt); opacity: .5; stroke: none; }
+.figur .pfeil { stroke: var(--haupt); stroke-width: 1.6; }
+.figur .hinweis-text { fill: var(--haupt); font-size: 9px; stroke: none; }

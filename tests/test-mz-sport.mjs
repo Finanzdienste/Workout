@@ -12,6 +12,7 @@
  */
 import * as SP from '../mahlzeit/js/sport.js';
 import * as R from '../mahlzeit/js/rechnen.js';
+import { figur, FIGUREN } from '../mahlzeit/js/figuren.js';
 import { oeffne, pruefer, plus } from './mz-hilfe.mjs';
 
 const { check, ende } = pruefer();
@@ -74,6 +75,15 @@ check(!leer.eingerichtet && leer.kraftProWoche === 2 && leer.log.length === 0, '
 check(R.ordnen({ sport: { eingerichtet: true, geraete: ['rad', 'quatsch'], hanteln: [5, 5, -1, 8] } }).sport.geraete.join() === 'rad'
   && R.ordnen({ sport: { hanteln: [8, 5, 5, -1] } }).sport.hanteln.join() === '5,8', 'Speicher: unbekannte Geräte und doppelte Hanteln fliegen raus (auch in der Sicherung)');
 
+// --- Zeichnungen (v5): Tobi, „Mach Zeichnungen für die Sportübungen"
+const ohneBild = SP.UEBUNGEN.filter((u) => !figur(u.id));
+check(!ohneBild.length, `jede Übung hat eine Zeichnung${ohneBild.length ? ` – es fehlen: ${ohneBild.map((u) => u.id).join(', ')}` : ''}`);
+check(Object.keys(FIGUREN).every((id) => SP.NACH_ID.has(id)), 'keine Zeichnung ohne Übung');
+const zahlen = SP.UEBUNGEN.flatMap((u) => [...figur(u.id).matchAll(/(?:x[12]|y[12]|cx|cy)="(-?[\d.]+)"/g)].map((m) => Number(m[1])));
+check(zahlen.length > 500 && zahlen.every((z) => z >= 0 && z <= 100), 'alle Punkte im Bild (0 bis 100)');
+check(figur('kniebeugeStuhl').includes('<animate') && !figur('kniebeugeStuhl', { ruhig: true }).includes('<animate'), 'bewegt zwischen Start und Ende; mit „Bewegung reduzieren" still');
+check(figur('rudernKH').includes('class="eisen"') && figur('schwungstaebe').includes('class="stab"') && figur('wackelkissenStand').includes('kissen') && figur('radLocker').includes('class="rad"'), 'die Geräte sind mitgezeichnet: Hantel, Schwungstäbe, Wackelkissen, Rad');
+
 // --- Im Browser
 const TAG = '2026-11-18';
 let o = await oeffne({ tag: TAG, zeit: '18:00' });
@@ -95,6 +105,7 @@ check((await p.locator('#sport-heute').innerText()).includes('diese Woche 0 von 
 // Beweglichkeit mit Uhr
 await p.click('#los-beweglich');
 check((await p.locator('#uebung-name').innerText()) === 'Schultern kreisen' && (await p.locator('#uhr').innerText()) === '0:45', 'erste Übung: Schultern kreisen, Uhr auf 0:45');
+check(await p.locator('#ebene svg.figur').isVisible(), 'mit Zeichnung über dem Namen');
 await p.click('#uhr-knopf');
 await p.waitForTimeout(1600);
 const lauf = await p.locator('#uhr').innerText();

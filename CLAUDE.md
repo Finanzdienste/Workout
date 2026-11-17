@@ -150,7 +150,8 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Kollege heißt Uwe). Am 17.11. war das Anthropic-Guthaben leer – auch für
   „Frag mal“. Mahlzeit v4: Reiter „Sport“ (Beweglichkeit täglich,
   Kraft 2–3× mit Uwes Hanteln, Schwungstäben, Schwingstab, Wackelkissen,
-  Heimtrainer; `js/sport.js`).
+  Heimtrainer; `js/sport.js`). Mahlzeit v5: Strichfiguren je Übung
+  (`js/figuren.js`).
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

@@ -16,8 +16,9 @@ import { lesen, aendern, allesLoeschen, neueId, SCHLUESSEL } from './speicher.js
 import * as S from './strichcode.js';
 import * as K from './ki.js';
 import * as SP from './sport.js';
+import { figur } from './figuren.js';
 
-export const FASSUNG = 'v4';
+export const FASSUNG = 'v5';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -1020,6 +1021,7 @@ function trainingHtml() {
     <div class="ebene-inhalt training">
       <div class="fortschritt" role="progressbar" aria-valuemin="0" aria-valuemax="${ebene.liste.length}" aria-valuenow="${ebene.i}"><span style="width:${Math.round((ebene.i / ebene.liste.length) * 100)}%"></span></div>
       <p class="klein leise" id="training-stand">Übung ${ebene.i + 1} von ${ebene.liste.length}</p>
+      ${figur(u.id, { ruhig: matchMedia('(prefers-reduced-motion: reduce)').matches })}
       <h2 class="uebung-name" id="uebung-name">${esc(u.n)}</h2>
       <p class="dosis" id="uebung-dosis">${esc(SP.dosis(u))}${kg ? ` · <strong>${String(kg).replace('.', ',')} kg</strong> ${u.eine ? '(eine Hantel)' : 'je Hand'}` : ''}</p>
       <p id="uebung-text">${esc(u.t)}</p>

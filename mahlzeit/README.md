@@ -221,10 +221,15 @@ dreimal die Woche. „Ändern“ holt die Fragen zurück.
   solchen Tabletten Traubenzucker in Reichweite; stechender Schmerz heißt
   auslassen.
 
-Nicht übernommen: die drehbaren 3D-Figuren der Workout-App
-(`js/figure.js`) – für Schwungstäbe, Schwingstab und Wackelkissen gibt es dort
-keine Haltungen, und ohne Figur sind die Anleitungen so geschrieben, dass man
-sie ohne Bild versteht.
+**Zeichnungen (v5).** Tobi: „Mach Zeichnungen für die Sportübungen.“ Jede
+Übung hat eine Strichfigur in der Seitenansicht (`js/figuren.js`), mit Stuhl,
+Wand, Türrahmen, Stufe, Matte, Hantel, Schwungstäben, Schwingstab,
+Wackelkissen oder Rad. Die Figur pendelt langsam zwischen Ausgangs- und
+Endstellung (SVG-Animation, 4 s); mit „Bewegung reduzieren“ steht sie still in
+der Ausgangsstellung. Nicht die drehbaren 3D-Figuren der Workout-App
+(`js/figure.js`): Die kennen weder Schwungstäbe noch Schwingstab, Wackelkissen
+oder Heimtrainer. Geprüft in `tests/test-mz-sport.mjs` (jede Übung hat eine,
+alle Punkte im Bild, Geräte mitgezeichnet, still bei reduzierter Bewegung).
 
 Geprüft in `tests/test-mz-sport.mjs` (Auswahl je Gerät und Beschwerde,
 Hanteln, was dran ist, die Einheit mit Uhr im Browser, Gewicht anpassen,
@@ -356,6 +361,7 @@ Startbildschirm müsste er neu anlegen.
 | `js/lebensmittel.js` | die Liste: Kennung, Name, Portion, kcal, Kohlenhydrate, Bereich, Suchwörter, Tipp |
 | `js/speicher.js` | localStorage, nur Schlüssel mit `mahlzeit.` |
 | `js/strichcode.js` | Prüfziffer, Open Food Facts, Kamera (`BarcodeDetector`) |
+| `js/figuren.js` | Strichfiguren der Sportübungen, Start- und Endstellung |
 | `js/sport.js` | Sport: Übungen, Auswahl nach Geräten und Beschwerden, Hanteln, was heute dran ist |
 | `js/ki.js` | Freischalt-Code, Anfrage an `mahlzeit-ki`, Fotos verkleinern |
 | `supabase/functions/mahlzeit-ki/` | die Funktion: `handler.ts` (ohne Deno und SDK, in Node geprüft), `index.ts` (SDK und Datenbank) |
@@ -388,4 +394,3 @@ Die Kennungen in `js/lebensmittel.js` ändern sich nie – alte Einträge und
 ## Offen
 
 - Die erste echte Auswertung, sobald das Anthropic-Guthaben aufgeladen ist.
-- Zeichnungen für die Sportübungen.

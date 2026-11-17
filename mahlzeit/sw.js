@@ -21,7 +21,7 @@
  * vergleicht beide).
  */
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `mahlzeit-${VERSION}`;
 
 const SHELL = [
@@ -35,6 +35,7 @@ const SHELL = [
   './js/strichcode.js',
   './js/ki.js',
   './js/sport.js',
+  './js/figuren.js',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
