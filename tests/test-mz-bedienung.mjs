@@ -128,19 +128,24 @@ check((await page.locator('#ziel-text').innerText()).startsWith('von 2.300'), 'e
 // --- Hafertage planen
 await page.click('#willkommen [data-tun="hinweis-weg"]');
 check(await page.locator('#willkommen').count() === 0, '„Alles klar" blendet das Hallo aus');
-check((await page.locator('#hafer-vorschau').innerText()).includes('noch keiner geplant'), 'Startseite: im November noch kein Hafertag geplant');
+check((await page.locator('#hafer-vorschau').innerText()).includes('Wie oft hat dein Arzt gesagt'), 'Startseite: Hafertage einrichten – eine Frage');
 await page.click('#hafer-vorschau [data-tun="seite"]');
 check(await page.locator('#hafer-achtung').isVisible(), 'Hafer-Seite: der Hinweis zum Arzt steht oben');
 check((await page.locator('#hafer-achtung').innerText()).includes('Insulin'), '… mit Insulin und Tabletten');
+await page.click('[data-tun="hafer-art"][data-art="verteilt"]');
+check(await page.locator('[data-tun="hafer-oft"][data-n="3"]').getAttribute('aria-pressed') === 'true', 'verteilt: 3 im Monat vorgewählt');
+await page.click('#reiter-heute');
+check((await page.locator('#hafer-vorschau').innerText()).includes('noch keiner geplant'), 'Startseite: im November noch kein Hafertag geplant');
+await page.click('#hafer-vorschau [data-tun="seite"]');
 await page.click(`[data-tun="hafer-tag"][data-tag="${MORGEN}"]`);
 check(await page.locator(`[data-tun="hafer-tag"][data-tag="${MORGEN}"]`).getAttribute('aria-pressed') === 'true', 'morgen als Hafertag eingetragen');
-check((await page.locator('#hafer-zahl').innerText()).includes('1 Hafertag geplant (Ziel 3)'), 'Zähler: 1 von 3');
+check((await page.locator('#hafer-zahl').innerText()).includes('1 von 3 geplant'), 'Zähler: 1 von 3');
 check((await page.locator('#einkauf').innerText()).includes('225 g Haferflocken'), 'Einkaufsliste: 225 g Haferflocken für einen Tag');
 const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#ics-knopf')]);
 const ics = readFileSync(await dl.path(), 'utf8');
 check(dl.suggestedFilename() === 'hafertage.ics' && ics.includes(`DTSTART;VALUE=DATE:${MORGEN.replace(/-/g, '')}`), 'Kalenderdatei mit dem Hafertag');
 await page.click('[data-tun="hafer-oft"][data-n="2"]');
-check((await page.locator('#hafer-zahl').innerText()).includes('(Ziel 2)'), 'Wie oft: 2 im Monat');
+check((await page.locator('#hafer-zahl').innerText()).includes('1 von 2 geplant'), 'Wie oft: 2 im Monat');
 await page.click('#reiter-heute');
 check((await page.locator('#hafer-vorschau').innerText()).includes('Morgen ist Hafertag'), 'Startseite: „Morgen ist Hafertag"');
 

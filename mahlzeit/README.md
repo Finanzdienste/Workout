@@ -48,6 +48,67 @@ ihren Lehren (Vorrat nur bei der Installation, ganz oder gar nicht), eine
 Kalenderdatei statt Erinnerungen, die ohne Server nicht gehen, die Sicherung
 als Datei, und dass im selben Ursprung andere Apps wohnen (siehe unten).
 
+## In der App statt von Tobi (v2, 17.11.2026)
+
+> Tobi, zur Anleitung, die er dem Kollegen schicken sollte (Startbildschirm,
+> und die Frage, ob der Arzt 3 Hafertage im Monat oder 3 am Stück meint):
+> „Das können wir ihm ja alles in die app packen“ – und gleich danach: „Wie
+> genau kann man bei nem iphone teilen?“
+
+Vorher (v1) stand die Anleitung zum Startbildschirm als eine Zeile im Hallo
+(„iPhone Safari → Teilen → Zum Home-Bildschirm“), und *Wie oft* stand fest
+auf 3 im Monat – die Frage, wie es gemeint ist, hätte Tobi stellen müssen.
+
+**Auf den Startbildschirm** – eine eigene Karte auf „Heute“ und dieselbe
+Anleitung unter *Mehr*, passend zum Handy (`installierenHtml()`):
+
+- **iPhone, Safari 26 und neuer** (nach Apples iPhone-Handbuch): unten
+  rechts „⋯“ → „Teilen“ (wer die Leiste anders eingestellt hat, sieht Teilen
+  gleich) → in der Liste nach unten bis „Zum Home-Bildschirm“ (fehlt es:
+  „Aktionen bearbeiten“) → Schalter „Als Web-App öffnen“ anlassen →
+  „Hinzufügen“. **Älteres Safari:** Teilen unten in der Mitte, ohne den
+  Schalter. Die Symbole (Teilen, ⋯, Zum Home-Bildschirm, ⋮, der Kompass)
+  stehen als kleine Bilder im Text – „Teilen“ allein sagt niemandem, wo er
+  tippen soll. Die Fassung kommt aus „Version/26“, nicht aus „iPhone OS
+  18_6“: Seit iOS 26 meldet Safari dort mit Absicht eine eingefrorene Zahl
+  (`safariFassung()`).
+- **Chrome oder Firefox auf dem iPhone:** am sichersten über Safari – Knopf
+  „Link kopieren“, dann in Safari einfügen; der eigene Weg des Browsers steht
+  klein darunter.
+- **Android:** Bietet Chrome das Installieren selbst an
+  (`beforeinstallprompt`), genügt ein Knopf „Jetzt installieren“; sonst die
+  Schritte über ⋮. Nach `appinstalled` ist die Karte für immer weg.
+- **Aus WhatsApp geöffnet:** erst in Safari bzw. Chrome öffnen (Kompass bzw.
+  ⋮ → „In Chrome öffnen“) – in dessen Fenster fehlt „Zum Home-Bildschirm“.
+- Als App gestartet: keine Karte, unter *Mehr* „Läuft schon als App“.
+  „Später“ hält eine Woche; auf dem Rechner (weder iPhone noch Android, kein
+  Angebot von Chrome) keine Karte.
+
+**Wie oft Hafertage** fragt die App den Kollegen selbst – aber nicht beim
+Start, sondern unter *Hafer* (auf „Heute“ steht bis dahin „Wie oft hat dein
+Arzt gesagt? … Hafertage einrichten“). Vier Antworten, die zwei Wege aus dem
+Infoblatt und zwei Auswege:
+
+- **Ein paar Tage im Monat** (verteilt): wie viele, 1 bis 4, vorgewählt 3
+  (Tobi: „drei mal im Monat“). „Heute“ zählt mit („1 von 3“).
+- **Mehrere Tage am Stück:** 2 oder 3 Tage, jeden Monat oder alle 2, 3, 4
+  Monate (vorgewählt 3 Tage, jeden Monat – die andere Lesart von „drei mal
+  im Monat“). Ein Tipp in den Kalender trägt die ganze Runde ein, ein Tipp
+  auf einen ihrer Tage nimmt sie ganz heraus, beides mit „Rückgängig“. Ist
+  keine Runde geplant, meldet sich „Heute“ eine Woche bevor die nächste dran
+  ist (Beginn der letzten plus „alle … Monate“, `naechsteRunde()`).
+- **Weiß ich nicht genau:** drei Fragen für den nächsten Arzttermin (verteilt
+  oder am Stück und wie oft; Tabletten oder Insulin an Hafertagen; Kalorien am
+  Tag). Die Startseite drängelt dann nicht.
+- **Ich mache keine Hafertage:** keine Erinnerung; „doch einrichten“ holt die
+  Frage zurück.
+
+Ein Stand aus v1 bekommt die Frage; wer dort „aus“ gewählt hatte
+(`proMonat: 0`), bleibt aus.
+
+Geprüft in `tests/test-mz-einrichten.mjs` (gegen v1 rot) und
+`tests/test-mz-rechnen.mjs` (Läufe, Monate, Safari-Fassung).
+
 ## Heute
 
 Tagessumme groß, darunter die Kohlenhydrate (für den Blutzucker zählen die
@@ -82,10 +143,9 @@ Diabetes-Hilfe** (diabetesDE, Juni 2017,
   mindestens 7-mal messen; bei Unwohlsein oder Unterzucker die Praxis
   anrufen.
 
-Tobi sagte „drei mal im Monat“ – deshalb steht *Wie oft* am Anfang auf 3.
-Der Kollege kann es auf aus, 1, 2, 3 oder 4 stellen; die App sagt dazu, dass
-der Arzt entscheidet. Die Tage plant er im Monatskalender (antippen = Hafertag,
-noch einmal = weg); drei Tage am Stück zeigt „Heute“ als „Tag 2 von 3“.
+Wie oft, fragt die App den Kollegen seit v2 selbst (siehe unten „In der App
+statt von Tobi“). Die Tage plant er im Monatskalender; drei Tage am Stück
+zeigt „Heute“ als „Tag 2 von 3“.
 
 **Auf der Startseite:** an einem Hafertag oben die Hafer-Karte mit Frühstück,
 Mittag und Abend zum Abhaken (jeder Haken trägt den Haferbrei mit
@@ -190,12 +250,12 @@ Die Kennungen in `js/lebensmittel.js` ändern sich nie – alte Einträge und
   der Hafertag selbst und 340 px Breite.
 - `tests/test-mz-offline.mjs`: SHELL vollständig, ohne Server öffnen, neben
   der Workout-App.
+- `tests/test-mz-einrichten.mjs`: Startbildschirm je Handy, die Hafer-Frage,
+  Runden am Stück.
 
 `node tests/lauf.mjs test-mz-`
 
 ## Offen
 
-- Ob der Arzt des Kollegen „drei Hafertage im Monat“ meinte oder „drei Tage
-  am Stück“ – die App kann beides, Voreinstellung ist 3 im Monat.
 - Strichcode scannen (Open Food Facts) wäre der nächste Schritt für
   Verpacktes; auf dem iPhone fehlt Safari dafür aber die Schnittstelle.

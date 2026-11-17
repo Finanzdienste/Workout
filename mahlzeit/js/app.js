@@ -14,7 +14,7 @@ import { BEREICHE, LEBENSMITTEL, BELIEBT, NACH_ID } from './lebensmittel.js';
 import * as R from './rechnen.js';
 import { lesen, aendern, allesLoeschen, neueId, SCHLUESSEL } from './speicher.js';
 
-export const FASSUNG = 'v1';
+export const FASSUNG = 'v2';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -131,17 +131,104 @@ function kartenOben(stand, tag, h) {
   if (!stand.hinweise.willkommen && tag === h) {
     html += `<section class="karte hinweis" id="willkommen">
       <p><strong>Hallo!</strong> Keine Fragen, kein Konto. Tipp auf „Essen eintragen“ und such, was du gegessen hast – die App sagt dir die Kalorien. Alles bleibt auf deinem Handy.</p>
-      ${standalone() ? '' : `<p class="klein">📲 Leg die App auf den Startbildschirm: <b>Android</b> Chrome-Menü ⋮ → „Zum Startbildschirm hinzufügen“. <b>iPhone</b> Safari → Teilen → „Zum Home-Bildschirm“.</p>`}
       <button type="button" class="knopf leise" data-tun="hinweis-weg" data-hinweis="willkommen">Alles klar</button>
+    </section>`;
+  }
+  if (tag === h && installierenZeigen(stand, h)) {
+    html += `<section class="karte hinweis" id="installieren">
+      <h3>📲 Als App auf den Startbildschirm</h3>
+      ${installierenHtml()}
+      <button type="button" class="knopf leise" data-tun="install-spaeter">Später</button>
     </section>`;
   }
   if (R.istHafertag(stand, tag)) html += haferHeute(stand, tag);
   return html;
 }
 
+/*
+ * Auf den Startbildschirm – so, wie es auf diesem Handy geht. Chrome auf
+ * Android bietet das Installieren selbst an (beforeinstallprompt), dann
+ * reicht ein Knopf. Sonst, und auf dem iPhone immer, die Schritte. Auf dem
+ * iPhone mit Grund: Safari löscht die Daten einer Seite, die ein paar Wochen
+ * nicht geöffnet wurde – eine App auf dem Home-Bildschirm nicht.
+ */
+let installAngebot = null;
+window.addEventListener('beforeinstallprompt', (ev) => {
+  ev.preventDefault();
+  installAngebot = ev;
+  if (!ebene) zeige();
+});
+window.addEventListener('appinstalled', () => {
+  installAngebot = null;
+  aendern((s) => { s.hinweise.installiert = heute(); });
+  if (!ebene) zeige();
+  meldung('Installiert – ab jetzt über das Symbol auf dem Startbildschirm öffnen.');
+});
+
+const geraet = () => R.geraet(navigator.userAgent, navigator.maxTouchPoints || 0);
+
+function installierenZeigen(stand, h) {
+  if (standalone() || stand.hinweise.installiert) return false;
+  if (!installAngebot && geraet() === 'andere') return false;
+  const spaeter = stand.hinweise.installSpaeter;
+  return !(spaeter && R.abstand(spaeter, h) < 7);
+}
+
+/*
+ * Die Symbole, wie sie auf dem Handy aussehen – „Teilen" allein sagt
+ * niemandem, wo er tippen soll (Tobi, 17.11.: „Wie genau kann man bei nem
+ * iphone teilen?").
+ */
+const SYMBOL = {
+  teilen: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 9.5H7a1.5 1.5 0 0 0-1.5 1.5v8A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 17 9.5h-1.5"/><path d="M12 14V3.5"/><path d="M8.8 6.7 12 3.5l3.2 3.2"/></svg>',
+  mehr: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><circle class="voll" cx="7.6" cy="12" r="1.3"/><circle class="voll" cx="12" cy="12" r="1.3"/><circle class="voll" cx="16.4" cy="12" r="1.3"/></svg>',
+  plus: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg>',
+  punkte: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><circle class="voll" cx="12" cy="5.5" r="1.8"/><circle class="voll" cx="12" cy="12" r="1.8"/><circle class="voll" cx="12" cy="18.5" r="1.8"/></svg>',
+  kompass: '<svg class="symbol" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path class="voll" d="M15.5 8.5 13 13l-4.5 2.5L11 11z"/></svg>',
+};
+
+function installierenHtml() {
+  if (standalone()) return '<p>✓ Läuft schon als App vom Startbildschirm.</p>';
+  if (installAngebot) {
+    return `<p>Dann öffnest du sie mit einem Tipp wie jede andere App – auch ohne Netz.</p>
+      <button type="button" class="knopf haupt" data-tun="installieren" id="install-knopf">Jetzt installieren</button>`;
+  }
+  const danach = '<p class="klein">Danach liegt <strong>„Mahlzeit“</strong> mit der grünen Schüssel auf dem Home-Bildschirm – ab jetzt die App immer darüber öffnen.</p>';
+  if (geraet() === 'ios') {
+    const safari = R.safariFassung(navigator.userAgent);
+    const wichtig = '<p class="klein"><strong>Wichtig auf dem iPhone:</strong> Sonst löscht Safari deine Einträge, wenn du die Seite ein paar Wochen nicht öffnest. Vom Home-Bildschirm aus nicht.</p>';
+    if (!safari) {
+      // Chrome, Firefox & Co. auf dem iPhone: am sichersten über Safari.
+      return `<p id="install-schritte">Am einfachsten geht es in <strong>Safari</strong>: Link kopieren, Safari öffnen, oben ins Adressfeld tippen und einfügen. Dann zeigt die App dort, wie es weitergeht.</p>
+        <button type="button" class="knopf haupt" data-tun="link-kopieren" id="link-kopieren">Link kopieren</button>
+        <p class="klein">Im Browser, in dem du gerade bist, geht es oft auch: ${SYMBOL.teilen} <strong>Teilen</strong> (in der Adresszeile) → <strong>„Zum Home-Bildschirm“</strong>.</p>
+        ${wichtig}`;
+    }
+    const neu = safari >= 26;
+    return `<ol class="schritte" id="install-schritte">
+        ${neu
+    ? `<li>Unten rechts auf ${SYMBOL.mehr} <strong>„⋯“</strong> tippen, dann auf ${SYMBOL.teilen} <strong>„Teilen“</strong>.<small>Siehst du unten gleich ${SYMBOL.teilen} „Teilen“? Dann direkt das antippen.</small></li>`
+    : `<li>Unten in der Mitte auf ${SYMBOL.teilen} <strong>„Teilen“</strong> tippen – das Quadrat mit dem Pfeil nach oben.<small>Ist die Leiste unten verschwunden: ganz unten auf den Rand tippen, dann kommt sie wieder.</small></li>`}
+        <li>In der Liste, die aufgeht, nach unten scrollen bis ${SYMBOL.plus} <strong>„Zum Home-Bildschirm“</strong> – antippen.<small>Fehlt der Eintrag: ganz unten „Aktionen bearbeiten“ und ihn dazunehmen.</small></li>
+        ${neu ? '<li>Den Schalter <strong>„Als Web-App öffnen“</strong> anlassen.</li>' : ''}
+        <li>Oben rechts auf <strong>„Hinzufügen“</strong>.</li>
+      </ol>
+      ${danach}
+      <p class="klein">Aus WhatsApp geöffnet? Dann erst unten rechts auf ${SYMBOL.kompass} (in Safari öffnen) – dort geht es weiter.</p>
+      ${wichtig}`;
+  }
+  return `<ol class="schritte" id="install-schritte">
+      <li>In <strong>Chrome</strong> oben rechts auf ${SYMBOL.punkte} <strong>„⋮“</strong> tippen.</li>
+      <li>${SYMBOL.plus} <strong>„Zum Startbildschirm hinzufügen“</strong> oder <strong>„App installieren“</strong> tippen.</li>
+      <li><strong>„Installieren“</strong> bzw. <strong>„Hinzufügen“</strong> bestätigen.</li>
+    </ol>
+    ${danach}
+    <p class="klein">Aus WhatsApp geöffnet? Dann erst oben rechts ${SYMBOL.punkte} → <strong>„In Chrome öffnen“</strong> – dort geht es weiter.</p>`;
+}
+
 function kartenUnten(stand, tag, h) {
   let html = '';
-  if (tag === h && !R.istHafertag(stand, tag) && stand.hafer.proMonat > 0) html += haferVorschau(stand, h);
+  if (tag === h && !R.istHafertag(stand, tag)) html += haferVorschau(stand, h);
   if (tag === h && sicherungFaellig(stand, h)) {
     html += `<section class="karte hinweis" id="sicherung-hinweis">
       <p>💾 <strong>Sicherung:</strong> Deine Einträge liegen nur auf diesem Handy. Speicher ab und zu eine Sicherung – bei einem neuen Handy ist sonst alles weg.</p>
@@ -178,22 +265,36 @@ function haferHeute(stand, tag) {
 }
 
 function haferVorschau(stand, h) {
+  const { art } = stand.hafer;
+  if (art === 'aus') return '';
+  const karte = (text, knopf, haupt = false) => `<section class="karte hafer-klein" id="hafer-vorschau"><p>🌾 ${text}</p>
+    <button type="button" class="knopf${haupt ? '' : ' leise'}" data-tun="seite" data-seite="hafer">${knopf}</button></section>`;
   const naechster = R.naechsterHafertag(stand, h);
   if (naechster) {
     const n = R.abstand(h, naechster);
+    const block = R.haferBlock(stand, naechster);
+    const dazu = block && block.von > 1 ? ` – ${block.von} Tage am Stück` : '';
     const text = n === 1
-      ? '<strong>Morgen ist Hafertag.</strong> Haferflocken (225 g) und Gemüsebrühe im Haus?'
-      : `Nächster Hafertag: <strong>${esc(R.datumLang(naechster))}</strong> (in ${n} Tagen)`;
-    return `<section class="karte hafer-klein" id="hafer-vorschau"><p>🌾 ${text}</p>
-      <button type="button" class="knopf leise" data-tun="seite" data-seite="hafer">Hafertage</button></section>`;
+      ? `<strong>Morgen ist Hafertag${dazu}.</strong> Haferflocken (${R.zahl(R.haferEinkauf(block ? block.von : 1).gramm)} g) und Gemüsebrühe im Haus?`
+      : `${block && block.von > 1 ? 'Nächste Hafertage' : 'Nächster Hafertag'}: <strong>${esc(R.datumLang(naechster))}</strong> (in ${n} Tagen)${dazu}`;
+    return karte(text, 'Hafertage');
   }
-  const monat = h.slice(0, 7);
-  const geplant = R.haferImMonat(stand, monat).length;
-  if (geplant >= stand.hafer.proMonat) return '';
-  const name = R.monatsname(Number(monat.slice(5)) - 1);
-  return `<section class="karte hafer-klein" id="hafer-vorschau">
-    <p>🌾 Hafertage im ${esc(name)}: ${geplant ? `${geplant} von ${stand.hafer.proMonat}` : 'noch keiner geplant'}.</p>
-    <button type="button" class="knopf" data-tun="seite" data-seite="hafer">Hafertage planen</button></section>`;
+  if (art === null) {
+    return karte('<strong>Hafertage:</strong> Wie oft hat dein Arzt gesagt? Eine Frage, dann planst du die Tage.', 'Hafertage einrichten', true);
+  }
+  if (art === 'verteilt') {
+    const monat = h.slice(0, 7);
+    const geplant = R.haferImMonat(stand, monat).length;
+    if (geplant >= stand.hafer.proMonat) return '';
+    const name = R.monatsname(Number(monat.slice(5)) - 1);
+    return karte(`Hafertage im ${esc(name)}: ${geplant ? `${geplant} von ${stand.hafer.proMonat}` : 'noch keiner geplant'}.`, 'Hafertage planen', true);
+  }
+  if (art === 'amStueck') {
+    const runde = R.naechsteRunde(stand, h);
+    if (!runde) return karte(`Noch keine Hafertage geplant – ${stand.hafer.amStueck} Tage am Stück.`, 'Hafertage planen', true);
+    if (R.abstand(h, runde) <= 7) return karte(`Zeit für die nächsten Hafertage – ${stand.hafer.amStueck} Tage am Stück, ab ${esc(R.datumKurz(runde))}.`, 'Hafertage planen', true);
+  }
+  return '';
 }
 
 function eintragsListe(liste) {
@@ -258,20 +359,22 @@ function seiteHafer(stand) {
   </section>
   <section class="karte" id="hafer-plan">
     <h3>Planen</h3>
-    <h4>Wie oft im Monat?</h4>
-    <div class="chips" role="group" aria-label="Hafertage im Monat">
-      ${[0, 1, 2, 3, 4].map((n) => `<button type="button" class="chip" data-tun="hafer-oft" data-n="${n}" aria-pressed="${stand.hafer.proMonat === n}">${n ? `${n}×` : 'aus'}</button>`).join('')}
-    </div>
-    <p class="klein">${stand.hafer.proMonat ? `${stand.hafer.proMonat} Hafertag${stand.hafer.proMonat > 1 ? 'e' : ''} im Monat.` : 'Keine Hafertage – die Startseite erinnert nicht daran.'} Die Diabetes-Hilfe beschreibt zwei Wege: regelmäßig 1 bis 4 Hafertage im Monat – oder 2 bis 3 Tage am Stück und das alle paar Monate wiederholen. Was für dich gilt, sagt dein Arzt.</p>
+    ${haferPlanKopf(stand)}
     <h4>Welche Tage?</h4>
-    <p class="klein">Tipp auf einen Tag, um ihn als Hafertag einzutragen – noch einmal tippen nimmt ihn wieder heraus.</p>
+    <p class="klein">${stand.hafer.art === 'amStueck'
+    ? `Tipp auf den ersten Tag – die App trägt ${stand.hafer.amStueck} Tage am Stück ein. Ein Tipp auf einen davon nimmt alle ${stand.hafer.amStueck} wieder heraus.`
+    : 'Tipp auf einen Tag, um ihn als Hafertag einzutragen – noch einmal tippen nimmt ihn wieder heraus.'}</p>
     <div class="monat-kopf">
       <button type="button" class="rund" data-tun="monat" data-schritt="-1" aria-label="Monat davor" ${zustand.monat <= -6 ? 'disabled' : ''}>‹</button>
       <strong id="monat-name">${esc(R.monatsname(monat))} ${jahr}</strong>
       <button type="button" class="rund" data-tun="monat" data-schritt="1" aria-label="Monat danach" ${zustand.monat >= 12 ? 'disabled' : ''}>›</button>
     </div>
     <table class="monat"><thead><tr>${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((w) => `<th>${w}</th>`).join('')}</tr></thead><tbody>${wochen}</tbody></table>
-    <p id="hafer-zahl">${esc(R.monatsname(monat))}: ${geplant} ${geplant === 1 ? 'Hafertag' : 'Hafertage'} geplant${stand.hafer.proMonat ? ` (Ziel ${stand.hafer.proMonat})` : ''}.</p>
+    <p id="hafer-zahl">${esc(R.monatsname(monat))}: ${stand.hafer.art === 'verteilt'
+    ? `${geplant} von ${stand.hafer.proMonat} geplant`
+    : `${geplant} ${geplant === 1 ? 'Hafertag' : 'Hafertage'} geplant`}.</p>
+    ${stand.hafer.art === 'amStueck' && !kommende.length && R.naechsteRunde(stand, h)
+    ? `<p class="klein" id="hafer-runde">Nächste Runde: ab ${esc(R.datumLang(R.naechsteRunde(stand, h)))}.</p>` : ''}
     ${kommende.length ? `
       <button type="button" class="knopf" data-tun="ics" id="ics-knopf">📅 In den Kalender – mit Erinnerung am Abend davor</button>
       <h4>${einkaufTage === 1 ? 'Einkaufen für den nächsten Hafertag' : `Einkaufen für die nächsten ${einkaufTage} Hafertage`}</h4>
@@ -312,6 +415,58 @@ function seiteHafer(stand) {
     <p class="klein leise">Abends geht süß oder herzhaft. Süßstoff so wenig wie möglich.</p>
   </section>
   <p class="quelle klein leise">Nach dem Infoblatt „Intensive Hafertage“ der Deutschen Diabetes-Hilfe (diabetesDE, 2017). Ersetzt nicht das Gespräch mit dem Arzt.</p>`;
+}
+
+/*
+ * Tobi: „Er soll drei mal im Monat nur Hafer essen oder so" – ob verteilt
+ * oder am Stück, weiß nur der Kollege (bzw. sein Arzt). Deshalb fragt die
+ * App ihn selbst, aber erst hier, wo es um Hafertage geht, nicht beim Start.
+ */
+function haferPlanKopf(stand) {
+  const { art, proMonat, amStueck, alleMonate } = stand.hafer;
+  const anders = '<button type="button" class="link" data-tun="hafer-art" data-art="">ändern</button>';
+  if (art === null) {
+    const antwort = (wert, titel, text) => `<button type="button" class="antwort" data-tun="hafer-art" data-art="${wert}"><strong>${titel}</strong><small>${text}</small></button>`;
+    return `<div class="frage" id="hafer-frage">
+      <h4>Was hat dein Arzt gesagt?</h4>
+      ${antwort('verteilt', 'Ein paar Tage im Monat', 'einzelne Hafertage, über den Monat verteilt')}
+      ${antwort('amStueck', 'Mehrere Tage am Stück', '2 oder 3 Tage hintereinander, dann eine Weile nicht')}
+      ${antwort('unklar', 'Weiß ich nicht genau', 'dann steht hier, was du beim nächsten Termin fragen kannst')}
+      ${antwort('aus', 'Ich mache keine Hafertage', 'die App erinnert dann nicht daran')}
+      <p class="klein leise">Beide Wege beschreibt die Diabetes-Hilfe. Was für dich gilt, sagt dein Arzt.</p>
+    </div>`;
+  }
+  if (art === 'verteilt') {
+    return `<p id="hafer-art"><strong>Dein Plan:</strong> ${proMonat} Hafertag${proMonat > 1 ? 'e' : ''} im Monat, verteilt. ${anders}</p>
+      <h4>Wie viele im Monat?</h4>
+      <div class="chips" role="group" aria-label="Hafertage im Monat">
+        ${[1, 2, 3, 4].map((n) => `<button type="button" class="chip" data-tun="hafer-oft" data-n="${n}" aria-pressed="${proMonat === n}">${n}×</button>`).join('')}
+      </div>`;
+  }
+  if (art === 'amStueck') {
+    const alle = (m) => (m === 1 ? 'jeden Monat' : `alle ${m} Monate`);
+    return `<p id="hafer-art"><strong>Dein Plan:</strong> ${amStueck} Tage am Stück, ${alle(alleMonate)}. ${anders}</p>
+      <h4>Wie viele Tage am Stück?</h4>
+      <div class="chips" role="group" aria-label="Tage am Stück">
+        ${[2, 3].map((n) => `<button type="button" class="chip" data-tun="hafer-stueck" data-n="${n}" aria-pressed="${amStueck === n}">${n} Tage</button>`).join('')}
+      </div>
+      <h4>Wie oft?</h4>
+      <div class="chips" role="group" aria-label="Wie oft">
+        ${[1, 2, 3, 4].map((m) => `<button type="button" class="chip" data-tun="hafer-alle" data-n="${m}" aria-pressed="${alleMonate === m}">${alle(m)}</button>`).join('')}
+      </div>`;
+  }
+  if (art === 'unklar') {
+    return `<div class="frage" id="hafer-frage">
+      <p><strong>Noch offen.</strong> Frag beim nächsten Arzttermin:</p>
+      <ul class="punkte" id="arzt-fragen">
+        <li>Hafertage einzeln über den Monat verteilt oder mehrere am Stück – und wie oft?</li>
+        <li>Muss ich an Hafertagen etwas an meinen Tabletten oder am Insulin ändern?</li>
+        <li>Wie viele Kalorien am Tag sind für mich gut?</li>
+      </ul>
+      <button type="button" class="knopf" data-tun="hafer-art" data-art="">Jetzt beantworten</button>
+    </div>`;
+  }
+  return `<p id="hafer-art"><strong>Keine Hafertage.</strong> Die Startseite erinnert nicht daran. <button type="button" class="link" data-tun="hafer-art" data-art="">doch einrichten</button></p>`;
 }
 
 // --- Werte -----------------------------------------------------------------
@@ -415,10 +570,9 @@ function seiteMehr(stand) {
     </div>
     <p class="klein leise" id="sicherung-stand">${stand.sicherung ? `Zuletzt gesichert: ${esc(R.datumLang(stand.sicherung))}.` : 'Noch nie gesichert.'}</p>
   </section>
-  <section class="karte">
+  <section class="karte" id="karte-installieren">
     <h3>📲 Auf den Startbildschirm</h3>
-    <p><strong>Android (Chrome):</strong> Menü ⋮ → „Zum Startbildschirm hinzufügen“ oder „App installieren“.</p>
-    <p><strong>iPhone (Safari):</strong> Teilen-Knopf (□ mit Pfeil) → „Zum Home-Bildschirm“. Auf dem iPhone ist das wichtig: Sonst kann Safari die Einträge löschen, wenn die Seite ein paar Wochen nicht geöffnet wurde.</p>
+    ${installierenHtml()}
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
@@ -675,13 +829,31 @@ function haferMahlzeit(i) {
 }
 
 function haferTag(tag) {
+  const vorher = lesen().hafer;
+  const spanne = (a, b) => (a === b ? R.datumKurz(a) : `${R.datumKurz(a)} bis ${R.datumKurz(b)}`);
+  const zurueck = () => { aendern((s) => { s.hafer.tage = vorher.tage; }); zeige(); };
+  if (vorher.art === 'amStueck') {
+    // Am Stück: ein Tipp trägt die ganze Runde ein – und nimmt sie ganz heraus.
+    const block = R.haferBloecke(vorher.tage).find((b) => b.anfang <= tag && tag <= b.ende);
+    const neu = block ? R.blockAb(block.anfang, block.laenge) : R.blockAb(tag, vorher.amStueck);
+    aendern((s) => {
+      s.hafer.tage = block
+        ? s.hafer.tage.filter((t) => !neu.includes(t))
+        : [...new Set([...s.hafer.tage, ...neu])].sort();
+    });
+    zeige();
+    meldung(block
+      ? `Hafertage ${spanne(neu[0], neu[neu.length - 1])} herausgenommen.`
+      : `Hafertage ${spanne(neu[0], neu[neu.length - 1])} eingetragen.`, zurueck);
+    return;
+  }
   let jetzt = false;
   aendern((s) => {
     if (s.hafer.tage.includes(tag)) s.hafer.tage = s.hafer.tage.filter((t) => t !== tag);
     else { s.hafer.tage = [...s.hafer.tage, tag].sort(); jetzt = true; }
   });
   zeige();
-  meldung(jetzt ? `${R.datumKurz(tag)} ist Hafertag.` : `${R.datumKurz(tag)} ist kein Hafertag mehr.`);
+  meldung(jetzt ? `${R.datumKurz(tag)} ist Hafertag.` : `${R.datumKurz(tag)} ist kein Hafertag mehr.`, zurueck);
 }
 
 function herunterladen(name, text, typ) {
@@ -856,6 +1028,40 @@ document.addEventListener('click', (ev) => {
     case 'hafer-tag': haferTag(el.dataset.tag); break;
     case 'hafer-oft':
       aendern((s) => { s.hafer.proMonat = Number(el.dataset.n); });
+      zeige();
+      break;
+    case 'hafer-art':
+      aendern((s) => { s.hafer.art = el.dataset.art || null; });
+      zeige();
+      $('#hafer-plan')?.scrollIntoView({ block: 'start' });
+      break;
+    case 'hafer-stueck':
+      aendern((s) => { s.hafer.amStueck = Number(el.dataset.n); });
+      zeige();
+      break;
+    case 'hafer-alle':
+      aendern((s) => { s.hafer.alleMonate = Number(el.dataset.n); });
+      zeige();
+      break;
+    case 'installieren': {
+      const angebot = installAngebot;
+      if (!angebot) break;
+      angebot.prompt();
+      angebot.userChoice.then((wahl) => {
+        installAngebot = null;
+        if (wahl?.outcome !== 'accepted') zeige();
+      }).catch(() => {});
+      break;
+    }
+    case 'link-kopieren': {
+      const link = location.href.split('#')[0];
+      const fertig = () => meldung('Link kopiert – jetzt Safari öffnen, oben ins Adressfeld tippen und einfügen.');
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(link).then(fertig, () => meldung(link));
+      else meldung(link);
+      break;
+    }
+    case 'install-spaeter':
+      aendern((s) => { s.hinweise.installSpaeter = h; });
       zeige();
       break;
     case 'monat': zustand.monat += Number(el.dataset.schritt); zeige(); break;

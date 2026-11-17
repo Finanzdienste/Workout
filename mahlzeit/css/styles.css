@@ -175,6 +175,21 @@ button, .knopf { font: inherit; color: inherit; }
 .monat .tag.heute { border: 2px solid var(--haupt); }
 .monat .tag.hafer { background: var(--hafer); border-color: var(--hafer); color: var(--karte); }
 .punkte { padding-left: 1.2rem; margin: .3rem 0; }
+.frage { margin: .3rem 0 .8rem; }
+.antwort {
+  display: block; width: 100%; min-height: 56px; margin: 0 0 .45rem; padding: .55rem .8rem; text-align: left;
+  border-radius: 12px; border: 1.5px solid var(--haupt); background: var(--karte); cursor: pointer;
+}
+.antwort small { display: block; color: var(--leise); }
+.link { border: none; background: none; padding: .2rem .1rem; min-height: 32px; color: var(--haupt); font-weight: 700; text-decoration: underline; cursor: pointer; }
+.schritte { padding-left: 1.4rem; margin: .4rem 0; }
+.schritte li { margin: .45rem 0; }
+.schritte li small { display: block; color: var(--leise); margin-top: .1rem; }
+.symbol {
+  width: 1.35em; height: 1.35em; vertical-align: -.3em; margin: 0 .1em;
+  fill: none; stroke: var(--haupt); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.symbol .voll { fill: var(--haupt); stroke: none; }
 .punkte li, .einkauf li { margin: .3rem 0; }
 .einkauf { padding-left: 1.2rem; }
 .quelle { margin: 1rem 0; }

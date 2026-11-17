@@ -50,16 +50,18 @@ function vorbereiten({ tag, zeit, stand, schluessel, weitere }) {
 /**
  * Einen Browser starten und Mahlzeit öffnen.
  * Dialoge (confirm, prompt) beantwortet `dialog.antwort` (true/false) bzw.
- * `dialog.text` für prompt; mitgeschrieben in `dialoge`.
+ * `dialog.text` für prompt; mitgeschrieben in `dialoge`. `kontext` geht an
+ * newContext (etwa userAgent), `skripte` laufen vor jeder Seite.
  */
 export async function oeffne({
   tag = '2026-11-17', zeit = '08:15', stand = null, weitere = null,
-  viewport = { width: 390, height: 844 }, url = MZ_URL,
+  viewport = { width: 390, height: 844 }, url = MZ_URL, kontext = {}, skripte = [],
 } = {}) {
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport, locale: 'de-DE', acceptDownloads: true, serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ viewport, locale: 'de-DE', acceptDownloads: true, serviceWorkers: 'block', ...kontext });
   await ctx.addInitScript(vorbereiten, { tag, zeit, stand, schluessel: SCHLUESSEL, weitere });
   await ctx.addInitScript(uhrStellen);
+  for (const skript of skripte) await ctx.addInitScript(skript);
   const page = await ctx.newPage();
   const fehler = [];
   const dialoge = [];

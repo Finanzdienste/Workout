@@ -245,6 +245,52 @@ export function haferBlock(stand, tag) {
   return { nr: abstand(anfang, tag) + 1, von: abstand(anfang, ende) + 1 };
 }
 
+/*
+ * Wie der Arzt die Hafertage meint – die zwei Wege aus dem Infoblatt:
+ * „verteilt" (regelmäßig 1, 2 oder 4 Hafertage im Monat) oder „am Stück"
+ * (2 oder 3 Tage hintereinander, dann alle paar Monate wieder). Dazu
+ * „unklar" (fragt beim nächsten Termin) und „aus". null: noch nicht gefragt.
+ */
+export const HAFER_ARTEN = ['verteilt', 'amStueck', 'unklar', 'aus'];
+
+/** Zusammenhängende Läufe geplanter Hafertage: [{anfang, ende, laenge}], nach Datum. */
+export function haferBloecke(tage) {
+  const sortiert = [...new Set(tage)].sort();
+  const bloecke = [];
+  sortiert.forEach((t) => {
+    const letzter = bloecke[bloecke.length - 1];
+    if (letzter && plusTage(letzter.ende, 1) === t) {
+      letzter.ende = t;
+      letzter.laenge++;
+    } else bloecke.push({ anfang: t, ende: t, laenge: 1 });
+  });
+  return bloecke;
+}
+
+/** n Tage ab `tag`. */
+export function blockAb(tag, n) {
+  return Array.from({ length: n }, (_, i) => plusTage(tag, i));
+}
+
+/** „2026-11-30" + 3 Monate → „2027-02-28" (der Tag wird am Monatsende gekappt). */
+export function plusMonate(tag, n) {
+  const [j, m, t] = tag.split('-').map(Number);
+  const ziel = new Date(j, m - 1 + n, 1, 12);
+  const laenge = new Date(ziel.getFullYear(), ziel.getMonth() + 1, 0, 12).getDate();
+  ziel.setDate(Math.min(t, laenge));
+  return tagVon(ziel);
+}
+
+/**
+ * Am Stück: ab wann die nächste Runde dran ist – Beginn der letzten
+ * begonnenen Runde plus „alle … Monate". null, wenn es noch keine gab.
+ */
+export function naechsteRunde(stand, heute) {
+  const begonnen = haferBloecke(stand.hafer?.tage || []).filter((b) => b.anfang <= heute);
+  if (!begonnen.length) return null;
+  return plusMonate(begonnen[begonnen.length - 1].anfang, stand.hafer.alleMonate || 1);
+}
+
 /** Was man für diese Hafertage kauft. */
 export function haferEinkauf(anzahl) {
   const gramm = anzahl * 3 * HAFER_JE_MAHLZEIT;
@@ -343,6 +389,29 @@ export function haferIcs(tage, jetzt = new Date()) {
   return zeilen.map(falten).join(NL) + NL;
 }
 
+// --- Gerät -----------------------------------------------------------------
+
+/**
+ * Welches Handy: davon hängt ab, wie man die App auf den Startbildschirm
+ * legt. iPadOS meldet sich als Mac – erkennbar an den Fingern auf dem Glas.
+ */
+export function geraet(ua = '', finger = 0) {
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && finger > 1)) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  return 'andere';
+}
+
+/**
+ * Die Fassung von Safari aus „Version/26.0" – nicht aus „iPhone OS 18_6":
+ * Seit iOS 26 meldet Safari dort mit Absicht eine eingefrorene Zahl. Ohne
+ * Version-Angabe ist es kein Safari (Chrome „CriOS", Firefox „FxiOS"): null.
+ */
+export function safariFassung(ua = '') {
+  if (/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) return null;
+  const m = ua.match(/Version\/(\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
 // --- Werte -----------------------------------------------------------------
 
 export const ZUCKER_WANN = [
@@ -390,7 +459,9 @@ export function leererStand() {
     tage: {},
     eigene: [],
     ziel: null,
-    hafer: { proMonat: 3, tage: [] },
+    // Tobi: „Er soll drei mal im Monat nur Hafer essen oder so" – daher 3,
+    // für beide Wege. Was gilt, beantwortet der Kollege selbst (art).
+    hafer: { art: null, proMonat: 3, amStueck: 3, alleMonate: 1, tage: [] },
     werte: [],
     hinweise: {},
     sicherung: null,
@@ -412,7 +483,11 @@ export function ordnen(roh) {
   if (Array.isArray(roh.eigene)) s.eigene = roh.eigene.filter((e) => e && typeof e.n === 'string' && Number.isFinite(e.kcal));
   if (Number.isFinite(roh.ziel) && roh.ziel > 0) s.ziel = roh.ziel;
   if (roh.hafer && typeof roh.hafer === 'object') {
-    if (Number.isInteger(roh.hafer.proMonat) && roh.hafer.proMonat >= 0 && roh.hafer.proMonat <= 8) s.hafer.proMonat = roh.hafer.proMonat;
+    if (HAFER_ARTEN.includes(roh.hafer.art)) s.hafer.art = roh.hafer.art;
+    else if (roh.hafer.proMonat === 0) s.hafer.art = 'aus';   // v1: „aus" stand als 0 in proMonat
+    if (Number.isInteger(roh.hafer.proMonat) && roh.hafer.proMonat >= 1 && roh.hafer.proMonat <= 8) s.hafer.proMonat = roh.hafer.proMonat;
+    if ([2, 3].includes(roh.hafer.amStueck)) s.hafer.amStueck = roh.hafer.amStueck;
+    if ([1, 2, 3, 4].includes(roh.hafer.alleMonate)) s.hafer.alleMonate = roh.hafer.alleMonate;
     if (Array.isArray(roh.hafer.tage)) s.hafer.tage = [...new Set(roh.hafer.tage.filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t)))].sort();
   }
   if (Array.isArray(roh.werte)) s.werte = roh.werte.filter((w) => w && ['gewicht', 'zucker', 'hba1c'].includes(w.art) && Number.isFinite(w.wert) && /^\d{4}-\d{2}-\d{2}$/.test(w.tag));

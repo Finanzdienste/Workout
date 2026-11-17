@@ -84,6 +84,32 @@ const nov = R.monatsblatt(2026, 10);
 check(nov[0][6] === '2026-11-01' && nov[0][5] === null && nov.flat().filter(Boolean).length === 30, 'November 2026 beginnt am Sonntag, 30 Tage');
 check(nov.every((w) => w.length === 7), 'jede Woche hat sieben Felder');
 
+// --- Hafertage am Stück (v2)
+const bl = R.haferBloecke(['2026-11-23', '2026-11-21', '2026-11-22', '2026-12-05', '2026-11-22']);
+check(bl.length === 2 && bl[0].anfang === '2026-11-21' && bl[0].laenge === 3 && bl[1].laenge === 1, 'Läufe: 21.–23.11. und 5.12.');
+check(R.blockAb('2026-11-30', 3).join() === '2026-11-30,2026-12-01,2026-12-02', 'drei Tage ab dem 30.11. gehen in den Dezember');
+check(R.plusMonate('2026-11-30', 3) === '2027-02-28' && R.plusMonate('2027-01-31', 1) === '2027-02-28' && R.plusMonate('2026-08-20', 3) === '2026-11-20', 'plus Monate, am Monatsende gekappt');
+const rs = R.leererStand();
+check(rs.hafer.art === null && rs.hafer.amStueck === 3 && rs.hafer.alleMonate === 1, 'neu: noch nicht gefragt, am Stück 3 Tage, jeden Monat');
+check(R.naechsteRunde(rs, '2026-11-17') === null, 'ohne Hafertage: keine nächste Runde');
+rs.hafer.alleMonate = 3;
+rs.hafer.tage = ['2026-05-02', '2026-05-03', '2026-08-20', '2026-08-21', '2026-12-24'];
+check(R.naechsteRunde(rs, '2026-11-17') === '2026-11-20', 'nächste Runde: Beginn der letzten begonnenen + 3 Monate (geplante zählen nicht)');
+check(R.ordnen({ hafer: { proMonat: 0 } }).hafer.art === 'aus', 'Stand aus v1 mit „aus" (proMonat 0) bleibt aus');
+check(R.ordnen({ hafer: { proMonat: 3 } }).hafer.art === null, 'Stand aus v1 ohne Antwort: die Frage kommt');
+check(R.ordnen({ hafer: { art: 'quatsch', amStueck: 9, alleMonate: 0 } }).hafer.art === null, 'unbekannte Antwort: wieder fragen');
+
+// --- Gerät
+check(R.geraet('Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X)') === 'ios', 'iPhone erkannt');
+check(R.geraet('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari', 5) === 'ios', 'iPad (meldet sich als Mac, mit Touch) erkannt');
+check(R.geraet('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari', 0) === 'andere', 'echter Mac: kein iPhone');
+check(R.geraet('Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/141 Mobile') === 'android', 'Android erkannt');
+
+check(R.safariFassung('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1') === 26,
+  'Safari 26 meldet „iPhone OS 18_6" – gezählt wird „Version/26"');
+check(R.safariFassung('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1') === 17, 'Safari 17');
+check(R.safariFassung('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/119.0 Mobile/15E148 Safari/604.1') === null, 'Chrome auf dem iPhone ist kein Safari');
+
 // --- Kalenderdatei
 const ics = R.haferIcs(['2026-11-22', '2026-11-21'], new Date(Date.UTC(2026, 10, 17, 9, 30)));
 check((ics.match(/BEGIN:VEVENT/g) || []).length === 2, 'je Hafertag ein Termin');

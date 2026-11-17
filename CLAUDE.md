@@ -141,8 +141,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
 ## Stand (17.11.2026)
 - Workout v264: `sw.js` lässt `/mahlzeit` in Ruhe; daneben die neue App
   Mahlzeit v1 unter https://finanzdienste.github.io/Workout/mahlzeit/ (README
-  „Mahlzeit im Unterordner“). Offen: ob der Arzt des Kollegen 3 Hafertage im
-  Monat oder 3 am Stück meint (die App kann beides, steht auf 3 im Monat).
+  „Mahlzeit im Unterordner“). Mahlzeit v2: Anleitung zum Startbildschirm je
+  Handy (iPhone nach Safari-Fassung, mit Symbolen) und die Hafer-Frage
+  (verteilt oder am Stück) stellt die App dem Kollegen selbst.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,
