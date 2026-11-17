@@ -5,6 +5,6 @@ set -e
 cd "$(git rev-parse --show-toplevel)"
 sh tools/pruefung/tore.sh
 sh tools/pruefung/erzeugt.sh
-npx --no-install eslint js sw.js tests tools schilddruese kalender
+npx --no-install eslint js sw.js tests tools schilddruese mahlzeit kalender
 echo "✓ Linter"
 node tests/lauf.mjs

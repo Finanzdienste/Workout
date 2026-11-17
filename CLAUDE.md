@@ -44,6 +44,11 @@ Grund und dem Befehl, den ich als Nachricht schicke (`/model fable|opus|sonnet`,
 - **`schilddruese/`**: eigene App mit eigenem Service Worker, eigener `VERSION`
   und eigenen Tests (`tests/test-sd-*.mjs`). Ihre Regeln stehen in
   `schilddruese/README.md`.
+- **`mahlzeit/`** (seit v264): Kalorien, Hafertage, Gewicht und Blutzucker für
+  einen Arbeitskollegen von Tobi – ohne Fragen beim Start. Eigener Service
+  Worker (`VERSION` dort und `FASSUNG` in `js/app.js` zusammen hochzählen),
+  eigene Tests (`tests/test-mz-*.mjs`), Regeln in `mahlzeit/README.md`. Werte
+  werden bewusst nicht bewertet (geht an einen Dritten).
 - **`freizeit/`**: nur noch eine Weiterleitung; die Freizeit-App liegt in
   `Finanzdienste/Freizeit`.
 - **`README.md` ist das Gedächtnis der Workout-App**: jede Entscheidung mit
@@ -133,8 +138,12 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Sendung der App, die Termine zeigen, ob verschoben wurde. Den Stand von To Do
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
-## Stand (15.11.2026)
-- Workout v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
+## Stand (17.11.2026)
+- Workout v264: `sw.js` lässt `/mahlzeit` in Ruhe; daneben die neue App
+  Mahlzeit v1 unter https://finanzdienste.github.io/Workout/mahlzeit/ (README
+  „Mahlzeit im Unterordner“). Offen: ob der Arzt des Kollegen 3 Hafertage im
+  Monat oder 3 am Stück meint (die App kann beides, steht auf 3 im Monat).
+- Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,
   dann in Workout, Boxenstopp und Freizeit kopieren. Ohne Verbinden-Link

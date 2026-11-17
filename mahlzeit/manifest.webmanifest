@@ -1,0 +1,18 @@
+{
+  "name": "Mahlzeit – Kalorien und Hafertage",
+  "short_name": "Mahlzeit",
+  "id": "/Workout/mahlzeit/",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f7f4ee",
+  "theme_color": "#2e7d4f",
+  "lang": "de",
+  "description": "Essen antippen, Kalorien sehen – ohne Fragen, ohne Konto. Dazu Hafertage planen, Gewicht und Blutzucker festhalten. Alles bleibt auf dem Handy.",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

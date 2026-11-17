@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2e7d4f">
+<meta name="description" content="Wie viele Kalorien hat das? Essen antippen, Kalorien sehen – ohne Fragen, ohne Konto. Dazu Hafertage planen, Gewicht und Blutzucker festhalten.">
+<title>Mahlzeit</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="kopf">
+  <h1 class="marke"><img src="icon.svg" alt="" width="28" height="28">Mahlzeit</h1>
+</header>
+
+<main id="ansicht" class="ansicht" tabindex="-1">
+  <!-- Steht nur da, bis js/app.js die Seite zeichnet. Startet die App nicht
+       (etwa mitten in einem Update), sieht man wenigstens, was zu tun ist –
+       der Hinweis erscheint erst nach ein paar Sekunden. -->
+  <p class="start-hinweis">Mahlzeit wird geladen. Kommt nach einer Weile nichts, die App schließen und neu öffnen.</p>
+</main>
+
+<nav class="leiste" aria-label="Bereiche">
+  <button type="button" data-tun="seite" data-seite="heute" id="reiter-heute" aria-current="page"><span aria-hidden="true">🍽️</span>Heute</button>
+  <button type="button" data-tun="seite" data-seite="hafer" id="reiter-hafer"><span aria-hidden="true">🌾</span>Hafer</button>
+  <button type="button" data-tun="seite" data-seite="werte" id="reiter-werte"><span aria-hidden="true">⚖️</span>Werte</button>
+  <button type="button" data-tun="seite" data-seite="mehr" id="reiter-mehr"><span aria-hidden="true">☰</span>Mehr</button>
+</nav>
+
+<div id="ebene" class="ebene" role="dialog" aria-modal="true" hidden></div>
+<div id="meldung" class="meldung" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

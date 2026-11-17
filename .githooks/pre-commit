@@ -5,6 +5,6 @@
 set -e
 cd "$(git rev-parse --show-toplevel)"
 sh tools/pruefung/erzeugt.sh
-npx --no-install eslint js sw.js tests tools schilddruese kalender >/dev/null || { echo "✗ Linter (npm run lint)" >&2; exit 1; }
+npx --no-install eslint js sw.js tests tools schilddruese mahlzeit kalender >/dev/null || { echo "✗ Linter (npm run lint)" >&2; exit 1; }
 sh tools/pruefung/tore.sh >/dev/null
 echo "✓ vor dem Commit: Bau, Linter und alle Tore aus CI"

@@ -1,0 +1,255 @@
+/*
+ * Mahlzeit – Gestaltung.
+ *
+ * Große Knöpfe (mindestens 44 px), große Zahlen, wenig Farbe: grün für das,
+ * was man tun kann, Haferbeige für Hafertage, Orange nur für den Hinweis zum
+ * Arzt. Hell und dunkel folgen der Einstellung des Handys.
+ */
+:root {
+  --grund: #f7f4ee;
+  --karte: #ffffff;
+  --text: #1f2a24;
+  --leise: #5b6960;
+  --linie: #e3ddd1;
+  --haupt: #2e7d4f;
+  --haupt-druck: #236a40;
+  --auf-haupt: #ffffff;
+  --haupt-hell: #e4f2e8;
+  --hafer: #b8901c;
+  --hafer-hell: #fbf3d9;
+  --achtung: #fff3df;
+  --achtung-rand: #e0a030;
+  --gefahr: #b3261e;
+  --schatten: 0 1px 2px rgba(31, 42, 36, .06), 0 2px 8px rgba(31, 42, 36, .05);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --grund: #121815;
+    --karte: #1c2420;
+    --text: #e7eee9;
+    --leise: #a2b0a7;
+    --linie: #2f3a34;
+    --haupt: #5cbf85;
+    --haupt-druck: #4aa873;
+    --auf-haupt: #0b2014;
+    --haupt-hell: #1f3a2a;
+    --hafer: #e3c15a;
+    --hafer-hell: #362e16;
+    --achtung: #3a2b12;
+    --achtung-rand: #c98a26;
+    --gefahr: #ff8a80;
+    --schatten: none;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--grund);
+  color: var(--text);
+  font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+body.ebene-offen { overflow: hidden; }
+h1, h2, h3, h4 { line-height: 1.2; }
+h2 { font-size: 1.35rem; margin: 0; }
+h3 { font-size: 1.05rem; margin: 1rem 0 .5rem; }
+h4 { font-size: 1rem; margin: 1rem 0 .3rem; }
+p { margin: .4rem 0; }
+small { font-size: .82em; }
+.klein { font-size: .88rem; }
+.leise { color: var(--leise); }
+.unsichtbar { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.kopf {
+  padding: calc(.6rem + env(safe-area-inset-top)) 16px .2rem;
+  max-width: 640px; margin: 0 auto;
+}
+.marke { display: flex; align-items: center; gap: .5rem; font-size: 1.15rem; margin: 0; color: var(--haupt); }
+.ansicht { max-width: 640px; margin: 0 auto; padding: 0 16px 1rem; outline: none; }
+.start-hinweis { visibility: hidden; animation: zeigen 0s 6s forwards; color: var(--leise); }
+@keyframes zeigen { to { visibility: visible; } }
+
+/* Karten */
+.karte {
+  background: var(--karte);
+  border-radius: 16px;
+  padding: .8rem 1rem;
+  margin: .8rem 0;
+  box-shadow: var(--schatten);
+  border: 1px solid var(--linie);
+}
+.karte > h3:first-child { margin-top: .1rem; }
+.seitentitel { margin: .6rem 0 .2rem; }
+.hinweis { background: var(--haupt-hell); border-color: transparent; }
+.achtung { background: var(--achtung); border-color: var(--achtung-rand); }
+.hafer-heute, .hafer-klein { background: var(--hafer-hell); border-color: transparent; }
+
+/* Knöpfe */
+button, .knopf { font: inherit; color: inherit; }
+.knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+  min-height: 44px; padding: .5rem 1rem; border-radius: 12px;
+  border: 1.5px solid var(--haupt); background: var(--karte); color: var(--haupt);
+  font-weight: 600; cursor: pointer; text-decoration: none; text-align: center;
+}
+.knopf.haupt { background: var(--haupt); color: var(--auf-haupt); }
+.knopf.haupt:active { background: var(--haupt-druck); }
+.knopf.leise { border-color: var(--linie); color: var(--text); background: transparent; }
+.knopf.gefahr { border-color: var(--gefahr); color: var(--gefahr); background: transparent; }
+.knopf.breit, .gross-knopf { width: 100%; }
+.gross-knopf { min-height: 56px; font-size: 1.15rem; margin: .4rem 0; }
+.reihe { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.rund {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--linie);
+  background: var(--karte); font-size: 1.4rem; line-height: 1; cursor: pointer; flex: none;
+}
+.rund:disabled { opacity: .35; cursor: default; }
+
+/* Chips */
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .3rem 0; }
+.chip {
+  min-height: 44px; min-width: 44px; padding: .4rem .85rem; border-radius: 999px;
+  border: 1.5px solid var(--linie); background: var(--karte); cursor: pointer; font-weight: 600;
+}
+.chip[aria-pressed="true"] { background: var(--haupt); border-color: var(--haupt); color: var(--auf-haupt); }
+
+/* Heute */
+.tagnav { display: flex; align-items: center; gap: .6rem; margin: .5rem 0 .2rem; }
+.tagnav-mitte { flex: 1; text-align: center; min-width: 0; }
+.tagnav-mitte p { margin: 0; font-size: .9rem; }
+.summe { text-align: center; }
+.gross { font-size: 2.6rem; font-weight: 800; margin: .1rem 0; letter-spacing: -.01em; }
+.gross .einheit { font-size: 1.1rem; font-weight: 600; color: var(--leise); }
+.balken { height: 10px; border-radius: 99px; background: var(--linie); overflow: hidden; margin: .3rem 0; }
+.balken span { display: block; height: 100%; background: var(--haupt); border-radius: 99px; }
+.balken.drueber span { background: var(--achtung-rand); }
+.leer { text-align: center; margin: 1.2rem 0; }
+
+.eintraege h3 { display: flex; justify-content: space-between; margin: 1rem 0 .3rem; }
+.eintraege ul, .sachen, .werteliste, .hafer-liste { list-style: none; padding: 0; margin: 0; }
+.eintrag, .sache {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: .8rem;
+  min-height: 52px; padding: .5rem .8rem; margin: 0 0 .35rem; text-align: left;
+  background: var(--karte); border: 1px solid var(--linie); border-radius: 12px; cursor: pointer;
+}
+.eintrag-name, .sache-name { min-width: 0; overflow-wrap: anywhere; }
+.eintrag-name small, .sache-name small { display: block; color: var(--leise); }
+.eintrag-kcal, .sache-kcal { font-weight: 700; white-space: nowrap; text-align: right; }
+.sache-kcal small { display: block; font-weight: 400; color: var(--leise); }
+.abzeichen { font-size: .72rem; padding: .05rem .4rem; border-radius: 99px; background: var(--haupt-hell); color: var(--haupt); font-weight: 600; vertical-align: middle; }
+
+.saeulen { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; height: 140px; align-items: end; }
+.saeule { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.saeule .wert { font-size: .62rem; color: var(--leise); white-space: nowrap; }
+.saeule .stab { width: 70%; max-width: 28px; background: var(--haupt); border-radius: 6px 6px 2px 2px; min-height: 2px; }
+.saeule .stab.hafer { background: var(--hafer); }
+.saeule .wtag { font-size: .8rem; margin-top: .2rem; }
+.saeule.heute .wtag { font-weight: 800; }
+
+/* Hafertag */
+.hafer-mahlzeit {
+  display: flex; align-items: center; gap: .8rem; width: 100%; min-height: 56px; margin: 0 0 .4rem;
+  padding: .5rem .8rem; text-align: left; border-radius: 12px; cursor: pointer;
+  border: 1.5px solid var(--hafer); background: var(--karte);
+}
+.hafer-mahlzeit small { display: block; color: var(--leise); }
+.hafer-mahlzeit .haken {
+  flex: none; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--hafer);
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 800;
+}
+.hafer-mahlzeit.ja .haken { background: var(--hafer); color: var(--karte); }
+
+.monat-kopf { display: flex; align-items: center; justify-content: space-between; margin: .5rem 0; }
+.monat { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.monat th { font-size: .78rem; color: var(--leise); font-weight: 600; padding: .2rem 0; }
+.monat td { padding: 2px; }
+.monat .tag {
+  width: 100%; aspect-ratio: 1; min-height: 40px; border-radius: 10px; border: 1px solid var(--linie);
+  background: var(--karte); cursor: pointer; font-weight: 600; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; line-height: 1; padding: 0;
+}
+.monat .tag small { font-size: .7rem; }
+.monat .tag.heute { border: 2px solid var(--haupt); }
+.monat .tag.hafer { background: var(--hafer); border-color: var(--hafer); color: var(--karte); }
+.punkte { padding-left: 1.2rem; margin: .3rem 0; }
+.punkte li, .einkauf li { margin: .3rem 0; }
+.einkauf { padding-left: 1.2rem; }
+.quelle { margin: 1rem 0; }
+
+/* Werte */
+.werteform { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.feld { display: flex; align-items: center; gap: .4rem; flex: 1 1 160px; }
+.feld input, .formular input:not([type="checkbox"]), .suchfeld input {
+  font: inherit; width: 100%; min-height: 48px; padding: .5rem .8rem; border-radius: 12px;
+  border: 1.5px solid var(--linie); background: var(--karte); color: var(--text);
+}
+.feld .einheit, .mit-einheit .einheit { color: var(--leise); white-space: nowrap; }
+.klein-feld { flex: 1 1 140px; }
+.werteliste li { display: flex; align-items: center; gap: .6rem; padding: .35rem 0; border-bottom: 1px solid var(--linie); }
+.werteliste li > span:first-child { flex: 1; min-width: 0; }
+.werteliste .wert { font-weight: 700; white-space: nowrap; }
+.werteliste .wert small { font-weight: 400; color: var(--leise); }
+.weg { width: 44px; height: 44px; border: none; background: none; color: var(--leise); cursor: pointer; font-size: 1rem; flex: none; }
+.linie { width: 100%; height: 90px; color: var(--haupt); margin: .4rem 0; }
+
+/* Ebene */
+.ebene {
+  position: fixed; inset: 0; z-index: 20; overflow-y: auto; background: var(--grund);
+  padding: env(safe-area-inset-top) 0 calc(1.5rem + env(safe-area-inset-bottom));
+}
+.ebene-kopf {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: .7rem;
+  padding: .6rem 16px; background: var(--grund); border-bottom: 1px solid var(--linie);
+  max-width: 640px; margin: 0 auto;
+}
+.ebene-kopf h2 { font-size: 1.2rem; min-width: 0; overflow-wrap: anywhere; }
+.ebene-inhalt { max-width: 640px; margin: 0 auto; padding: .4rem 16px; }
+.suchfeld { display: block; margin: .6rem 0; }
+.suchfeld input { min-height: 52px; font-size: 1.1rem; }
+.eingetragen {
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  background: var(--haupt-hell); border-radius: 12px; padding: .5rem .5rem .5rem .8rem; margin: .6rem 0;
+}
+.bereiche { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .4rem; }
+.bereich {
+  display: flex; align-items: center; gap: .5rem; min-height: 52px; padding: .4rem .7rem; text-align: left;
+  border-radius: 12px; border: 1px solid var(--linie); background: var(--karte); cursor: pointer; font-weight: 600;
+}
+.bereich span { font-size: 1.3rem; }
+.bereich-kopf { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: .4rem 0; }
+.bereich-kopf h3 { margin: 0; }
+.tipp { background: var(--haupt-hell); border-radius: 12px; padding: .6rem .8rem; }
+.formular label { display: block; margin: .7rem 0; font-weight: 600; }
+.formular label input { margin-top: .25rem; font-weight: 400; }
+.mit-einheit { display: flex; align-items: center; gap: .4rem; }
+.haken-zeile { display: flex !important; align-items: center; gap: .6rem; }
+.haken-zeile input { width: 24px; height: 24px; margin: 0; }
+.umrechnen { margin: .5rem 0; padding: .5rem .8rem; border-radius: 12px; background: var(--karte); border: 1px solid var(--linie); }
+.umrechnen summary { cursor: pointer; min-height: 32px; font-weight: 600; color: var(--haupt); }
+.fehler { color: var(--gefahr); min-height: 1.2em; font-weight: 600; }
+
+/* Leiste unten */
+.leiste {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; justify-content: center;
+  background: var(--karte); border-top: 1px solid var(--linie);
+  padding: .2rem .2rem calc(.2rem + env(safe-area-inset-bottom));
+}
+.leiste button {
+  flex: 1; max-width: 160px; display: flex; flex-direction: column; align-items: center; gap: .1rem;
+  min-height: 56px; border: none; background: none; cursor: pointer; font-size: .8rem; color: var(--leise); font-weight: 600;
+}
+.leiste button span { font-size: 1.3rem; }
+.leiste button[aria-current="page"] { color: var(--haupt); }
+
+/* Meldung */
+.meldung {
+  position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 30;
+  transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  display: flex; align-items: center; gap: .8rem; max-width: calc(100% - 32px); width: max-content;
+  background: var(--text); color: var(--grund); border-radius: 12px; padding: .6rem .9rem; box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+}
+.meldung.sichtbar { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.meldung button { background: none; border: none; color: inherit; font-weight: 800; text-decoration: underline; min-height: 40px; cursor: pointer; }

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mahlzeit">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a9461"/>
+      <stop offset="1" stop-color="#256b42"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Eine dampfende Schüssel: Haferbrei an Hafertagen, sonst einfach
+       „Mahlzeit". Groß und ruhig, damit sie auch klein lesbar bleibt. -->
+  <g fill="#ffffff">
+    <path d="M96 262 H416 C416 352 346 412 256 412 C166 412 96 352 96 262 Z"/>
+    <rect x="80" y="244" width="352" height="30" rx="15"/>
+    <rect x="206" y="404" width="100" height="22" rx="11"/>
+  </g>
+  <g fill="none" stroke="#f3dc8a" stroke-width="22" stroke-linecap="round">
+    <path d="M196 210 C 176 186, 216 166, 196 136"/>
+    <path d="M256 210 C 236 182, 276 160, 256 118"/>
+    <path d="M316 210 C 296 186, 336 166, 316 136"/>
+  </g>
+</svg>

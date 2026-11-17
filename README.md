@@ -25,6 +25,12 @@ nichts.
 > (`tests/test-sd-*.mjs`); sie teilt mit dieser App nur die Grundsätze und
 > die Testumgebung.
 >
+> **Ebenso daneben:** [`mahlzeit/`](mahlzeit/README.md) (v264) – Kalorien
+> nachschlagen und mitzählen, Hafertage planen, Gewicht und Blutzucker, für
+> einen Arbeitskollegen; ohne Fragen beim Start. Eigener Ordner, eigener
+> Worker, eigene Tests (`tests/test-mz-*.mjs`); siehe
+> [Mahlzeit im Unterordner](#mahlzeit-im-unterordner-v264).
+>
 > **Umgezogen:** Die Freizeit-App (was in Hamburg los ist, Konzerte,
 > Merkliste) hat ein eigenes Repository,
 > [Finanzdienste/Freizeit](https://github.com/Finanzdienste/Freizeit), und
@@ -9854,6 +9860,30 @@ verbunden oder nicht; Wegschalten mit Sicherung und Kalender – dieselben
 Anfragen wie ohne Bildschirmzeit, sie selbst als Letzte; die Kennung weder in
 der entschlüsselten Sicherung noch im Export, im Diagnoseprotokoll oder einer
 anderen Anfrage; die Einzeldatei. Gegen v262 rot.
+
+## Mahlzeit im Unterordner (v264)
+
+> Tobi, 17.11.2026: *„Mein Arbeitskollege hat Probleme mit Blutzucker,
+> Gewicht usw. Er soll drei mal im Monat nur Hafer essen oder so. Er weiß
+> nicht wieviel Kalorien seine Sachen haben. Er hat mal ne Kalorien app
+> runter geladen aber da kamen 30 Fragen am Anfang, da hatte er kein bock
+> mehr. Können wir für ihn nicht aus unserer Erfahrung aus der Boxenstopp und
+> der gesundheitsapp [eine] app bauen“*
+
+Die App selbst und ihre Entscheidungen stehen in
+[`mahlzeit/README.md`](mahlzeit/README.md). Diese App hier betrifft nur
+eine Zeile: **`sw.js` lässt `/mahlzeit` in Ruhe**, wie schon `/schilddruese`
+und `/freizeit`. Vorher (bis v263) hätte der Workout-Worker unter
+`/Workout/mahlzeit/` offline die Workout-App ausgeliefert, solange der eigene
+Worker von Mahlzeit noch nicht registriert war – auf einem Handy, auf dem
+beide Apps liegen. `tests/test-mz-offline.mjs` prüft das und war gegen v263
+rot („unter /mahlzeit/ keine Workout-App (Workout)“).
+
+Warum ein Ordner hier und kein eigenes Repository wie Freizeit: Ein neues
+Repository kann Claude aus der Sitzung nicht anlegen, und für den Kollegen,
+der die Workout-App nicht hat, macht der Ordner keinen Unterschied. Ein
+späterer Umzug verliert keine Einträge (der localStorage hängt am Ursprung
+`finanzdienste.github.io`, nicht am Pfad).
 
 ## Rückkanal und Betreiber-Übersicht
 
