@@ -514,6 +514,7 @@ export function leererStand() {
     hinweise: {},
     sicherung: null,
     sport: sportOrdnen(null),
+    meldung: true,
   };
 }
 
@@ -543,6 +544,7 @@ export function ordnen(roh) {
   if (roh.hinweise && typeof roh.hinweise === 'object') s.hinweise = { ...roh.hinweise };
   if (typeof roh.sicherung === 'string') s.sicherung = roh.sicherung;
   s.sport = sportOrdnen(roh.sport);
+  if (roh.meldung === false) s.meldung = false;
   return s;
 }
 

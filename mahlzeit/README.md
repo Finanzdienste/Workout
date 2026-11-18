@@ -235,6 +235,29 @@ Geprüft in `tests/test-mz-sport.mjs` (Auswahl je Gerät und Beschwerde,
 Hanteln, was dran ist, die Einheit mit Uhr im Browser, Gewicht anpassen,
 Heimtrainer, 340 px).
 
+## Lebenszeichen an Tobi (v6, 18.11.2026)
+
+> Tobi: „Und hat er die app schon genutzt?“ – Rückwirkend ging das nicht:
+> Bis v5 verließ nichts das Handy. Dann: „ich hab die app ja selbst nicht und
+> brauch sie nicht aber wenn ich dich hier frage sollst dus mir sagen können“.
+
+Die App meldet höchstens alle drei Stunden (beim Öffnen und beim Weglegen)
+**nur Zahlen des Tages** an die Tabelle `mahlzeit_nutzung` in Tobis
+Supabase-Projekt (`js/lebenszeichen.js`): Einträge, Hafer-Mahlzeiten,
+Sporteinheiten, Werte, eigene Sachen, Tage mit Einträgen insgesamt, Fassung,
+ob sie vom Startbildschirm läuft, und eine Zufallskennung des Geräts. Nie ein
+Name, eine Kalorie, ein Gewicht oder ein Blutzucker. Die App darf nur
+einfügen (öffentlicher Schlüssel, RLS), lesen kann nur der geheime Schlüssel
+– also Claude über den Supabase-Zugang, wenn Tobi fragt:
+
+    select tag, max(essen) essen, max(hafer) hafer, max(sport) sport, max(werte) werte,
+           max(tage) tage_gesamt, bool_or(als_app) als_app, max(at) zuletzt
+    from mahlzeit_nutzung where geraet <> 'testclaude01' group by tag order by tag desc;
+
+Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
+abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
+Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
+
 ## Heute
 
 Tagessumme groß, darunter die Kohlenhydrate (für den Blutzucker zählen die

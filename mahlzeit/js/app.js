@@ -17,8 +17,9 @@ import * as S from './strichcode.js';
 import * as K from './ki.js';
 import * as SP from './sport.js';
 import { figur } from './figuren.js';
+import * as LZ from './lebenszeichen.js';
 
-export const FASSUNG = 'v5';
+export const FASSUNG = 'v6';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -136,6 +137,7 @@ function kartenOben(stand, tag, h) {
   if (!stand.hinweise.willkommen && tag === h) {
     html += `<section class="karte hinweis" id="willkommen">
       <p><strong>Hallo!</strong> Keine Fragen, kein Konto. Tipp auf „Essen eintragen“ und such, was du gegessen hast – die App sagt dir die Kalorien. Alles bleibt auf deinem Handy.</p>
+      <p class="klein">Nur ob du die App nutzt, erfährt Tobi – als Zahl, ohne was du isst (abschaltbar unter „Mehr“).</p>
       <button type="button" class="knopf leise" data-tun="hinweis-weg" data-hinweis="willkommen">Alles klar</button>
     </section>`;
   }
@@ -581,6 +583,14 @@ function seiteMehr(stand) {
     : freischaltenHtml()}
     <p class="klein leise">Was dabei das Handy verlässt: beim Strichcode nur die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel. Beim Rezept der Text bzw. die Fotos – an die KI Claude von Anthropic, über Tobis Zugang. Sonst nichts.</p>
   </section>
+  <section class="karte" id="karte-lebenszeichen">
+    <h3>📶 Lebenszeichen an Tobi</h3>
+    <p>Damit Tobi weiß, ob dir die App etwas bringt, meldet sie höchstens alle drei Stunden nur Zahlen: wie viele Einträge heute, wie viele Hafer-Mahlzeiten, Sporteinheiten und Werte – nie, was du isst, wiegst oder misst.</p>
+    <div class="chips" role="group" aria-label="Lebenszeichen">
+      <button type="button" class="chip" data-tun="meldung" data-an="1" aria-pressed="${stand.meldung !== false}">an</button>
+      <button type="button" class="chip" data-tun="meldung" data-an="" aria-pressed="${stand.meldung === false}">aus</button>
+    </div>
+  </section>
   <section class="karte" id="karte-sicherung">
     <h3>💾 Sicherung</h3>
     <p>Alles liegt nur auf diesem Handy. Mit einer Sicherung kommst du auf einem neuen Handy wieder dran.</p>
@@ -596,7 +606,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
-    <p>Mahlzeit fragt nichts und schickt von sich aus nichts weg: kein Konto, keine Werbung, keine Zählung. Deine Einträge bleiben auf deinem Handy. Nur wenn du einen Strichcode nachschlägst oder die KI fragst, geht genau das hinaus (siehe „KI und Strichcode“).</p>
+    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi (nur Zahlen, abschaltbar, siehe oben) und, wenn du einen Strichcode nachschlägst oder die KI fragst, genau das (siehe „KI und Strichcode“).</p>
     <p>Die Kalorien sind Richtwerte für übliche Portionen – ein Döner vom Imbiss nebenan kann 100 kcal mehr oder weniger haben. Für den Überblick reicht das; genauer wird es mit der Packung in der Hand („Selbst eintragen“).</p>
     <p>Die App ersetzt keine ärztliche Beratung. Was die Hafertage angeht, steht die Quelle unter „Hafer“.</p>
     <p class="klein leise">Fassung ${FASSUNG}</p>
@@ -1714,6 +1724,10 @@ document.addEventListener('click', (ev) => {
       zustand.radStufe = el.dataset.stufe;
       el.parentElement.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c === el)));
       break;
+    case 'meldung':
+      aendern((s) => { s.meldung = !!el.dataset.an; });
+      zeige();
+      break;
     case 'hafer-oft':
       aendern((s) => { s.hafer.proMonat = Number(el.dataset.n); });
       zeige();
@@ -1883,6 +1897,11 @@ window.addEventListener('popstate', () => {
 window.addEventListener('storage', (ev) => {
   if (ev.key === SCHLUESSEL || ev.key === null) zeige();
 });
+
+// Lebenszeichen: beim Öffnen (kurz danach) und beim Weglegen, höchstens alle drei Stunden.
+const lebenszeichen = () => LZ.melden(lesen(), { tag: heute(), fassung: FASSUNG, alsApp: standalone() });
+setTimeout(lebenszeichen, 4000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') lebenszeichen(); });
 
 // Über Mitternacht offen geblieben: beim Zurückkommen stimmt „Heute" wieder.
 document.addEventListener('visibilitychange', () => {

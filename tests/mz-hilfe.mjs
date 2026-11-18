@@ -65,6 +65,9 @@ export async function oeffne({
   // Nie ins echte Netz: Die KI kostet Geld, Open Food Facts ist nicht unser
   // Prüfstand. Tests, die es brauchen, legen page.route darüber.
   await ctx.route(/supabase\.co|openfoodfacts\.org/, (r) => r.abort());
+  // Das Lebenszeichen (v6) still annehmen – sonst stünde in jedem Test ein
+  // abgebrochener Abruf als Fehler in der Konsole.
+  await ctx.route(/rest\/v1\/mahlzeit_nutzung/, (r) => r.fulfill({ status: 201, body: '', headers: { 'access-control-allow-origin': '*' } }));
   const page = await ctx.newPage();
   const fehler = [];
   const dialoge = [];
