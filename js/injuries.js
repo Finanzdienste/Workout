@@ -31,6 +31,10 @@ export const KIND_LABEL = {
   vorfall: 'Vorfall',
   blockade: 'Blockade',
   prellung: 'Prellung',
+  // Seit v266: zwei Einträge, die nichts sperren (Haltung, Plattfuß) – keine
+  // Verletzung, aber ein Grund für Zusatzübungen hinter jedem Training.
+  haltung: 'Haltung',
+  fehlstellung: 'Fehlstellung',
 };
 
 /*
@@ -292,6 +296,32 @@ export const INJURIES = [
   },
 
   /* ---------------- Rumpf ---------------- */
+  {
+    // Seit v266 (19.11.): „Da vllt entsprechende Übungen integrieren bzw
+    // vorhandene Übungen austauschen oder so? Die aktuellen Übungen sind aber
+    // fein mathematisch ausgewählt" – und: „Ich wil aufkeinenfall nen extra
+    // modus "Stabilität" oder so. Es soll da mit eingebaut sein".
+    //
+    // Gesperrt wird nichts. Der obere Rücken ist in jedem Plan schon gut
+    // versorgt (hintere Schulter 8, Schulterblattzieher rund 10 Sätze die
+    // Woche aus Face Pull, Reverse Fly, Rudern und Klimmzügen) – mehr davon
+    // fehlt nicht. Was fehlt, ist Haltearbeit, und die zählt der Plan bewusst
+    // nicht als Sätze. Sie kommt deshalb über `care` hinter jedes Training.
+    //
+    // Ausdrücklich nicht über 'nacken': Der sperrt das Seitheben, und um
+    // Schultern, die hochgezogen werden, geht es hier nicht.
+    id: 'haltung',
+    name: 'Haltung beim Stehen',
+    area: 'Oberkörper', spot: 'neck', kind: 'haltung',
+    text: 'Langes Stehen wird schnell unangenehm, der Oberkörper will nach vorn '
+      + 'zusammensacken – und wer dagegen den Kopf in den Nacken nimmt, bekommt '
+      + 'Nackenschmerzen. Keine Verletzung, und keine Übung muss dafür raus: Der obere '
+      + 'Rücken ist im Plan schon gut versorgt. Was fehlt, ist Haltearbeit für die tiefen '
+      + 'Halsbeuger, die Brustwirbelsäule und den Rumpf.',
+    avoid: [],
+    swap: {},
+    care: ['kinnZurueck', 'wandengel', 'deadBug'],
+  },
   {
     id: 'nacken',
     name: 'Nackenverspannung / HWS-Reizung',
@@ -631,6 +661,20 @@ export const INJURIES = [
     swap: { 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie' },
     care: ['zehenheben', 'wadeGestreckt', 'fussABC'],
   },
+  {
+    // Seit v266, zusammen mit 'haltung' und aus demselben Grund ohne Sperren:
+    // Das Wadenheben im Stand bleibt drin, es kräftigt genau die Muskeln, die
+    // das Gewölbe mittragen.
+    id: 'plattfuss',
+    name: 'Plattfuß / Fersen beim Stehen',
+    area: 'Fuß', spot: 'foot', kind: 'fehlstellung',
+    text: 'Das Längsgewölbe sinkt beim Stehen ein, nach ein paar Minuten melden sich die '
+      + 'Fersen und oft der Rücken mit. Keine Übung muss dafür raus – Wadenheben im Stand '
+      + 'kräftigt die Muskeln, die das Gewölbe mittragen. Die Einlagen ersetzt das nicht.',
+    avoid: [],
+    swap: {},
+    care: ['kurzerFuss', 'einbeinstand', 'wadeGestreckt'],
+  },
 ];
 
 /* ------------------------------------------------------------------ *
@@ -836,6 +880,12 @@ export const CARE = {
     name: 'Fuß-ABC', kind: 'mobilisieren', dose: '2 Durchgänge je Seite',
     cue: 'Im Sitzen mit der großen Zehe das Alphabet in die Luft schreiben. Bringt das '
       + 'Sprunggelenk in alle Richtungen, ohne es zu belasten.',
+  },
+  kurzerFuss: {
+    name: 'Kurzer Fuß', kind: 'kraeftigen', dose: '3 × 10, je 5 s halten',
+    cue: 'Erst im Sitzen, später im Stehen. Die Zehen bleiben lang und locker am Boden, '
+      + 'den Fußballen Richtung Ferse ziehen, bis sich das Gewölbe hebt. Nicht die Zehen '
+      + 'einkrallen – die Arbeit macht die Fußsohle.',
   },
   einbeinstand: {
     name: 'Einbeinstand', kind: 'kraeftigen', dose: '3 × 45 s je Seite',

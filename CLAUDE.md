@@ -139,7 +139,11 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (19.11.2026)
-- Workout v265: `js/bildschirmzeit.js` in der neuen Fassung der Quelle – sie
+- Workout v266: unter *Verletzt* „Haltung beim Stehen“ und „Plattfuß /
+  Fersen beim Stehen“ – sperren nichts, die Pläne bleiben bitgleich, nur die
+  Zusatzübungen hängen hinter jedem Training (neu: „Kurzer Fuß“; README
+  „Haltung und Plattfuß“). Tobi wollte ausdrücklich keinen eigenen Modus.
+- Davor v265: `js/bildschirmzeit.js` in der neuen Fassung der Quelle – sie
   kennt die Bewerbungszentrale als vierte Web-App (Widget-App Release v15);
   für Workout ändert sich nichts.
 - Davor v264: `sw.js` lässt `/mahlzeit` in Ruhe; daneben die neue App

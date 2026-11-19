@@ -6503,7 +6503,11 @@ function renderInjuries() {
                 i.avoid.map((x) => esc(nm(x))).join(' · ')}</div>` : ''}
               ${Object.keys(i.swap).length ? `<div class="small" style="margin-top:4px"><b>Ersatz:</b> ${
                 Object.entries(i.swap).map(([a, b]) => `${esc(nm(a))} → ${esc(nm(b))}`).join(' · ')}</div>`
-                : '<div class="small muted" style="margin-top:4px">Kein Ersatz – die Übungen fallen weg.</div>'}
+                // Haltung und Plattfuß (v266) sperren nichts – „die Übungen
+                // fallen weg" wäre dort schlicht falsch.
+                : [...i.avoid, ...(i.avoidDb || []), ...(i.avoidBw || [])].length
+                  ? '<div class="small muted" style="margin-top:4px">Kein Ersatz – die Übungen fallen weg.</div>'
+                  : '<div class="small muted" style="margin-top:4px">Sperrt keine Übung – der Plan bleibt, wie er ist. Dazu kommen die Übungen unten, hinter jedem Training.</div>'}
             </div>
           </div>
           ${(i.care || []).length ? `<div class="inj-care">

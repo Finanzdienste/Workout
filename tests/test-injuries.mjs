@@ -413,6 +413,60 @@ check(!/Hip Thrust/.test(getauscht) && /Goblet Squat/.test(ersatzlos),
 await page.locator('[data-act="clear-injuries"]').click();
 await page.waitForTimeout(200);
 
+// --- Haltung und Plattfuß (v266): ins Training eingebaut, Plan unangetastet ---
+// *„Ich wil aufkeinenfall nen extra modus "Stabilität" oder so. Es soll da mit
+// eingebaut sein"* – und die Übungen sind *„fein mathematisch ausgewählt"*.
+// Also: keine Sperre, kein Tausch, in keinem Plan und keinem Modus; die
+// Zusatzübungen stehen hinter der letzten Übung jedes Trainings.
+const neu = ['haltung', 'plattfuss'];
+const unberuehrt = await page.evaluate(async (ids) => {
+  const { INJURIES, applyInjuries, gesperrt } = await import('./js/injuries.js');
+  const { PLANS } = await import('./js/data.js');
+  const da = ids.filter((id) => INJURIES.some((i) => i.id === id));
+  let einheiten = 0;
+  let anders = 0;
+  Object.values(PLANS).forEach((p) => p.plan.forEach((w) => {
+    einheiten += 1;
+    const r = applyInjuries(w.ex, da);
+    if (JSON.stringify(r.items) !== JSON.stringify(w.ex) || r.dropped.length || r.swapped.length) anders += 1;
+  }));
+  return { da, einheiten, anders, db: gesperrt(da, 'db').size, bw: gesperrt(da, 'bw').size };
+}, neu);
+check(unberuehrt.da.length === 2, `Haltung und Plattfuß stehen zur Auswahl (${unberuehrt.da.join(', ') || 'keins'})`);
+check(unberuehrt.db === 0 && unberuehrt.bw === 0, 'sie sperren in keinem Modus eine Übung');
+check(unberuehrt.einheiten > 300 && unberuehrt.anders === 0,
+  `alle ${unberuehrt.einheiten} Einheiten aller Pläne bleiben, wie sie sind (${unberuehrt.anders} anders)`);
+
+await page.evaluate(async (ids) => {
+  const store = await import('./js/store.js');
+  store.setMode('db');
+  store.setSetting('injuries', ids);
+}, neu);
+await zuVerletzt();
+await page.waitForTimeout(300);
+const sumNeu = (await page.locator('.inj-summary').textContent()).replace(/\s+/g, ' ');
+check(/Am Plan ändert sich nichts/.test(sumNeu), 'die Übersicht sagt: am Plan ändert sich nichts');
+await page.locator('.inj-card', { hasText: 'Haltung beim Stehen' }).locator('.inj-head').click();
+await page.waitForTimeout(200);
+const karteNeu = (await page.locator('.inj-card', { hasText: 'Haltung beim Stehen' }).textContent()).replace(/\s+/g, ' ');
+check(/Sperrt keine Übung/.test(karteNeu) && !/die Übungen fallen weg/.test(karteNeu),
+  'die Karte sagt „sperrt keine Übung“ statt „die Übungen fallen weg“');
+
+await page.locator('.tab[data-tab="dashboard"]').click();
+await page.waitForTimeout(200);
+await page.locator('[data-act="show-list"]').first().click();
+await page.waitForTimeout(300);
+const schluss = await page.locator('.care-block .care-name').allTextContents();
+console.log('     hinter dem Training:', schluss.join(' | '));
+check(['Kinn zurückziehen', 'Wandengel', 'Dead Bug', 'Kurzer Fuß', 'Einbeinstand'].every((x) => schluss.includes(x)),
+  'die Zusatzübungen für Haltung und Fuß stehen hinter der letzten Übung');
+const notizNeu = (await page.locator('.injury-note').textContent()).replace(/\s+/g, ' ');
+check(/Heute ändert das nichts/.test(notizNeu), 'im Training: heute ändert das an den Übungen nichts');
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('injuries', []);
+});
+
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);
 
