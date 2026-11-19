@@ -120,10 +120,14 @@ check(await page.locator('[data-act="zusatztag-weg"]').count() === 0,
 // Jetzt ein Start, und im Kopf die Summe – Planübungen und eingefügte zusammen
 // (test-zusatz-einheit.mjs prüft den ganzen Ablauf an Tobis Stand,
 // test-summen.mjs die Zahlen).
+// Seit v271 ohne Nummer über dem Titel – nur das Wann („T · Heute"; bis v270
+// „Heute · Workout 5"): „Die Workout Nummer ist mir … komplett egal". Welche
+// Einheit vorn steht, sagt data-n.
 const kopf = (await page.locator('.hero-eyebrow').textContent()).trim();
-console.log('     Startansicht zeigt:', kopf);
-check(/Heute · Workout 5/.test(kopf),
-  `an einem Tag mit fälliger Planeinheit steht sie vorn (${kopf})`);
+const kopfN = await page.locator('.hero-eyebrow').getAttribute('data-n');
+console.log('     Startansicht zeigt:', kopf, `(data-n ${kopfN})`);
+check(kopfN === '5' && /^(?:T · )?Heute$/.test(kopf),
+  `an einem Tag mit fälliger Planeinheit steht sie vorn (${kopf}, data-n ${kopfN})`);
 check(await page.locator('.zusatz-danach').count() === 0
   && await page.locator('#view [data-act="custom-start"]').count() === 0,
 'keine zweite Einheit daneben, kein zweiter Start');
@@ -249,8 +253,12 @@ check(await page.locator('[data-act="back-to-plan"]').count() === 1,
 await page.locator('[data-act="back-to-plan"]').click();
 await page.waitForTimeout(400);
 const zurueck = (await page.locator('.hero-eyebrow').textContent()).trim();
-console.log('     nach „Zurück zum Plan":', zurueck);
-check(/Workout \d+/.test(zurueck), `„Zurück zum Plan" führt in den Plan (${zurueck})`);
+const zurueckN = await page.locator('.hero-eyebrow').getAttribute('data-n');
+console.log('     nach „Zurück zum Plan":', zurueck, `(data-n ${zurueckN})`);
+// In den Plan heißt: Workout 5, die erste offene Planeinheit, drei Tage
+// voraus – an data-n zu erkennen, nicht mehr an „Workout 5" im Text (v271).
+check(zurueckN === '5' && /^(?:T · )?in 3 Tagen$/.test(zurueck),
+  `„Zurück zum Plan" führt in den Plan (${zurueck}, data-n ${zurueckN})`);
 z = await zustand();
 check(z.customs.length === 1, 'der Zusatztag bleibt dabei liegen – er ist ja nicht falsch');
 

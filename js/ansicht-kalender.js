@@ -187,7 +187,7 @@ export function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigen
     return `
       <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
               aria-pressed="${iso === sel}"
-              aria-label="${esc(fmtDate(iso, true))}: Workout ${ausfall.n} ${esc(KIND_TEXT.miss)}${
+              aria-label="${esc(fmtDate(iso, true))}: Workout ${esc(KIND_TEXT.miss)}${
                 sport.length ? ` · ${esc(namen)}` : ''}">
         <span class="cal-num">${tag}</span>
         <span class="cal-mark">·</span>
@@ -296,10 +296,12 @@ export function calendarEigene(iso, x) {
  * verloren.
  */
 export function calendarAusfall(iso, x, today) {
+  // Die Einheit ohne Nummer (v271: „Die Workout Nummer ist mir … komplett
+  // egal") – welche gemeint ist, sagt der Tag, den man angetippt hat.
   let folge;
   if (x.spaeter) {
     const fertig = !x.aktuell || completedMode(x.n);
-    folge = `Workout ${x.n} rückte nach hinten und wurde am ${fmtDate(x.spaeter)} ${fertig ? 'trainiert' : 'angefangen'}.`;
+    folge = `Das Workout rückte nach hinten und wurde am ${fmtDate(x.spaeter)} ${fertig ? 'trainiert' : 'angefangen'}.`;
   } else if (x.aktuell) {
     const jetzt = effDate(PLAN[x.n - 1]);
     // Über Mitternacht, bevor catchUpPlan() nachrückt, liegt die Einheit noch
@@ -307,18 +309,18 @@ export function calendarAusfall(iso, x, today) {
     // selbst als ausgefallen zeigt. „Jetzt für Mo geplant" am Di wäre falsch;
     // „noch offen" stimmt vor und nach dem Nachrücken.
     folge = jetzt < today
-      ? `Workout ${x.n} rückte nach hinten und ist noch offen.`
-      : `Workout ${x.n} rückte nach hinten und ist jetzt für ${
+      ? 'Das Workout rückte nach hinten und ist noch offen.'
+      : `Das Workout rückte nach hinten und ist jetzt für ${
         jetzt === today ? 'heute' : fmtDate(jetzt)} geplant.`;
   } else {
-    folge = `Workout ${x.n} blieb offen – danach ging es mit einem anderen Plan weiter.`;
+    folge = 'Das Workout blieb offen – danach ging es mit einem anderen Plan weiter.';
   }
   const plan = x.focus ? (PLANS[x.focus] || FOKUS_ERSATZ[x.focus] || {}).name : '';
   return `
     <div class="card cal-detail cal-aus">
       <div class="cal-det-head">
         <div>
-          <div class="lbl">Workout ${x.n} · ${esc(KIND_TEXT.miss)}</div>
+          <div class="lbl" data-n="${x.n}">Workout · ${esc(KIND_TEXT.miss)}</div>
           <div class="hint">${esc(fmtDate(iso, true))} · Trainingstag im Rhythmus nach dem Training
             am ${esc(fmtDate(x.seit))}</div>
         </div>
@@ -403,7 +405,7 @@ export function calendarWorkout(w, iso, today) {
     <div class="card cal-detail">
       <div class="cal-det-head">
         <div>
-          <div class="lbl">Workout ${w.n} · ${esc(kopf)}</div>
+          <div class="lbl" data-n="${w.n}">Workout · ${esc(kopf)}</div>
           <!-- Wortgleich mit dem Kopf der Einheit: die Summe, Nachgeholtes
                eingerechnet (umfangText() in js/anzeige.js); welche Übung
                nachgeholt ist, steht in der Liste darunter. -->

@@ -86,8 +86,13 @@ if (await page.locator('[data-act="finish-session"]').count()) {
 }
 await page.locator('[data-act="back-to-plan"]').click();
 await page.waitForTimeout(250);
-check((await page.locator('.hero-eyebrow').first().textContent()).includes('Workout 1'),
-  'der Rückweg führt zur nächsten Plan-Einheit');
+// Welche Einheit vorn steht, sagt seit v271 data-n; über dem Titel steht nur
+// noch das Wann („Tobi · Heute", bis v270 „Tobi · Heute · Workout 1").
+const rueckweg = page.locator('.hero-eyebrow').first();
+const rueckText = (await rueckweg.textContent()).replace(/\s+/g, ' ').trim();
+const rueckN = await rueckweg.getAttribute('data-n');
+check(rueckN === '1' && /^(?:Tobi · )?Heute$/.test(rueckText),
+  `der Rückweg führt zur nächsten Plan-Einheit („${rueckText}", data-n ${rueckN})`);
 
 // --- Löschen ---
 page.on('dialog', (d) => d.accept());

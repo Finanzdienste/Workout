@@ -23,7 +23,7 @@ import { abbruch, ausgelassen, vorneListe } from './muster.js';
  *
  * In der ganzen Einheit gesucht (einheitEx()), nicht nur in ihrem Plan: Die
  * Chin-ups aus einem eingefügten Zusatztag sind beim nächsten Mal „Zuletzt
- * (Workout 9)", nicht „noch nie".
+ * (Do 8.10.)" (bis v270 „Zuletzt (Workout 9)"), nicht „noch nie".
  */
 export function lastLoggedFor(exId, mode, beforeN) {
   for (let i = PLAN.length - 1; i >= 0; i--) {

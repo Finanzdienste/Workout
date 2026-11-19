@@ -245,12 +245,16 @@ const nachRunde = await page.evaluate(() => ({
   kg: JSON.parse(localStorage.getItem('workout.state.v1') || '{}').weights?.['goblet-squat'],
 }));
 const eyebrow = await page.locator('.hero-eyebrow').textContent();
-console.log('     nach dem Plan:', eyebrow.trim(), JSON.stringify(nachRunde));
+// Welche Einheit vorn steht, sagt seit v271 data-n – im Text steht nur noch das
+// Wann („Die Workout Nummer ist mir … komplett egal").
+const eyebrowN = await page.locator('.hero-eyebrow').getAttribute('data-n');
+console.log('     nach dem Plan:', eyebrow.trim(), `(data-n ${eyebrowN})`, JSON.stringify(nachRunde));
 const seite = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(!/Plan geschafft/.test(seite), 'kein Endbildschirm mehr');
 check(await page.locator('[data-act="restart-plan"]').count() === 0,
   'und kein Knopf „Von vorn beginnen" auf der Startansicht');
-check(eyebrow.includes('Workout 1'), 'stattdessen steht Workout 1 an – die neue Runde läuft');
+check(eyebrowN === '1' && !/Workout/.test(eyebrow),
+  `stattdessen steht Workout 1 an – die neue Runde läuft (data-n ${eyebrowN}, ohne Nummer: „${eyebrow.trim()}")`);
 check(nachRunde.log === 0 && nachRunde.runden === 1,
   `der Verlauf ist in der Ablage, nicht weg (${nachRunde.runden} Runde, log leer: ${nachRunde.log === 0})`);
 check(nachRunde.kg === 30, 'und die erreichten Gewichte stehen weiter da');

@@ -116,16 +116,31 @@ await page.evaluate(async () => {
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 
-const zielN = await page.evaluate(async () => {
+// Erkannt wird die Einheit an data-n: Seit v271 steht die Nummer nicht mehr
+// in der Augenbraue („Die Workout Nummer ist mir … komplett egal"), dort nur
+// noch das Wann – „T · Heute", „T · in 2 Tagen" (wannWort() in js/app.js).
+const ziel = await page.evaluate(async () => {
   const { PLAN } = await import('./js/data.js');
-  return PLAN.find((x) => x.ex.some((e) => e.id === 'einarmiges-kh-rudern')).n;
+  const { effDate } = await import('./js/plan.js');
+  const { daysBetween, todayISO } = await import('./js/dates.js');
+  const w = PLAN.find((x) => x.ex.some((e) => e.id === 'einarmiges-kh-rudern'));
+  return { n: w.n, d: daysBetween(todayISO(), effDate(w)) };
 });
-for (let k = 0; k < 25; k++) {
-  const kopf = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-  if (new RegExp(`Workout ${zielN}\\b`).test(kopf)) break;
-  await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
-  await page.waitForTimeout(200);
-}
+const zielN = ziel.n;
+const wann = (d) => (d === 0 ? 'Heute' : d === 1 ? 'Morgen' : d === -1 ? 'Gestern'
+  : d > 1 ? `in ${d} Tagen` : `vor ${-d} Tagen`);
+const hinZurEinheit = async (wozu) => {
+  for (let k = 0; k < 25; k++) {
+    if (await page.locator(`.hero-eyebrow[data-n="${zielN}"]`).count()) break;
+    await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+    await page.waitForTimeout(200);
+  }
+  const braue = ((await page.locator(`.hero-eyebrow[data-n="${zielN}"]`).first()
+    .textContent({ timeout: 1500 }).catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  check(braue === `T · ${wann(ziel.d)}`,
+    `${wozu}: bei der Einheit mit dem Rudern (data-n="${zielN}"), oben das Wann und keine Nummer („${braue}")`);
+};
+await hinZurEinheit('vor dem Anhaken');
 await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(400);
 const karte = page.locator('.ex').filter({ hasText: 'Langhantelrudern' }).first();
@@ -191,12 +206,7 @@ check(nachher.ersatz >= vorher, `die Inverted Row ist dafür eingesprungen (${na
 // Knopf, der gerade woanders steht, prüft nichts.
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
-for (let k = 0; k < 25; k++) {
-  const kopf = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-  if (new RegExp(`Workout ${zielN}\\b`).test(kopf)) break;
-  await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
-  await page.waitForTimeout(200);
-}
+await hinZurEinheit('nach dem Anhaken');
 await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(400);
 const namen = (await page.locator('.ex-name').allTextContents()).map((x) => x.trim());

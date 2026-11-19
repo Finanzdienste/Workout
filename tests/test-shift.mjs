@@ -66,9 +66,12 @@ async function snap(label) {
   }
   const st = await readState();
   const eyebrow = await page.locator('.hero-eyebrow').textContent();
+  // Welche Einheit oben steht, sagt seit v271 nur noch data-n – im Text steht
+  // das Wann allein („Heute", bis v270 „Heute · Workout 2").
+  const n = await page.locator('.hero-eyebrow').getAttribute('data-n');
   const title = await page.locator('.hero-title').textContent();
-  console.log(`${label.padEnd(32)} shift=${String(st.shift ?? 0).padStart(2)}  ${eyebrow}  ->  ${title}`);
-  return { shift: st.shift ?? 0, eyebrow, title, st };
+  console.log(`${label.padEnd(32)} shift=${String(st.shift ?? 0).padStart(2)}  ${eyebrow} [${n}]  ->  ${title}`);
+  return { shift: st.shift ?? 0, eyebrow, n, title, st };
 }
 
 let fails = 0;
@@ -132,7 +135,8 @@ check(s.title.includes(de(w2)), `Workout 2 auf dem ${de(w2)} – Abstand aus dem
 await at(verpasst2);
 s = await snap('Workout 2 verpasst');
 check(s.shift === 4, 'Shift = 4 (nicht erneut ab Workout 1 gerechnet)');
-check(s.eyebrow.includes('Workout 2'), 'Dashboard steht auf Workout 2');
+check(s.n === '2' && s.eyebrow === 'Heute',
+  `Dashboard steht auf Workout 2 – oben nur „Heute", ohne Nummer (${s.eyebrow} [${s.n}])`);
 check(s.title.includes(de(verpasst2)), 'Workout 2 auf heute nachgerückt');
 
 // --- Historie darf nicht mitwandern ---------------------------------------

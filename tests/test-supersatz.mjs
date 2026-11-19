@@ -815,9 +815,10 @@ const name = async (p) => (await p.locator('.focus-name').textContent()).trim();
     }, fall.scheiben);
     await p.reload({ waitUntil: 'networkidle' });
     await p.waitForTimeout(300);
+    // Erkannt an data-n über dem Titel – seit v271 steht dort keine Nummer
+    // mehr („Die Workout Nummer ist mir … komplett egal"), bis v270 „Workout n".
     for (let i = 0; i < 100; i++) {
-      const t = await p.locator('#view').textContent();
-      if (new RegExp(`Workout ${fall.n}\\b`).test(t)) break;
+      if (await p.locator(`#view .hero-eyebrow[data-n="${fall.n}"]`).count()) break;
       await p.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
       await p.waitForTimeout(80);
     }
@@ -1042,11 +1043,11 @@ const name = async (p) => (await p.locator('.focus-name').textContent()).trim();
   await p.context().close();
 }
 
-// Bis zur Einheit `n` blättern und sie starten.
+// Bis zur Einheit `n` blättern und sie starten. Erkannt an data-n über dem
+// Titel – die Nummer steht seit v271 nicht mehr im Text.
 const starte = async (p, n) => {
   for (let i = 0; i < 100; i++) {
-    const t = await p.locator('#view').textContent();
-    if (new RegExp(`Workout ${n}\\b`).test(t)) break;
+    if (await p.locator(`#view .hero-eyebrow[data-n="${n}"]`).count()) break;
     await p.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
     await p.waitForTimeout(80);
   }
@@ -1123,7 +1124,7 @@ const ruestZeile = async (p) => (await p.locator('.ruest').count()
     await p.reload({ waitUntil: 'networkidle' });
     await p.waitForTimeout(300);
     for (let i = 0; i < 100; i++) {
-      if (new RegExp(`Workout ${fall.n}\\b`).test(await p.locator('#view').textContent())) break;
+      if (await p.locator(`#view .hero-eyebrow[data-n="${fall.n}"]`).count()) break;
       await p.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
       await p.waitForTimeout(80);
     }
@@ -1253,8 +1254,7 @@ for (const mode of ['db', 'bw']) {
     await p.reload({ waitUntil: 'networkidle' });
     await p.waitForTimeout(300);
     for (let i = 0; i < 100; i++) {
-      const t = await p.locator('#view').textContent();
-      if (new RegExp(`Workout ${f.n}\\b`).test(t)) break;
+      if (await p.locator(`#view .hero-eyebrow[data-n="${f.n}"]`).count()) break;
       await p.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
       await p.waitForTimeout(80);
     }
@@ -1276,8 +1276,7 @@ for (const mode of ['db', 'bw']) {
     const q = ctx2;
     const anders = await (async () => {
       for (let i = 0; i < 100; i++) {
-        const t = await q.locator('#view').textContent();
-        if (new RegExp(`Workout ${fall.anders.n}\\b`).test(t)) break;
+        if (await q.locator(`#view .hero-eyebrow[data-n="${fall.anders.n}"]`).count()) break;
         await q.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
         await q.waitForTimeout(80);
       }

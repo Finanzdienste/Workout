@@ -255,9 +255,14 @@ const umstellen = async (m) => {
   await page.locator('.tab[data-tab="dashboard"]').click();
   await page.waitForTimeout(200);
 };
-// Zur fertigen Einheit 1 zurückblättern, dann umstellen.
-const vorn6 = await page.evaluate(() => (document.querySelector('.hero-eyebrow') || {}).textContent || '');
-if (!/Workout 1\b/.test(vorn6)) {
+// Zur fertigen Einheit 1 zurückblättern, dann umstellen. Welche vorn steht,
+// sagt der Haken data-n am Kopf – seit v271 steht dort nur das Wann („Heute"),
+// nicht mehr „Heute · Workout 1".
+const vorn6 = await page.evaluate(() => {
+  const kopf = document.querySelector('.hero-eyebrow');
+  return kopf ? kopf.dataset.n || '' : '';
+});
+if (vorn6 !== '1') {
   await page.locator('[data-act="nav-workout"][data-delta="-1"]').first().click();
   await page.waitForTimeout(200);
 }

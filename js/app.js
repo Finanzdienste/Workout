@@ -389,10 +389,10 @@ function umbauHinweis() {
     <div class="notice aufstieg" style="margin:0 0 12px">
       <strong>Der Plan wurde überarbeitet</strong>
       <div class="small" style="margin-top:6px">
-        Hinter den Workout-Nummern von „${esc(u.fokus)}" stehen jetzt andere Übungen –
-        deine ${u.einheiten === 1 ? 'eine Einheit' : `${u.einheiten} Einheiten`} aus der
-        laufenden Runde zeigen darauf nicht mehr. Sie liegen deshalb vollständig unter
-        <i>Mehr → Daten</i>, und die neue Runde fängt bei eins an.
+        Im Plan „${esc(u.fokus)}" stehen jetzt andere Übungen – deine
+        ${u.einheiten === 1 ? 'eine Einheit' : `${u.einheiten} Einheiten`} aus der laufenden
+        Runde passen nicht mehr dazu. Sie liegen deshalb vollständig unter
+        <i>Mehr → Daten</i>, und die neue Runde fängt von vorn an.
         <b>Deine Gewichte, Bänder, Erfahrungsstufe und die Statistik bleiben, wie sie
         sind</b> – die rechnen über alle Runden.
       </div>
@@ -415,8 +415,8 @@ function umzugHinweis() {
         jetzt auf <b>${esc(u.nach)}</b>, dem Plan, der am nächsten dran ist. Deine Gewichte,
         Bänder und Zusatzwiederholungen bleiben unverändert.
         ${abgelegt ? ' Dein bisheriger Verlauf ist unter <i>Mehr → Daten</i> abgelegt; '
-          + 'zurückholen lässt er sich nicht, weil hinter Workout 12 andere Übungen stehen '
-          + 'als vorher.' : ''}
+          + 'zurückholen lässt er sich nicht, weil im neuen Plan andere Übungen stehen '
+          + 'als im alten.' : ''}
       </div>
       <div class="btn-row nav" style="margin-top:10px">
         <button type="button" class="btn btn-primary" data-act="umzug-ok">Verstanden</button>
@@ -944,8 +944,8 @@ const kalenderTagKurz = (ms) => fmtDate(toISO(new Date(ms))).replace(',', '');
 
 /**
  * Welchen Trainingsstand dieses Gerät dem Skript schickt – als Satzteil für
- * die Karte: „zuletzt trainiert Workout 13 am Mo 26.10." oder „noch nie
- * trainiert". Aus dem echten Zustand, so wie trainingsStand() in
+ * die Karte: „zuletzt trainiert am Mo 26.10." oder „noch nie trainiert"
+ * (bis v270 mit der Nummer: „… Workout 13 am Mo 26.10."). Aus dem echten Zustand, so wie trainingsStand() in
  * js/kalender-vorschau.js `stand.zuletzt` rechnet: das jüngste Lebenszeichen
  * einer Einheit (store.lebenszeichen(), samt Uhr der Sitzung) über das
  * laufende Protokoll und die abgelegten Runden. Daran entscheidet das Skript
@@ -963,10 +963,12 @@ const kalenderTagKurz = (ms) => fmtDate(toISO(new Date(ms))).replace(',', '');
 function kalenderGeraetStand() {
   const s = store.getState();
   const jetzt = Date.now();
+  // Eine Planeinheit sagt nur ihren Tag (v271: „Die Workout Nummer ist mir
+  // … komplett egal"), eine eigene ihren Namen davor.
   const name = (k) => {
-    if (/^\d+$/.test(k)) return `Workout ${k}`;
+    if (/^\d+$/.test(k)) return '';
     const c = store.customs().find((x) => x.id === k);
-    return c && c.name ? `„${c.name}"` : 'ein eigenes Workout';
+    return c && c.name ? `„${c.name}" ` : 'ein eigenes Workout ';
   };
   let best = null;
   const nimm = (t, k) => { if (t > 0 && (!best || t > best.t)) best = { t, k }; };
@@ -975,13 +977,13 @@ function kalenderGeraetStand() {
     const t = e && Number.isFinite(e.zuletzt) && e.zuletzt <= jetzt + 60 * 1000 ? e.zuletzt : 0;
     nimm(t, k);
   }));
-  if (best) return `zuletzt trainiert ${name(best.k)} am ${kalenderTagKurz(best.t)}`;
+  if (best) return `zuletzt trainiert ${name(best.k)}am ${kalenderTagKurz(best.t)}`;
   // Ohne Lebenszeichen: der jüngste Tag, an dem eine Einheit angefangen wurde.
   let tag = null;
   const tagNimm = (iso, k) => { if (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso) && (!tag || iso > tag.iso)) tag = { iso, k }; };
   Object.entries(s.log || {}).forEach(([k, e]) => tagNimm(e && e.startedOn, k));
   (Array.isArray(s.rounds) ? s.rounds : []).forEach((r) => Object.entries((r && r.log) || {}).forEach(([k, e]) => tagNimm(e && e.startedOn, k)));
-  if (tag) return `zuletzt trainiert ${name(tag.k)} am ${fmtDate(tag.iso).replace(',', '')}`;
+  if (tag) return `zuletzt trainiert ${name(tag.k)}am ${fmtDate(tag.iso).replace(',', '')}`;
   return 'noch nie trainiert';
 }
 
@@ -2139,11 +2141,24 @@ function tagKurz(isoQuelle, isoEinheit, mitDatum = false) {
   return `${wt} ${ta}.${mo}.`;
 }
 
+/**
+ * Der Tag, an dem eine frühere Einheit trainiert wurde, für „Zuletzt (Mo
+ * 16.11.): 12 · 12 · 10" – immer mit Datum, die Zeile bleibt stehen. Bis v270
+ * stand dort die Nummer („Zuletzt (Workout 17)").
+ */
+function zuletztTag(n) {
+  const iso = store.startedOn(n) || (PLAN[n - 1] ? effDate(PLAN[n - 1]) : null);
+  return iso ? tagKurz(iso, iso, true) : 'früher';
+}
+
 /** Die Herkunftszeile als Text (ohne HTML). `warum` aus nachWarumJe(), oder null. */
 function nachText(w, mode, it, warum) {
   const N = it.nach;
   const heute = effDate(w);
-  const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), heute) : `Workout ${nq}`);
+  // Ohne die Einheit im Plan (eine Erklärung aus einem anderen Plan) kein
+  // Tag – dann „früher", keine Nummer (v271).
+  const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), heute) : 'früher');
+  const am = (nq) => (PLAN[nq - 1] ? `am ${tag(nq)}` : 'früher');
   // Die Quelle heißt so, wie sie an *ihrem* Tag hieß – im Modus, in dem sie
   // trainiert wurde (`mq`, fünfter Eintrag in q). Wer am Donnerstag ohne
   // Hanteln trainiert hat, hat die Standwaage gemacht, nicht das Rumänische
@@ -2175,8 +2190,8 @@ function nachText(w, mode, it, warum) {
   if (q.length === 1 && q[0][1] === it.id) {
     const [nq, , ab, von] = q[0];
     return ab > 0
-      ? `+${N} nachgeholt: am ${tag(nq)} nur ${ab} von ${von} Sätzen abgehakt`
-      : `+${N} nachgeholt: am ${tag(nq)} keinen von ${von} Sätzen abgehakt`;
+      ? `+${N} nachgeholt: ${am(nq)} nur ${ab} von ${von} Sätzen abgehakt`
+      : `+${N} nachgeholt: ${am(nq)} keinen von ${von} Sätzen abgehakt`;
   }
   const fuer = g.length ? ` für ${g.map((m) => MUSCLE_LABEL[m] || m).join(' und ')}` : '';
   if (!q.length) return mitSpanne(`+${N} nachgeholt${fuer}`);
@@ -2216,7 +2231,8 @@ function zusatzText(w, it) {
   // Vom Tag der Einheit aus gesehen – beim allein stehenden Zusatztag ist das
   // der Tag, an dem er gemacht wird.
   const bezug = w.custom ? (store.startedOn(w.n) || todayISO()) : effDate(w);
-  const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), bezug) : `Workout ${nq}`);
+  const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), bezug) : 'früher');
+  const am = (nq) => (PLAN[nq - 1] ? `am ${tag(nq)}` : 'früher');
   const name = (id, mq) => {
     const ex = EX_BY_ID.get(id);
     return (ex && (ex[mq] || ex.db || ex.bw) || {}).name || id;
@@ -2231,8 +2247,8 @@ function zusatzText(w, it) {
   if (q.length === 1 && q[0][1] === it.id) {
     const [nq, , ab, von] = q[0];
     return ab > 0
-      ? `${kopf}: am ${tag(nq)} nur ${ab} von ${von} Sätzen abgehakt`
-      : `${kopf}: am ${tag(nq)} keinen von ${von} Sätzen abgehakt`;
+      ? `${kopf}: ${am(nq)} nur ${ab} von ${von} Sätzen abgehakt`
+      : `${kopf}: ${am(nq)} keinen von ${von} Sätzen abgehakt`;
   }
   const fuer = g.length ? ` für ${g.map((m) => MUSCLE_LABEL[m] || m).join(' und ')}` : '';
   if (!q.length) return `${kopf}${fuer}`;
@@ -2896,7 +2912,7 @@ function startBlock(n, mode, prog) {
   // letzten Wegschalten der App war weg, ohne ein Wort.
   const sess = store.getState().session;
   const laeuft = !!sess && sess.n === n;
-  if (sess && !laeuft && !prog.erledigt) return laufendWoandersBlock(sess.n, prog);
+  if (sess && !laeuft && !prog.erledigt) return laufendWoandersBlock(sess.n, prog, n);
 
   if (prog.erledigt && laeuft) {
     return `
@@ -2932,7 +2948,7 @@ function startBlock(n, mode, prog) {
         <div class="fertig-sub">${wieViel}${
           min ? ` · ${min} min` : ''}.${heute ? ' Die nächste Einheit kommt von selbst.' : ''}</div>
       </div>
-      ${sess ? `<div style="margin-top:8px">${zurLaufendenKnopf(sess.n)}</div>` : (prog.complete ? '' : `
+      ${sess ? `<div style="margin-top:8px">${zurLaufendenKnopf(sess.n, n)}</div>` : (prog.complete ? '' : `
       <button type="button" class="btn btn-ghost btn-block" data-act="start-session"
               style="margin-top:8px">Doch noch weitermachen</button>`)}`;
   }
@@ -2959,10 +2975,73 @@ function startBlock(n, mode, prog) {
     </button>`;
 }
 
-/** Wie die laufende Einheit heißt – für Knöpfe und Hinweise. */
-function einheitTitel(k) {
-  return istCustom(k) ? ((store.customById(k) || {}).name || 'Eigenes Workout') : `Workout ${k}`;
+/**
+ * Der Tag einer Planeinheit als Satzteil: „von heute", „von gestern", „von
+ * morgen", „vom Samstag" (bis sechs Tage zurück), „am Freitag" (bis sechs
+ * voraus), sonst mit Datum („vom 3. Oktober"). Ihr Tag ist der, an dem sie
+ * angefangen wurde, sonst der, auf dem sie liegt (effDate()).
+ *
+ * Seit v271 heißt eine Einheit nach ihrem Tag, nicht nach ihrer Nummer:
+ *
+ *     „Die Workout Nummer ist mir in to Do und Kalender und in meiner App
+ *      übrigens komplett egal"
+ *
+ * Intern bleibt die Nummer, was sie war (Kennung, Protokoll, Rechnung).
+ *
+ * Läuft die Sitzung auf ihr, ohne dass schon ein Satz steht (dann gibt es noch
+ * kein startedOn), ist ihr Tag heute – sonst hieße die Einheit, an der man
+ * gerade sitzt, „am Mittwoch", weil sie dort im Plan liegt.
+ */
+function einheitTag(n) {
+  const w = PLAN[n - 1];
+  const s = store.getState().session;
+  const laeuft = !!s && String(s.n) === String(n);
+  const iso = store.startedOn(n) || (laeuft ? todayISO() : null) || (w ? effDate(w) : null);
+  if (!iso) return '';
+  const d = daysBetween(iso, todayISO());   // > 0: vergangen
+  if (d === 0) return 'von heute';
+  if (d === 1) return 'von gestern';
+  if (d === -1) return 'von morgen';
+  if (d > 0) return d <= 6 ? `vom ${wochentag(iso)}` : `vom ${tagMonat(iso)}`;
+  return d >= -6 ? `am ${wochentag(iso)}` : `am ${tagMonat(iso)}`;
 }
+
+/**
+ * Wie eine Einheit heißt – für Knöpfe und Hinweise: „Workout von heute",
+ * „Workout vom Samstag"; eine eigene beim Namen.
+ */
+function einheitTitel(k) {
+  if (istCustom(k)) return (store.customById(k) || {}).name || 'Eigenes Workout';
+  const tag = einheitTag(Number(k));
+  return tag ? `Workout ${tag}` : 'Workout';
+}
+
+/**
+ * Liegt die Einheit `k` auf demselben Tag wie die gezeigte `n`? Dann hießen
+ * beide „das Workout von heute", und „Das Workout von heute läuft noch." über
+ * dem Workout von heute läse sich, als liefe das gezeigte. Bis v270 hielt die
+ * Nummer sie auseinander; jetzt heißt die andere „das andere Workout von heute".
+ */
+const andereAmTag = (k, n) => n !== null && n !== undefined && String(k) !== String(n) && !istCustom(k) && !istCustom(n)
+  && einheitTag(Number(k)) === einheitTag(Number(n));
+
+/**
+ * Dieselbe mitten im Satz: „das Workout von heute", eine eigene beim Namen;
+ * aus Sicht der gezeigten `n` am selben Tag „das andere Workout von heute".
+ */
+const einheitImSatz = (k, n = null) => {
+  if (istCustom(k)) return einheitTitel(k);
+  return andereAmTag(k, n) ? `das andere ${einheitTitel(k)}` : `das ${einheitTitel(k)}`;
+};
+
+/** Und dorthin: „zum Workout von heute", „zum anderen Workout von heute", „zu Zusatztag Woche 3". */
+const zurEinheit = (k, n = null) => {
+  if (istCustom(k)) return `zu ${einheitTitel(k)}`;
+  return andereAmTag(k, n) ? `zum anderen ${einheitTitel(k)}` : `zum ${einheitTitel(k)}`;
+};
+
+/** Der erste Buchstabe groß – für den Satzanfang. */
+const satzAnfang = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 /**
  * Das Wann über dem Titel: „Heute", „Morgen", „Gestern", „in 3 Tagen", „vor
@@ -3012,7 +3091,9 @@ function wannWort(w, diff) {
  * Ein selbst zusammengestelltes Workout bleibt „Eigenes Workout".
  */
 function einheitAugenbraue(w, when) {
-  if (!w.custom) return `${when} · Workout ${w.n}`;
+  // Bis v270 „Heute · Workout 18" – die Nummer ist weg (einheitTag()), das
+  // Wann bleibt; der Tag selbst steht groß darunter.
+  if (!w.custom) return when;
   return ZUSATZ_NAME.test(w.name || '') ? `${when} · Zusatztag` : 'Eigenes Workout';
 }
 
@@ -3030,20 +3111,22 @@ function einheitAugenbraue(w, when) {
  * zeigen und die Uhr still zu ersetzen, war die eine Lösung, die beides
  * verfehlte.
  */
-function laufendWoandersBlock(k, prog) {
-  const titel = einheitTitel(k);
+function laufendWoandersBlock(k, prog, n = null) {
+  // `n` ist die gezeigte Einheit: Liegt die laufende auf demselben Tag, heißt
+  // sie „das andere Workout von heute" (andereAmTag()).
+  const imSatz = einheitImSatz(k, n);
   return `
-    <div class="small muted laeuft-woanders" style="margin-bottom:8px">${esc(titel)} läuft noch.</div>
-    ${zurLaufendenKnopf(k)}
+    <div class="small muted laeuft-woanders" style="margin-bottom:8px">${esc(satzAnfang(imSatz))} läuft noch.</div>
+    ${zurLaufendenKnopf(k, n)}
     <button type="button" class="btn btn-ghost btn-block" data-act="start-session" style="margin-top:8px">
-      ${prog.done ? 'Diese fortsetzen' : 'Diese starten'} – ${esc(titel)} wird beendet
+      ${prog.done ? 'Diese fortsetzen' : 'Diese starten'} – ${esc(imSatz)} wird beendet
     </button>`;
 }
 
-function zurLaufendenKnopf(k) {
+function zurLaufendenKnopf(k, n = null) {
   return `
-    <button type="button" class="btn btn-primary btn-block btn-start" data-act="zur-laufenden">
-      ▶︎ Zurück zu ${esc(einheitTitel(k))}
+    <button type="button" class="btn btn-primary btn-block btn-start" data-act="zur-laufenden" data-n="${esc(String(k))}">
+      ▶︎ Zurück ${esc(zurEinheit(k, n))}
     </button>`;
 }
 
@@ -3347,8 +3430,11 @@ function restZiele(v, heute) {
  * Die Zeile zum Tagesabschluss – oben auf der Startseite, eine Auskunft ohne
  * Knopf:
  *
- *     ✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Von
- *       den 11 offenen Sätzen kommen morgen 3 in Workout 13 mit rein.
+ *     ✓ Das Workout vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Von
+ *       den 11 offenen Sätzen kommen morgen 3 dazu.
+ *
+ * (bis v270 mit Nummern: „✓ Workout 12 vom Samstag … kommen morgen 3 in
+ * Workout 13 mit rein.")
  *
  *     „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von
  *      selbst einfach das optimale passieren"
@@ -3396,19 +3482,40 @@ function abschlussHinweis() {
     return d >= 1 && d <= 6 ? `vom ${wochentag(iso)}` : `vom ${wochentag(iso)}, ${tagMonat(iso)}`;
   };
   const saetze = (e) => `${e.done} von ${e.total} ${e.total === 1 ? 'Satz' : 'Sätzen'}`;
-  const was = liste.length === 1
-    ? `Workout ${liste[0].n} ${vom(liste[0].tag)} ist abgeschlossen – ${saetze(liste[0])}.`
-    : `${undListe(liste.map((e) => `Workout ${e.n} ${vom(e.tag)} (${saetze(e)})`))} sind abgeschlossen.`;
+  // Nach dem Tag benannt, nicht nach der Nummer (v271, einheitTag()): bis
+  // v270 „Workout 12 vom Samstag ist abgeschlossen". Je Tag einmal – zwei
+  // Einheiten, die am selben Tag angefangen wurden, hießen sonst „vom Samstag
+  // (…) und vom Samstag (…)": „Die beiden Workouts vom Samstag sind
+  // abgeschlossen – 4 von 17 und 2 von 15 Sätzen."
+  const tage = [];
+  liste.forEach((e) => {
+    const t = tage.find((x) => x.tag === e.tag);
+    if (t) t.einheiten.push(e);
+    else tage.push({ tag: e.tag, einheiten: [e] });
+  });
+  const zahlen = (es) => (es.length === 1 ? saetze(es[0])
+    : `${undListe(es.map((e) => `${e.done} von ${e.total}`))} Sätzen`);
+  const wieViele = (k) => ({ 2: 'beiden', 3: 'drei', 4: 'vier' }[k] || String(k));
+  const [erster] = tage;
+  let was;
+  if (tage.length > 1) {
+    was = `Die Workouts ${undListe(tage.map((t) => `${vom(t.tag)} (${zahlen(t.einheiten)})`))} sind abgeschlossen.`;
+  } else if (erster.einheiten.length > 1) {
+    was = `Die ${wieViele(erster.einheiten.length)} Workouts ${vom(erster.tag)} sind abgeschlossen – ${zahlen(erster.einheiten)}.`;
+  } else {
+    was = `Das Workout ${vom(erster.tag)} ist abgeschlossen – ${zahlen(erster.einheiten)}.`;
+  }
   const wohin = abschlussWohin(liste).text;
   // Klein gesetzt: Die Startseite bleibt auch mit der Zeile eine
   // Bildschirmseite, bis 360×740 (siehe .notice.abschluss in css/styles.css).
   // Was zusammengehört, bricht nicht um: Bei 360 px stand „– 4" am Zeilenende
   // und „von 15 Sätzen" darunter, bei 414 px „4 von 15" und „Sätzen". Und das
   // letzte Wort steht nie allein: An Tobis Sonntag stand bei 360 px „rein." in
-  // einer vierten Zeile (dazu der kürzere Satz in abschlussWohin()).
+  // einer vierten Zeile (dazu der kürzere Satz in abschlussWohin()). „4 von
+  // 17" vor „und" hält die zweite Ersetzung zusammen (zwei an einem Tag).
   const satz = `${was}${wohin ? ` ${wohin}` : ''}`
     .replace(/(\d+) von (\d+) (Satz|Sätzen)/g, '$1 von $2 $3')
-    .replace(/Workout (\d+)/g, 'Workout $1')
+    .replace(/(\d+) von (\d+)(?= und|,)/g, '$1\u00a0von\u00a0$2')
     .replace(/ (\S+)$/, '\u00a0$1');
   return `
     <div class="notice abschluss">✓ ${esc(satz)}</div>`;
@@ -3453,13 +3560,13 @@ function abschlussListe() {
  *
  *   gebunden    der Zusatztag ihrer Woche steckt heute in einer Einheit
  *               (zusatzBindung()): „Von den 13 offenen Sätzen kommen heute 3
- *               in Workout 13 mit rein."
+ *               dazu." (bis v270 „… heute 3 in Workout 13 mit rein.")
  *   allein      er ist heute die nächste Einheit (naechsteEinheit(), ein
  *               Ruhetag): „Zum Nachholen steht heute ein Zusatztag bereit."
  *   Ruhetag     die Teile der Zeile am Ruhetag (ruhetagTeile()), soweit sie
  *               diese Einheiten betreffen: der Zusatztag, der morgen kommt
  *               (zusatzMorgen()) – „Von den 13 offenen Sätzen kommen morgen 3
- *               in Workout 13 mit rein." –, und die Nacharbeit der restlichen
+ *               dazu." –, und die Nacharbeit der restlichen
  *               Woche. Die Zeile am Ruhetag lässt sie dann weg (`nach`,
  *               `zus`), statt dieselbe Zahl ein zweites Mal zu nennen.
  *   Nacharbeit  heute ist ein Trainingstag derselben Woche: die Verteilung aus
@@ -3476,7 +3583,7 @@ function abschlussListe() {
  * Zeile stammt (offenImBlock(), dieselbe Herkunft, die der Zusatztag an seiner
  * Übung nennt). Fehlt auch woanders etwas – bei Tobi zwei Sätze aus Workout 9 –,
  * holt der Teil womöglich auch das nach; dann „Aus Woche 3 kommen morgen 3
- * Sätze in Workout 13 mit rein." (beim Zusatztag) oder „Von dem, was in dieser
+ * Sätze dazu." (beim Zusatztag) oder „Von dem, was in dieser
  * Woche liegen blieb, kommt dazu: …" (bei der Nacharbeit). Sonst nichts –
  * lieber kein Ziel als ein falsches. Gerechnet für die jüngste Einheit und ihre
  * Woche.
@@ -3501,10 +3608,11 @@ function abschlussWohin(liste) {
   // Zeile am Ruhetag („Aus Woche 3 kommt dazu: morgen +3."). Hier stand „Von
   // dem, was in Woche 3 liegen blieb, kommen morgen 3 Sätze in Workout 13 mit
   // rein." – an Tobis Sonntag bei 360 px vier Zeilen, in der letzten nur
-  // „rein.".
-  const davon = (k, wann, n) => (eigen(wochenQuellen())
-    ? `Von den ${offenZahl} offenen Sätzen ${kommt(k)} ${wann} ${k} in Workout ${n} mit rein.`
-    : `Aus Woche ${nr} ${kommt(k)} ${wann} ${plural(k, 'Satz', 'Sätze')} in Workout ${n} mit rein.`);
+  // „rein.". Seit v271 ohne die Nummer und wie die Nacharbeit gleich daneben
+  // („kommen dazu: …"): „Von den 13 offenen Sätzen kommen heute 3 dazu."
+  const davon = (k, wann) => (eigen(wochenQuellen())
+    ? `Von den ${offenZahl} offenen Sätzen ${kommt(k)} ${wann} ${k} dazu.`
+    : `Aus Woche ${nr} ${kommt(k)} ${wann} ${plural(k, 'Satz', 'Sätze')} dazu.`);
   const wer = (quellen) => (quellen.every((n) => ns.includes(n)) ? 'Was fehlt' : 'Was in dieser Woche liegen blieb');
   // Die Nacharbeit der restlichen Einheiten, in den Worten der Zeile am
   // Ruhetag (restZiele()) – bis auf „der Rest danach". Das hieße: ein
@@ -3531,7 +3639,7 @@ function abschlussWohin(liste) {
     const mode = store.workoutMode(b.w.n);
     const k = workoutByNo(b.w.n, mode).ex.filter((it) => it.zusatz && it.zusatz.woche === nr)
       .reduce((a, it) => a + it.sets, 0);
-    if (k) return { ...leer, text: davon(k, 'heute', b.w.n) };
+    if (k) return { ...leer, text: davon(k, 'heute') };
   }
   const naechste = naechsteEinheit();
   if (istCustom(naechste)) {
@@ -3543,7 +3651,7 @@ function abschlussWohin(liste) {
   const t = ruhetagTeile(w);
   if (t) {
     const nach = t.quellen.some((n) => ns.includes(n)) ? ziele(t.v, t.quellen) : '';
-    const zus = t.zus && t.zus.woche === nr ? davon(t.zus.saetze, 'morgen', w.n) : '';
+    const zus = t.zus && t.zus.woche === nr ? davon(t.zus.saetze, 'morgen') : '';
     if (nach || zus) return { text: [nach, zus].filter(Boolean).join(' '), nach: !!nach, zus: !!zus };
   }
   if (woche(w.n) === nr) {
@@ -3691,10 +3799,11 @@ function renderOverview() {
       <header class="ov-top">
         <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
              rollt am Ende von selbst in die nächste Runde, und eine Zahl, die
-             ein Ende ankündigt, das es nicht gibt, ist schlicht falsch. Die
-             laufende Nummer bleibt: Sie sagt, wo man ist, ohne zu behaupten,
-             wohin es geht. -->
-        <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${
+             ein Ende ankündigt, das es nicht gibt, ist schlicht falsch. Seit
+             v271 auch keine laufende Nummer: „Die Workout Nummer ist mir …
+             komplett egal" – wo man ist, sagt der Tag darunter. data-n trägt
+             sie weiter, für die Tests. -->
+        <div class="hero-eyebrow" data-n="${esc(String(w.n))}">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${
           esc(einheitAugenbraue(w, when))}</div>
         <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
         <!-- Kein "Plan +2 Tage" mehr: Der Plan rückt von selbst nach, wenn ein
@@ -4632,7 +4741,7 @@ const SHARE_TEXT = 'Mein Trainingsplan als App: 84 Einheiten, mit Hanteln oder o
  */
 function listeStartKnoepfe(n, mode, prog, sess, session) {
   if (session) return sessionButtons(n, mode);
-  if (sess) return prog.erledigt ? zurLaufendenKnopf(sess.n) : laufendWoandersBlock(sess.n, prog);
+  if (sess) return prog.erledigt ? zurLaufendenKnopf(sess.n, n) : laufendWoandersBlock(sess.n, prog, n);
   return `<div class="btn-row">
        <button type="button" class="btn btn-primary btn-block" data-act="start-session">▶︎ Workout starten</button>
      </div>`;
@@ -4666,7 +4775,7 @@ function renderDashboard() {
 
   parts.push(`
     <section class="card">
-      <div class="hero-eyebrow">${esc(einheitAugenbraue(w, when))}</div>
+      <div class="hero-eyebrow" data-n="${esc(String(w.n))}">${esc(einheitAugenbraue(w, when))}</div>
       <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
       <div class="hero-sub">${tagKopf(w, mode, items)}</div>
       <div class="hero-badges">
@@ -4764,7 +4873,7 @@ function renderDashboard() {
             <span>${it.sets} Sätze × ${esc(mitWdh(repsLabel(it, mode)))}</span>
             <span>${esc(it.equip)}</span>
           </div>
-          ${prev ? `<div class="last-time">Zuletzt (Workout ${prev.n}): ${esc(prev.text)}</div>` : ''}
+          ${prev ? `<div class="last-time">Zuletzt (${esc(zuletztTag(prev.n))}): ${esc(prev.text)}</div>` : ''}
         </div>
       </article>
     `);
@@ -4981,7 +5090,7 @@ function renderStats() {
     <div class="section-title">Nächste Einheit</div>
     <div class="card">
       ${upcoming
-        ? `<div class="plan-date">Workout ${upcoming.n} · ${esc(fmtDate(effDate(upcoming), true))}</div>
+        ? `<div class="plan-date" data-n="${upcoming.n}">${esc(fmtDate(effDate(upcoming), true))}</div>
            <div class="small muted" style="margin-top:4px">${esc(einheitEx(upcoming, store.workoutMode(upcoming.n)).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
            <div class="btn-row"><button type="button" class="btn btn-primary" data-act="open-workout" data-n="${upcoming.n}">Öffnen</button></div>`
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
@@ -5782,10 +5891,12 @@ function zusatzLage(c) {
 function zusatzHinweis(c) {
   const l = zusatzLage(c);
   const stil = 'class="small muted zusatz-hinweis" style="margin-top:12px"';
+  // Die Einheit, in der er steckt, beim Tag genannt (einheitTag(), v271) –
+  // bis v270 „holt Workout 13 heute nach", „Zu Workout 13".
   if (l.art === 'gebunden') {
-    return `<div ${stil}>↩︎ Was hier fehlt, holt Workout ${l.n} heute nach: ${esc(undListe(l.namen))}.
+    return `<div ${stil}>↩︎ Was hier fehlt, holt ${esc(einheitImSatz(l.n))} nach: ${esc(undListe(l.namen))}.
       <button type="button" class="btn btn-sm" data-act="open-workout" data-n="${l.n}"
-              style="margin-left:6px">Zu Workout ${l.n}</button></div>`;
+              style="margin-left:6px">${esc(satzAnfang(zurEinheit(l.n)))}</button></div>`;
   }
   if (l.art === 'morgen') {
     return `<div ${stil}>↩︎ Für diese Woche ist ein Zusatztag vorgemerkt (${esc(undListe(l.namen))}).
@@ -5793,7 +5904,7 @@ function zusatzHinweis(c) {
   }
   if (l.art === 'leer') {
     return `<div ${stil}>↩︎ Für diese Woche ist ein Zusatztag vorgemerkt (${esc(undListe(l.namen))}).
-      In Workout ${l.n} geht davon heute nichts.</div>`;
+      Ins ${esc(einheitTitel(l.n))} geht davon nichts.</div>`;
   }
   return `<div ${stil}>↩︎ Für diese Woche steht
     schon ein Zusatztag bereit: <b>${esc(c.name)}</b>, ${c.ex.length} Übungen.
@@ -6656,9 +6767,10 @@ function renderCustom() {
         if (ZUSATZ_NAME.test(c.name) && !store.isStarted(c.id)) {
           const l = zusatzLage(c);
           if (l.art !== 'bereit') {
+            // Beim Tag genannt, nicht bei der Nummer (einheitTag(), v271).
             const wo = {
-              gebunden: `steckt heute in Workout ${l.n}`,
-              leer: `geht heute in Workout ${l.n} nicht`,
+              gebunden: `steckt im ${einheitTitel(l.n)}`,
+              leer: `geht nicht ins ${einheitTitel(l.n)}`,
             }[l.art] || 'frühestens morgen – heute war schon Training';
             return `
         <div class="card zusatz-karte">
@@ -6666,7 +6778,7 @@ function renderCustom() {
           <div class="hint">${esc(wo)} · ${plural(l.anzahl, 'Übung', 'Übungen')} · ${plural(l.saetze, 'Satz', 'Sätze')}</div>
           <div class="small muted" style="margin-top:6px">${esc(l.namen.join(' · '))}</div>
           ${l.art === 'gebunden' ? `<div class="btn-row nav">
-            <button type="button" class="btn btn-primary" data-act="open-workout" data-n="${l.n}">Zu Workout ${l.n}</button>
+            <button type="button" class="btn btn-primary" data-act="open-workout" data-n="${l.n}">${esc(satzAnfang(zurEinheit(l.n)))}</button>
           </div>` : ''}
         </div>`;
           }
@@ -7509,7 +7621,7 @@ function renderSettings() {
 
     <div class="section-title">Plan neu starten</div>
     <div class="card">
-      <div class="small muted">Setzt alle abgehakten Sätze zurück und legt Workout 1 auf heute.
+      <div class="small muted">Setzt alle abgehakten Sätze zurück und legt das erste Workout auf heute.
         Die erreichten Gewichte bleiben stehen, der bisherige Verlauf wandert in die Ablage
         und bleibt im Export erhalten.${store.getState().rounds.length
           ? ` Bisher ${esc(plural(store.getState().rounds.length, 'Runde', 'Runden'))} abgeschlossen.` : ''}</div>
@@ -8385,7 +8497,8 @@ function einheitStarten(n, wahl) {
     const dazu = zusNeu.length > zusVorher
       ? ` · dazu ${undListe(zusNeu.map((x) => resolve(x, store.workoutMode(n)).name))} aus Woche ${zusNeu[0].zusatz.woche}`
       : '';
-    toast(vorige !== null ? `${einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪${dazu}`
+    // Am selben Tag wie die neue heißt die vorige „das andere Workout" (andereAmTag()).
+    toast(vorige !== null ? `${andereAmTag(vorige, n) ? 'Das andere Workout' : einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪${dazu}`
       : `Los geht’s 💪${dazu}`);
   }
 }
@@ -8828,7 +8941,7 @@ view.addEventListener('click', (e) => {
         einheitBeenden();
         sound('stop');
         render();
-        toast(`Weitermachen beendet – ${einheitTitel(n)} bleibt abgeschlossen`);
+        toast(`Weitermachen beendet – ${einheitImSatz(n)} bleibt abgeschlossen`);
         break;
       }
       // Verwerfen löscht alles zu diesem Workout, in beiden Varianten – auch
@@ -8934,8 +9047,8 @@ view.addEventListener('click', (e) => {
       const lief = store.getState().session;
       const beide = !!lief && lief.n === n;
       const frage = beide
-        ? `${einheitTitel(n)} wirklich zurücksetzen? Alle ${abgehaktInEinheit(n)} abgehakten Sätze gehen weg, in beiden Varianten.`
-        : `${einheitTitel(n)} (${MODE_LABEL[mode]}) wirklich zurücksetzen?`;
+        ? `${satzAnfang(einheitImSatz(n))} wirklich zurücksetzen? Alle ${abgehaktInEinheit(n)} abgehakten Sätze gehen weg, in beiden Varianten.`
+        : `${satzAnfang(einheitImSatz(n))} (${MODE_LABEL[mode]}) wirklich zurücksetzen?`;
       const etwas = beide ? store.isStarted(n) : hasAnyEntry(n, mode);
       if (!etwas || confirm(frage)) {
         notieren('einheit', { was: 'zurueckgesetzt', n, mode, beide });
@@ -9117,7 +9230,7 @@ view.addEventListener('click', (e) => {
       render();
       toast(unberuehrt || (laufendOffen && lief.n === vorn)
         ? `${MODE_LABEL[neu]} – Abgehaktes bleibt gespeichert`
-        : `${MODE_LABEL[neu]} – ${einheitTitel(vorn)} bleibt, wie du sie trainiert hast`);
+        : `${MODE_LABEL[neu]} – ${einheitImSatz(vorn)} bleibt so, wie du trainiert hast`);
       break;
     }
     case 'set-rest':

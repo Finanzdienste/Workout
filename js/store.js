@@ -957,8 +957,8 @@ function eingetragen(n, warAngefangen, gehakt) {
  *
  * Zwei Tage, weil der Abschluss oft an einem Ruhetag kommt (Sonntag, Workout
  * 12 vom Samstag) und die Zeile am Tag danach sagt, was in die Einheit von
- * heute kommt („Von den 11 offenen Sätzen kommen heute 3 in Workout 13 mit
- * rein."). Vergeht auch der ohne Training, ist es keine Neuigkeit mehr – was
+ * heute kommt („Von den 11 offenen Sätzen kommen heute 3 dazu.", bis v270
+ * „… in Workout 13 mit rein."). Vergeht auch der ohne Training, ist es keine Neuigkeit mehr – was
  * nachgeholt wird, steht dann an den Übungen selbst (die Herkunftszeile) und
  * an einem Ruhetag in der Zeile darunter (ruhetagZeile() in js/app.js).
  */

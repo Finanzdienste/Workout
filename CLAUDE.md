@@ -139,7 +139,17 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (19.11.2026)
-- Workout v270: Haltung und Plattfuß ohne Zusatzübung – stattdessen eine Zeile
+- Workout v271: Die laufende Nummer steht nirgends mehr – Tobi: „Die Workout
+  Nummer ist mir in to Do und Kalender und in meiner App übrigens komplett
+  egal“. Kopf nur „Heute“, eine Einheit heißt nach ihrem Tag
+  (`einheitTag()`: „das Workout von heute“, „vom Samstag“), Kalender/To Do/ICS
+  „Workout · 5 Übungen · 15 Sätze“; intern bleibt die Nummer, in der Ansicht
+  `data-n` für die Tests (README „Der Tag statt der Nummer“). Kein neuer Code
+  für Apps Script.
+- Zwei Sitzungen arbeiteten am 19.11. zugleich an Workout (diese und
+  „Schmerzen beim Stehen mit Adidas Multi X“, v266–v270): vor dem Push
+  `git fetch` und die nächste freie Versionsnummer nehmen.
+- Davor v270: Haltung und Plattfuß ohne Zusatzübung – stattdessen eine Zeile
   in den betroffenen Übungen (`formCue`, `formZeile()`); kein Block „Zum
   Schluss“ mehr für die beiden. Tobi: „wir wollens voll integrieren“.
 - Davor v269: Die Zusatzübung „Kurzer Fuß“ heißt „Fußgewölbe anheben“ – Tobi

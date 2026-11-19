@@ -110,6 +110,9 @@ const lies = (n) => page.evaluate(async (nn) => {
     umbau: getState().planUmbau,
     text: (document.querySelector('#view') || {}).textContent || '',
     karte: ((document.querySelector('.hero-eyebrow') || {}).textContent || '').trim(),
+    // Welche Einheit die Startkarte zeigt, sagt seit v271 data-n – über dem
+    // Titel steht nur noch das Wann („Die Workout Nummer ist mir … komplett egal").
+    karteN: (document.querySelector('.hero-eyebrow') || { dataset: {} }).dataset.n || null,
     eintrag: e,
   };
 }, n);
@@ -222,8 +225,18 @@ if (!lage) {
   check(paar.fest.map((x) => x.split(':')[0]).join() === lage.liste.map((x) => x.id).join(),
     `ein ganz abgehaktes Paar ohne Abschluss wird trotzdem repariert: ${paar.fest.length} von ${lage.liste.length} Übungen`);
   check(!paar.done, `und die Einheit gilt danach nicht als abgeschlossen (done: ${paar.done})`);
-  check(new RegExp(`Workout ${lage.n}$`).test(paar.karte),
-    `die Startkarte zeigt die reparierte Einheit, nicht die nächste („${paar.karte}")`);
+  // Bis v270 endete die Zeile auf „Workout <n>". Jetzt: data-n ist die
+  // reparierte Einheit, und über dem Titel steht nur das Wann – angefangen am
+  // Tag aus `halb`, noch offen: „vor … Tagen angefangen" (wannWort() in
+  // js/app.js), ohne Nummer. Die Tage zählt der Browser selbst, der Test hält
+  // die Uhr nicht an.
+  const seitStart = await page.evaluate((iso) => {
+    const d = new Date();
+    const heute = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return Math.round((Date.parse(heute) - Date.parse(iso)) / 86400000);
+  }, halb.startedOn);
+  check(paar.karteN === String(lage.n) && paar.karte === `vor ${seitStart} Tagen angefangen`,
+    `die Startkarte zeigt die reparierte Einheit, nicht die nächste („${paar.karte}", data-n ${paar.karteN})`);
 
   // --- 8. Offener Planwechsel-Hinweis und Reparatur: beide -----------------
   await setze({

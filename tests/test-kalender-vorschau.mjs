@@ -269,8 +269,10 @@ check(D.FOCUS === D.PLANS.cut, 'die Module rechnen mit Tobis Fokus (Cut)');
 const tagA = (tag, n) => ab(vA, tag).slice(0, n);
 check(kurz(tagA('2026-10-08', 4)) === 'cut-1-9@10-08 cut-1-10@10-10 cut-1-11@10-12 cut-1-12@10-13',
   `A, Do 08.10.: Workout 9 heute, dann Sa, Mo, Di (${kurz(tagA('2026-10-08', 4))})`);
-check(tagA('2026-10-08', 1)[0].titel === 'Workout 9 · 6 Übungen · 17 Sätze',
-  `A: Titel wie die Einheit, mit dem Zusatz darin (${tagA('2026-10-08', 1)[0].titel})`);
+// Seit v271 ohne Nummer im Titel („Die Workout Nummer ist mir in to Do und
+// Kalender … komplett egal"); welche Einheit es ist, sagt die Kennung.
+check(tagA('2026-10-08', 1)[0].kennung === 'cut-1-9' && tagA('2026-10-08', 1)[0].titel === 'Workout · 6 Übungen · 17 Sätze',
+  `A: Titel wie die Einheit, mit dem Zusatz darin – ohne Nummer (${tagA('2026-10-08', 1)[0].titel})`);
 check(kurz(tagA('2026-10-12', 4)) === 'cut-1-9@10-12 cut-1-10@10-14 cut-1-11@10-16 cut-1-12@10-17',
   `B, verpasst bis Mo 12.10.: alles rückt nach (${kurz(tagA('2026-10-12', 4))})`);
 check(kurz(tagA('2026-10-26', 4)) === 'cut-1-9@10-26 cut-1-10@10-28 cut-1-11@10-30 cut-1-12@10-31',
@@ -293,7 +295,7 @@ const vC = await rechne('C', '2026-10-08T19:00:00+02:00');
 const vD = await rechne('D', '2026-10-08T12:00:00+02:00');
 {
   const w9 = ab(vD, '2026-10-12')[0];
-  check(w9.kennung === 'cut-1-9' && w9.datum === '2026-10-12' && w9.titel === 'Workout 9 · 3 Übungen · 9 Sätze',
+  check(w9.kennung === 'cut-1-9' && w9.datum === '2026-10-12' && w9.titel === 'Workout · 3 Übungen · 9 Sätze',
     `D, Mo 12.10. vor dem Bouldern am Di: Workout 9 geschont (${w9.titel})`);
   check(ab(vA, '2026-10-12')[0].titel !== w9.titel, 'D: ohne den Termin wäre es die ganze Einheit');
 }

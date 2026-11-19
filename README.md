@@ -279,6 +279,63 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   Workout komplett – jedes mit eigenem Ton, sodass man ohne Hinsehen weiß, was
   passiert ist.
 
+### Der Tag statt der Nummer (v271)
+
+    „Die Workout Nummer ist mir in to Do und Kalender und in meiner App
+     übrigens komplett egal"
+
+Bis v270 hieß jede Einheit nach ihrer laufenden Nummer: „Heute · Workout 18"
+über dem Titel, „Workout 19 · Mittwoch, 19. November" unter *Nächste Einheit*,
+„Workout 12 läuft noch.", „✓ Workout 12 vom Samstag ist abgeschlossen …",
+„Zuletzt (Workout 17)", im Kalender-Tab „Workout 10 · ausgefallen", und im
+Google Kalender, in To Do und in der Kalenderdatei „Workout 18 · 5 Übungen ·
+15 Sätze". Die Nummer zählt nur die Einheiten der Runde – beim Training hat
+sie niemand im Kopf, den Tag schon.
+
+Jetzt sagt die App, **wann**:
+
+* **Der Kopf** zeigt nur noch das Wann – „Heute", „Gestern angefangen", „in 3
+  Tagen"; der Tag steht groß darunter. Ein Zusatztag bleibt „Heute ·
+  Zusatztag".
+* **Wo eine bestimmte Einheit gemeint ist**, heißt sie nach ihrem Tag
+  (`einheitTag()` in `js/app.js`): „das Workout von heute", „von gestern",
+  „von morgen", „vom Samstag", „am Freitag", weiter weg mit Datum. Ihr Tag ist
+  der, an dem sie angefangen wurde, sonst der, auf dem sie liegt – und läuft
+  sie schon, ohne dass ein Satz steht, heute.
+* **Zwei am selben Tag:** Liegt die laufende Einheit auf demselben Tag wie
+  die gezeigte, heißt sie „das andere Workout von heute" („Das andere Workout
+  von heute läuft noch.", „▶︎ Zurück zum anderen Workout von heute") – sonst
+  stünde „Das Workout von heute läuft noch." über dem Workout von heute. Der
+  Tagesabschluss nennt den Tag dann einmal: „Die beiden Workouts vom Samstag
+  sind abgeschlossen – 4 von 17 und 2 von 15 Sätzen."
+* **Tagesabschluss:** „✓ Das Workout vom Samstag ist abgeschlossen – 4 von 15
+  Sätzen. Von den 11 offenen Sätzen kommen morgen 3 dazu." – wie die
+  Nacharbeit gleich daneben („kommen dazu: …"), bis v270 „… in Workout 13 mit
+  rein.".
+* **„Zuletzt (Mo 16.11.): 12 · 12 · 10"** – der Tag, an dem trainiert wurde,
+  immer mit Datum, weil die Zeile stehen bleibt.
+* **Kalender-Tab:** „Workout · ausgefallen", „Das Workout rückte nach hinten
+  und ist jetzt für heute geplant."
+* **Google Kalender, To Do, Kalenderdatei:** „Workout · 5 Übungen · 15 Sätze".
+
+Intern bleibt die Nummer, was sie war: im Protokoll, in der Kennung, an der das
+Skript Termin und Aufgabe wiederfindet („standard-1-18"), in der UID der
+Kalenderdatei – und in der Diagnose unter *Mehr* („Einheit 18 läuft"), die für
+die Fehlersuche da ist. In der Ansicht trägt sie `data-n` (Kopf, *Nächste
+Einheit*, der Knopf zurück zur laufenden Einheit, die Köpfe im Kalender);
+daran erkennen die Tests, welche Einheit gezeigt wird.
+
+**Im Google Kalender und in To Do** braucht es keinen neuen Code im Apps
+Script: Die Titel kommen aus der App, und das Skript gleicht jeden Termin in
+seinem Fenster (sieben Tage zurück, ein Jahr voraus) und die Aufgabe von heute
+beim nächsten Lauf an – rund 200 Termine, in Schüben bis `MAX_AENDERUNGEN`
+(400) je Lauf. Ältere Termine und schon abgehakte Aufgaben behalten die
+Nummer; das Skript schreibt die Vergangenheit nicht um.
+
+Geprüft in `tests/test-ohne-nummer.mjs` – fünf Fälle von Montag bis Freitag mit
+fester Uhr, gegen v270 63 von 79 Prüfungen rot – und in den Tests, die eine
+Einheit bisher an „Workout N" im Kopf erkannten; die lesen jetzt `data-n`.
+
 ### Bewegungsabläufe
 
 `js/figure.js` zeichnet eine **drehbare 3D-Figur**. Eine Stellung hält nur

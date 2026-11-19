@@ -98,7 +98,8 @@ export function duration(items) {
  * den Kalender „Workout", der sich selbst angleicht (kalenderTermine() in
  * js/kalender.js). Eine Stelle für beide, damit sie dasselbe sagen.
  *
- * `name` ist „Workout 12" oder der Name eines Zusatztags, `items` sind die
+ * `name` ist „Workout" (seit v271 ohne Nummer – die steckt nur in Kennung und
+ * UID) oder der Name eines Zusatztags, `items` sind die
  * Übungen in der Variante, in der trainiert wird (resolve() in js/plan.js).
  */
 export function terminText(name, items) {
@@ -131,7 +132,9 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', 
   plan.forEach((w) => {
     const items = resolve(w);
     if (!items.length) return;          // ein leerer Tag ist kein Termin
-    const { titel, beschreibung, dauer } = terminText(`Workout ${w.n}`, items);
+    // Ohne Nummer im Titel, wie im Google Kalender (v271, js/kalender.js);
+    // die Nummer steckt nur in der UID darunter.
+    const { titel, beschreibung, dauer } = terminText('Workout', items);
     zeilen.push(
       'BEGIN:VEVENT',
       // Feste Kennung je Workout: dieselbe Datei später erneut eingelesen
@@ -166,7 +169,7 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', 
       // DTSTART muss dabeistehen, auch wenn der Termin verschwindet: ein VEVENT
       // ohne Beginn lehnen manche Kalender als fehlerhaft ab.
       `DTSTART:${stamp('1970-01-01', hour * 60)}`,
-      fold(`SUMMARY:${escIcs(`Workout ${n} – entfällt`)}`),
+      fold(`SUMMARY:${escIcs('Workout – entfällt')}`),
       'END:VEVENT',
     );
   });

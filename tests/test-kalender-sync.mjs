@@ -2607,10 +2607,25 @@ await abschnitt(17, async () => {
   await zuMehr(zg.page);
   const gNachher = await text(zg.page, '#kalenderGeraet');
   console.log(`     Dieses Gerät: vorher „${gVorher.trim().slice(0, 70)}", nach einem Satz in Workout ${nZg}: „${gNachher.trim().slice(0, 70)}"`);
-  check(/Dieses Gerät schickt: zuletzt trainiert Workout \d+ am (Mo|Di|Mi|Do|Fr|Sa|So) \d\d\.\d\d\./.test(gVorher)
-    && new RegExp(`Dieses Gerät schickt: zuletzt trainiert Workout ${nZg} am Do 08\\.10\\.`).test(gNachher)
+  // Seit v271 ohne die Nummer („zuletzt trainiert am Do 08.10."). Welche
+  // Einheit der Satz meint, steht im Zustand: Ihr Lebenszeichen ist das
+  // jüngste – so sucht kalenderGeraetStand() in js/app.js.
+  const juengste = await zg.page.evaluate(async () => {
+    const store = await import('./js/store.js');
+    const s = store.getState();
+    const jetzt = Date.now();
+    let best = null;
+    Object.keys(s.log || {}).forEach((k) => {
+      const t = store.lebenszeichen(k, jetzt);
+      if (t > 0 && (!best || t > best.t)) best = { t, k };
+    });
+    return best ? best.k : null;
+  });
+  check(/Dieses Gerät schickt: zuletzt trainiert am (Mo|Di|Mi|Do|Fr|Sa|So) \d\d\.\d\d\./.test(gVorher)
+    && /Dieses Gerät schickt: zuletzt trainiert am Do 08\.10\./.test(gNachher)
+    && !/Workout \d/.test(`${gVorher} ${gNachher}`) && juengste === String(nZg)
     && /Verbunden sein soll nur das Gerät, auf dem du trainierst/.test(gNachher),
-  `die Karte sagt, welchen Stand dieses Gerät schickt – aus dem echten Zustand: nach einem Satz „Workout ${nZg} am Do 08.10."`);
+  `die Karte sagt, welchen Stand dieses Gerät schickt – aus dem echten Zustand: nach einem Satz in Workout ${nZg} (dem jüngsten Lebenszeichen, ${juengste}) „am Do 08.10.", ohne Nummer`);
   const leer = await geraet('17 nie trainiert', { zustand: { greeted: true, name: 'T', level: 'geuebt', focus: 'cut' }, kalender: { token: TOKEN, url: URL_A } });
   await vor(leer.page, 4000, 1500);
   await bis(() => leer.skript.vorschauen().length >= 1, 8000);

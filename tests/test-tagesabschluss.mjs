@@ -175,6 +175,17 @@
  * …" statt „Von den 11 offenen Sätzen" – 2, 8 und 8f (6); die Uhr ohne
  * Deckel – 15 (5).
  *
+ * Ohne Nummer (v271):
+ *
+ *     „Die Workout Nummer ist mir in to Do und Kalender und in meiner App
+ *      übrigens komplett egal"
+ *
+ * Die Zeile heißt seitdem „✓ Das Workout vom Samstag ist abgeschlossen – 4 von
+ * 15 Sätzen.", das Ziel „… kommen morgen 3 dazu." statt „… in Workout 13 mit
+ * rein.", der Kopf nur noch „Tobi · Gestern". Welche Einheit gemeint ist,
+ * prüfen die Fälle an data-n des Kopfs und am Zustand der Zeile (blick(): `n`,
+ * `abschluss`) – und dass nirgends mehr eine Nummer steht (ohneNummer()).
+ *
  * TAGESABSCHLUSS_NUR=1,5 lässt nur diese Fälle laufen.
  */
 import { chromium } from 'playwright';
@@ -376,9 +387,15 @@ const samstag = (extra = {}) => ({
 async function blick(f) {
   return {
     auge: await f.txt('.hero-eyebrow'),
+    // Welche Einheit der Kopf zeigt: seit v271 nicht mehr im Text („Tobi ·
+    // Heute"), nur in data-n.
+    n: await f.page.locator('.hero-eyebrow').first().getAttribute('data-n', { timeout: 1500 }).catch(() => null),
     titel: await f.txt('.hero-title'),
     sub: await f.txt('.hero-sub'),
     zeile: await f.txt('.notice.abschluss'),
+    // Von welchen Einheiten die Zeile spricht: Sie nennt seit v271 nur ihren
+    // Tag („Das Workout vom Samstag"), die Nummer steht im Zustand.
+    abschluss: await f.M(({ store }) => ((store.tagesabschluss() || {}).einheiten || []).map((e) => e.n).join(',')),
     zeilen: await f.page.locator('.notice.abschluss').count(),
     frei: await f.txt('.ov-frei'),
     fokus: await f.page.locator('.focus-cue').count() > 0,
@@ -387,6 +404,24 @@ async function blick(f) {
     kopf: await f.txt('.fertig-kopf'),
   };
 }
+/** Keine laufende Nummer in der Anzeige (v271): kein „Workout 12" mehr. */
+const ohneNummer = (s) => !/Workout\s*\d/.test(s);
+/**
+ * Der Kopf einer Planeinheit seit v271: nur das Wann – „Heute", „Gestern
+ * angefangen", „vor 2 Tagen", auf der Startseite mit dem Namen davor („Tobi ·
+ * Gestern") –, keine Nummer mehr (bis v270 „Gestern · Workout 12"). Welche
+ * Einheit es ist, sagt data-n.
+ */
+const kopfIst = (b, wann, n) => b.n === String(n) && (b.auge === wann || b.auge === `${GRUND.name} · ${wann}`);
+/**
+ * Die Zeile zum Tagesabschluss beginnt mit „✓ `satz`", nennt keine Nummer und
+ * spricht von den Einheiten `ns` – seit v271 sagt sie nur ihren Tag, welche es
+ * sind, steht im Zustand (blick().abschluss).
+ */
+const zeileIst = (b, satz, ...ns) => b.zeile.startsWith(`✓ ${satz}`) && ohneNummer(b.zeile) && b.abschluss === ns.join(',');
+/** Der Wochentag eines ISO-Tags, wie die Zeile ihn nennt („vom Samstag"). */
+const wochentagVon = (iso) => ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][
+  new Date(`${iso}T12:00:00Z`).getUTCDay()];
 /**
  * Die Startseite gemessen: die Zeile zum Abschluss (Höhe und ihre Zeilen, wie
  * sie umbricht – Zeichen für Zeichen nach ihrer Lage), der Überhang und der
@@ -439,12 +474,19 @@ async function mehr(f, sel) {
  */
 async function dochWeiter(f, n = 12) {
   if (await f.page.locator('[data-act="back-to-plan"]').count()) await f.klick('[data-act="back-to-plan"]', 250);
+  // Welche Einheit die Karte zeigt, steht seit v271 nur in data-n des Kopfs
+  // (bis v270 im Text, „Gestern · Workout 12"); ein Zusatztag trägt dort seine
+  // Kennung („c…"), keine Zahl.
   for (let i = 0; i < 8; i++) {
-    const m = (await f.txt('.hero-eyebrow')).match(/Workout (\d+)/);
-    if (m && Number(m[1]) === n) break;
-    await f.klick(`[data-act="nav-workout"][data-delta="${m && Number(m[1]) < n ? 1 : -1}"]`, 250);
+    const v = await f.page.locator('.hero-eyebrow').first().getAttribute('data-n', { timeout: 1500 }).catch(() => null);
+    const k = v === null ? NaN : Number(v);
+    if (k === n) break;
+    await f.klick(`[data-act="nav-workout"][data-delta="${Number.isFinite(k) && k < n ? 1 : -1}"]`, 250);
   }
-  const karte = { auge: await f.txt('.hero-eyebrow'), kopf: await f.txt('.fertig-kopf'), sub: await f.txt('.fertig-sub') };
+  const karte = {
+    auge: await f.txt('.hero-eyebrow'), kopf: await f.txt('.fertig-kopf'), sub: await f.txt('.fertig-sub'),
+    n: await f.page.locator('.hero-eyebrow').first().getAttribute('data-n', { timeout: 1500 }).catch(() => null),
+  };
   await f.klick('[data-act="start-session"]:has-text("Doch noch weitermachen")', 400);
   return karte;
 }
@@ -455,7 +497,8 @@ async function zurueck(f) {
     await f.page.waitForTimeout(250);
   }
 }
-const satzText = 'Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen.';
+// Bis v270 „Workout 12 vom Samstag ist abgeschlossen – …".
+const satzText = 'Das Workout vom Samstag ist abgeschlossen – 4 von 15 Sätzen.';
 /** Die Zusatzübungen der Woche `woche` in Einheit `n`, wie sie dasteht: Sätze. */
 const zusatzIn = (f, n, woche) => f.M(({ P }, [k, wo]) => P.workoutByNo(k).ex
   .filter((x) => x.zusatz && x.zusatz.woche === wo).reduce((a, x) => a + x.sets, 0), [n, woche]);
@@ -489,8 +532,8 @@ async function hake(f, k) {
 await abschnitt(1, async () => {
   const f = await fall('1 Laden', samstag(), T.sa);
   const sa = await blick(f);
-  check(/Heute · Workout 12/.test(sa.auge) && sa.zeilen === 0,
-    `1 Samstag: „Heute · Workout 12", keine Zeile (${sa.auge})`);
+  check(kopfIst(sa, 'Heute', 12) && sa.zeilen === 0,
+    `1 Samstag: „Tobi · Heute" über Workout 12, ohne Nummer, keine Zeile („${sa.auge}", data-n ${sa.n})`);
   await f.tag(T.so);
   const st = await f.lies();
   const e12 = st.log[12];
@@ -505,9 +548,9 @@ await abschnitt(1, async () => {
     `1 Kalender: Workout 12 steht am Samstag, nichts ausgefallen (${kal.tag}, ausgefallen: ${kal.aus.join(', ') || '–'})`);
   const so = await blick(f);
   console.log(`     So: ${so.auge} | ${so.titel} | ${so.sub} | Zeile: ${so.zeile} | frei: ${so.frei}`);
-  check(/Morgen · Workout 13/.test(so.auge) && !/Gestern/.test(so.auge),
-    `1 die Startseite zeigt „Morgen · Workout 13", nicht mehr Workout 12 von gestern („${so.auge}")`);
-  check(so.zeilen === 1 && so.zeile.startsWith(`✓ ${satzText}`), `2 die Zeile mit Zahlen und Tag: „${so.zeile}"`);
+  check(kopfIst(so, 'Morgen', 13) && !/Gestern/.test(so.auge),
+    `1 die Startseite zeigt Workout 13 als „Tobi · Morgen", ohne Nummer, nicht mehr Workout 12 von gestern („${so.auge}", data-n ${so.n})`);
+  check(so.zeilen === 1 && zeileIst(so, satzText, 12), `2 die Zeile mit Zahlen und Tag, ohne Nummer: „${so.zeile}" (Einheiten ${so.abschluss})`);
   // „Ich will nicht zwischen ok und Rest heute wählen können." Bis v242 standen
   // „Rest heute machen" und „OK" darunter.
   check(so.knoepfe === 0 && !/Rest heute machen|\bOK\b/.test(so.zeile),
@@ -524,8 +567,10 @@ await abschnitt(1, async () => {
   // Mit dem Bezug ausgeschrieben: „Davon" hinter „4 von 15 Sätzen" las sich
   // wie „von den 4 gemachten". Gemeint sind die 11 offenen – und die nennt
   // die Zeile jetzt.
-  const morgen = (so.zeile.match(/Von den 11 offenen Sätzen kommen morgen (\d+) in Workout 13 mit rein\./) || [])[1];
-  check(!!morgen, `2 Ziel: „Von den 11 offenen Sätzen kommen morgen … in Workout 13 mit rein." („${so.zeile}")`);
+  // Seit v271 ohne „in Workout 13 mit rein": „… kommen morgen 3 dazu." – in
+  // welche Einheit, prüft der Montag unten (8a).
+  const morgen = (so.zeile.match(/Von den 11 offenen Sätzen kommen morgen (\d+) dazu\./) || [])[1];
+  check(!!morgen && ohneNummer(so.zeile), `2 Ziel: „Von den 11 offenen Sätzen kommen morgen … dazu.", ohne Nummer („${so.zeile}")`);
   check(so.frei === '', `2 keine zweite Zeile am Ruhetag mit derselben Zahl („${so.frei}")`);
   // Ist die Zeile weg, steht es wieder in der Zeile am Ruhetag. Bis v242 ging
   // sie hier mit „OK"; am Sonntag selbst geht sie nur mit einem Eintrag, und
@@ -542,8 +587,8 @@ await abschnitt(1, async () => {
   const mo = await blick(f);
   const zus = await zusatzIn(f, 13, 3);
   console.log(`     Mo: ${mo.auge} | ${mo.sub} | Zusatz ${zus}`);
-  check(/Heute · Workout 13/.test(mo.auge) && zus === Number(morgen),
-    `8 Montag: Workout 13 trägt den Zusatz aus Woche 3 – ${zus} Sätze, angekündigt ${morgen} („${mo.auge} · ${mo.sub}")`);
+  check(kopfIst(mo, 'Heute', 13) && zus === Number(morgen),
+    `8 Montag: Workout 13 trägt den Zusatz aus Woche 3 – ${zus} Sätze, angekündigt ${morgen} („${mo.auge} · ${mo.sub}", data-n ${mo.n})`);
   await ende(f);
 });
 
@@ -581,7 +626,7 @@ await abschnitt(2, async () => {
   await seite('Montag');
   const mo = await blick(f);
   const zus = await zusatzIn(f, 13, 3);
-  check(mo.zeile.startsWith(`✓ ${satzText}`) && mo.zeile.includes(`Von den 11 offenen Sätzen kommen heute ${zus} in Workout 13 mit rein.`),
+  check(zeileIst(mo, satzText, 12) && mo.zeile.includes(`Von den 11 offenen Sätzen kommen heute ${zus} dazu.`),
     `2 Montag, der Tag danach – die Zeile steht noch: „${mo.zeile}"`);
   await ende(f);
 
@@ -669,8 +714,8 @@ await abschnitt(3, async () => {
   const f = await fall('3 Doch noch', samstag(), T.sa);
   await f.tag(T.so);
   const karte = await dochWeiter(f);
-  check(/Gestern · Workout 12/.test(karte.auge) && karte.kopf === '✓ Abgeschlossen',
-    `3 zurückgeblättert: „${karte.auge}" über „${karte.kopf}" – nicht „Für heute durch"`);
+  check(kopfIst(karte, 'Gestern', 12) && karte.kopf === '✓ Abgeschlossen',
+    `3 zurückgeblättert: „${karte.auge}" (data-n ${karte.n}) über „${karte.kopf}" – nicht „Für heute durch"`);
   const drin = await blick(f);
   const lage = await f.M(({ store, P }) => {
     const s = store.getState();
@@ -801,12 +846,13 @@ await abschnitt(4, async () => {
     tagesabschluss: { am: TAG.sa, einheiten: [{ n: 11, tag: tagVon(11), done: 3, total: 12 }] },
   });
   const n = await fall('4 neuer Abschluss', zn, T.sa);
-  check((await blick(n)).zeile.startsWith('✓ Workout 11 vom Freitag ist abgeschlossen – 3 von 12 Sätzen.'),
-    `4 Samstag: die Zeile zu Workout 11 („${(await blick(n)).zeile.slice(0, 60)}")`);
+  const alt = await blick(n);
+  check(zeileIst(alt, 'Das Workout vom Freitag ist abgeschlossen – 3 von 12 Sätzen.', 11),
+    `4 Samstag: die Zeile zu Workout 11 („${alt.zeile.slice(0, 60)}", Einheiten ${alt.abschluss})`);
   await n.tag(T.so);
   const neu = await blick(n);
-  check(neu.zeilen === 1 && neu.zeile.startsWith(`✓ ${satzText}`) && !/Workout 11/.test(neu.zeile),
-    `4 Sonntag: der neue Abschluss ersetzt sie („${neu.zeile.slice(0, 70)}")`);
+  check(neu.zeilen === 1 && zeileIst(neu, satzText, 12) && !/Freitag/.test(neu.zeile),
+    `4 Sonntag: der neue Abschluss ersetzt sie („${neu.zeile.slice(0, 70)}", Einheiten ${neu.abschluss})`);
   await ende(n);
 
   // f) Mit dem ersten Haken in der nächsten Einheit.
@@ -836,8 +882,8 @@ await abschnitt(4, async () => {
     await mehr(p, sel);
     const b = await blick(p);
     st = await p.lies();
-    check(vor.zeilen === 1 && /Workout 1\b/.test(b.auge) && b.zeilen === 0 && st.tagesabschluss === null,
-      `4 ${name}: „${b.auge}" – die Zeile vom alten Plan ist weg, auch aus dem Zustand („${b.zeile}", ${JSON.stringify(st.tagesabschluss)})`);
+    check(vor.zeilen === 1 && b.n === '1' && ohneNummer(b.auge) && b.zeilen === 0 && st.tagesabschluss === null,
+      `4 ${name}: „${b.auge}" (data-n ${b.n}) – die Zeile vom alten Plan ist weg, auch aus dem Zustand („${b.zeile}", ${JSON.stringify(st.tagesabschluss)})`);
     await ende(p);
   }
   // Scheitert der Wechsel am vollen Speicher, bleibt alles, wie es war – die
@@ -895,7 +941,7 @@ await abschnitt(5, async () => {
     await f.page.waitForTimeout(250);
   }
   const brett = await blick(f);
-  check(/Gestern angefangen · Workout 12/.test(brett.auge), `5 im Kopf: „${brett.auge}"`);
+  check(kopfIst(brett, 'Gestern angefangen', 12), `5 im Kopf: „${brett.auge}" (data-n ${brett.n})`);
   // Die restlichen Sätze, und die Einheit endet normal.
   await f.klick('[data-act="start-session"]', 300);
   await zurListe(f);
@@ -930,7 +976,7 @@ await abschnitt(6, async () => {
   check(!st.session && st.log[12].done === 'db' && st.log[12].secs === 35 * 60,
     `6a Sonntag beim Laden: Sitzung beendet, abgeschlossen, gebucht 35 min bis zum Wegschalten (${st.log[12].secs} s)`);
   const so = await blick(a);
-  check(!so.fokus && so.zeile.startsWith(`✓ ${satzText}`), `6a Dashboard mit der Zeile, keine Fokusansicht („${so.zeile.slice(0, 60)}…")`);
+  check(!so.fokus && zeileIst(so, satzText, 12), `6a Dashboard mit der Zeile, keine Fokusansicht („${so.zeile.slice(0, 60)}…", Einheiten ${so.abschluss})`);
   check(!/abgeschlossen|Gespeichert/.test(await toastText(a)), '6a ohne Meldung – und ohne Ton (kein trainingBeenden)');
   await ende(a);
 
@@ -957,8 +1003,8 @@ await abschnitt(6, async () => {
   check(Math.abs(st.log[12].secs - (25 * 60 + pause)) <= 1 && uhr.since === null,
     `6b gebucht 25 min bis zum Wegschalten und die offene Pause (${pause} s), nicht die Nacht; die Uhr läuft nicht weiter (${st.log[12].secs} s, since ${uhr.since})`);
   const bb = await blick(b);
-  check(!bb.fokus && bb.zeile.startsWith('✓ Workout 12 vom Samstag ist abgeschlossen – 5 von 15 Sätzen.'),
-    `6b aus der Fokusansicht aufs Dashboard, die Zeile steht („${bb.zeile.slice(0, 70)}…")`);
+  check(!bb.fokus && zeileIst(bb, 'Das Workout vom Samstag ist abgeschlossen – 5 von 15 Sätzen.', 12),
+    `6b aus der Fokusansicht aufs Dashboard, die Zeile steht („${bb.zeile.slice(0, 70)}…", Einheiten ${bb.abschluss})`);
   await ende(b);
 
   // c) Hart beendet: Die Uhr lief noch (since Samstag 17:00), letzter Satz 17:45.
@@ -990,7 +1036,7 @@ await abschnitt(7, async () => {
   st = await f.lies();
   const mo = await blick(f);
   check(!st.log[13].done && !st.tagesabschluss, `7 Montag: Workout 13 bleibt offen, keine Zeile (done ${st.log[13].done})`);
-  check(/Gestern angefangen · Workout 13/.test(mo.auge), `7 und steht da als „${mo.auge}"`);
+  check(kopfIst(mo, 'Gestern angefangen', 13), `7 und steht da als „${mo.auge}" (data-n ${mo.n})`);
   await ende(f);
 
   // b) Ein Satz und eine liegen gebliebene Sitzung: Die Sitzung endet, die
@@ -1022,8 +1068,8 @@ await abschnitt(8, async () => {
   // ob der kommt, entscheidet sich erst an seinem Tag (8d), also steht er
   // nicht da, und die Zeile sagt, wovon die Zahlen ein Teil sind.
   const m = don.zeile.match(/Von den 12 offenen Sätzen kommen dazu: morgen \+(\d+), Sa \+(\d+)\./);
-  check(don.zeile.startsWith('✓ Workout 10 vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen.') && !!m,
-    `8b Donnerstag: „${don.zeile}"`);
+  check(zeileIst(don, 'Das Workout vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen.', 10) && !!m,
+    `8b Donnerstag: „${don.zeile}" (Einheiten ${don.abschluss})`);
   check(don.frei === '', `8b keine zweite Zeile am Ruhetag mit denselben Zahlen („${don.frei}")`);
   await f.tag('2026-10-23T10:00:00+02:00');
   const fr = await nachIn(f, 11);
@@ -1045,9 +1091,9 @@ await abschnitt(8, async () => {
   console.log(`     Fr: ${fre.auge} | ${fre.sub} | Zeile: ${fre.zeile}`);
   const h = fre.zeile.match(/Von den 12 offenen Sätzen kommen dazu: heute \+(\d+), morgen \+(\d+)\./);
   const plus = await nachIn(g, 11);
-  check(fre.zeile.startsWith('✓ Workout 10 vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen.') && !!h && Number(h[1]) === plus && plus > 0,
-    `8c Freitag: „${fre.zeile}" – Workout 11 trägt ${plus}`);
-  check(/Heute · Workout 11/.test(fre.auge), `8c und Workout 11 steht für heute da (${fre.auge})`);
+  check(zeileIst(fre, 'Das Workout vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen.', 10) && !!h && Number(h[1]) === plus && plus > 0,
+    `8c Freitag: „${fre.zeile}" (Einheiten ${fre.abschluss}) – Workout 11 trägt ${plus}`);
+  check(kopfIst(fre, 'Heute', 11), `8c und Workout 11 steht für heute da („${fre.auge}", data-n ${fre.n})`);
   await ende(g);
 
   // d) Workout 11 am Freitag mit 3 von 12, Samstag ist Workout 12 dran. Es
@@ -1061,8 +1107,8 @@ await abschnitt(8, async () => {
   await d.tag('2026-10-24T10:00:00+02:00');
   const sam = await blick(d);
   const plus12 = await nachIn(d, 12);
-  check(/^✓ Workout 11 vom Freitag ist abgeschlossen – 3 von 12 Sätzen\.$/.test(sam.zeile) && plus12 === 0,
-    `8d Samstag: kein Ziel – „${sam.zeile}", Workout 12 trägt ${plus12}`);
+  check(/^✓ Das Workout vom Freitag ist abgeschlossen – 3 von 12 Sätzen\.$/.test(sam.zeile) && sam.abschluss === '11' && plus12 === 0,
+    `8d Samstag: kein Ziel – „${sam.zeile}" (Einheiten ${sam.abschluss}), Workout 12 trägt ${plus12}`);
   await d.M(({ store, P }) => { store.completeWorkout(12, 'db', P.workoutByNo(12, 'db').ex); store.flush(); });
   const kommt = [];
   for (const wann of ['2026-10-25T10:00:00+01:00', '2026-10-26T10:00:00+01:00']) {
@@ -1084,11 +1130,11 @@ await abschnitt(8, async () => {
   const so8 = await blick(z8);
   console.log(`     So 18.10.: ${so8.auge} | ${so8.zeile}`);
   check(/Heute · Zusatztag/.test(so8.auge)
-    && so8.zeile.startsWith('✓ Workout 8 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Zum Nachholen steht heute ein Zusatztag bereit.'),
-  `8e Sonntag: „${so8.auge}" – „${so8.zeile}"`);
+    && zeileIst(so8, 'Das Workout vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Zum Nachholen steht heute ein Zusatztag bereit.', 8),
+  `8e Sonntag: „${so8.auge}" – „${so8.zeile}" (Einheiten ${so8.abschluss})`);
   const k8 = await dochWeiter(z8, 8);
-  check(/Workout 8/.test(k8.auge) && k8.kopf === '✓ Abgeschlossen' && (await blick(z8)).fokus,
-    `8e zurück zum Plan, zu Workout 8 geblättert („${k8.auge}", „${k8.kopf}"), „Doch noch weitermachen"`);
+  check(k8.n === '8' && ohneNummer(k8.auge) && k8.kopf === '✓ Abgeschlossen' && (await blick(z8)).fokus,
+    `8e zurück zum Plan, zu Workout 8 geblättert („${k8.auge}", data-n ${k8.n}, „${k8.kopf}"), „Doch noch weitermachen"`);
   // Ein Satz in der Übung, die am Samstag schon dran war – so ruht heute
   // keine Gruppe mehr als vorher, und der Zusatztag bleibt möglich. Die Frage
   // ist allein, ob er nach dem Rest noch für heute dasteht.
@@ -1121,8 +1167,8 @@ await abschnitt(8, async () => {
   check(fehlen.length === 2, `8f Workout 9 hat Floor Press und hängendes Knieheben (${fehlen.join(', ')})`);
   const tw = await fall('8f Tobis Woche', { ...GRUND, log: { ...fertigBis(11), 9: neun } }, '2026-10-24T17:00:00+02:00');
   const sa17 = await blick(tw);
-  check(/Heute · Workout 12/.test(sa17.auge) && /5 Übungen · 17 Sätze/.test(sa17.sub),
-    `8f Samstag 17:00: „${sa17.auge} · ${sa17.sub}"`);
+  check(kopfIst(sa17, 'Heute', 12) && /5 Übungen · 17 Sätze/.test(sa17.sub),
+    `8f Samstag 17:00: „${sa17.auge} · ${sa17.sub}" (data-n ${sa17.n})`);
   await tw.klick('[data-act="start-session"]', 400);
   for (let i = 0; i < 4; i++) {
     await tw.page.clock.setFixedTime(new Date(ms('2026-10-24T17:02:00+02:00') + i * 4 * 60000));
@@ -1136,8 +1182,9 @@ await abschnitt(8, async () => {
   await tw.tag('2026-10-25T09:30:00+01:00');
   const so17 = await blick(tw);
   console.log(`     So (Tobis Woche): ${so17.auge} | ${so17.zeile}`);
-  const m17 = so17.zeile.match(/^✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen\. Aus Woche 3 kommen morgen (\d+) Sätze in Workout 13 mit rein\.$/);
-  check(!!m17, `8f Sonntag: „${so17.zeile}"`);
+  // Bis v270 „… kommen morgen 3 Sätze in Workout 13 mit rein."
+  const m17 = so17.zeile.match(/^✓ Das Workout vom Samstag ist abgeschlossen – 4 von 17 Sätzen\. Aus Woche 3 kommen morgen (\d+) Sätze dazu\.$/);
+  check(!!m17 && so17.abschluss === '12', `8f Sonntag: „${so17.zeile}" (Einheiten ${so17.abschluss})`);
   // Gemessen wie in 2, mit Tobis Satz: höchstens drei Zeilen, und in der
   // letzten nie ein Wort allein – die Seite bleibt eine Seite. Und zu Workout
   // 12 geblättert, steht die Zeile nicht über ihrer eigenen Karte: Dort schob
@@ -1154,8 +1201,8 @@ await abschnitt(8, async () => {
     await tw.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
     const k12 = await blick(tw);
     const k = await seiteMessen(tw);
-    check(/Gestern · Workout 12/.test(k12.auge) && k12.zeilen === 0 && k.scroll <= 0 && k.fussUnten <= k.sichtbar,
-      `8f Sonntag ${b}×${h}, zu Workout 12 geblättert: keine Zeile über ihrer Karte, eine Seite (Überhang ${k.scroll}, Fuß ${k.fussUnten} / ${k.sichtbar})`);
+    check(kopfIst(k12, 'Gestern', 12) && k12.zeilen === 0 && k.scroll <= 0 && k.fussUnten <= k.sichtbar,
+      `8f Sonntag ${b}×${h}, zu Workout 12 geblättert („${k12.auge}", data-n ${k12.n}): keine Zeile über ihrer Karte, eine Seite (Überhang ${k.scroll}, Fuß ${k.fussUnten} / ${k.sichtbar})`);
   }
   await tw.page.setViewportSize({ width: 414, height: 896 });
   await tw.tag(T.mo);
@@ -1184,7 +1231,7 @@ await abschnitt(9, async () => {
   await g.M(({ store }, text) => store.importJSON(text), json);
   await g.tag('2026-10-25T10:05:00+01:00');
   const z = await blick(g);
-  check(z.zeile.startsWith(`✓ ${satzText}`), `9 nach dem Import steht die Zeile wieder da („${z.zeile.slice(0, 60)}…")`);
+  check(zeileIst(z, satzText, 12), `9 nach dem Import steht die Zeile wieder da („${z.zeile.slice(0, 60)}…", Einheiten ${z.abschluss})`);
 
   // Aus fremder Hand: Unsinn fällt weg, HTML kommt nicht in die Seite.
   const boese = JSON.parse(json);
@@ -1246,7 +1293,8 @@ await abschnitt(10, async () => {
   check(st.log[12].done === 'db' && st.tagesabschluss && st.tagesabschluss.am === TAG.so,
     `10 um 2:40 MEZ (3 h 10, Wanduhr 2 h 10): abgeschlossen, am ${st.tagesabschluss && st.tagesabschluss.am}`);
   const z10 = await blick(f);
-  check(z10.zeile.startsWith('✓ Workout 12 vom Samstag ist abgeschlossen – 6 von 15 Sätzen.'), `10 die Zeile: „${z10.zeile.slice(0, 64)}…"`);
+  check(zeileIst(z10, 'Das Workout vom Samstag ist abgeschlossen – 6 von 15 Sätzen.', 12),
+    `10 die Zeile: „${z10.zeile.slice(0, 64)}…" (Einheiten ${z10.abschluss})`);
   await ende(f);
 
   // Die Uhr bei offener App über den 25-Stunden-Tag: Workout 13 am Sonntag
@@ -1265,8 +1313,10 @@ await abschnitt(10, async () => {
   await g.page.waitForTimeout(400);
   const nachts = await g.M(({ store }) => ({ done: store.getState().log[13].done, z: store.getState().tagesabschluss }));
   const zeile = await g.txt('.notice.abschluss');
-  check(nachts.done === 'db' && zeile.startsWith('✓ Workout 13 vom Sonntag ist abgeschlossen – 3 von 15 Sätzen.'),
-    `10 Montag 0:00:30, ohne Neuladen: abgeschlossen, die Zeile steht („${zeile.slice(0, 64)}")`);
+  const von = ((nachts.z || {}).einheiten || []).map((e) => e.n).join(',');
+  check(nachts.done === 'db' && zeile.startsWith('✓ Das Workout vom Sonntag ist abgeschlossen – 3 von 15 Sätzen.')
+    && ohneNummer(zeile) && von === '13',
+  `10 Montag 0:00:30, ohne Neuladen: abgeschlossen, die Zeile steht („${zeile.slice(0, 64)}", Einheiten ${von})`);
   await ende(g);
 });
 
@@ -1299,8 +1349,8 @@ await abschnitt(11, async () => {
   st = await f.lies();
   const tage = await f.M(({ P, D }) => [P.effDate(D.PLAN[11]), P.effDate(D.PLAN[12])]);
   const so = await blick(f);
-  check(st.shift === SHIFT && tage[0] === TAG.sa && tage[1] === TAG.mo && /Morgen · Workout 13/.test(so.auge),
-    `11 neu geladen: der Plan bleibt (shift ${st.shift}, ${tage.join(', ')}), „${so.auge}"`);
+  check(st.shift === SHIFT && tage[0] === TAG.sa && tage[1] === TAG.mo && kopfIst(so, 'Morgen', 13),
+    `11 neu geladen: der Plan bleibt (shift ${st.shift}, ${tage.join(', ')}), „${so.auge}" (data-n ${so.n})`);
 
   // Und „Abschließen" ohne neuen Satz lässt den Samstag, wie er war.
   const g = await fall('11 Abschließen', samstag(), T.sa);
@@ -1313,8 +1363,8 @@ await abschnitt(11, async () => {
   '11 „Abschließen" ohne neuen Satz: Workout 12 wie am Samstag, der Sonntag kein Trainingstag');
   // Und dann heißt sie weiter, was sie ist – nichts von heute.
   const kg = await blick(g);
-  check(kg.kopf === '✓ Abgeschlossen' && /Gestern · Workout 12/.test(kg.auge),
-    `11 danach: „${kg.auge}" über „${kg.kopf}"`);
+  check(kg.kopf === '✓ Abgeschlossen' && kopfIst(kg, 'Gestern', 12),
+    `11 danach: „${kg.auge}" (data-n ${kg.n}) über „${kg.kopf}"`);
   await ende(f);
   await ende(g);
 });
@@ -1334,21 +1384,21 @@ await abschnitt(12, async () => {
   await f.page.waitForTimeout(300);
   await zurueck(f);
   const lauf = await blick(f);
-  check(/Gestern angefangen · Workout 12/.test(lauf.auge) && /Sa, 24\. Oktober/.test(lauf.titel),
-    `12 während der Sitzung: „${lauf.auge} / ${lauf.titel}"`);
+  check(kopfIst(lauf, 'Gestern angefangen', 12) && /Sa, 24\. Oktober/.test(lauf.titel),
+    `12 während der Sitzung: „${lauf.auge} / ${lauf.titel}" (data-n ${lauf.n})`);
   await f.klick('[data-act="finish-session"]', 400);
   const fertig = await blick(f);
   const durch = await f.txt('.fertig-kopf');
-  check(/Gestern angefangen · Workout 12/.test(fertig.auge) && /Für heute durch/.test(durch),
-    `12 nach dem Abschließen: „${fertig.auge}" über „${durch}"`);
+  check(kopfIst(fertig, 'Gestern angefangen', 12) && /Für heute durch/.test(durch),
+    `12 nach dem Abschließen: „${fertig.auge}" (data-n ${fertig.n}) über „${durch}"`);
   // Eine abgeschlossene Einheit von gestern, an der heute nichts passiert ist,
   // heißt weiter „Gestern" – und ihre Karte „Abgeschlossen", nicht mehr „Für
   // heute durch": Der Rest war gestern.
   await f.tag('2026-10-26T17:00:00+01:00');
   await f.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
   const mo = await blick(f);
-  check(/vor 2 Tagen · Workout 12/.test(mo.auge) && !/angefangen/.test(mo.auge) && mo.kopf === '✓ Abgeschlossen',
-    `12 am Montag zurückgeblättert: „${mo.auge}" über „${mo.kopf}"`);
+  check(kopfIst(mo, 'vor 2 Tagen', 12) && !/angefangen/.test(mo.auge) && mo.kopf === '✓ Abgeschlossen',
+    `12 am Montag zurückgeblättert: „${mo.auge}" (data-n ${mo.n}) über „${mo.kopf}"`);
   await ende(f);
 });
 
@@ -1410,8 +1460,8 @@ await abschnitt(13, async () => {
   await c.wegUndZurueck(T.mo);
   s = await c.M(({ store }) => ({ s: store.getState().session, d: store.getState().log[12].done }));
   const zm = await blick(c);
-  check(s.s === null && s.d === 'db' && zm.zeile.startsWith(`✓ ${satzText}`),
-    `13c Montag: Sitzung beendet und abgeschlossen, die Zeile steht (${JSON.stringify(s)}, „${zm.zeile.slice(0, 60)}")`);
+  check(s.s === null && s.d === 'db' && zeileIst(zm, satzText, 12),
+    `13c Montag: Sitzung beendet und abgeschlossen, die Zeile steht (${JSON.stringify(s)}, „${zm.zeile.slice(0, 60)}", Einheiten ${zm.abschluss})`);
   await ende(c);
 });
 
@@ -1430,8 +1480,8 @@ await abschnitt(14, async () => {
   await f.wegUndZurueck(T.mo);
   st = await f.lies();
   const mo = await blick(f);
-  check(st.log[12].done === 'db' && mo.zeile.startsWith(`✓ ${satzText}`) && /Workout 13/.test(mo.auge),
-    `14 Montag ohne Neuladen: abgeschlossen, die Zeile steht („${mo.auge}", „${mo.zeile.slice(0, 50)}")`);
+  check(st.log[12].done === 'db' && zeileIst(mo, satzText, 12) && mo.n === '13' && ohneNummer(mo.auge),
+    `14 Montag ohne Neuladen: abgeschlossen, die Zeile steht („${mo.auge}", data-n ${mo.n}, „${mo.zeile.slice(0, 50)}", Einheiten ${mo.abschluss})`);
   await ende(f);
 });
 
@@ -1469,8 +1519,8 @@ await abschnitt(15, async () => {
     check(secs <= 120, `15 ${art}: die Nacht ist nicht gebucht (${secs} s)`);
     if (art !== 'Abschließen') {
       const b = await blick(f);
-      check(!st.session && st.log[12].done === 'db' && b.zeile.startsWith(`✓ ${satzText}`),
-        `15 ${art}: Sitzung beendet, abgeschlossen, die Zeile steht (${JSON.stringify(st.session)}, ${st.log[12].done})`);
+      check(!st.session && st.log[12].done === 'db' && zeileIst(b, satzText, 12),
+        `15 ${art}: Sitzung beendet, abgeschlossen, die Zeile steht (${JSON.stringify(st.session)}, ${st.log[12].done}, Einheiten ${b.abschluss})`);
     }
     await ende(f);
   }
@@ -1621,13 +1671,13 @@ await abschnitt(18, async () => {
   await f.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
   const k12 = { ...(await blick(f)), sub: await f.txt('.fertig-sub') };
   const weiter = await f.page.locator('[data-act="start-session"]:has-text("Doch noch weitermachen")').count();
-  check(/Gestern · Workout 12/.test(k12.auge) && k12.kopf === '✓ Abgeschlossen' && k12.sub === '4 von 15 Sätzen.' && weiter === 1,
-    `18 Workout 12, selbst abgeschlossen: „${k12.auge}" – „${k12.kopf}" – „${k12.sub}", „Doch noch weitermachen" ${weiter}×`);
+  check(kopfIst(k12, 'Gestern', 12) && k12.kopf === '✓ Abgeschlossen' && k12.sub === '4 von 15 Sätzen.' && weiter === 1,
+    `18 Workout 12, selbst abgeschlossen: „${k12.auge}" (data-n ${k12.n}) – „${k12.kopf}" – „${k12.sub}", „Doch noch weitermachen" ${weiter}×`);
   await f.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
   const k11 = { ...(await blick(f)), sub: await f.txt('.fertig-sub') };
   const knopf = await f.page.locator('#view [data-act="start-session"]').count();
-  check(/vor 2 Tagen · Workout 11/.test(k11.auge) && k11.kopf === '✓ Abgeschlossen' && k11.sub === 'Alle 12 Sätze stehen.' && knopf === 0,
-    `18 Workout 11, ganz gemacht: „${k11.auge}" – „${k11.kopf}" – „${k11.sub}", ohne Knopf (${knopf})`);
+  check(kopfIst(k11, 'vor 2 Tagen', 11) && k11.kopf === '✓ Abgeschlossen' && k11.sub === 'Alle 12 Sätze stehen.' && knopf === 0,
+    `18 Workout 11, ganz gemacht: „${k11.auge}" (data-n ${k11.n}) – „${k11.kopf}" – „${k11.sub}", ohne Knopf (${knopf})`);
   await ende(f);
 
   // Und die Seite: Mit der Zeile darüber schob sich die Karte von Workout 12
@@ -1645,14 +1695,14 @@ await abschnitt(18, async () => {
       await g.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
       const k = await blick(g);
       const m = await seiteMessen(g);
-      check(start.zeilen === 1 && /Workout 12/.test(k.auge) && k.kopf === '✓ Abgeschlossen' && k.zeilen === 0
+      check(start.zeilen === 1 && k.n === '12' && ohneNummer(k.auge) && k.kopf === '✓ Abgeschlossen' && k.zeilen === 0
         && m.scroll <= 0 && m.fussUnten <= m.sichtbar,
-      `18 ${wort} ${b}×${h}, zu Workout 12 geblättert („${k.auge}"): keine Zeile über ihrer Karte, eine Seite (Überhang ${m.scroll}, Fuß ${m.fussUnten} / ${m.sichtbar}); auf der Startseite steht sie (${start.zeilen})`);
+      `18 ${wort} ${b}×${h}, zu Workout 12 geblättert („${k.auge}", data-n ${k.n}): keine Zeile über ihrer Karte, eine Seite (Überhang ${m.scroll}, Fuß ${m.fussUnten} / ${m.sichtbar}); auf der Startseite steht sie (${start.zeilen})`);
       await g.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
       const k11 = await blick(g);
       const m11 = await seiteMessen(g);
-      check(/Workout 11/.test(k11.auge) && k11.zeilen === 1 && m11.scroll <= 0 && m11.fussUnten <= m11.sichtbar,
-        `18 ${wort} ${b}×${h}, Workout 11: die Zeile steht, eine Seite (Überhang ${m11.scroll}, Fuß ${m11.fussUnten} / ${m11.sichtbar})`);
+      check(k11.n === '11' && ohneNummer(k11.auge) && k11.zeilen === 1 && m11.scroll <= 0 && m11.fussUnten <= m11.sichtbar,
+        `18 ${wort} ${b}×${h}, Workout 11 („${k11.auge}", data-n ${k11.n}): die Zeile steht, eine Seite (Überhang ${m11.scroll}, Fuß ${m11.fussUnten} / ${m11.sichtbar})`);
     }
   }
   await ende(g);
@@ -1668,8 +1718,8 @@ await abschnitt(19, async () => {
   // die Zeile nennt nur noch Workout 11.
   const f = await fall('19 zwei', samstag({ log: { ...fertigBis(10), 11: eintrag(11, 3), 12: eintrag(12, 4) } }), T.so);
   const so = await blick(f);
-  check(so.zeile.startsWith('✓ Workout 11 vom Freitag (3 von 12 Sätzen) und Workout 12 vom Samstag (4 von 15 Sätzen) sind abgeschlossen.')
-    && so.knoepfe === 0, `19 beide in der Zeile, ohne Knopf („${so.zeile}")`);
+  check(zeileIst(so, 'Die Workouts vom Freitag (3 von 12 Sätzen) und vom Samstag (4 von 15 Sätzen) sind abgeschlossen.', 11, 12)
+    && so.knoepfe === 0, `19 beide in der Zeile, ohne Knopf („${so.zeile}", Einheiten ${so.abschluss})`);
   await f.klick('[data-act="nav-workout"][data-delta="-1"]', 200);
   await zurListe(f);
   await hake(f, 1);
@@ -1677,7 +1727,7 @@ await abschnitt(19, async () => {
   await f.klick('[data-act="nav-workout"][data-delta="1"]', 200);
   const nb = await blick(f);
   const z = await f.M(({ store }) => store.getState().tagesabschluss);
-  check(nb.zeile.startsWith('✓ Workout 11 vom Freitag ist abgeschlossen – 3 von 12 Sätzen.') && !/Workout 12 vom/.test(nb.zeile)
+  check(zeileIst(nb, 'Das Workout vom Freitag ist abgeschlossen – 3 von 12 Sätzen.', 11) && !/vom Samstag/.test(nb.zeile)
     && z && z.einheiten.length === 1 && z.einheiten[0].n === 11,
   `19 nach dem Satz in Workout 12: nur noch Workout 11 („${nb.zeile}")`);
   await ende(f);
@@ -1707,9 +1757,12 @@ await abschnitt(20, async () => {
   const b = await blick(f);
   const st = await f.lies();
   const runden = await f.M(({ store }) => (store.getState().rounds || []).length);
-  check(runden === 1 && /Workout 1\b/.test(b.auge)
-    && b.zeile.startsWith(`✓ Workout ${letzte.n} vom `) && b.zeile.includes('ist abgeschlossen – 4 von') && b.knoepfe === 0,
-  `20 die Runde rollt weiter, die Zeile sagt, warum („${b.auge}" – „${b.zeile}", Runden ${runden})`);
+  // Die Zeile spricht von Workout 84, die Startseite steht bei Workout 1 – seit
+  // v271 nennt keins von beiden die Nummer: die Zeile den Tag von Workout 84,
+  // der Kopf nur das Wann.
+  check(runden === 1 && b.n === '1' && ohneNummer(b.auge)
+    && zeileIst(b, `Das Workout vom ${wochentagVon(tag)} ist abgeschlossen – 4 von`, letzte.n) && b.knoepfe === 0,
+  `20 die Runde rollt weiter, die Zeile sagt, warum („${b.auge}", data-n ${b.n} – „${b.zeile}", Einheiten ${b.abschluss}, Runden ${runden})`);
   check(!!st.tagesabschluss, '20 und steht im Zustand');
   await zurListe(f);
   await hake(f, 1);
@@ -1736,23 +1789,28 @@ await abschnitt(21, async () => {
   await zurueck(f);
   const lauf = await blick(f);
   const knopf = await f.txt('[data-act="finish-session"]');
-  check(/Training abschließen \(4\/15\)/.test(knopf) && /Gestern angefangen · Workout 12/.test(lauf.auge) && lauf.zeilen === 0,
-    `21 zurück aufs Dashboard: „${lauf.auge}", „${knopf}" – keine Zeile „ist abgeschlossen" darüber („${lauf.zeile}")`);
+  check(/Training abschließen \(4\/15\)/.test(knopf) && kopfIst(lauf, 'Gestern angefangen', 12) && lauf.zeilen === 0,
+    `21 zurück aufs Dashboard: „${lauf.auge}" (data-n ${lauf.n}), „${knopf}" – keine Zeile „ist abgeschlossen" darüber („${lauf.zeile}")`);
   check((await f.lies()).tagesabschluss !== null, '21 im Zustand bleibt sie');
   await f.tag('2026-10-25T14:00:00+01:00');
   const nm = await blick(f);
   const ansicht = await f.txt('#view');
-  check(/Workout 12 läuft noch/.test(ansicht) && /Workout 13/.test(nm.auge) && nm.zeilen === 0,
-    `21 um 14:00 neu geöffnet: „${nm.auge}", „Workout 12 läuft noch" – keine Zeile darüber („${nm.zeile}")`);
+  // Bis v270 „Workout 12 läuft noch." – jetzt beim Tag genannt (angefangen am
+  // Samstag, also „von gestern"); welche Einheit läuft, trägt der Knopf
+  // zurück in data-n.
+  const laufend = await f.page.locator('[data-act="zur-laufenden"]').first().getAttribute('data-n', { timeout: 1500 }).catch(() => null);
+  check(/Das Workout von gestern läuft noch\./.test(ansicht) && ohneNummer(ansicht) && laufend === '12'
+    && nm.n === '13' && ohneNummer(nm.auge) && nm.zeilen === 0,
+  `21 um 14:00 neu geöffnet: „${nm.auge}" (data-n ${nm.n}), „Das Workout von gestern läuft noch" (zurück zu ${laufend}), ohne Nummer – keine Zeile darüber („${nm.zeile}")`);
   // Die Sitzung endet ohne Haken: Auf der Startseite steht sie wieder, mit dem Ziel.
   await f.klick('[data-act="zur-laufenden"]', 400);
   await zurueck(f);
   await f.klick('[data-act="finish-session"]', 400);
-  if (!/Workout 13/.test((await blick(f)).auge)) await f.klick('[data-act="nav-workout"][data-delta="1"]', 250);
+  if ((await blick(f)).n !== '13') await f.klick('[data-act="nav-workout"][data-delta="1"]', 250);
   const wieder = await blick(f);
-  check(!(await f.lies()).session && wieder.zeile.startsWith(`✓ ${satzText}`)
-    && /Von den 11 offenen Sätzen kommen morgen \d+ in Workout 13 mit rein\./.test(wieder.zeile),
-  `21 „Abschließen" ohne Haken, auf Workout 13: die Zeile steht wieder da („${wieder.zeile}")`);
+  check(!(await f.lies()).session && zeileIst(wieder, satzText, 12)
+    && /Von den 11 offenen Sätzen kommen morgen \d+ dazu\./.test(wieder.zeile),
+  `21 „Abschließen" ohne Haken, auf Workout 13: die Zeile steht wieder da („${wieder.zeile}", Einheiten ${wieder.abschluss})`);
   await ende(f);
 
   // Bleibt die Sitzung bis Montag liegen, endet sie dort (13a) – und die Zeile
@@ -1763,8 +1821,8 @@ await abschnitt(21, async () => {
   await zurueck(g);
   await g.tag(T.mo);
   const mo = await blick(g);
-  check(!(await g.lies()).session && mo.zeile.startsWith(`✓ ${satzText}`) && mo.zeile.includes('kommen heute'),
-    `21 Montag: die Sitzung von gestern ist zu, die Zeile steht wieder („${mo.zeile}")`);
+  check(!(await g.lies()).session && zeileIst(mo, satzText, 12) && mo.zeile.includes('kommen heute'),
+    `21 Montag: die Sitzung von gestern ist zu, die Zeile steht wieder („${mo.zeile}", Einheiten ${mo.abschluss})`);
   await ende(g);
 });
 

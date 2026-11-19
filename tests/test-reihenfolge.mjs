@@ -216,8 +216,10 @@ const ruestIn = async (supersatz) => {
   }, supersatz);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(300);
+  // Erkannt an data-n über dem Titel: Seit v271 steht dort keine Nummer mehr
+  // („Die Workout Nummer ist mir … komplett egal"), bis v270 „Workout 3".
   for (let i = 0; i < 100; i++) {
-    if (/Workout 3\b/.test(await page.locator('#view').textContent())) break;
+    if (await page.locator('#view .hero-eyebrow[data-n="3"]').count()) break;
     await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
     await page.waitForTimeout(60);
   }

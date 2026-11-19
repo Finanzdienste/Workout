@@ -146,14 +146,20 @@ for (let i = 0; i < 2 && !(await page.locator('.cal-cell.plan:not(.out)').count(
 }
 await page.locator('.cal-cell.plan').first().click();
 await page.waitForTimeout(200);
-const nr = await page.locator('.cal-detail .lbl').first().textContent();
+// Seit v271 ohne Nummer („Die Workout Nummer ist mir … komplett egal"): Die
+// Karte sagt „Workout · geplant", welche Einheit es ist, trägt data-n.
+const lbl = page.locator('.cal-detail .lbl').first();
+const nr = (await lbl.textContent()).replace(/\s+/g, ' ').trim();
+const zahl = await lbl.getAttribute('data-n');
+check(/^\d+$/.test(zahl || '') && nr === 'Workout · geplant',
+  `die Karte nennt die Einheit ohne Nummer („${nr}", data-n ${zahl})`);
 await page.locator('[data-act="cal-open"]').first().click();
 await page.waitForTimeout(300);
 check(await page.locator('.tab[aria-selected="true"]').getAttribute('data-tab') === 'dashboard',
   'der Knopf führt ins Dashboard');
 const dash = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-const zahl = nr.match(/\d+/)[0];
-check(dash.includes(`Workout ${zahl} `) || dash.includes(`${zahl} von`), `und zwar zu Workout ${zahl}`);
+check(await page.locator(`#view .hero-eyebrow[data-n="${zahl}"]`).count() === 1 && !new RegExp(`Workout\\s${zahl}\\b`).test(dash),
+  `und zwar zu Workout ${zahl} – erkannt an data-n, gezeigt ohne die Nummer`);
 
 // --- Verletzung schlägt bis in den Kalender durch ---
 await page.evaluate(() => {
@@ -374,7 +380,11 @@ await page.locator('.cal-cell.akt.done').first().click();
 await page.waitForTimeout(400);
 const beides = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/Schwimmen/.test(beides), 'am Tag mit beidem steht der Sport da');
-check(/Workout \d+ · trainiert/.test(beides), 'und die Einheit ebenfalls');
+// Die Einheit ohne Nummer (v271): „Workout · trainiert", welche es ist, sagt data-n.
+const einheitLbl = await page.locator('.cal-detail .lbl[data-n]').evaluateAll((els) => els.map((e) => [e.dataset.n, e.textContent.replace(/\s+/g, ' ').trim()]));
+const ersteNr = await page.evaluate(async () => String((await import('./js/data.js')).PLAN[0].n));
+check(einheitLbl.some(([n, t]) => n === ersteNr && t === 'Workout · trainiert') && !/Workout \d/.test(beides),
+  `und die Einheit ebenfalls – „Workout · trainiert", ohne Nummer (${JSON.stringify(einheitLbl)})`);
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

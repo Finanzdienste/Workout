@@ -1009,7 +1009,10 @@ const fremdVorher = fremdBild(welt);
   const w9 = eigene(kal).find((t) => t.tags.workout === 'cut-1-9');
   check(a.ok && a.code === 'angekommen' && a.seq === 2 && !abweichung(kal, N.T, '2026-10-26'),
     `trainiert: die neue Vorschau gilt sofort (${a.geaendert} Änderungen)`);
-  check(w9.titel.startsWith('✓ Workout 9') && !w9.popup.length && tagB(w9.beginn) === '2026-10-26', `Workout 9 abgehakt: „${w9.titel}", ohne Erinnerung`);
+  // Der Termin ist cut-1-9 (seine Markierung); der Titel trägt seit v271 keine
+  // Nummer mehr: „✓ Workout · 6 Übungen · 17 Sätze".
+  check(/^✓ Workout · \d+ Übungen · \d+ Sätze$/.test(w9.titel) && !w9.popup.length && tagB(w9.beginn) === '2026-10-26',
+    `Workout 9 abgehakt: „${w9.titel}" – ohne Nummer, ohne Erinnerung`);
 }
 
 /* ------------------------------------------------------------------ *

@@ -67,7 +67,15 @@ const exCount = await page.locator('.ex').count();
 check(exCount === soll, `Liste rendert die Übungen des Tages (${exCount} von ${soll})`);
 check(await page.locator('.tab').count() === 3, '3 Tabs vorhanden');
 await page.locator('[data-act="hide-list"]').click();
-check((await page.locator('.hero-eyebrow').textContent()).includes('Workout'), 'Hero da');
+// Seit v271 ohne Nummer im Kopf („Heute", bis v270 „Heute · Workout 1") – die
+// Einheit trägt data-n.
+{
+  const auge = page.locator('.hero-eyebrow').first();
+  const text = (await auge.textContent()).trim();
+  const n = await auge.getAttribute('data-n');
+  check(/^\d+$/.test(n || '') && text.length > 0 && !/Workout\s*\d/.test(text),
+    `Hero da: „${text}", data-n ${n}`);
+}
 check(await page.locator('.bodymap').count() === 1, 'Körperkarte in der Einzeldatei');
 check(await page.locator('.bm-part.on').count() > 0, 'Muskelgruppen hervorgehoben');
 await page.locator('[data-act="show-list"]').click();

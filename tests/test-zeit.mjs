@@ -139,14 +139,33 @@ const zumBrett = async () => {
   await page.waitForTimeout(200);
 };
 await zumBrett();
+// Seit v271 ohne Nummer („Die Workout Nummer ist mir … komplett egal"): Oben
+// steht das Wann (bis v270 „T · in 2 Tagen · Workout 2"), der Knopf nennt den
+// Tag der laufenden („Zurück zum Workout von heute", bis v270 „Zurück zu
+// Workout 1"). Welche Einheit es ist, sagt data-n.
 const andere = await page.evaluate(() => ({
-  kopf: (document.querySelector('.hero-eyebrow') || {}).textContent || '',
+  kopf: ((document.querySelector('.hero-eyebrow') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
+  kopfN: (document.querySelector('.hero-eyebrow') || { dataset: {} }).dataset.n,
   start: [...document.querySelectorAll('[data-act="start-session"]')].map((b) => b.textContent.replace(/\s+/g, ' ').trim()),
-  zurueck: (document.querySelector('[data-act="zur-laufenden"]') || {}).textContent || '',
+  zurueck: ((document.querySelector('[data-act="zur-laufenden"]') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
+  zurueckN: (document.querySelector('[data-act="zur-laufenden"]') || { dataset: {} }).dataset.n,
 }));
-check(/Workout 2/.test(andere.kopf) && /Workout 1/.test(andere.zurueck),
-  `auf Workout 2 führt der erste Knopf zurück zur laufenden (${andere.zurueck.replace(/\s+/g, ' ').trim()})`);
-check(andere.start.length === 1 && /wird beendet/.test(andere.start[0]),
+// Das Wann über Workout 2 aus seinem Termin, so wie wannWort() in js/app.js
+// es schreibt (Workout 2 ist nicht angefangen).
+const w2Tage = await page.evaluate(async () => {
+  const P = await import('./js/plan.js');
+  const { PLAN } = await import('./js/data.js');
+  const d = await import('./js/dates.js');
+  return d.daysBetween(d.todayISO(), P.effDate(PLAN[1]));
+});
+const wann = (t) => (t === 0 ? 'Heute' : t === 1 ? 'Morgen' : t === -1 ? 'Gestern'
+  : t > 1 ? `in ${t} Tagen` : `vor ${-t} Tagen`);
+const kopfSoll = `T · ${wann(w2Tage)}`;
+check(andere.kopfN === '2' && andere.kopf === kopfSoll
+  && andere.zurueckN === '1' && /^\u25B6\uFE0E? Zurück zum Workout von heute$/.test(andere.zurueck),
+  `auf Workout 2 führt der erste Knopf zurück zur laufenden (${andere.zurueck} [${andere.zurueckN}] · oben „${
+    andere.kopf}" [${andere.kopfN}], erwartet „${kopfSoll}")`);
+check(andere.start.length === 1 && andere.start[0] === 'Diese starten – das Workout von heute wird beendet',
   `und wer hier startet, liest, dass Workout 1 dabei endet (${andere.start.join(' | ')})`);
 await page.locator('[data-act="zur-laufenden"]').click();
 await page.waitForTimeout(200);
@@ -166,24 +185,29 @@ await page.waitForTimeout(200);
 const inListe = await page.evaluate(() => ({
   start: [...document.querySelectorAll('[data-act="start-session"]')].map((b) => b.textContent.replace(/\s+/g, ' ').trim()),
   zurueck: !!document.querySelector('[data-act="zur-laufenden"]'),
+  zurueckN: (document.querySelector('[data-act="zur-laufenden"]') || { dataset: {} }).dataset.n,
   hinweis: !!document.querySelector('.laeuft-woanders'),
+  hinweisText: ((document.querySelector('.laeuft-woanders') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
   back: (document.querySelector('.back-link') || { dataset: {} }).dataset.act,
 }));
-check(inListe.zurueck && inListe.hinweis,
+// „Das Workout von heute läuft noch." – bis v270 „Workout 1 läuft noch."
+check(inListe.zurueck && inListe.zurueckN === '1' && inListe.hinweis
+  && inListe.hinweisText === 'Das Workout von heute läuft noch.',
   `auch die Liste von Workout 2 sagt, dass Workout 1 läuft, und führt zurück (${JSON.stringify(inListe)})`);
-check(inListe.start.length === 1 && /wird beendet/.test(inListe.start[0]),
+check(inListe.start.length === 1 && inListe.start[0] === 'Diese starten – das Workout von heute wird beendet',
   `wer dort startet, liest vorher, dass Workout 1 endet (${inListe.start.join(' | ')})`);
 check(inListe.back === 'hide-list', `„‹ Zurück" führt zur Übersicht von Workout 2 (${inListe.back})`);
 await page.locator('.back-link').first().click();
 await page.waitForTimeout(200);
 const nachZurueck = await page.evaluate(async () => ({
-  kopf: (document.querySelector('.hero-eyebrow') || {}).textContent || '',
+  kopf: ((document.querySelector('.hero-eyebrow') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
+  kopfN: (document.querySelector('.hero-eyebrow') || { dataset: {} }).dataset.n,
   fokusOffen: (await import('./js/store.js')).getState().fokusOffen,
   session: (await import('./js/store.js')).getState().session?.n,
 }));
-check(/Workout 2/.test(nachZurueck.kopf) && nachZurueck.session === 1
+check(nachZurueck.kopfN === '2' && nachZurueck.kopf === kopfSoll && nachZurueck.session === 1
   && !(nachZurueck.fokusOffen && nachZurueck.fokusOffen.n === 2),
-  `danach steht die Übersicht von Workout 2 da, ohne hängende Fokusansicht (${JSON.stringify(nachZurueck)})`);
+  `danach steht die Übersicht von Workout 2 da – oben „${kopfSoll}", ohne Nummer –, ohne hängende Fokusansicht (${JSON.stringify(nachZurueck)})`);
 await page.locator('[data-act="zur-laufenden"]').click();
 await page.waitForTimeout(1000);
 await zumBrett();

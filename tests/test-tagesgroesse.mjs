@@ -40,8 +40,11 @@ const modus = async (m) => {
 
 const kopf = () => page.locator('.hero-sub').first().textContent()
   .then((t) => t.replace(/\s+/g, ' ').trim());
-const nummer = () => page.locator('.hero-eyebrow').first().textContent()
-  .then((t) => Number((t.match(/Workout\s+(\d+)/) || [])[1]));
+// Welche Einheit vorn steht, sagt seit v271 data-n – über dem Titel steht nur
+// noch das Wann (bis v270 „Heute · Workout 1"; „Die Workout Nummer ist mir …
+// komplett egal").
+const augenbraue = () => page.locator('.hero-eyebrow').first();
+const nummer = () => augenbraue().getAttribute('data-n').then(Number);
 
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.evaluate(() => {
@@ -98,7 +101,11 @@ for (let i = 0; i < 8; i++) {
   await zurueck.click();
   await page.waitForTimeout(100);
 }
-check(await nummer() === 1, 'wieder bei Workout 1');
+// Workout 1 liegt nach dem Nachrücken auf heute (der Plan beginnt in der
+// Vergangenheit, catchUpPlan()): data-n 1, darüber nur „Heute", keine Nummer.
+const ersteAugenbraue = (await augenbraue().textContent()).replace(/\s+/g, ' ').trim();
+check(await nummer() === 1 && ersteAugenbraue === 'Heute',
+  `wieder bei Workout 1 („${ersteAugenbraue}", data-n ${await nummer()})`);
 
 // --- Bodyweight: eigene Satzzahlen, dieselbe Form ---
 await modus('bw');

@@ -141,6 +141,15 @@ async function fall(name, zustand, wann) {
     name, ctx, page, errs,
     txt: async (sel) => ((await page.locator(sel).first().textContent({ timeout: 1500 }).catch(() => '')) || '')
       .replace(/\s+/g, ' ').trim(),
+    /**
+     * Welche Einheit gezeigt wird: data-n am .hero-eyebrow. Bis v270 stand die
+     * Nummer im Text („Tobi · Morgen · Workout 10"), seit v271 nur das Wann.
+     * Eine eigene Einheit (data-n „c1") zählt wie vorher als 0.
+     */
+    nr: async () => {
+      const v = (await page.locator('.hero-eyebrow').first().getAttribute('data-n', { timeout: 1500 }).catch(() => '')) || '';
+      return /^\d+$/.test(v) ? Number(v) : 0;
+    },
     lies: () => page.evaluate(() => JSON.parse(localStorage.getItem('workout.state.v1') || '{}')),
     M: (fn, arg) => page.evaluate(async ([src, a]) => {
       const m = { P: await import('./js/plan.js'), store: await import('./js/store.js'), D: await import('./js/data.js') };
@@ -182,17 +191,19 @@ async function abschnitt(name, fn) {
  * Was im Kopf der Startansicht steht – dazu die Grundsätze der gezeigten
  * Einheit (Plan ohne Nachholsätze und ohne eingefügten Zusatz). Seit der Kopf
  * die Summe zeigt („6 Übungen · 17 Sätze" statt „15 + 2"), ergibt sich das
- * „+" daraus: Summe minus Grundsätze.
+ * „+" daraus: Summe minus Grundsätze. `n` ist die gezeigte Einheit (data-n),
+ * `auge` der Text darüber – seit v271 ohne Nummer.
  */
 async function kopf(f) {
   const auge = await f.txt('.hero-eyebrow');
-  const n = Number((auge.match(/Workout (\d+)/) || [])[1] || 0);
+  const n = await f.nr();
   const [basis, basisUeb] = n ? await f.M(({ P, D, store }, k) => {
     const liste = P.exBasis(D.PLAN[k - 1], store.workoutMode(k));
     return [liste.reduce((a, x) => a + x.sets, 0), liste.length];
   }, n) : [0, 0];
   return {
     auge,
+    n,
     titel: await f.txt('.hero-title'),
     sub: await f.txt('.hero-sub'),
     basis,
@@ -202,13 +213,23 @@ async function kopf(f) {
   };
 }
 
+/**
+ * Das Wann über dem Titel, wörtlich – und welche Einheit es ist. Bis v270
+ * „Tobi · Morgen · Workout 10"; seit v271 nur „Tobi · Morgen" („Die Workout
+ * Nummer ist mir … komplett egal"), die Nummer steht in data-n. Der wörtliche
+ * Vergleich hält zugleich fest, dass keine Nummer mehr dasteht. Den Namen
+ * davor trägt nur die Startansicht; die Liste der Übungen (renderDashboard())
+ * sagt schlicht „Heute" (bis v270 „Heute · Workout 10") – dort `name` leer.
+ */
+const augeIst = (k, wann, n, name = 'Tobi') => k.auge === (name ? `${name} · ${wann}` : wann) && k.n === n;
+
 /** Zur Einheit n blättern (Startansicht). */
 async function zuEinheit(f, n) {
   for (const sel of ['[data-act="focus-list"]', '[data-act="hide-list"]']) {
     if (await f.page.locator(sel).count()) await f.klick(sel, 120);
   }
   for (let i = 0; i < 20; i++) {
-    const jetzt = Number(((await f.txt('.hero-eyebrow')).match(/Workout (\d+)/) || [])[1] || 0);
+    const jetzt = await f.nr();
     if (jetzt === n) return true;
     const knopf = f.page.locator(`[data-act="nav-workout"][data-delta="${jetzt < n ? 1 : -1}"]:not([disabled])`);
     if (!(await knopf.count())) return false;
@@ -323,7 +344,7 @@ function pruefeWoche(tag, r) {
   console.log(`     ${tag} Fr: ${r.fr.auge} | ${r.fr.sub} | ${r.fr.frei}`);
   console.log(`     ${tag} So: ${r.so.auge} | ${r.so.sub} | ${r.so.frei}`);
   console.log(`     ${tag} Einheiten: ${r.ist.map((x) => `W${x.n} +${x.plus} (Kopf +${x.kopf})`).join(', ')}`);
-  check(/Morgen · Workout 10/.test(r.fr.auge), `${tag} Fr: „Morgen · Workout 10" („${r.fr.auge}")`);
+  check(augeIst(r.fr, 'Morgen', 10), `${tag} Fr: „Tobi · Morgen" über Workout 10, ohne Nummer („${r.fr.auge}", data-n ${r.fr.n})`);
   const z = zerlege(r.fr.frei);
   check(r.fr.zeilen === 1 && !!z, `${tag} Fr: eine Zeile „Heute frei. Was am … liegen blieb, kommt …" („${r.fr.frei}")`);
   const ist = alsZeile(r.ist, VOM_FR);
@@ -331,9 +352,9 @@ function pruefeWoche(tag, r) {
   check(r.ist.every((x) => x.plus === x.kopf || x.kopf === 0 && x.plus === 0),
     `${tag} und so steht es auch im Kopf der Einheiten (${r.ist.map((x) => `+${x.kopf}`).join(', ')})`);
   check(r.fr10 === r.ist[0].plus, `${tag} Workout 10 am Fr angesehen = am Sa (${r.fr10} / ${r.ist[0].plus})`);
-  check(/Heute · Workout 10/.test(r.sa.auge) && r.sa.zeilen === 0, `${tag} Sa: Workout 10 ist fällig – keine Zeile („${r.sa.auge}")`);
+  check(augeIst(r.sa, 'Heute', 10) && r.sa.zeilen === 0, `${tag} Sa: Workout 10 ist fällig – keine Zeile („${r.sa.auge}", data-n ${r.sa.n})`);
   check(r.saDanach.zeilen === 0 && r.saNeu.zeilen === 0, `${tag} Sa nach dem Training: heute war Training – keine Zeile („${r.saNeu.auge}")`);
-  check(/Morgen · Workout 11/.test(r.so.auge), `${tag} So: „Morgen · Workout 11" („${r.so.auge}")`);
+  check(augeIst(r.so, 'Morgen', 11), `${tag} So: „Tobi · Morgen" über Workout 11, ohne Nummer („${r.so.auge}", data-n ${r.so.n})`);
   const istSo = alsZeile(r.ist, VOM_SO);
   const zSo = zerlege(r.so.frei);
   if (istSo) {
@@ -342,8 +363,8 @@ function pruefeWoche(tag, r) {
     check(r.so.zeilen === 0 || (zSo && zSo.rest && !zSo.ziele),
       `${tag} So: nichts mehr für Mo und Di – keine Ziele in der Zeile („${r.so.frei}")`);
   }
-  check(/Heute · Workout 11/.test(r.mo.auge) && r.mo.zeilen === 0, `${tag} Mo: keine Zeile, Workout 11 ist fällig`);
-  check(/Heute · Workout 12/.test(r.di.auge) && r.di.zeilen === 0, `${tag} Di: keine Zeile, Workout 12 ist fällig`);
+  check(augeIst(r.mo, 'Heute', 11) && r.mo.zeilen === 0, `${tag} Mo: keine Zeile, Workout 11 ist fällig („${r.mo.auge}", data-n ${r.mo.n})`);
+  check(augeIst(r.di, 'Heute', 12) && r.di.zeilen === 0, `${tag} Di: keine Zeile, Workout 12 ist fällig („${r.di.auge}", data-n ${r.di.n})`);
   return z;
 }
 
@@ -358,8 +379,9 @@ await abschnitt('R1', async () => {
   freitagsStand = await f.lies();
   const k = await kopf(f);
   console.log(`     ${k.auge} | ${k.titel} | ${k.sub}\n     ${k.frei}`);
-  check(k.auge === 'Tobi · Morgen · Workout 10' && k.titel === 'Sa, 10. Oktober 2026'
-    && k.sub === 'Hanteln · 5 Übungen · 17 Sätze', 'R1 Tobis Freitag: der Kopf wie auf seinem Bildschirm');
+  check(augeIst(k, 'Morgen', 10) && k.titel === 'Sa, 10. Oktober 2026'
+    && k.sub === 'Hanteln · 5 Übungen · 17 Sätze',
+  `R1 Tobis Freitag: der Kopf wie auf seinem Bildschirm, „Tobi · Morgen" ohne Nummer (data-n ${k.n})`);
   check(k.frei === ZEILE_TOBI, `R1 die Zeile: „${ZEILE_TOBI}" („${k.frei}")`);
   const roh = await f.page.locator('.ov-frei').first().textContent().catch(() => '');
   check(/morgen\u00a0\+2, Mo\u00a0\+1, Di\u00a0\+1/.test(roh || ''),
@@ -416,8 +438,8 @@ await abschnitt('R2', async () => {
     'R2 keine Rest-Ankündigung – und nach der Woche entsteht auch kein Zusatztag Woche 3');
   check(!!z && z.entfaellt && !!r.so.frei.endsWith(', der Rest entfällt.'),
     `R2 „der Rest entfällt" am Fr und am So – und es kommt wirklich nichts mehr („${r.so.frei}")`);
-  check(/Morgen · Workout 13/.test(r.mi.auge) && r.mi.zeilen === 0,
-    `R2 Mi: neue Woche, nichts offen – keine Zeile („${r.mi.auge}")`);
+  check(augeIst(r.mi, 'Morgen', 13) && r.mi.zeilen === 0,
+    `R2 Mi: neue Woche, nichts offen – keine Zeile („${r.mi.auge}", data-n ${r.mi.n})`);
   await ende(r.f);
 });
 
@@ -441,8 +463,8 @@ await abschnitt('R3', async () => {
   // Der Mittwoch ist frei, der Zusatztag kommt morgen in Workout 13: Die Zeile
   // sagt es, mit der Zahl, die der Donnerstag dann zeigt.
   const zMi = zerlege(r.mi.frei);
-  check(/Heute · Workout 13/.test(r.do2.auge) && uebImKopf(r.do2) > r.do2.basisUeb,
-    `R3 Do: der Zusatztag steckt in Workout 13 („${r.do2.sub}")`);
+  check(augeIst(r.do2, 'Heute', 13) && uebImKopf(r.do2) > r.do2.basisUeb,
+    `R3 Do: der Zusatztag steckt in Workout 13 („${r.do2.auge}", data-n ${r.do2.n}, „${r.do2.sub}")`);
   check(!!zMi && !zMi.quellen && !!zMi.zusatz && zMi.zusatz.woche === 3 && zMi.zusatz.plus === plusImKopf(r.do2),
     `R3 Mi: „Aus Woche 3 kommt dazu: morgen +${plusImKopf(r.do2)}" („${r.mi.frei}")`);
   check(r.do2.zeilen === 0, 'R3 Do: Workout 13 ist fällig – keine Zeile');
@@ -551,8 +573,8 @@ await abschnitt('R10', async () => {
   // Was der Mi ankündigt, bringt der Do – hier nichts, und so sagt es die Zeile.
   const zMi = zerlege(mi.frei);
   console.log(`     R10 Mi: ${mi.auge} | ${mi.sub} | ${mi.frei}\n     R10 Do: ${do2.auge} | ${do2.sub}`);
-  check(/Heute · Workout 13/.test(do2.auge) && ((zMi && zMi.zusatz && zMi.zusatz.plus) || 0) === plusImKopf(do2),
-    `R10 Mi: die Zeile kündigt an, was Workout 13 am Do bringt (+${plusImKopf(do2)}, „${mi.frei}")`);
+  check(augeIst(do2, 'Heute', 13) && ((zMi && zMi.zusatz && zMi.zusatz.plus) || 0) === plusImKopf(do2),
+    `R10 Mi: die Zeile kündigt an, was Workout 13 am Do bringt (+${plusImKopf(do2)}, „${mi.frei}"; Do „${do2.auge}", data-n ${do2.n})`);
 
   // a) In der neuen Woche bleibt am Do ein Floor-Press-Satz liegen.
   await spiele(f, 13, { 'floor-press': 2 });
@@ -708,8 +730,8 @@ await abschnitt('R7', async () => {
   await f.tag(TAG.fr);
   const k = await kopf(f);
   console.log(`     ${k.auge} | ${k.sub} | ${k.zeilen}`);
-  check(/Morgen · Workout 10/.test(k.auge) && k.sub === 'Hanteln · 5 Übungen · 15 Sätze',
-    `R7 Fr nach vollem Do: „Morgen · Workout 10", 15 Sätze („${k.sub}")`);
+  check(augeIst(k, 'Morgen', 10) && k.sub === 'Hanteln · 5 Übungen · 15 Sätze',
+    `R7 Fr nach vollem Do: „Tobi · Morgen" über Workout 10, 15 Sätze („${k.auge}", data-n ${k.n}, „${k.sub}")`);
   check(k.zeilen === 0, 'R7 ohne Rückstand keine Zeile');
   await ende(f);
 });
@@ -721,21 +743,23 @@ await abschnitt('R8', async () => {
   // a) Workout 9 nicht gemacht: Am Freitag rückt der Plan nach, Workout 9 ist heute.
   const a = await fall('R8a', VORLAGE, TAG.fr);
   const ka = await kopf(a);
-  check(/Heute · Workout 9/.test(ka.auge) && ka.zeilen === 0, `R8a Do verpasst: „Heute · Workout 9", keine Zeile („${ka.auge}")`);
+  check(augeIst(ka, 'Heute', 9) && ka.zeilen === 0, `R8a Do verpasst: „Tobi · Heute" über Workout 9, keine Zeile („${ka.auge}", data-n ${ka.n})`);
   await ende(a);
 
   if (!freitagsStand) { check(false, 'R8 braucht den Freitagsstand aus R1'); return; }
   // b) Samstag verpasst: Am Sonntag ist Workout 10 heute.
   const b = await fall('R8b', freitagsStand, TAG.so);
   const kb = await kopf(b);
-  check(/Heute · Workout 10/.test(kb.auge) && kb.zeilen === 0 && plusImKopf(kb) === 2,
-    `R8b Sa verpasst: am So „Heute · Workout 10" mit +2, keine Zeile („${kb.auge} | ${kb.sub}")`);
+  check(augeIst(kb, 'Heute', 10) && kb.zeilen === 0 && plusImKopf(kb) === 2,
+    `R8b Sa verpasst: am So „Tobi · Heute" über Workout 10 mit +2, keine Zeile („${kb.auge}", data-n ${kb.n} | ${kb.sub})`);
   // d) Am Freitag eine andere Einheit angeblättert: keine Zeile – sie gehört zur nächsten.
   const d =await fall('R8d', freitagsStand, TAG.fr);
   check((await kopf(d)).zeilen === 1, 'R8d Fr auf Workout 10: die Zeile steht');
   await zuEinheit(d, 11);
   const kd = await kopf(d);
-  check(/Workout 11/.test(kd.auge) && kd.zeilen === 0, `R8d auf Workout 11 geblättert: keine Zeile („${kd.auge}")`);
+  // Workout 11 liegt auf Mo 12.10., vom Fr aus „in 3 Tagen" (wannWort()).
+  check(augeIst(kd, 'in 3 Tagen', 11) && kd.zeilen === 0,
+    `R8d auf Workout 11 geblättert: „Tobi · in 3 Tagen", keine Zeile („${kd.auge}", data-n ${kd.n})`);
   await zuEinheit(d, 10);
   check((await kopf(d)).frei === ZEILE_TOBI, 'R8d zurück auf Workout 10: wieder da');
   // e) Vorgezogen: Start am Freitag zieht Workout 10 auf heute – dann ist heute nicht frei.
@@ -744,8 +768,10 @@ await abschnitt('R8', async () => {
   check(await zuEinheit(d, 10), 'R8e zurück zur Startansicht von Workout 10');
   const ke = await kopf(d);
   console.log(`     R8e ${ke.auge} | ${ke.sub} | Workout 10 am ${vor}`);
-  check(vor === '2026-10-09' && /Heute · Workout 10/.test(ke.auge) && ke.zeilen === 0,
-    `R8e vorgezogen: Workout 10 steht auf heute, keine Zeile („${ke.auge}")`);
+  // Mit laufender Sitzung führt der Weg zurück in die Liste (ihr Zurück ist
+  // dann focus-back, nicht hide-list) – dort steht das Wann ohne den Namen.
+  check(vor === '2026-10-09' && augeIst(ke, 'Heute', 10, '') && ke.zeilen === 0,
+    `R8e vorgezogen: Workout 10 steht auf heute („Heute"), keine Zeile („${ke.auge}", data-n ${ke.n})`);
   await ende(d);
   await ende(b);
 
@@ -790,7 +816,7 @@ await abschnitt('R8f', async () => {
   await f.tag(TAG.fr);
   const k = await kopf(f);
   console.log(`     R8f ${k.auge} | ${k.sub} | ${k.zeilen}`);
-  check(/Morgen · Workout 10/.test(k.auge) && k.zeilen === 0, `R8f danach: keine Zeile – heute war Training („${k.auge}")`);
+  check(augeIst(k, 'Morgen', 10) && k.zeilen === 0, `R8f danach: keine Zeile – heute war Training („${k.auge}", data-n ${k.n})`);
   await ende(f);
 });
 

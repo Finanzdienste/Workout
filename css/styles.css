@@ -1330,7 +1330,7 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 .notice.zeile > span { flex: 1 1 auto; }
 .notice.zeile .btn { flex: none; padding: 8px 12px; font-size: 13px; }
 
-/* Die Zeile zum Tagesabschluss (abschlussHinweis() in js/app.js): „Workout 12
+/* Die Zeile zum Tagesabschluss (abschlussHinweis() in js/app.js): „Das Workout
    vom Samstag ist abgeschlossen …". Klein gesetzt – als Kasten mit voller
    Knopfreihe schob sie bei 360×740 Start und Fuß 52 px unter die Leiste. Seit
    v244 ohne Knöpfe („Rest heute machen" und „OK" sind weg), nur noch die

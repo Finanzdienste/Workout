@@ -44,7 +44,8 @@
  *        als ausgefallen).
  *   A13  W10 am Fr ohne Start in „Übungen & Gewichte" abgehakt: Der Plan rückt
  *        vor wie beim Start (W11 am So); jeder gemeldete Tag war am Tag selbst
- *        „heute · Workout n". Ebenso „Alle Sätze abhaken".
+ *        „Heute" über eben dieser Einheit (bis v270 „heute · Workout n").
+ *        Ebenso „Alle Sätze abhaken".
  *   A14  Cut → Aufbau → Cut über die Fokuskarten: die Ausfälle vor dem Wechsel
  *        bleiben dieselben (die Spur `verlassen`), auch beim nächsten Wechsel;
  *        ohne Spur (alter Stand) dieselben Tage, kein Ruhetag.
@@ -66,6 +67,13 @@
  * rot), der letzte Eintrag vor dem Wechsel (A15), „frei" in der Ablage (A16),
  * die Farbe (A1, zwei), das geschützte Leerzeichen (A1) und „noch offen"
  * (A10).
+ *
+ * Seit v271 ohne Nummer („Die Workout Nummer ist mir in to Do und Kalender und
+ * in meiner App übrigens komplett egal"): Vorgelesen werden der Tag und
+ * „Workout ausgefallen", das Detail heißt „Workout · ausgefallen" und sagt „Das
+ * Workout rückte nach hinten …". Welche Einheit es ist, prüfen die Abschnitte
+ * am data-n des Kopfes (detailKoepfe()) und des Kopfes über der Einheit
+ * (heroKopf()) – und dass nirgends „Workout <Zahl>" steht.
  */
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
@@ -76,6 +84,14 @@ const VORLAGE = JSON.parse(readFileSync(path.join(ROOT, 'tests', 'zusatz-tobi-do
 const kopie = (o) => JSON.parse(JSON.stringify(o));
 const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const DI = '2026-10-13T15:00:00+02:00';
+/**
+ * Das Detail nennt Einheit `n` als ausgefallen: ein Kopf „Workout ·
+ * ausgefallen" mit data-n="n" (aus detailKoepfe()). Bis v270 stand die Nummer
+ * im Text („Workout 10 · ausgefallen").
+ */
+const ausgefallenKopf = (koepfe, n) => koepfe.includes(`${n}:Workout · ausgefallen`);
+/** Keine laufende Nummer im Text – seit v271 steht sie nirgends mehr. */
+const ohneNummer = (text) => !/Workout\s*\d/.test(text);
 
 const browser = await chromium.launch();
 let fails = 0;
@@ -185,6 +201,20 @@ async function fall(name, zustand, wann = DI, runden = null) {
       await page.waitForTimeout(250);
       return (await page.locator('.cal-detail').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim()).join(' | ');
     },
+    /**
+     * Die Köpfe der Detailkarten als „n:Text" („10:Workout · ausgefallen",
+     * „–:Boxen") – seit v271 steht die Nummer nur noch in data-n.
+     */
+    detailKoepfe: () => page.evaluate(() => [...document.querySelectorAll('.cal-detail .lbl')]
+      .map((e) => `${e.dataset.n || '–'}:${e.textContent.replace(/\s+/g, ' ').trim()}`)),
+    /**
+     * Der Kopf über der gezeigten Einheit: Text („Tobi · Heute", bis v270
+     * „Tobi · Heute · Workout 11") und ihre Nummer aus data-n.
+     */
+    heroKopf: () => page.evaluate(() => {
+      const e = document.querySelector('#view .hero-eyebrow');
+      return e ? { text: e.textContent.replace(/\s+/g, ' ').trim(), n: e.dataset.n || null } : null;
+    }),
     /** Fokus wechseln über die Karte unter Mehr – die App lädt danach neu. */
     fokus: async (key) => {
       await page.locator('.tab[data-tab="settings"]').click();
@@ -193,11 +223,11 @@ async function fall(name, zustand, wann = DI, runden = null) {
       await page.waitForTimeout(400);
       await f.kalender();
     },
-    /** Zum Dashboard; gibt die Kopfzeile zurück („TOBI · HEUTE · WORKOUT 11"). */
+    /** Zum Dashboard; gibt den Kopf über der Einheit zurück (heroKopf(): „Tobi · Heute", n 11). */
     dashboard: async () => {
       await page.locator('.tab[data-tab="dashboard"]').click();
       await page.waitForTimeout(250);
-      return ((await page.locator('#view').innerText()).split('\n').find((l) => /WORKOUT \d+/i.test(l)) || '').trim();
+      return f.heroKopf();
     },
     /** Die gezeigte Einheit in „Übungen & Gewichte" Satz für Satz abhaken – ohne Start. */
     abhaken: async () => {
@@ -269,7 +299,10 @@ await abschnitt('A1', async () => {
   check(/16 Einheiten in diesem Monat · 5 trainiert/.test(zeile) && /11 offen/.test(zeile),
     'A1: Einheiten, trainiert und offen zählen wie bisher');
   const label = await f.label(10);
-  check(/Workout 10 ausgefallen/.test(label), `★ A1: vorgelesen „Workout 10 ausgefallen" (${label})`);
+  // Vorgelesen: der Tag und was war – seit v271 ohne Nummer (bis v270 „…:
+  // Workout 10 ausgefallen"); die Einheit dahinter prüft das Detail (data-n).
+  check(label.split(' | ')[0] === 'Sa, 10. Oktober 2026: Workout ausgefallen',
+    `★ A1: vorgelesen „Sa, 10. Oktober 2026: Workout ausgefallen", ohne Nummer (${label})`);
   // Sichtbar: Die Strichelung ist das einzige Merkmal – mit --line hatte sie
   // 1,3:1 auf der Karte und war blasser als jeder leere Ruhetag.
   const sicht = await f.page.evaluate(() => {
@@ -308,24 +341,32 @@ await abschnitt('A1', async () => {
 
   await f.bild('ausgefallen-raster-414x896.png');
   const d10 = await f.tippe('2026-10-10');
-  console.log(`     Detail 10.: ${d10.slice(0, 220)}`);
-  check(/Workout 10 · ausgefallen/.test(d10), '★ A1: Tipp auf den 10.: „Workout 10 · ausgefallen"');
+  const dk10 = await f.detailKoepfe();
+  console.log(`     Detail 10.: ${d10.slice(0, 220)} · Köpfe ${dk10.join(' | ')}`);
+  check(ausgefallenKopf(dk10, 10) && ohneNummer(d10),
+    `★ A1: Tipp auf den 10.: „Workout · ausgefallen" für Workout 10 (data-n), ohne Nummer im Text (${dk10.join(' | ')})`);
   check(/nach dem Training am Do, 08\.10\./.test(d10), '★ A1: … im Rhythmus nach dem Training am Do, 08.10.');
-  check(/Workout 10 rückte nach hinten und ist jetzt für heute geplant/.test(d10),
-    '★ A1: … rückte nach hinten und ist jetzt für heute geplant');
+  check(/Das Workout rückte nach hinten und ist jetzt für heute geplant\./.test(d10),
+    '★ A1: „Das Workout rückte nach hinten und ist jetzt für heute geplant."');
   check(!/verpasst|versäumt|leider/i.test(d10), 'A1: sachlich, ohne Vorwurf');
   check(await f.page.locator('.cal-detail [data-act="cal-open"][data-n="10"]').count() === 1,
     '★ A1: der Knopf führt zu Workout 10');
   await f.bild('ausgefallen-detail-414x896.png', '.cal-detail');
   const d12 = await f.tippe('2026-10-12');
-  check(/Workout 10 · ausgefallen/.test(d12), `★ A1: Tipp auf den 12.: wieder Workout 10 (${d12.slice(0, 60)})`);
+  const dk12 = await f.detailKoepfe();
+  check(ausgefallenKopf(dk12, 10) && ohneNummer(d12),
+    `★ A1: Tipp auf den 12.: wieder Workout 10 (${dk12.join(' | ')} · ${d12.slice(0, 60)})`);
 
   if (await f.page.locator('.cal-detail [data-act="cal-open"]').count()) {
     await f.page.locator('.cal-detail [data-act="cal-open"]').first().click();
     await f.page.waitForTimeout(300);
     const dash = (await f.page.locator('#view').textContent()).replace(/\s+/g, ' ');
+    // Bis v270 stand oben „Tobi · Heute · Workout 10"; jetzt nur das Wann – W10
+    // ist für heute geplant –, die Einheit trägt der Kopf in data-n.
+    const kopf = await f.heroKopf();
     check(await f.page.locator('.tab[aria-selected="true"]').getAttribute('data-tab') === 'dashboard'
-      && /Workout 10\b/.test(dash), 'A1: „Zu dieser Einheit" öffnet Workout 10 im Dashboard');
+      && !!kopf && kopf.n === '10' && kopf.text === 'Tobi · Heute' && ohneNummer(dash),
+    `A1: „Zu dieser Einheit" öffnet Workout 10 im Dashboard – oben „Tobi · Heute", nirgends eine Nummer (${JSON.stringify(kopf)})`);
   } else {
     check(false, '★ A1: kein Knopf im Detail des 12.');
   }
@@ -396,8 +437,9 @@ await abschnitt('A3', async () => {
   check(!miss.includes(10), 'A3: W10 einen Tag später nachgeholt – der Sa ist verschoben, nicht ausgefallen');
   check(gleich(miss, [13, 14]), `★ A3: danach Di 13. und Mi 14. (Workout 11) ausgefallen (${miss.join(', ') || 'keiner'})`);
   const d = await f.tippe('2026-10-13');
-  check(/Workout 11 · ausgefallen/.test(d) && /nach dem Training am So, 11\.10\./.test(d),
-    `★ A3: Detail Workout 11, nach dem Training am So (${d.slice(0, 120)})`);
+  const dk = await f.detailKoepfe();
+  check(ausgefallenKopf(dk, 11) && ohneNummer(d) && /nach dem Training am So, 11\.10\./.test(d),
+    `★ A3: Detail Workout 11, nach dem Training am So (${dk.join(' | ')} · ${d.slice(0, 120)})`);
   await ende(f);
 });
 
@@ -428,9 +470,11 @@ await abschnitt('A5', async () => {
   console.log(`     Sa: ${k10} · ${await f.zeile()}`);
   check(k10 && k10.includes('miss') && k10.includes('akt'), `★ A5a: Sa mit Boxen ausgefallen und mit Sport-Streifen (${k10})`);
   const d = await f.tippe('2026-10-10');
+  const dk = await f.detailKoepfe();
   const iBox = d.indexOf('Boxen');
-  const iAus = d.indexOf('Workout 10 · ausgefallen');
-  check(iBox >= 0 && iAus > iBox, `★ A5a: Detail erst Boxen, dann Workout 10 · ausgefallen (${iBox}/${iAus})`);
+  const iAus = d.indexOf('Workout · ausgefallen');
+  check(iBox >= 0 && iAus > iBox && ausgefallenKopf(dk, 10) && ohneNummer(d),
+    `★ A5a: Detail erst Boxen, dann „Workout · ausgefallen" für Workout 10 (${iBox}/${iAus} · ${dk.join(' | ')})`);
   check(/Boxen/.test(await f.label(10)), 'A5a: vorgelesen mit Boxen');
   await ende(f);
 });
@@ -460,7 +504,8 @@ await abschnitt('A6', async () => {
   check(k10 && k10.includes('part'), `A6: Sa bleibt angefangen (${k10})`);
   check(gleich(miss, [12]), `★ A6: Mo 12. ausgefallen (${miss.join(', ') || 'keiner'})`);
   const d = await f.tippe('2026-10-12');
-  check(/Workout 11 · ausgefallen/.test(d), `★ A6: fällig war Workout 11 (${d.slice(0, 80)})`);
+  const dk = await f.detailKoepfe();
+  check(ausgefallenKopf(dk, 11) && ohneNummer(d), `★ A6: fällig war Workout 11 (${dk.join(' | ')} · ${d.slice(0, 80)})`);
   await ende(f);
 });
 
@@ -480,8 +525,10 @@ await abschnitt('A7', async () => {
   check(k12 && k12.includes('done') && /\(\+1\)/.test(await f.label(12)), `A7: Mo trainiert, „(+1)" (${k12})`);
   check(/· 1 Tag ausgefallen/.test(zeile), `★ A7: „1 Tag ausgefallen" (${zeile})`);
   const d = await f.tippe('2026-10-10');
-  check(/Workout 10 rückte nach hinten und wurde am Mo, 12\.10\. trainiert/.test(d),
-    `★ A7: „… wurde am Mo, 12.10. trainiert" (${d.slice(0, 160)})`);
+  const dk = await f.detailKoepfe();
+  check(ausgefallenKopf(dk, 10) && ohneNummer(d)
+    && /Das Workout rückte nach hinten und wurde am Mo, 12\.10\. trainiert\./.test(d),
+  `★ A7: Workout 10: „Das Workout rückte nach hinten und wurde am Mo, 12.10. trainiert." (${dk.join(' | ')} · ${d.slice(0, 160)})`);
   check(/Im Dashboard ansehen/.test(d), '★ A7: trainierte Einheit – „Im Dashboard ansehen"');
   await ende(f);
 });
@@ -501,8 +548,9 @@ await abschnitt('A8', async () => {
   console.log(`     ausgefallen: ${miss.join(', ') || '–'} · ${await f.zeile()}`);
   check(gleich(miss, [20, 22]), `★ A8: im Cut nichts – So 20. und Di 22. ausgefallen, nicht Sa 19. / Mo 21. (${miss.join(', ') || 'keiner'})`);
   const d = await f.tippe('2026-09-20');
-  check(/Workout 1 · ausgefallen/.test(d) && /nach dem Training am Fr, 18\.09\./.test(d),
-    `★ A8: fällig war Workout 1 (${d.slice(0, 120)})`);
+  const dk = await f.detailKoepfe();
+  check(ausgefallenKopf(dk, 1) && ohneNummer(d) && /nach dem Training am Fr, 18\.09\./.test(d),
+    `★ A8: fällig war Workout 1 (${dk.join(' | ')} · ${d.slice(0, 120)})`);
   await ende(f);
 
   const z2 = tobi();
@@ -548,9 +596,10 @@ await abschnitt('A10', async () => {
   // liegt bis zum Nachrücken noch auf dem Mo, den das Raster selbst als
   // ausgefallen zeigt.
   const d10 = await f.tippe('2026-10-10');
-  check(/Workout 10 · ausgefallen/.test(d10) && !/für Mo, 12\.10\. geplant/.test(d10)
-    && /rückte nach hinten und ist noch offen/.test(d10),
-  `★ A10: Di 00:05, Tipp auf den Sa: „noch offen", nicht „jetzt für Mo, 12.10. geplant" (${d10.slice(0, 160)})`);
+  const dk10 = await f.detailKoepfe();
+  check(ausgefallenKopf(dk10, 10) && ohneNummer(d10) && !/für Mo, 12\.10\. geplant/.test(d10)
+    && /Das Workout rückte nach hinten und ist noch offen\./.test(d10),
+  `★ A10: Di 00:05, Tipp auf den Sa: „noch offen", nicht „jetzt für Mo, 12.10. geplant" (${dk10.join(' | ')} · ${d10.slice(0, 160)})`);
   await f.page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await f.page.waitForTimeout(300);
   const danach = await f.miss();
@@ -605,14 +654,15 @@ await abschnitt('A13', async () => {
   // ohne „Start". Bisher blieb der Plan stehen (W11 am Mo), die Rechnung lief
   // aber ab Fr – und meldete den So als ausgefallen, an dem die App „morgen ·
   // Workout 11" zeigte. Geprüft wird die Invariante: Jeder gemeldete Tag war
-  // an dem Tag selbst „heute · Workout n" mit eben diesem n.
+  // an dem Tag selbst „heute · Workout n" mit eben diesem n – seit v271 steht
+  // dort nur „Heute", die Einheit im data-n des Kopfes (heroKopf()).
   const f = await fall('A13', tobi(), '2026-10-09T18:00:00+02:00');
   const gezeigt = { '2026-10-09': await f.dashboard() };
   await f.abhaken();
   const nachHaken = await f.M(({ P, D, store }) => ({
     shift: store.getState().shift, w10: store.startedOn(10), fertig: P.completedMode(10), w11: P.effDate(D.PLAN[10]),
   }));
-  console.log(`     Fr: ${gezeigt['2026-10-09']} · nach dem Haken ${JSON.stringify(nachHaken)}`);
+  console.log(`     Fr: ${JSON.stringify(gezeigt['2026-10-09'])} · nach dem Haken ${JSON.stringify(nachHaken)}`);
   check(nachHaken.w10 === '2026-10-09' && !!nachHaken.fertig, `A13: W10 am Fr trainiert (${nachHaken.w10}, ${nachHaken.fertig})`);
   check(nachHaken.shift === 30 && nachHaken.w11 === '2026-10-11',
     `★ A13: Abhaken ohne Start zieht den Plan vor wie der Start – W11 am So (shift ${nachHaken.shift}, W11 ${nachHaken.w11})`);
@@ -625,11 +675,14 @@ await abschnitt('A13', async () => {
   await f.uhr(DI);
   await f.neuLaden();
   const aus = await f.aus();
-  console.log(`     gezeigt: ${Object.entries(gezeigt).map(([d, k]) => `${d.slice(8)} ${k.replace(/^.*?·\s*/, '')}`).join(' | ')}`);
+  const zeigK = (k) => (k ? `„${k.text}" [data-n ${k.n}]` : '–');
+  console.log(`     gezeigt: ${Object.entries(gezeigt).map(([d, k]) => `${d.slice(8)} ${zeigK(k)}`).join(' | ')}`);
   console.log(`     ausgefallen: ${aus.map(([d, n]) => `${d.slice(8)} W${n}`).join(', ') || '–'}`);
-  const falsch = aus.filter(([d, n]) => d >= '2026-10-09' && !new RegExp(`HEUTE · WORKOUT ${n}\\b`, 'i').test(gezeigt[d] || ''));
-  check(!falsch.length, `★ A13: jeder gemeldete Tag zeigte am Tag selbst „heute · Workout n" (${
-    falsch.map(([d, n]) => `${d.slice(8)} W${n}: „${gezeigt[d]}"`).join('; ') || 'alle'})`);
+  // „Heute" über eben dieser Einheit; vor v271 „Tobi · Heute · Workout n".
+  const heuteMit = (k, n) => !!k && /^(?:Tobi · )?Heute$/.test(k.text) && k.n === String(n);
+  const falsch = aus.filter(([d, n]) => d >= '2026-10-09' && !heuteMit(gezeigt[d], n));
+  check(!falsch.length, `★ A13: jeder gemeldete Tag zeigte am Tag selbst „Heute" über eben dieser Einheit, ohne Nummer (${
+    falsch.map(([d, n]) => `${d.slice(8)} W${n}: ${zeigK(gezeigt[d])}`).join('; ') || 'alle'})`);
   check(gleich(aus.map(([d, n]) => [d, n]), [['2026-10-11', 11]]),
     `A13: ausgefallen nur So 11. (Workout 11, an dem Tag „heute") – Sa war Ruhetag (${aus.map(([d]) => d.slice(8)).join(', ') || 'keiner'})`);
   await ende(f);
@@ -687,8 +740,9 @@ await abschnitt('A14', async () => {
     `★ A14: nach dem Rückwechsel dieselben Tage mit denselben Einheiten (${zeig(zurueck)})`);
   check(gleich(spur, ['2026-09-23']), `★ A14: der Tag des Verlassens kommt als Spur mit (${JSON.stringify(spur)})`);
   const d23 = await f.tippe('2026-09-23');
-  check(/Workout 1 · ausgefallen/.test(d23) && /früheren Trainingsplan \(Aufbau\)/.test(d23),
-    `★ A14: Detail des 23.: Workout 1 aus dem Aufbau-Plan (${d23.slice(0, 140)})`);
+  const dk23 = await f.detailKoepfe();
+  check(ausgefallenKopf(dk23, 1) && ohneNummer(d23) && /früheren Trainingsplan \(Aufbau\)/.test(d23),
+    `★ A14: Detail des 23.: Workout 1 aus dem Aufbau-Plan (${dk23.join(' | ')} · ${d23.slice(0, 140)})`);
   // Ohne Spur – zurückgeholt vor dieser Fassung: Wechsel spätestens am ersten
   // Training im anderen Plan. Die Tage stimmen, nur der 23. heißt nach Cut.
   const ohne = await f.M(({ P, store }) => {

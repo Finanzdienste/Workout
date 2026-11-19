@@ -146,8 +146,11 @@ for (const verletzung of ['isg', 'hamstringzerrung']) {
 /* --- B4. In der App --------------------------------------------------------- */
 await mitStand(stand({ ausUebungen: ['hip-thrust'], mode: 'db' }));
 const ziel = aus[0] && aus[0].n;
+// Hinblättern bis zu dieser Einheit, erkannt am Haken data-n am Kopf: Bis v270
+// stand dort „… · Workout N", seit v271 nur das Wann (etwa „in 2 Tagen").
+const amZiel = page.locator(`#view .hero-eyebrow[data-n="${ziel}"]`);
 for (let i = 0; i < 100; i++) {
-  if (new RegExp(`Workout ${ziel}\\b`).test(await page.locator('#view').textContent())) break;
+  if (await amZiel.count()) break;
   await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
   await page.waitForTimeout(60);
 }

@@ -104,6 +104,15 @@ const baue = (spez) => page.evaluate(async ([sp, tage]) => {
 const fallB = await baue({ 1: {}, 2: {}, 3: {}, 4: {}, 5: {},
   6: { haken: { 'goblet-squat': 2, 'chin-ups': 0, 'haengendes-knieheben': 0, 'reverse-fly': 0 } } });
 
+/**
+ * Welche Einheit die Startansicht zeigt: data-n am .hero-eyebrow. Bis v270
+ * stand die Nummer im Text („Heute · Workout 7"), seit v271 nur das Wann
+ * („Heute"). Eine eigene Einheit (data-n „c1") zählt wie vorher als 0.
+ */
+const gezeigt = async () => {
+  const n = (await page.locator('.hero-eyebrow').first().getAttribute('data-n').catch(() => '')) || '';
+  return /^\d+$/.test(n) ? Number(n) : 0;
+};
 /** Zur Einheit n blättern (Startansicht). */
 const zuEinheit = async (n) => {
   const zurueck = page.locator('[data-act="focus-list"]');
@@ -111,8 +120,7 @@ const zuEinheit = async (n) => {
   const zu = page.locator('[data-act="hide-list"]');
   if (await zu.count()) { await zu.first().click(); await page.waitForTimeout(120); }
   for (let i = 0; i < 20; i++) {
-    const t = await txt('.hero-eyebrow');
-    const jetzt = Number((t.match(/Workout (\d+)/) || [])[1] || 0);
+    const jetzt = await gezeigt();
     if (jetzt === n) return true;
     const knopf = page.locator(`[data-act="nav-workout"][data-delta="${jetzt < n ? 1 : -1}"]:not([disabled])`);
     if (!(await knopf.count())) return false;

@@ -150,9 +150,24 @@ async function fall(name, zustand, wann = DO) {
     uhr: (iso) => page.clock.setFixedTime(new Date(iso)),
     tab: async (t) => { await page.locator(`.tab[data-tab="${t}"]`).click(); await page.waitForTimeout(250); },
     toast: async () => ((await page.locator('#toast').textContent()) || '').trim(),
+    /** Die Zeile über dem Titel: ihr Text und die Einheit dahinter (data-n). */
+    augenbraue: async () => ({
+      text: await f.txt('.hero-eyebrow'),
+      n: await page.locator('.hero-eyebrow').first().getAttribute('data-n', { timeout: 1500 }).catch(() => null),
+    }),
   };
   return f;
 }
+
+/**
+ * Steht Planeinheit `n` vorn, mit dem Wann `wann` – und ohne ihre Nummer? Seit
+ * v271 sagt die Zeile über dem Titel nur noch, wann („Tobi · Heute"; bis v270
+ * „Heute · Workout 9"): „Die Workout Nummer ist mir in to Do und Kalender und
+ * in meiner App übrigens komplett egal". Welche Einheit es ist, trägt data-n.
+ * Vor dem Wann darf nur der Name stehen (Übersicht), sonst nichts – keine Zahl.
+ */
+const vorn = (eb, n, wann) => eb.n === String(n) && new RegExp(`^(?:[^·\\d]+ · )?${wann}$`).test(eb.text);
+
 async function ende(f) {
   check(f.errs.length === 0, `${f.name}: keine Fehler${f.errs.length ? ` – ${f.errs.slice(0, 2).join(' | ')}` : ''}`);
   offen.delete(f.ctx);
@@ -216,10 +231,11 @@ const traeger = (st) => (st.customs || []).filter((c) => /^Zusatztag/.test(c.nam
  * ------------------------------------------------------------------ */
 await abschnitt('Z1', async () => {
   const f = await fall('Z1/Z2', VORLAGE);
-  const eyebrow = await f.txt('.hero-eyebrow');
+  const eb = await f.augenbraue();
+  const eyebrow = eb.text;
   const sub = await f.txt('.hero-sub');
-  console.log(`     ${eyebrow} | ${sub}`);
-  check(/Heute · Workout 9/.test(eyebrow), `Z1 die Einheit des Tages steht vorn („${eyebrow}")`);
+  console.log(`     ${eyebrow} (data-n ${eb.n}) | ${sub}`);
+  check(vorn(eb, 9, 'Heute'), `Z1 die Einheit des Tages steht vorn, ohne Nummer („${eyebrow}", data-n ${eb.n})`);
   check(sub === 'Hanteln · 6 Übungen · 17 Sätze', `Z1 eine Einheit, der Zusatz im Kopf eingerechnet („${sub}")`);
   check(await f.page.locator('.zusatz-danach').count() === 0, 'Z1 keine Zeile „Als zweite Einheit heute"');
   check(!/zweite Einheit/.test(await f.txt('#view')), 'Z1 nirgends „zweite Einheit"');
@@ -285,7 +301,8 @@ await abschnitt('Z1', async () => {
   await f.klick('[data-act="nav-workout"][data-delta="1"]');
   await f.klick('[data-act="show-list"]');
   await f.klick('[data-act="nav-today"]');
-  check(/Heute · Workout 9/.test(await f.txt('.hero-eyebrow')), 'Z1 „Heute" (naechsteEinheit()) zeigt Workout 9');
+  const ebHeute = await f.augenbraue();
+  check(vorn(ebHeute, 9, 'Heute'), `Z1 „Heute" (naechsteEinheit()) zeigt Workout 9 („${ebHeute.text}", data-n ${ebHeute.n})`);
   await ende(f);
 });
 
@@ -376,8 +393,9 @@ await abschnitt('Z4', async () => {
   const t = await f.toast();
   console.log(`     Toast: ${t}`);
   check(t === 'Training abgeschlossen – alle 17 Sätze 🎉', `Z4 der letzte Chin-up beendet die Einheit („${t}")`);
-  check(/Heute · Workout 9/.test(await f.txt('.hero-eyebrow')) && /Alle 17 Sätze stehen/.test(await f.txt('.fertig-sub')),
-    `Z4 die Startansicht bleibt bei Workout 9 („${await f.txt('.fertig-sub')}")`);
+  const ebFertig = await f.augenbraue();
+  check(vorn(ebFertig, 9, 'Heute') && /Alle 17 Sätze stehen/.test(await f.txt('.fertig-sub')),
+    `Z4 die Startansicht bleibt bei Workout 9 („${ebFertig.text}", data-n ${ebFertig.n} / „${await f.txt('.fertig-sub')}")`);
   st = await f.lies();
   check(traeger(st).length === 0 && await f.page.locator('.zusatz-danach').count() === 0, 'Z4 kein Träger, keine zweite Einheit danach');
   await f.neuLaden();
@@ -668,8 +686,9 @@ await abschnitt('Z12', async () => {
   await f.klick('.focus-set[aria-pressed="false"]', 500);
   const t = await f.toast();
   check(/^Training abgeschlossen – alle \d+ Sätze/.test(t), `Z12 der Abschluss meldet sich („${t}")`);
-  check(/Heute · Workout 4/.test(await f.txt('.hero-eyebrow')) && /Für heute durch/.test(await f.txt('.fertig-kopf')),
-    `Z12 die Startansicht bleibt bei Workout 4 („${await f.txt('.hero-eyebrow')}")`);
+  const ebDurch = await f.augenbraue();
+  check(vorn(ebDurch, 4, 'Heute') && /Für heute durch/.test(await f.txt('.fertig-kopf')),
+    `Z12 die Startansicht bleibt bei Workout 4 („${ebDurch.text}", data-n ${ebDurch.n})`);
   const st = await f.lies();
   check(traeger(st).length === 1, `Z12 der Zusatztag für Woche 1 ist angelegt (${traeger(st).map((c) => c.ex.map((x) => x.id).join('+')).join(' | ')})`);
   const karte = await wochenKarte(f);
@@ -704,7 +723,8 @@ await abschnitt('Z13', async () => {
   const f = await fall('Z13', { ...kopie(VORLAGE), customs: [] }, '2026-10-07T17:00:00+02:00');
   const st = await f.lies();
   check(traeger(st).length === 0, 'Z13 am Mittwoch kein Zusatztag (allein trägt nur Chin-ups, allein braucht es zwei)');
-  check(/Morgen · Workout 9/.test(await f.txt('.hero-eyebrow')), `Z13 vorn steht Workout 9 für morgen („${await f.txt('.hero-eyebrow')}")`);
+  const ebMorgen = await f.augenbraue();
+  check(vorn(ebMorgen, 9, 'Morgen'), `Z13 vorn steht Workout 9 für morgen („${ebMorgen.text}", data-n ${ebMorgen.n})`);
   await f.klick('[data-act="start-session"]', 400);
   const t = await f.toast();
   check(t === 'Los geht’s 💪 · dazu Chin-ups aus Woche 2', `Z13 Vorziehen sagt, was dazukommt („${t}")`);
@@ -824,26 +844,36 @@ await abschnitt('Z16', async () => {
   console.log(`     Kalender: ${det.slice(0, 160)}`);
   check(/ · 6 Übungen · 17 Sätze/.test(det) && /Chin-ups.*· nachgeholt/.test(det), 'Z16 Kalender: der Tag zeigt die ganze Einheit, die Chin-ups als nachgeholt');
   check(!/\(\+1\)/.test(kachel), `Z16 die Kachel zählt keine zweite Einheit („${kachel}")`);
-  // Statistik
+  // Statistik. Die Einheit beim Tag genannt, nicht bei der Nummer (v271; bis
+  // v270 „holt Workout 9 heute nach", „Zu Workout 9") – welche es ist, sagt
+  // der Knopf mit data-n.
   await f.tab('stats');
   const karte = await f.txt('#volWeek');
-  check(/Was hier fehlt, holt Workout 9 heute nach: Chin-ups\./.test(karte)
+  const zuW9 = await f.txt('#volWeek [data-act="open-workout"][data-n="9"]');
+  check(/Was hier fehlt, holt das Workout von heute nach: Chin-ups\./.test(karte) && !/Workout\s*\d/.test(karte)
     && await f.page.locator('#volWeek [data-act="open-workout"][data-n="9"]').count() === 1
+    && zuW9 === 'Zum Workout von heute'
     && await f.page.locator('#volWeek [data-act="custom-start"]').count() === 0,
-  'Z16 Wochenkarte: „Was hier fehlt, holt Workout 9 heute nach: Chin-ups." mit „Zu Workout 9"');
+  `Z16 Wochenkarte: „Was hier fehlt, holt das Workout von heute nach: Chin-ups." mit „Zum Workout von heute" („${zuW9}")`);
   const naechste = await f.page.locator('.plan-date + .small').first().textContent();
   check(/Chin-ups\s*$/.test(naechste || ''), `Z16 „Nächste Einheit" endet mit den Chin-ups („${(naechste || '').trim()}")`);
   // Eigene Workouts
   await f.tab('settings');
   await f.klick('[data-act="go-tab"][data-tab="custom"]', 300);
   const eigen = await f.txt('#view');
-  check(/steckt heute in Workout 9/.test(eigen)
+  const zKarte = await f.txt('.zusatz-karte');
+  const zuW9Eigen = await f.txt('.zusatz-karte [data-act="open-workout"][data-n="9"]');
+  check(/steckt im Workout von heute · /.test(eigen) && !/Workout\s*\d/.test(zKarte)
+    && await f.page.locator('.zusatz-karte [data-act="open-workout"][data-n="9"]').count() === 1
+    && zuW9Eigen === 'Zum Workout von heute'
     && await f.page.locator(`[data-id="${id}"]`).count() === 0,
-  'Z16 Eigene Workouts: „steckt heute in Workout 9", ohne Öffnen, Bearbeiten und Löschen');
-  // Supersatz-Vorschau
+  `Z16 Eigene Workouts: „steckt im Workout von heute", „${zuW9Eigen}", ohne Öffnen, Bearbeiten und Löschen`);
+  // Supersatz-Vorschau: „Workout von heute liefe so" (bis v270 „Workout 9
+  // liefe so") – heute liegt Workout 9, und nur in ihm stecken die Chin-ups.
   await f.tab('settings');
   const vorschau = await f.txt('.super-vorschau');
-  check(/^Workout 9 liefe so/.test(vorschau) && /3 Paare/.test(vorschau), `Z16 Supersatz-Vorschau („${vorschau.slice(0, 60)}… ${(vorschau.match(/\d Paare?/) || [''])[0]}")`);
+  check(/^Workout von heute liefe so/.test(vorschau) && /Chin-ups/.test(vorschau) && /3 Paare/.test(vorschau),
+    `Z16 Supersatz-Vorschau („${vorschau.slice(0, 60)}… ${(vorschau.match(/\d Paare?/) || [''])[0]}")`);
   await ende(f);
 });
 
@@ -920,9 +950,10 @@ await abschnitt('Z19', async () => {
   z.log[9] = e;
   const f = await fall('Z19', z, '2026-10-10T17:00:00+02:00');
   const sub = await f.txt('.hero-sub');
-  console.log(`     ${await f.txt('.hero-eyebrow')} · ${sub}`);
-  check(/Heute · Workout 10/.test(await f.txt('.hero-eyebrow')) && sub === 'Hanteln · 6 Übungen · 19 Sätze',
-    `Z19 Nacharbeit und Zusatz in einem Kopf („${sub}")`);
+  const eb10 = await f.augenbraue();
+  console.log(`     ${eb10.text} (data-n ${eb10.n}) · ${sub}`);
+  check(vorn(eb10, 10, 'Heute') && sub === 'Hanteln · 6 Übungen · 19 Sätze',
+    `Z19 Nacharbeit und Zusatz in einem Kopf („${eb10.text}", data-n ${eb10.n} / „${sub}")`);
   await f.klick('[data-act="show-list"]');
   const zeilen = await f.page.locator('article.ex .nach-warum').evaluateAll((z2) => z2.map((x) => [x.id, x.textContent.trim()]));
   console.log(`     ${zeilen.map(([i, t]) => `${i}: ${t}`).join(' | ')}`);
@@ -1005,8 +1036,10 @@ await abschnitt('Z21', async () => {
     const ex = P.exBasis(D.PLAN[0], 'db');
     return { n: ex.length, saetze: ex.reduce((a, x) => a + x.sets, 0) };
   });
-  check(/Workout 1/.test(await f.txt('.hero-eyebrow')) && sub === `Hanteln · ${plan1.n} Übungen · ${plan1.saetze} Sätze`,
-    `Z21 Workout 1 ohne Zusatz („${sub}")`);
+  // „Von vorn beginnen" legt das erste Workout auf heute.
+  const eb1 = await f.augenbraue();
+  check(vorn(eb1, 1, 'Heute') && sub === `Hanteln · ${plan1.n} Übungen · ${plan1.saetze} Sätze`,
+    `Z21 Workout 1 ohne Zusatz („${eb1.text}", data-n ${eb1.n} / „${sub}")`);
   // Und hielte ihn doch jemand fest (eine Sicherung, ein Stand von vorher):
   // Workout 1 nimmt keinen Zusatztag einer Woche, die es im Protokoll nicht gibt.
   const r = await f.M(({ P, store }) => {
@@ -1099,8 +1132,10 @@ await abschnitt('Z22', async () => {
   await f.M(({ store }) => store.saveCustom({ name: 'Zusatztag Woche 2', ex: [{ id: 'chin-ups', sets: 2 }] }));
   await f.tab('dashboard');
   await f.tab('stats');
+  // Beim Tag genannt (v271; bis v270 „In Workout 9 geht davon heute nichts").
   const hinweis = await f.txt('#volWeek .zusatz-hinweis');
-  check(!/holt Workout 9 heute nach/.test(hinweis) && /In Workout 9 geht davon heute nichts/.test(hinweis),
+  check(!/holt das Workout von heute nach/.test(hinweis) && /Ins Workout von heute geht davon nichts\./.test(hinweis)
+    && !/Workout\s*\d/.test(hinweis),
     `Z22 nichts angekommen, nichts behauptet („${hinweis}")`);
   await stange(f);
   await f.tab('dashboard');
@@ -1157,8 +1192,9 @@ await abschnitt('Z23', async () => {
     const ex = P.workoutByNo(5, 'db').ex;
     return { n: ex.length, zus: ex.filter((x) => x.zusatz).length };
   });
-  check(/Heute · Workout 5/.test(await f.txt('.hero-eyebrow')) && w5.zus > 0 && sub.includes(` · ${w5.n} Übungen · `),
-    'Z23 So: der Zusatztag steckt in Workout 5, und der Kopf zählt ihn mit');
+  const eb5 = await f.augenbraue();
+  check(vorn(eb5, 5, 'Heute') && w5.zus > 0 && sub.includes(` · ${w5.n} Übungen · `),
+    `Z23 So: der Zusatztag steckt in Workout 5, und der Kopf zählt ihn mit („${eb5.text}", data-n ${eb5.n})`);
   check(st.session === null && await f.page.locator('.laeuft-woanders').count() === 0
     && await f.page.locator('[data-act="start-session"]').count() === 1,
   'Z23 So: keine Sitzung auf dem Träger, kein „läuft noch", ein Start');

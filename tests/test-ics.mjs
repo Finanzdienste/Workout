@@ -61,7 +61,13 @@ check(minuten >= 25 && minuten <= 75, `Dauer plausibel (${minuten} min)`);
 check(!/DTSTART:[^\r]*Z/.test(ics), 'keine feste Zeitzone – 18 Uhr bleibt 18 Uhr');
 
 // --- Inhalt ---
-check(/SUMMARY:Workout 1 · \d+ Übungen/.test(ics), 'Titel nennt Workout und Umfang');
+// Seit v271 ohne Nummer im Titel („Die Workout Nummer ist mir in to Do und
+// Kalender und in meiner App übrigens komplett egal") – welche Einheit es ist,
+// sagt nur noch die UID desselben Termins.
+const ersterTermin = ics.split('BEGIN:VEVENT')[1] || '';
+check(/\r\nUID:workout-1@/.test(ersterTermin) && /\r\nSUMMARY:Workout · \d+ Übungen · \d+ Sätze\r\n/.test(ersterTermin),
+  `Titel nennt Workout und Umfang, ohne die Nummer – die steht nur in der UID (${(/SUMMARY:([^\r]*)/.exec(ersterTermin) || [])[1]})`);
+check(!/SUMMARY:Workout \d/.test(ics), 'kein Titel nennt eine Workout-Nummer');
 const beschreibung = /DESCRIPTION:(.*)/.exec(ics)[1];
 console.log('     Beschreibung:', beschreibung.slice(0, 70));
 check(beschreibung.includes('•') && /\\n/.test(ics), 'Übungsliste in der Beschreibung');

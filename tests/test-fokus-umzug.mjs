@@ -75,7 +75,7 @@ check(nach.ablage.includes('kurz'),
   `der bisherige Verlauf liegt in der Ablage, mit altem Fokus (${nach.ablage.join(',') || 'leer'})`);
 check(nach.logLeer, 'der neue Plan startet leer');
 check(!nach.holbar,
-  'und lässt sich nicht zurückholen – hinter Workout 12 stehen jetzt andere Übungen');
+  'und lässt sich nicht zurückholen – im neuen Plan stehen andere Übungen');
 
 check(nach.gewichte['goblet-squat'] === 24 && nach.gewichte['floor-press'] === 30,
   'die eingetragenen Gewichte bleiben unangetastet');
@@ -86,6 +86,13 @@ check(nach.level === 'geuebt', 'und die Erfahrungsstufe auch');
 const hinweis = page.locator('.notice.aufstieg', { hasText: 'Kurz und knapp' });
 check(await hinweis.count() === 1, 'auf der Startseite steht ein Hinweis dazu');
 check((await hinweis.textContent()).includes('Cut'), 'der den neuen Plan benennt');
+// Und warum der Verlauf nicht zurückkommt – ohne Workout-Nummer. Bis v270 hieß
+// es „… weil hinter Workout 12 andere Übungen stehen als vorher"; seit v271
+// zeigt die App keine Nummer mehr („Die Workout Nummer ist mir … komplett egal").
+const umzugText = (await hinweis.textContent()).replace(/\s+/g, ' ');
+const warum = (/zurückholen lässt er sich nicht, weil [^.]*\./.exec(umzugText) || [''])[0];
+check(!!warum && !/Workout\s*\d/.test(umzugText),
+  `und sagt, warum der Verlauf nicht zurückkommt – ohne Workout-Nummer („${warum}")`);
 
 // --- Wegtippen heißt weg, auch nach dem Neuladen ---
 await hinweis.locator('[data-act="umzug-ok"]').click();

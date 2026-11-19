@@ -107,11 +107,17 @@ export function kalenderTermine({ von = null, bis = null, zusatz = true, runde =
       fertig: !!completedMode(n),
     });
   };
+  // Der Titel ohne Nummer: „Workout · 5 Übungen · 15 Sätze" (v271) – „Die
+  // Workout Nummer ist mir in to Do und Kalender und in meiner App übrigens
+  // komplett egal". Die Nummer bleibt in der Kennung, an der das Skript
+  // Termin und Aufgabe wiederfindet; den neuen Titel gleicht es beim nächsten
+  // Lauf an (terminAngleichen_(), todoAbgleichen_() in
+  // kalender/workout-kalender.gs) – ohne neuen Code dort.
   PLAN.forEach((w) => {
     const datum = effDate(w);
     if (!drin(datum)) return;
     const liste = posten(w.n, zusatz);
-    if (liste.length) termin(`${vorn}-${w.n}`, w.n, datum, `Workout ${w.n}`, liste);
+    if (liste.length) termin(`${vorn}-${w.n}`, w.n, datum, 'Workout', liste);
   });
   if (zusatz) {
     let heute = null;

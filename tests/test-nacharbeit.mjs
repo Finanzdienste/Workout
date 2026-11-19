@@ -36,6 +36,18 @@ const setze = (z) => page.evaluate(
   (o) => localStorage.setItem('workout.state.v1', JSON.stringify(o)), z);
 
 /**
+ * Welche Einheit die Startansicht gerade zeigt. Bis v270 stand die Nummer im
+ * Text darüber („Heute · Workout 7"); seit v271 steht dort nur das Wann
+ * („Heute") – „Die Workout Nummer ist mir … komplett egal" –, die Nummer trägt
+ * data-n am .hero-eyebrow. Eine eigene Einheit (data-n „c1") zählt wie vorher
+ * als 0.
+ */
+const gezeigt = async (p) => {
+  const n = (await p.locator('.hero-eyebrow').first().getAttribute('data-n').catch(() => '')) || '';
+  return /^\d+$/.test(n) ? Number(n) : 0;
+};
+
+/**
  * Ein Protokoll für die Einheiten `von`..`bis` (Index, `bis` exklusiv), bei dem
  * je Einheit die letzten `auslassen` Übungen gar nicht angetippt wurden – genau
  * so sieht ein abgebrochenes Training im Speicher aus.
@@ -68,8 +80,7 @@ const einheit = async (n) => {
   const zurUebersicht = page.locator('[data-act="focus-list"]');
   if (await zurUebersicht.count()) { await zurUebersicht.first().click(); await page.waitForTimeout(150); }
   for (let i = 0; i < 20; i++) {
-    const txt = (await page.locator('.hero-eyebrow').first().textContent().catch(() => '')) || '';
-    const jetzt = Number((txt.match(/Workout (\d+)/) || [])[1] || 0);
+    const jetzt = await gezeigt(page);
     if (jetzt === n) break;
     const knopf = page.locator(`[data-act="nav-workout"][data-delta="${jetzt < n ? 1 : -1}"]:not([disabled])`);
     if (!(await knopf.count())) break;
@@ -494,8 +505,7 @@ const sieben7 = async (spez) => {
   const zurUebersicht = p2.locator('[data-act="focus-list"]');
   if (await zurUebersicht.count()) { await zurUebersicht.first().click(); await p2.waitForTimeout(150); }
   for (let i = 0; i < 20; i++) {
-    const txt = (await p2.locator('.hero-eyebrow').first().textContent().catch(() => '')) || '';
-    const jetzt = Number((txt.match(/Workout (\d+)/) || [])[1] || 0);
+    const jetzt = await gezeigt(p2);
     if (jetzt === 7) break;
     const knopf = p2.locator(`[data-act="nav-workout"][data-delta="${jetzt < 7 ? 1 : -1}"]:not([disabled])`);
     if (!(await knopf.count())) break;
@@ -655,8 +665,7 @@ const zuEinheit = async (n) => {
   const zu = p2.locator('[data-act="hide-list"]');
   if (await zu.count()) { await zu.first().click(); await p2.waitForTimeout(100); }
   for (let i = 0; i < 20; i++) {
-    const txt = (await p2.locator('.hero-eyebrow').first().textContent().catch(() => '')) || '';
-    const jetzt = Number((txt.match(/Workout (\d+)/) || [])[1] || 0);
+    const jetzt = await gezeigt(p2);
     if (jetzt === n) return;
     const knopf = p2.locator(`[data-act="nav-workout"][data-delta="${jetzt < n ? 1 : -1}"]:not([disabled])`);
     if (!(await knopf.count())) return;
