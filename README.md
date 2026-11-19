@@ -4785,6 +4785,56 @@ den Plattfuß – in der Physio heißt sie „Kurzer Fuß", weil der Fuß dabei 
 wird". Der Schlüssel `kurzerFuss` bleibt (abgehakte Einheiten hängen daran).
 Geprüft in `tests/test-injuries.mjs`.
 
+#### In die Übungen eingebaut statt dahinter (v270)
+
+> *„Es ist ja immernoch der zum Schluss Beschwerden kram drin obwohl ich grad
+> meinte wir wollens voll integrieren"*
+> *„Wenn wir es ohne Verluste an irgendeiner Stelle in unsere bestehenden
+> Übungen integrieren könnten wäre natürlich Premium. Das ist ja sehr weit weg
+> von jedes Training bekommt 20 min extra"*
+> Davor: *„Ich hab das Gefühl du siehst das hier als separates ding obwohl
+> Sport ja ein gesamtheitliches Ding ist"*
+
+**Vorher (v266–v269)** hingen an *Haltung* und *Plattfuß* Zusatzübungen im
+Block „Zum Schluss · Beschwerden" hinter der letzten Übung – zuletzt Kinn
+zurückziehen und Fußgewölbe anheben, je 2 × 10.
+
+**Jetzt** haben beide Einträge keine Zusatzübung mehr (`care: []`), sondern
+`formCue`: je Übung eine Zeile, worauf zu achten ist. Sie steht in der
+Übungskarte, ohne Aufklappen, unter dem Namen – in der Liste und in der
+Fokusansicht (`formZeile()` in `js/app.js`, `formHinweise()` in
+`js/injuries.js`). Keine Minute extra, kein Block, kein Haken mehr.
+
+| Eintrag | Übungen | Hinweis |
+| --- | --- | --- |
+| Haltung | Rudern, Inverted Row, Face Pull, Reverse Fly, Band-Pull-Apart, Chin-ups, Pull-ups, beide Kreuzheben | Kinn leicht zurück, Nacken lang, über den ganzen Satz |
+| Haltung | Füße-erhöhte und gewichtete Liegestütze, Band-Seitheben | Po fest, Rippen unten – kein durchhängendes Becken, kein Hohlkreuz |
+| Plattfuß | Goblet Squat, fersenerhöhter Goblet Squat, Split Squat, beide Kreuzheben | Gewölbe halten, Großzehenballen am Boden, Knie nicht nach innen |
+| Plattfuß | Wadenheben stehend und sitzend | Über den Großzeh hochdrücken, nicht nach außen rollen |
+
+Wo der Übungstext das schon sagt (Hip Thrust und Schulterdrücken: „Rippen
+unten"; Crunches: Abstand Kinn–Brust), steht nichts doppelt.
+
+**Warum ohne Verlust, soweit man das wissen kann.** Die Fußübung wird in den
+Studien vom Sitzen über den Stand aufs eine Bein gesteigert; das Gewölbe in
+Kniebeuge, Kreuzheben (ohne Hanteln einbeinig) und Wadenheben zu halten, ist
+deren letzte Stufe, mit Last. Das Kinn wird beim Rudern und Ziehen über jeden
+Satz gehalten – mehr Sekunden unter Spannung als 2 × 10 und in der Stellung,
+um die es geht. Eine Studie, die die isolierte Fassung gegen die eingebaute
+vergleicht, gibt es nicht; für die Dosis der isolierten gab es auch keine.
+
+`kurzerFuss` ist aus `CARE` entfernt (keine Beschwerde nutzt es mehr, das
+prüft der Katalog-Test); `careDose` aus v267 ebenso. Das Kinn bleibt als
+Zusatzübung bei *Nackenverspannung*, in voller Dosis. Der Katalog-Test
+verlangt jetzt je Eintrag Zusatzübungen **oder** Hinweise.
+
+Geprüft in `tests/test-injuries.mjs`: kein Block „Zum Schluss", jede
+betroffene Übung des Tages trägt ihren Hinweis (gezählt gegen
+`formHinweise()`), jede Zeile nennt Haltung oder Plattfuß, die Trainingskarte
+sagt „Heute fällt nichts weg" und wo die Hinweise stehen, unter *Verletzt*
+„Im Training eingebaut" statt „Was gut tut", jeder Hinweis hängt an einer
+Übung, die es gibt.
+
 ## Verletzungen
 
 Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl
@@ -4839,7 +4889,7 @@ Statistik, Kalender und der Verletzungs-Tab lesen alle daraus, damit die Zahlen
 nicht auseinanderlaufen. Die Schwelle (48 Stunden, Anteil ab 0,5) kommt als
 `REST` aus denselben erzeugten Daten wie der Plan.
 
-**Was gut tut.** 35 Zusatzübungen in `CARE`, jede mit Art (dehnen,
+**Was gut tut.** 34 Zusatzübungen in `CARE`, jede mit Art (dehnen,
 mobilisieren, kräftigen, entlasten), Dosierung und einem Hinweis, worauf es
 ankommt – beim Wandsitz etwa, dass die isometrische Belastung die Patellasehne
 reizarm belastet und den Schmerz oft noch am selben Tag senkt. Je Beschwerde

@@ -39,7 +39,7 @@ import {
 } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
-import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
+import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, blocked, weeklyImpact, combosFor, careFor, needsClearance, formHinweise } from './injuries.js';
 import { sparkPanel } from './chart.js';
 import { buildICS } from './ics.js';
 import { kalenderEinheiten } from './kalender.js';
@@ -2785,6 +2785,7 @@ function renderFocus() {
       ${aufwaermZeile(it, mode, n)}`}
     ${fassungRow(it, mode)}
     ${anfaengerZeile(it)}
+    ${formZeile(it)}
 
     <div class="focus-sets">
       ${satzKnoepfe(it, sets, 'set-btn focus-set')}
@@ -4744,6 +4745,7 @@ function renderDashboard() {
         ${nachZeile(n, mode, it, warumJe)}
         ${zusatzZeile(w, it)}
         ${anfaengerZeile(it)}
+        ${formZeile(it)}
         ${weightRow}
         ${fassungRow(it, mode)}
         ${wdhRow(it, mode)}
@@ -5195,6 +5197,19 @@ function scheibenNachziehen(feld) {
  * es hier, und beide nennen den Weg zurück – ein Tausch, den man nicht
  * rückgängig machen kann, weil man nicht weiß, wo er herkommt, wäre keiner.
  */
+/**
+ * Worauf bei dieser Übung zu achten ist, weil eine Beschwerde angehakt ist –
+ * Haltung, Plattfuß (v270). Steht ohne Aufklappen in der Karte, über dem
+ * Gewicht: Was dort steht, wird gemacht. Ein Block hinter der letzten Übung
+ * („Zum Schluss · Beschwerden") war für Tobi ein separates Ding: „wir wollens
+ * voll integrieren".
+ */
+function formZeile(it) {
+  const h = formHinweise(activeInjuries(), it.id);
+  if (!h.length) return '';
+  return h.map((x) => `<div class="form-hinweis"><b>${esc(x.name)}:</b> ${esc(x.text)}</div>`).join('');
+}
+
 function anfaengerZeile(it) {
   const grund = ersatzGrund(it);
   if (!grund) return '';
@@ -6169,12 +6184,18 @@ function injuryNote(w, mode) {
   zusatzWegGrund(w, mode, 'beschwerde')
     .forEach((d) => lines.push(`${esc(zusatzWegName(d, mode))} fällt aus`));
   const pflege = careFor(act);
+  // Übungen von heute mit einem Hinweis zur Ausführung (v270).
+  const mitHinweis = [...new Set(exOf(w, mode)
+    .filter((it) => formHinweise(act, it.id).length).map((it) => nm(it.id)))];
   return `
     <div class="card injury-note">
       <div class="inj-note-head">🩹 Rücksicht auf: ${esc(names.join(', '))}</div>
       ${lines.length
         ? `<div class="small muted">Heute deshalb: ${lines.join(' · ')}</div>`
-        : '<div class="small muted">Heute ändert das nichts – keine der Übungen ist betroffen.</div>'}
+        : (mitHinweis.length ? '<div class="small muted">Heute fällt nichts weg.</div>'
+          : '<div class="small muted">Heute ändert das nichts – keine der Übungen ist betroffen.</div>')}
+      ${mitHinweis.length ? `<div class="small muted" style="margin-top:6px">
+        Worauf du achtest, steht in der Übung: ${esc(mitHinweis.join(' · '))}</div>` : ''}
       ${pflege.length ? `<div class="small muted" style="margin-top:6px">
         Dazu ${plural(pflege.length, 'Übung', 'Übungen')} zum Dehnen und Kräftigen:
         ${esc(pflege.slice(0, 3).map((c) => c.name).join(' · '))}${pflege.length > 3 ? ' …' : ''}
@@ -6400,6 +6421,9 @@ function renderInjuries() {
     .filter((x) => Math.abs(x.diff) > 0.05)
     .sort((a, b) => a.diff - b.diff);
 
+  // Übungen im Plan, an denen ein Hinweis zur Ausführung hängt (v270).
+  const mitHinweisen = new Set(PLAN.flatMap((w) => w.ex.map((it) => it.id))
+    .filter((x) => formHinweise(act, x).length)).size;
   const conflicts = swapConflicts(act);
   const combos = combosFor(act);
   const pflege = careFor(act);
@@ -6425,7 +6449,9 @@ function renderInjuries() {
           Davon ${wegenPause} Sätze ohne Ersatz, weil der Ersatz dieselbe Muskelgruppe
           getroffen hätte wie der Tag davor oder danach – ${REST.days === 2 ? '48 Stunden' : `${REST.days} Tage`}
           Erholung gehen vor.</div>` : ''}
-        ${!swapCount.size && !goneSets.size ? '<div class="small muted" style="margin-top:10px">Am Plan ändert sich nichts – keine der angehakten Beschwerden trifft eine Übung, die vorkommt.</div>' : ''}
+        ${!swapCount.size && !goneSets.size ? `<div class="small muted" style="margin-top:10px">${
+          mitHinweisen ? `Am Plan ändert sich nichts. Dafür steht in ${plural(mitHinweisen, 'Übung', 'Übungen')}, worauf du wegen der Beschwerden achtest.`
+            : 'Am Plan ändert sich nichts – keine der angehakten Beschwerden trifft eine Übung, die vorkommt.'}</div>` : ''}
         <button type="button" class="btn btn-ghost btn-sm" data-act="clear-injuries" style="margin-top:12px">Alle Haken entfernen</button>
       </div>
     </section>
@@ -6495,7 +6521,10 @@ function renderInjuries() {
       ${g.list.map((i) => {
         const open = ui.openInjury.has(i.id);
         const on = activeSet.has(i.id);
-        const hitsPlan = i.avoid.some((x) => PLAN.some((w) => w.ex.some((e) => e.id === x)));
+        const imPlan = (x) => PLAN.some((w) => w.ex.some((e) => e.id === x));
+        const hitsPlan = i.avoid.some(imPlan) || Object.keys(i.formCue || {}).some(imPlan);
+        // Hinweise zur Ausführung (v270), nur für Übungen, die im Plan vorkommen.
+        const hinweise = Object.entries(i.formCue || {}).filter(([x]) => imPlan(x));
         return `
         <section class="card inj-card${on ? ' on' : ''}">
           <div class="inj-head" data-act="toggle-injury-open" data-inj="${i.id}" role="button" tabindex="0">
@@ -6521,15 +6550,18 @@ function renderInjuries() {
                 // fallen weg" wäre dort schlicht falsch.
                 : [...i.avoid, ...(i.avoidDb || []), ...(i.avoidBw || [])].length
                   ? '<div class="small muted" style="margin-top:4px">Kein Ersatz – die Übungen fallen weg.</div>'
-                  : '<div class="small muted" style="margin-top:4px">Sperrt keine Übung – der Plan bleibt, wie er ist. Dazu kommen die Übungen unten, kurz, hinter jedem Training.</div>'}
+                  : `<div class="small muted" style="margin-top:4px">Sperrt keine Übung – der Plan bleibt, wie er ist.${
+                    hinweise.length ? ' Dafür steht in den Übungen unten, worauf du achtest – ohne eine Minute extra.' : ''}</div>`}
             </div>
           </div>
           ${(i.care || []).length ? `<div class="inj-care">
             <div class="small"><b>Was gut tut</b>${needsClearance(i.id)
               ? ' <span class="muted">– erst nach ärztlicher Freigabe</span>' : ''}</div>
-            ${i.care.map((k) => (CARE[k] ? careCard({
-              key: k, ...CARE[k], ...(i.careDose && i.careDose[k] ? { dose: i.careDose[k] } : {}),
-            }) : '')).join('')}
+            ${i.care.map((k) => (CARE[k] ? careCard({ key: k, ...CARE[k] }) : '')).join('')}
+          </div>` : ''}
+          ${hinweise.length ? `<div class="inj-care">
+            <div class="small"><b>Im Training eingebaut</b></div>
+            ${hinweise.map(([x, text]) => `<div class="form-hinweis"><b>${esc(nm(x))}:</b> ${esc(text)}</div>`).join('')}
           </div>` : ''}` : ''}
         </section>`;
       }).join('')}

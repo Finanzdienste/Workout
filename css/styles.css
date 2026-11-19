@@ -1648,6 +1648,10 @@ textarea.diagnose-text {
 .aufwaerm { font-size: 13px; color: var(--muted); margin: 2px 0 8px;
   padding-left: 2px; letter-spacing: .01em; }
 .aufwaerm .muted { opacity: .7; }
+/* Hinweis zur Ausführung wegen einer angehakten Beschwerde (v270). */
+.form-hinweis { font-size: 13px; color: var(--muted); margin: 2px 0 8px;
+  padding-left: 10px; border-left: 2px solid var(--accent); }
+.form-hinweis b { color: var(--text); font-weight: 600; }
 /* Auswertung im Statistik-Tab: Zeile mit Text links, einer Antwort rechts. */
 .muster-liste { margin-top: 10px; display: grid; gap: 8px; }
 .muster-zeile { display: flex; align-items: center; gap: 12px;

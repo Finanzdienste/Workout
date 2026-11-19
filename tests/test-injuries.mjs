@@ -40,7 +40,9 @@ const daten = await page.evaluate(async () => {
   const bad = [];
   INJURIES.forEach((i) => {
     if (!SPOTS[i.spot]) bad.push(`${i.id}: Stelle ${i.spot} gibt es nicht`);
-    if (!i.care || !i.care.length) bad.push(`${i.id}: keine Zusatzübungen`);
+    // Jede Beschwerde gibt etwas mit: Zusatzübungen oder – seit v270 –
+    // Hinweise in den Übungen selbst (formCue). Nichts von beidem ist ein Loch.
+    if (!(i.care || []).length && !Object.keys(i.formCue || {}).length) bad.push(`${i.id}: weder Zusatzübungen noch Hinweise`);
     i.avoid.forEach((x) => { if (!ids.has(x)) bad.push(`${i.id}: ${x} ist keine Übung`); });
     [...(i.avoidBw || []), ...(i.avoidDb || [])].forEach((x) => {
       if (!ids.has(x)) bad.push(`${i.id}: ${x} (nur in einem Modus gesperrt) ist keine Übung`);
@@ -451,37 +453,45 @@ await page.waitForTimeout(200);
 const karteNeu = (await page.locator('.inj-card', { hasText: 'Haltung beim Stehen' }).textContent()).replace(/\s+/g, ' ');
 check(/Sperrt keine Übung/.test(karteNeu) && !/die Übungen fallen weg/.test(karteNeu),
   'die Karte sagt „sperrt keine Übung“ statt „die Übungen fallen weg“');
+// v270: *„wir wollens voll integrieren"*, *„ohne Verluste an irgendeiner Stelle
+// in unsere bestehenden Übungen"*. Kein Block „Zum Schluss“ mehr, keine
+// Zusatzübung – dafür eine Zeile in den Übungen, die es betrifft.
+check(/Im Training eingebaut/.test(karteNeu) && /Rudern|Chin-ups|Face Pull/.test(karteNeu) && !/Was gut tut/.test(karteNeu),
+  'die Karte zeigt, in welchen Übungen es eingebaut ist, statt „Was gut tut“');
+check(!/betrifft keine Übung im Plan/.test(karteNeu), 'und steht nicht mehr als „betrifft keine Übung im Plan“ da');
+check(/Dafür steht in \d+ Übungen, worauf du/.test(sumNeu), `die Übersicht nennt die Zahl der Übungen mit Hinweis (${sumNeu.slice(0, 160)})`);
+check(await page.locator('.inj-care .care').count() === 0 || !(await page.locator('.inj-card.on .inj-care .care').count()),
+  'unter den angehakten Einträgen keine Zusatzübung mehr');
 
 await page.locator('.tab[data-tab="dashboard"]').click();
 await page.waitForTimeout(200);
 await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(300);
-const schluss = await page.locator('.care-block .care-name').allTextContents();
-console.log('     hinter dem Training:', schluss.join(' | '));
-check(['Kinn zurückziehen', 'Fußgewölbe anheben'].every((x) => schluss.includes(x)),
-  'die Zusatzübungen für Haltung und Fuß stehen hinter der letzten Übung');
-// v267: nur, was der Plan nicht abdeckt – *„sicher dass 100 min zusätzliches
-// Training optimal sind?"*, *„dachte eig dass viel durch mein Training schon
-// abgedeckt ist"*. Zwei Übungen, kleine Dosis; die volle gilt nur, wenn eine
-// andere Beschwerde dieselbe Übung will.
-check(schluss.length === 2, `nur zwei: ${schluss.join(', ')}`);
-// v269: *„Ich hab keinen kurzen Fuß sondern nen plattfuß nh"* – die Übung heißt
-// nach dem, was man tut; „Kurzer Fuß" steht nur noch als Fachname im Hinweis.
-const fussText = (await page.locator('.care-block .care-row', { hasText: 'Fußgewölbe anheben' }).first().textContent()).replace(/\s+/g, ' ');
-check(!schluss.includes('Kurzer Fuß') && /gegen den Plattfuß/.test(fussText) && /„Kurzer Fuß"/.test(fussText),
-  'die Fußübung heißt „Fußgewölbe anheben“ und sagt, dass sie gegen den Plattfuß ist');
-const dosis = async (name) => (await page.locator('.care-block .care-row', { hasText: name }).first().textContent()).replace(/\s+/g, ' ');
-check(/2 × 10, je 5 s halten/.test(await dosis('Kinn zurückziehen')) && /2 × 10, je 5 s halten/.test(await dosis('Fußgewölbe anheben')),
-  'mit der kleinen Dosis (je 2 × 10, 5 s halten)');
-const voll = await page.evaluate(async () => {
-  const { careFor } = await import('./js/injuries.js');
-  const d = (ids) => careFor(ids).find((c) => c.key === 'kinnZurueck').dose;
-  return { allein: d(['haltung']), mitNacken: d(['haltung', 'nacken']), nackenZuerst: d(['nacken', 'haltung']) };
+check(await page.locator('.care-block').count() === 0, 'kein Block „Zum Schluss · Beschwerden“ hinter der letzten Übung');
+const erwartet = await page.evaluate(async () => {
+  const { formHinweise } = await import('./js/injuries.js');
+  const { injuryById } = await import('./js/injuries.js');
+  const ids = [...new Set([...document.querySelectorAll('[data-ex]')].map((el) => el.dataset.ex))];
+  const mit = ids.filter((id) => formHinweise(['haltung', 'plattfuss'], id).length);
+  return { ids, mit, n: mit.reduce((a, id) => a + formHinweise(['haltung', 'plattfuss'], id).length, 0),
+           alleDa: Object.keys({ ...injuryById('haltung').formCue, ...injuryById('plattfuss').formCue }).length };
 });
-check(voll.allein === '2 × 10, je 5 s halten' && voll.mitNacken === '3 × 10, je 5 s halten' && voll.nackenZuerst === '3 × 10, je 5 s halten',
-  `kommt Nackenverspannung dazu, gilt deren volle Dosis (${voll.mitNacken} / ${voll.nackenZuerst})`);
+const zeilen = (await page.locator('.form-hinweis').allTextContents()).map((t) => t.replace(/\s+/g, ' '));
+console.log('     in den Übungen:', zeilen.map((z) => z.slice(0, 50)).join(' | '));
+check(erwartet.mit.length > 0 && zeilen.length === erwartet.n,
+  `jede betroffene Übung von heute trägt ihren Hinweis (${zeilen.length} von ${erwartet.n}, Übungen: ${erwartet.mit.join(', ')})`);
+check(zeilen.every((z) => /^(Haltung|Plattfuß): /.test(z)), 'jede Zeile sagt, wofür sie da ist (Haltung / Plattfuß)');
 const notizNeu = (await page.locator('.injury-note').textContent()).replace(/\s+/g, ' ');
-check(/Heute ändert das nichts/.test(notizNeu), 'im Training: heute ändert das an den Übungen nichts');
+check(/Heute fällt nichts weg/.test(notizNeu) && /Worauf du achtest, steht in der Übung/.test(notizNeu),
+  'im Training: nichts fällt weg, die Hinweise stehen in den Übungen');
+const katalog = await page.evaluate(async () => {
+  const { INJURIES, CARE } = await import('./js/injuries.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const fremd = INJURIES.flatMap((i) => Object.keys(i.formCue || {}).filter((x) => !EX_BY_ID.has(x)).map((x) => `${i.id}:${x}`));
+  return { fremd, kurzerFuss: !!CARE.kurzerFuss, care: ['haltung', 'plattfuss'].map((id) => INJURIES.find((i) => i.id === id).care.length) };
+});
+check(!katalog.fremd.length, `jeder Hinweis hängt an einer Übung, die es gibt (${katalog.fremd.join(', ') || 'alle'})`);
+check(!katalog.kurzerFuss && katalog.care.every((n) => n === 0), 'Haltung und Plattfuß haben keine Zusatzübung mehr');
 
 // v268: Die beiden Einträge sind dauerhaft angehakt – also an jedem Tag, an dem
 // ein Termin (Padel) Übungen aus der Einheit nimmt. Bis v267 stand das dann
@@ -511,8 +521,8 @@ const karten = (await page.locator('.injury-note').allTextContents()).map((t) =>
 const wegenTermin = karten.find((t) => /📅/.test(t)) || '';
 const wegenKoerper = karten.find((t) => /🩹/.test(t)) || '';
 check(/Padel/.test(wegenTermin) && /fällt deshalb weg/.test(wegenTermin), 'der Termin nennt auf seiner Karte, was heute wegfällt');
-check(/Heute ändert das nichts/.test(wegenKoerper) && !/fällt aus/.test(wegenKoerper),
-  'die Beschwerden-Karte bleibt bei „Heute ändert das nichts“ – der Termin ist nicht ihr Grund');
+check(/Heute fällt nichts weg/.test(wegenKoerper) && !/fällt aus/.test(wegenKoerper),
+  'die Beschwerden-Karte bleibt bei „Heute fällt nichts weg“ – der Termin ist nicht ihr Grund');
 await zuVerletzt();
 await page.waitForTimeout(300);
 const sumPadel = (await page.locator('.inj-summary').textContent()).replace(/\s+/g, ' ');

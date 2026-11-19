@@ -312,25 +312,43 @@ export const INJURIES = [
     // Schultern, die hochgezogen werden, geht es hier nicht.
     id: 'haltung',
     name: 'Haltung beim Stehen',
+    kurz: 'Haltung',
     area: 'Oberkörper', spot: 'neck', kind: 'haltung',
     text: 'Langes Stehen wird schnell unangenehm, der Oberkörper will nach vorn '
       + 'zusammensacken – und wer dagegen den Kopf in den Nacken nimmt, bekommt '
       + 'Nackenschmerzen. Keine Verletzung, und keine Übung muss dafür raus: Oberer Rücken, '
-      + 'Rückenstrecker und Bauch sind im Plan schon versorgt. Was kein Satz dort trifft, '
-      + 'sind die tiefen Halsbeuger – sie halten den Kopf über den Schultern, ohne dass er '
-      + 'in den Nacken muss.',
+      + 'Rückenstrecker und Bauch sind im Plan schon versorgt. Angehakt steht bei den Zügen, '
+      + 'beim Kreuzheben und bei den Liegestützen, wie Kopf und Becken dabei stehen – Kinn '
+      + 'leicht zurück, Rippen unten. So trainiert jeder Satz die Haltung mit.',
     avoid: [],
     swap: {},
-    // Nur, was der Plan nicht schon abdeckt (v267). Tobi: „Entscheide du wies
-    // am meisten Sinn macht, aber sicher dass 100 min zusätzliches Training
-    // optimal sind?" und „Also dachte eig dass viel durch mein Training schon
-    // abgedeckt ist". Stimmt: Schulterblätter und hintere Schulter (Face Pull,
-    // Reverse Fly, Rudern, Klimmzüge), Rückenstrecker (RDL) und Bauch (9 Sätze)
-    // sind drin. Wandengel und Dead Bug fallen deshalb weg; was kein Plan-Satz
-    // trifft, sind die tiefen Halsbeuger – das Kinn, in kleinerer Dosis
-    // (`careDose`). Mit dem Plattfuß zusammen rund 4 Minuten je Training.
-    care: ['kinnZurueck'],
-    careDose: { kinnZurueck: '2 × 10, je 5 s halten' },
+    // In die Übungen eingebaut statt dahinter (v270). Tobi zum Block „Zum
+    // Schluss · Beschwerden": „Es ist ja immernoch der zum Schluss Beschwerden
+    // kram drin obwohl ich grad meinte wir wollens voll integrieren" – und:
+    // „Wenn wir es ohne Verluste an irgendeiner Stelle in unsere bestehenden
+    // Übungen integrieren könnten wäre natürlich Premium".
+    //
+    // Was v267 als Zusatzübung behielt (Kinn zurückziehen), ist hier eine
+    // Haltung, die über den ganzen Satz gehalten wird – bei jedem Zug, beim
+    // Kreuzheben, bei den Liegestützen. Das sind mehr Sekunden unter
+    // Spannung als 2 × 10, und zwar in der Stellung, um die es geht. Dazu das
+    // Hohlkreuz dort, wo der Übungstext es noch nicht sagt (Hip Thrust und
+    // Schulterdrücken sagen es schon).
+    care: [],
+    formCue: {
+      'einarmiges-kh-rudern': 'Nacken lang, Kinn leicht zurück, Blick schräg zum Boden statt nach vorn – den ganzen Satz so halten.',
+      'inverted-row': 'Kinn leicht zurück, Kopf in Linie mit dem Körper – die Brust kommt zur Stange, nicht das Kinn.',
+      'face-pull': 'Kinn leicht zurück, der Kopf bleibt über den Schultern und geht dem Band nicht entgegen.',
+      'reverse-fly': 'Nacken lang, Kinn leicht zurück, Blick zum Boden.',
+      'band-pull-apart': 'Kinn leicht zurück, Rippen unten – nicht ins Hohlkreuz ausweichen, wenn die Arme aufgehen.',
+      'chin-ups': 'Brust zur Stange, nicht das Kinn – Nacken lang, Kinn leicht zurück.',
+      'pull-ups': 'Brust zur Stange, nicht das Kinn – Nacken lang, Kinn leicht zurück.',
+      'rumaenisches-kreuzheben': 'Kopf in Verlängerung des Rückens, Kinn leicht zurück – nicht nach vorn hochschauen.',
+      'einbeiniges-kreuzheben': 'Kopf in Verlängerung des Rückens, Kinn leicht zurück – nicht nach vorn hochschauen.',
+      'fuesse-erhoehte-liegestuetze': 'Po fest, Becken nicht durchhängen lassen; der Kopf bleibt in Linie und hängt nicht nach unten.',
+      'gewichtete-liegestuetze': 'Po fest, Becken nicht durchhängen lassen; der Kopf bleibt in Linie und hängt nicht nach unten.',
+      'band-seitheben': 'Rippen unten, Po leicht fest – im Stehen nicht ins Hohlkreuz kippen.',
+    },
   },
   {
     id: 'nacken',
@@ -677,16 +695,29 @@ export const INJURIES = [
     // das Gewölbe mittragen.
     id: 'plattfuss',
     name: 'Plattfuß / Fersen beim Stehen',
+    kurz: 'Plattfuß',
     area: 'Fuß', spot: 'foot', kind: 'fehlstellung',
     text: 'Das Längsgewölbe sinkt beim Stehen ein, nach ein paar Minuten melden sich die '
-      + 'Fersen und oft der Rücken mit. Keine Übung muss dafür raus – Wadenheben im Stand '
-      + 'kräftigt die Muskeln, die das Gewölbe mittragen. Die Einlagen ersetzt das nicht.',
+      + 'Fersen und oft der Rücken mit. Keine Übung muss dafür raus: Angehakt steht bei '
+      + 'Kniebeugen, Kreuzheben und Wadenheben, wie der Fuß dabei steht – so trainiert jeder '
+      + 'Satz im Stand das Gewölbe mit. Die Einlagen ersetzt das nicht.',
     avoid: [],
     swap: {},
-    // v267: nur noch der Kurze Fuß. Einbeinstand und Wade dehnen decken das
-    // einbeinige Wadenheben im Stand und das sitzende schon ab – voller Weg
-    // unter Last, Gleichgewicht inklusive. Die Fußsohle trifft kein Plan-Satz.
-    care: ['kurzerFuss'],
+    // In die Übungen eingebaut statt dahinter (v270), siehe 'haltung'. Die
+    // Fußübung von v267 („Kurzer Fuß") wird in der Physio vom Sitzen über den
+    // Stand auf ein Bein gesteigert – genau das sind Kniebeuge, Kreuzheben und
+    // Wadenheben, mit Last. Das Gewölbe dort zu halten, ist die letzte Stufe
+    // dieser Übung, nicht ein Ersatz für sie.
+    care: [],
+    formCue: {
+      'goblet-squat': 'Gewölbe halten – Ferse und Großzehenballen fest am Boden, Zehen locker, die Knie folgen den Zehen und kippen nicht nach innen.',
+      'fersenerhoehter-goblet-squat': 'Gewölbe halten – Großzehenballen fest am Boden, Zehen locker, die Knie folgen den Zehen und kippen nicht nach innen.',
+      'split-squat': 'Am vorderen Fuß das Gewölbe halten – Großzehenballen am Boden, das Knie kippt nicht nach innen.',
+      'rumaenisches-kreuzheben': 'Gewölbe halten – Gewicht zwischen Ferse und Großzehenballen, Zehen locker, nicht einkrallen.',
+      'einbeiniges-kreuzheben': 'Am Standfuß das Gewölbe halten – Gewicht zwischen Ferse und Großzehenballen, Zehen locker. Das ist die stärkste Fußübung im ganzen Plan.',
+      'einbeiniges-stehendes-wadenheben': 'Über den Großzeh hochdrücken, nicht über den kleinen – die Ferse kippt nicht nach außen, unten sackt das Gewölbe nicht durch.',
+      'wadenheben-gebeugtes-knie': 'Über den Großzeh hochdrücken, nicht nach außen über den kleinen Zeh rollen.',
+    },
   },
 ];
 
@@ -893,16 +924,6 @@ export const CARE = {
     name: 'Fuß-ABC', kind: 'mobilisieren', dose: '2 Durchgänge je Seite',
     cue: 'Im Sitzen mit der großen Zehe das Alphabet in die Luft schreiben. Bringt das '
       + 'Sprunggelenk in alle Richtungen, ohne es zu belasten.',
-  },
-  kurzerFuss: {
-    // Hieß bis v268 „Kurzer Fuß", wie die Übung in der Physio heißt. Tobi:
-    // „Ich hab keinen kurzen Fuß sondern nen plattfuß nh" – der Name las sich
-    // wie eine Diagnose. Jetzt sagt er, was man tut; der Fachname steht im Text.
-    name: 'Fußgewölbe anheben', kind: 'kraeftigen', dose: '2 × 10, je 5 s halten',
-    cue: 'Die Übung gegen den Plattfuß – in der Physio heißt sie „Kurzer Fuß", weil der Fuß '
-      + 'dabei kürzer wird. Erst im Sitzen mit beiden Füßen zugleich, später im Stehen. Die '
-      + 'Zehen bleiben lang und locker am Boden, den Fußballen Richtung Ferse ziehen, bis '
-      + 'sich das Gewölbe hebt. Nicht die Zehen einkrallen – die Arbeit macht die Fußsohle.',
   },
   einbeinstand: {
     name: 'Einbeinstand', kind: 'kraeftigen', dose: '3 × 45 s je Seite',
@@ -1191,18 +1212,29 @@ export function careFor(active) {
     if (!inj) return;
     (inj.care || []).forEach((key) => {
       if (!CARE[key]) return;
-      const seen = out.get(key) || { key, ...CARE[key], wegen: [], clearance: false, kurz: true };
-      // Eigene, kleinere Dosis eines Eintrags (`careDose`, seit v267). Will
-      // eine andere angehakte Beschwerde dieselbe Übung in voller Dosis, gilt
-      // die volle – die kürzere ist eine Zugabe, keine Obergrenze.
-      const eigene = inj.careDose && inj.careDose[key];
-      if (!eigene) { seen.dose = CARE[key].dose; seen.kurz = false; } else if (seen.kurz) seen.dose = eigene;
+      const seen = out.get(key) || { key, ...CARE[key], wegen: [], clearance: false };
       seen.wegen.push(inj.name);
       seen.clearance = seen.clearance || needsClearance(id);
       out.set(key, seen);
     });
   });
   return [...out.values()];
+}
+
+/**
+ * Hinweise zur Ausführung, die eine angehakte Beschwerde an eine Übung hängt
+ * (`formCue`, seit v270): statt einer Zusatzübung dahinter eine Zeile in der
+ * Übung selbst. Gibt [{ name, text }] in der Reihenfolge der Auswahl zurück,
+ * leer, wenn nichts passt.
+ */
+export function formHinweise(active, exId) {
+  const out = [];
+  active.forEach((id) => {
+    const inj = BY_ID.get(id);
+    const text = inj && inj.formCue && inj.formCue[exId];
+    if (text) out.push({ name: inj.kurz || inj.name, text });
+  });
+  return out;
 }
 
 /** Von Hand notierte Wechselwirkungen, die auf die Auswahl passen. */
