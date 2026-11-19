@@ -315,9 +315,10 @@ export const INJURIES = [
     area: 'Oberkörper', spot: 'neck', kind: 'haltung',
     text: 'Langes Stehen wird schnell unangenehm, der Oberkörper will nach vorn '
       + 'zusammensacken – und wer dagegen den Kopf in den Nacken nimmt, bekommt '
-      + 'Nackenschmerzen. Keine Verletzung, und keine Übung muss dafür raus: Der obere '
-      + 'Rücken ist im Plan schon gut versorgt. Was fehlt, ist Haltearbeit für die tiefen '
-      + 'Halsbeuger, die Brustwirbelsäule und den Rumpf.',
+      + 'Nackenschmerzen. Keine Verletzung, und keine Übung muss dafür raus: Oberer Rücken, '
+      + 'Rückenstrecker und Bauch sind im Plan schon versorgt. Was kein Satz dort trifft, '
+      + 'sind die tiefen Halsbeuger – sie halten den Kopf über den Schultern, ohne dass er '
+      + 'in den Nacken muss.',
     avoid: [],
     swap: {},
     // Nur, was der Plan nicht schon abdeckt (v267). Tobi: „Entscheide du wies

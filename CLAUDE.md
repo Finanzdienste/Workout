@@ -139,7 +139,11 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (19.11.2026)
-- Workout v267: Haltung und Plattfuß nur noch mit dem, was der Plan nicht
+- Workout v268: Was ein Termin (Padel) herausnimmt, steht nicht mehr unter den
+  Beschwerden (Trainingskarte, *Verletzt*, Kostentabelle) – fiel auf, weil
+  Haltung und Plattfuß dauerhaft angehakt sind. Auswahl gegen die Studienlage
+  geprüft und gelassen (README „Nachgeprüft“).
+- Davor v267: Haltung und Plattfuß nur noch mit dem, was der Plan nicht
   abdeckt – Kinn zurückziehen und Kurzer Fuß, je 2 × 10 (`careDose`), rund 4
   Minuten je Training; die Tabelle „Was das pro Woche kostet“ zählt nur noch,
   was die Beschwerden ändern (`weeklyImpact()` aus `injuryNotes()`).

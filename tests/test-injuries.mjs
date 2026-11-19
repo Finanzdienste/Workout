@@ -477,6 +477,47 @@ check(voll.allein === '2 × 10, je 5 s halten' && voll.mitNacken === '3 × 10, j
   `kommt Nackenverspannung dazu, gilt deren volle Dosis (${voll.mitNacken} / ${voll.nackenZuerst})`);
 const notizNeu = (await page.locator('.injury-note').textContent()).replace(/\s+/g, ' ');
 check(/Heute ändert das nichts/.test(notizNeu), 'im Training: heute ändert das an den Übungen nichts');
+
+// v268: Die beiden Einträge sind dauerhaft angehakt – also an jedem Tag, an dem
+// ein Termin (Padel) Übungen aus der Einheit nimmt. Bis v267 stand das dann
+// unter den Beschwerden: „Rücksicht auf: Plattfuß … Heute deshalb: Goblet Squat
+// fällt aus", unter Verletzt „Fällt ersatzlos weg" samt Kostentabelle. Der
+// Termin hat seine eigene Karte; die Beschwerden haben damit nichts zu tun.
+const padel = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const { effDate, injuryNotes } = await import('./js/plan.js');
+  const { directOf } = await import('./js/uebung.js');
+  // Die Einheit, die die Liste gerade zeigt: Hat sie eine Beinübung, schont
+  // der Termin die Beine, sonst den Oberkörper – so bleibt in beiden Fällen
+  // etwas stehen und etwas fällt weg.
+  const bein = new Set(['quads', 'hamstringsKnee', 'hamstringsHip', 'glutes', 'calves']);
+  const da = [...document.querySelectorAll('[data-ex]')].map((el) => el.dataset.ex);
+  const schont = da.some((id) => directOf(id).some((m) => bein.has(m))) ? 'beine' : 'oberkoerper';
+  store.setSetting('termine', PLAN.map((w) => ({ datum: effDate(w), schont, name: 'Padel' })));
+  return PLAN.reduce((a, w) => a + injuryNotes(w.n, 'db').dropped.filter((d) => d.reason === 'termin').length, 0);
+});
+check(padel > 0, `Voraussetzung: der Termin nimmt Übungen heraus (${padel})`);
+// Neu zeichnen lassen: Der Speicher allein löst das nicht aus.
+await page.locator('.tab[data-tab="settings"]').click();
+await page.locator('.tab[data-tab="dashboard"]').click();
+await page.waitForTimeout(300);
+const karten = (await page.locator('.injury-note').allTextContents()).map((t) => t.replace(/\s+/g, ' '));
+const wegenTermin = karten.find((t) => /📅/.test(t)) || '';
+const wegenKoerper = karten.find((t) => /🩹/.test(t)) || '';
+check(/Padel/.test(wegenTermin) && /fällt deshalb weg/.test(wegenTermin), 'der Termin nennt auf seiner Karte, was heute wegfällt');
+check(/Heute ändert das nichts/.test(wegenKoerper) && !/fällt aus/.test(wegenKoerper),
+  'die Beschwerden-Karte bleibt bei „Heute ändert das nichts“ – der Termin ist nicht ihr Grund');
+await zuVerletzt();
+await page.waitForTimeout(300);
+const sumPadel = (await page.locator('.inj-summary').textContent()).replace(/\s+/g, ' ');
+check(/Am Plan ändert sich nichts/.test(sumPadel) && !/Fällt ersatzlos weg/.test(sumPadel),
+  'unter Verletzt: am Plan ändert sich nichts, auch mit dem Termin');
+check(await page.locator('.inj-table').count() === 0, 'und keine Kostentabelle für das, was der Termin herausnimmt');
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('termine', []);
+});
 // v267, Tobis Screenshot: „Am Plan ändert sich nichts" – und darunter „Was das
 // pro Woche kostet: Waden 6,0 → 5,7 (−0,3)". Die Tabelle verglich den Plan mit
 // den Einheiten von heute, und eine schon trainierte Einheit aus dem Plan davor

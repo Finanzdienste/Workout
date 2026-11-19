@@ -6153,7 +6153,13 @@ function zusatzWegName(d, mode) {
 function injuryNote(w, mode) {
   const act = activeInjuries();
   if (!act.length) return '';
-  const { dropped, swapped } = injuryNotes(w.n, mode);
+  // Ohne das, was ein Termin herausnimmt (v268): Das steht in terminNote()
+  // gleich darunter, mit seinem eigenen Grund. Mit Haltung und Plattfuß, die
+  // dauerhaft angehakt sind und nichts sperren, hieß es an jedem Padel-Tag
+  // „Rücksicht auf: Plattfuß … Heute deshalb: Goblet Squat fällt aus".
+  const notiz = injuryNotes(w.n, mode);
+  const { swapped } = notiz;
+  const dropped = notiz.dropped.filter((d) => d.reason !== 'termin');
   const names = act.map((id) => (injuryById(id) || {}).name).filter(Boolean);
   const nm = (id) => resolve({ id, sets: 0 }, mode).name;
   const lines = [];
@@ -6367,7 +6373,11 @@ function renderInjuries() {
     // Handgelenkbruch als „→ Hip Thrust getauscht", obwohl der Hip Thrust mit
     // Hanteln selbst gesperrt ist und beide wegfallen (modusNotiz() in
     // js/plan.js).
-    const r = injuryNotes(w.n, mode);
+    // Nur, was an den Beschwerden liegt (v268) – was ein Termin (Padel, Ski)
+    // aus der Einheit nimmt, hat seine eigene Karte im Training und gehört
+    // weder in „Fällt ersatzlos weg" noch in die Kostentabelle.
+    const roh = injuryNotes(w.n, mode);
+    const r = { ...roh, dropped: roh.dropped.filter((d) => d.reason !== 'termin') };
     notizen.push(r);
     r.dropped.forEach((d) => {
       gone.push(d);

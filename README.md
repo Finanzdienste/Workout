@@ -4735,6 +4735,45 @@ Jetzt kommt der Unterschied aus genau den Tauschen und Ausfällen, die auch die
 Einheit 1: ohne Sperre keine Tabelle, mit „Überlasteter unterer Rücken" eine
 mit echten Verlusten.
 
+#### Nachgeprüft: Die Auswahl bleibt, ein Termin ist keine Beschwerde (v268)
+
+> *„Gut dann schau mal ob alles optimal ist"*
+
+**Die Auswahl bleibt bei Kinn zurückziehen und Kurzer Fuß, 2 × 10.** Gegen die
+Studienlage gehalten (19.11.2026), ohne sie schöner zu machen, als sie ist:
+
+- *Kurzer Fuß:* Zwei Metaanalysen, kleine Wirkung. Huang 2022 (6 Studien, 201
+  Leute): Kahnbein sinkt 0,23 mm weniger ein, Fußhaltung 0,67 Punkte besser,
+  kein Muskelzuwachs. Cheng 2024: im Ganzen kein sicherer Unterschied, nur bei
+  mehr als sechs Wochen. Also: Wochen, nicht Tage – und was es am Schmerz beim
+  Stehen ändert, hat keine der beiden gemessen.
+- *Kinn zurückziehen:* Übungsprogramme verbessern die Kopfhaltung messbar
+  (Xing 2026, 10 Studien: Winkel +3,4°, mittlere Sicherheit), am ehesten
+  kombinierte Programme über acht Wochen – dort aber mit 3 bis 5 Einheiten zu
+  20 bis 60 Minuten. Die Halsbeuger allein: „nicht ausreichend belegt"
+  (Hussein u. a., Übersichtsarbeit). Der Plan liefert den anderen Teil solcher Programme (Rudern,
+  Face Pull, Reverse Fly) ohnehin; das Kinn ist der Teil, der fehlte.
+
+Mehr Dosis wäre näher an den Studien und weiter weg von dem, was nach dem
+Training gemacht wird. Beides sind Zugaben; den Unterschied beim Stehen machen
+Einlagen und Physiotherapie, und was die Physio mitgibt, ersetzt diese zwei.
+
+**Gefunden beim Nachprüfen:** Die beiden Einträge sind dauerhaft angehakt, also
+auch an jedem Tag, an dem ein Termin (Padel) Übungen aus der Einheit nimmt.
+Dessen Ausfälle stehen in derselben Notiz (`reason: 'termin'`), und drei
+Stellen lasen sie als Folge der Beschwerden: im Training „🩹 Rücksicht auf:
+Plattfuß …, Haltung … Heute deshalb: Goblet Squat fällt aus" (direkt über der
+Karte des Termins, die dasselbe richtig begründet), unter *Verletzt* „Fällt
+ersatzlos weg: Goblet Squat (3 Sätze)" und darunter die Kostentabelle. Den
+Fehler gab es schon vorher, er brauchte aber Beschwerde und Termin zugleich.
+Jetzt zählen `injuryNote()` und `renderInjuries()` nur, was nicht vom Termin
+kommt. Und der Text des Eintrags *Haltung* nannte noch Brustwirbelsäule und
+Rumpf als fehlend, obwohl v267 genau das als abgedeckt gestrichen hat.
+
+Geprüft in `tests/test-injuries.mjs`: mit „Padel" an jedem Plantag nennt die
+Termin-Karte die Ausfälle, die Beschwerden-Karte bleibt bei „Heute ändert das
+nichts", unter *Verletzt* steht „Am Plan ändert sich nichts" ohne Tabelle.
+
 ## Verletzungen
 
 Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl
