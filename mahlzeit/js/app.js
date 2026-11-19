@@ -19,7 +19,7 @@ import * as SP from './sport.js';
 import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 
-export const FASSUNG = 'v7';
+export const FASSUNG = 'v8';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -216,7 +216,7 @@ function installierenHtml() {
         ${wichtig}`;
     }
     const neu = safari >= 26;
-    const code = K.kiCode();
+    const code = K.KI_AN ? K.kiCode() : null;
     const codeZeile = code
       ? `<p class="klein" id="install-code">Dein KI-Code: <strong>${esc(code)}</strong> <button type="button" class="link" data-tun="code-kopieren">kopieren</button> – das iPhone gibt der App vom Home-Bildschirm einen eigenen Speicher. Nach dem Hinzufügen dort einmal unter „Mehr“ einfügen.</p>`
       : '';
@@ -579,14 +579,14 @@ function seiteMehr(stand) {
       <button type="button" class="weg" data-tun="eigen-weg" data-id="${esc(e.id)}" aria-label="${esc(e.n)} vergessen">✕</button></li>`).join('')}</ul>`
     : '<p class="klein leise">Noch keine. Unter „Essen eintragen“ → „Selbst eintragen“ merkt sich die App, was du dort einträgst.</p>'}
   </section>
-  <section class="karte" id="karte-ki">
+  ${K.KI_AN ? `<section class="karte" id="karte-ki">
     <h3>✨ KI und Strichcode</h3>
     ${K.kiCode()
     ? `<p id="ki-status">Freigeschaltet (Code ${esc(K.kiCode().slice(0, 5))}-•••••). Rezepte, Kochbuchseiten und Nährwerttabellen rechnet die KI aus – unter „Essen eintragen“ → „Rezept oder Foto“.</p>
       <button type="button" class="knopf leise" data-tun="ki-code-weg">Code entfernen</button>`
     : freischaltenHtml()}
     <p class="klein leise">Was dabei das Handy verlässt: beim Strichcode nur die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel. Beim Rezept der Text bzw. die Fotos – an die KI Claude von Anthropic, über Tobis Zugang. Sonst nichts.</p>
-  </section>
+  </section>` : ''}
   <section class="karte" id="karte-lebenszeichen">
     <h3>📶 Lebenszeichen an Tobi</h3>
     <p>Damit Tobi weiß, ob dir die App etwas bringt, meldet sie höchstens alle drei Stunden nur Zahlen: wie viele Einträge heute, wie viele Hafer-Mahlzeiten, Sporteinheiten und Werte – nie, was du isst, wiegst oder misst.</p>
@@ -610,7 +610,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
-    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi (nur Zahlen, abschaltbar, siehe oben) und, wenn du einen Strichcode nachschlägst oder die KI fragst, genau das (siehe „KI und Strichcode“).</p>
+    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi (nur Zahlen, abschaltbar, siehe oben) und, wenn du einen Strichcode nachschlägst, ${K.KI_AN ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
     <p>Die Kalorien sind Richtwerte für übliche Portionen – ein Döner vom Imbiss nebenan kann 100 kcal mehr oder weniger haben. Für den Überblick reicht das; genauer wird es mit der Packung in der Hand („Selbst eintragen“).</p>
     <p>Die App ersetzt keine ärztliche Beratung. Was die Hafertage angeht, steht die Quelle unter „Hafer“.</p>
     <p class="klein leise">Fassung ${FASSUNG}</p>
@@ -669,7 +669,7 @@ function zeigeEbene() {
         </label>
         <div class="werkzeuge">
           <button type="button" class="knopf leise" data-tun="scan" id="scan-knopf">${SYMBOL.strich} Strichcode</button>
-          <button type="button" class="knopf leise" data-tun="rezept" id="rezept-knopf">✨ Rezept oder Foto</button>
+          ${K.KI_AN ? '<button type="button" class="knopf leise" data-tun="rezept" id="rezept-knopf">✨ Rezept oder Foto</button>' : '<button type="button" class="knopf leise" data-tun="eigen" id="eigen-knopf">✎ Selbst eintragen</button>'}
         </div>
         <div id="treffer">${trefferHtml(stand)}</div>
       </div>`;
@@ -1142,7 +1142,7 @@ function freischaltenHtml() {
 
 function scanHtml() {
   const live = S.kannLive();
-  const code = K.kiCode();
+  const code = K.KI_AN && K.kiCode();
   const ng = ebene.nichtGefunden;
   return `
     <div class="ebene-kopf">
@@ -1963,7 +1963,7 @@ const ausLink = K.codeAusAdresse(location.hash);
 if (ausLink) {
   K.kiCodeSetzen(ausLink);
   history.replaceState(history.state, '', location.pathname + location.search);
-  setTimeout(() => meldung('KI freigeschaltet ✨ – Rezepte und Fotos rechnet jetzt die KI aus.'), 200);
+  if (K.KI_AN) setTimeout(() => meldung('KI freigeschaltet ✨ – Rezepte und Fotos rechnet jetzt die KI aus.'), 200);
 }
 
 zeige();

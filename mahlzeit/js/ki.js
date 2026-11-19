@@ -9,6 +9,16 @@
  * Stand, damit er nicht in jeder Sicherung steckt.
  */
 
+/*
+ * Schalter (v8): Solange Tobi kein Anthropic-Guthaben hat, ist die KI aus –
+ * kein Knopf „Rezept oder Foto“, kein Freischalten, kein Strichcode-Foto.
+ * Tobi, 19.11.2026: „Der Kollege testet die app jetzt. Es muss also alles
+ * außer die ki optimal sein. Lass den ki Teil rausnehmen solange ich kein
+ * api hab“. Ein Code aus dem Link wird trotzdem still gemerkt, damit es
+ * später ohne neuen Link geht. Wieder an: true, VERSION/FASSUNG hochzählen.
+ */
+export const KI_AN = false;
+
 export const KI_ADRESSE = 'https://vjyohppohmvhhxgwouti.supabase.co/functions/v1/mahlzeit-ki';
 const SCHLUESSEL = 'mahlzeit.ki.v1';
 const ZEICHEN = /^[A-HJ-NP-Z2-9]{10}$/;

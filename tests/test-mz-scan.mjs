@@ -58,7 +58,7 @@ let o = await oeffne({ tag: TAG, zeit: '08:15' });
 let p = o.page;
 let off = await offNachbauen(p, { [EAN]: HAFER });
 await p.click('#essen-knopf');
-check(await p.locator('#scan-knopf').isVisible() && await p.locator('#rezept-knopf').isVisible(), 'unter der Suche: „Strichcode" und „Rezept oder Foto"');
+check(await p.locator('#scan-knopf').isVisible() && await p.locator('#eigen-knopf').isVisible(), 'unter der Suche: „Strichcode“ und „Selbst eintragen“ (KI aus, v8)');
 await p.click('#scan-knopf');
 check((await p.locator('#scan-hilfe').innerText()).includes('Tipp die Nummer'), 'ohne Kamera-Leser und ohne KI: Nummer eintippen');
 check(await p.locator('#scan-foto').count() === 0, '… kein Foto-Knopf ohne KI');
@@ -134,7 +134,7 @@ check(await p.evaluate(() => window.__kamera.getTracks().every((t) => t.readySta
 await zu(o);
 
 // --- 3. Freischalten
-o = await oeffne({ tag: TAG });
+o = await oeffne({ tag: TAG, ki: true });
 p = o.page;
 let ki = await kiNachbauen(p, (r, z) => (z === CODE ? [200, { ok: true }] : [401, { fehler: 'Der Freischalt-Code stimmt nicht (mehr).' }]));
 await p.click('#essen-knopf');
@@ -152,7 +152,7 @@ check(await p.evaluate(() => JSON.parse(localStorage.getItem('mahlzeit.ki.v1')).
 await zu(o);
 
 // Code aus dem Link
-o = await oeffne({ tag: TAG, url: `${(await import('./mz-hilfe.mjs')).MZ_URL}#ki=${CODE}` });
+o = await oeffne({ tag: TAG, ki: true, url: `${(await import('./mz-hilfe.mjs')).MZ_URL}#ki=${CODE}` });
 check(await o.page.evaluate(() => location.hash) === '', 'Link mit #ki=…: der Code verschwindet aus der Adresse');
 check(await o.page.evaluate(() => JSON.parse(localStorage.getItem('mahlzeit.ki.v1')).code) === CODE, '… und ist gemerkt');
 await o.page.waitForTimeout(300);
@@ -162,7 +162,7 @@ check((await o.page.locator('#ki-status').innerText()).includes('ABCDE-•••
 await zu(o);
 
 // --- 4. Ein Rezept als Text
-o = await oeffne({ tag: TAG, zeit: '12:30', weitere: MIT_CODE });
+o = await oeffne({ tag: TAG, zeit: '12:30', weitere: MIT_CODE, ki: true });
 p = o.page;
 ki = await kiNachbauen(p, () => [200, { ergebnis: GULASCH }]);
 await p.click('#essen-knopf');
@@ -203,7 +203,7 @@ check(await p.locator('#ausrechnen').isEnabled(), 'Grenze erreicht: der Satz der
 await zu(o);
 
 // --- 5. Packung fotografieren, nach einem unbekannten Strichcode
-o = await oeffne({ tag: TAG, weitere: MIT_CODE });
+o = await oeffne({ tag: TAG, weitere: MIT_CODE, ki: true });
 p = o.page;
 await offNachbauen(p, {});
 ki = await kiNachbauen(p, () => [200, { ergebnis: RIEGEL }]);
@@ -230,7 +230,7 @@ await zu(o);
 
 // --- 6. iPhone: Strichcode fotografieren, die KI liest die Nummer
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1';
-o = await oeffne({ tag: TAG, weitere: MIT_CODE, kontext: { userAgent: IPHONE } });
+o = await oeffne({ tag: TAG, weitere: MIT_CODE, kontext: { userAgent: IPHONE }, ki: true });
 p = o.page;
 off = await offNachbauen(p, { [EAN]: HAFER });
 ki = await kiNachbauen(p, () => [200, { ergebnis: { ...RIEGEL, art: 'strichcode', ean: EAN, kcal_100g: 0 } }]);
@@ -245,6 +245,31 @@ await p.click('#ebene [data-tun="zurueck-suche"]');
 await p.click('#ebene [data-tun="ebene-zu"]');
 const karte = await p.locator('#installieren').innerText();
 check(karte.includes(CODE) && karte.includes('eigenen Speicher'), 'iPhone in Safari mit Code: die Startbildschirm-Karte nennt den Code zum Mitnehmen');
+await zu(o);
+
+// --- 7. KI aus (v8): solange Tobi kein Guthaben hat, ist von der KI nichts zu sehen
+o = await oeffne({ tag: TAG, weitere: MIT_CODE, kontext: { userAgent: IPHONE } });
+p = o.page;
+await offNachbauen(p, {});
+await p.click('#essen-knopf');
+check(await p.locator('#rezept-knopf').count() === 0 && await p.locator('#eigen-knopf').isVisible(), 'KI aus: statt „Rezept oder Foto" oben „Selbst eintragen"');
+await p.click('#scan-knopf');
+check(await p.locator('#scan-foto').count() === 0 && (await p.locator('#scan-hilfe').innerText()).includes('Tipp die Nummer'), 'iPhone: kein Strichcode-Foto, Nummer eintippen');
+await p.fill('#ean', '4008400401621');
+await p.click('form[data-form="ean"] button');
+await p.waitForSelector('#nicht-gefunden');
+check(await p.locator('[data-tun="packung-foto"]').count() === 0 && await p.locator('#nicht-gefunden [data-tun="eigen"]').isVisible(), 'unbekannter Strichcode: kein „Nährwerttabelle fotografieren", nur Selbst eintragen');
+await p.click('#ebene [data-tun="zurueck-suche"]');
+await p.click('#ebene [data-tun="ebene-zu"]');
+check(!(await p.locator('#installieren').innerText()).includes(CODE), 'Startbildschirm-Karte ohne KI-Code');
+await p.click('#reiter-mehr');
+const mehrText = await p.locator('main').innerText();
+check(await p.locator('#karte-ki').count() === 0 && !/\bKI\b/.test(mehrText), 'Mehr: keine KI-Karte, das Wort KI kommt nicht vor');
+await zu(o);
+o = await oeffne({ tag: TAG, url: `${(await import('./mz-hilfe.mjs')).MZ_URL}#ki=${CODE}` });
+await o.page.waitForTimeout(300);
+check(await o.page.evaluate(() => location.hash) === '' && await o.page.evaluate(() => JSON.parse(localStorage.getItem('mahlzeit.ki.v1')).code) === 'ABCDE-FGHJK', 'Link mit Code: still gemerkt (für später), aus der Adresse');
+check(!(await o.page.locator('#meldung').innerText()).includes('KI'), '… ohne Meldung „KI freigeschaltet"');
 await zu(o);
 
 check(alleFehler.length === 0, `keine Fehler in der Seite${alleFehler.length ? `: ${alleFehler.slice(0, 3).join(' | ')}` : ''}`);

@@ -162,7 +162,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `mahlzeit_nutzung` – fragt Tobi, ob Uwe die App nutzt: die Abfrage steht in
   `mahlzeit/README.md` „Lebenszeichen an Tobi“. Mahlzeit v7: Eiweiß mitgezählt,
   Bereich „Rezepte & Meal Prep“ (Uwes Overnight Oats und Gerichte), Studio-Tag
-  mit Maschinen. Uwe: 60, 125 kg, 176 cm, Bürojob, Studio 1×/Woche.
+  mit Maschinen. Uwe: 60, 125 kg, 176 cm, Bürojob, Studio 1×/Woche. Mahlzeit v8:
+  KI ausgeblendet (`KI_AN = false` in `mahlzeit/js/ki.js`), solange Tobi
+  kein Anthropic-Guthaben hat – Uwe testet die App seit dem 19.11.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

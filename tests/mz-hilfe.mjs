@@ -51,11 +51,13 @@ function vorbereiten({ tag, zeit, stand, schluessel, weitere }) {
  * Einen Browser starten und Mahlzeit öffnen.
  * Dialoge (confirm, prompt) beantwortet `dialog.antwort` (true/false) bzw.
  * `dialog.text` für prompt; mitgeschrieben in `dialoge`. `kontext` geht an
- * newContext (etwa userAgent), `skripte` laufen vor jeder Seite.
+ * newContext (etwa userAgent), `skripte` laufen vor jeder Seite. `ki: true`
+ * schaltet die KI ein, die in der App aus ist, solange Tobi kein Guthaben hat
+ * (KI_AN in js/ki.js, v8) – so bleiben ihre Tests in Gebrauch.
  */
 export async function oeffne({
   tag = '2026-11-17', zeit = '08:15', stand = null, weitere = null,
-  viewport = { width: 390, height: 844 }, url = MZ_URL, kontext = {}, skripte = [],
+  viewport = { width: 390, height: 844 }, url = MZ_URL, kontext = {}, skripte = [], ki = false,
 } = {}) {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport, locale: 'de-DE', acceptDownloads: true, serviceWorkers: 'block', ...kontext });
@@ -68,6 +70,13 @@ export async function oeffne({
   // Das Lebenszeichen (v6) still annehmen – sonst stünde in jedem Test ein
   // abgebrochener Abruf als Fehler in der Konsole.
   await ctx.route(/rest\/v1\/mahlzeit_nutzung/, (r) => r.fulfill({ status: 201, body: '', headers: { 'access-control-allow-origin': '*' } }));
+  if (ki) {
+    await ctx.route(/\/mahlzeit\/js\/ki\.js/, async (r) => {
+      const res = await r.fetch();
+      const text = (await res.text()).replace('export const KI_AN = false;', 'export const KI_AN = true;');
+      await r.fulfill({ response: res, body: text });
+    });
+  }
   const page = await ctx.newPage();
   const fehler = [];
   const dialoge = [];

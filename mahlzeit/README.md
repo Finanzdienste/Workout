@@ -258,6 +258,32 @@ Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
 abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
 Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
 
+## KI aus, solange kein Guthaben da ist (v8, 19.11.2026)
+
+Tobi: „Der Kollege testet die app jetzt. Es muss also alles außer die ki
+optimal sein. Lass den ki Teil rausnehmen solange ich kein api hab“.
+
+Vorher (v3–v7) zeigte die App die KI überall: „✨ Rezept oder Foto“ unter
+der Suche, die Karte „KI und Strichcode“ mit Freischalten unter *Mehr*, auf
+dem iPhone „Strichcode fotografieren“ und bei einem unbekannten Strichcode
+„Nährwerttabelle fotografieren“. Ohne Anthropic-Guthaben endete jedes davon
+mit „Sag Tobi Bescheid“.
+
+Jetzt gilt der Schalter `KI_AN = false` in `js/ki.js`: An der Stelle von
+„Rezept oder Foto“ steht „✎ Selbst eintragen“. *Mehr* hat keine KI-Karte
+mehr, der Text „Über die App“ nennt nur noch Open Food Facts. Auf dem iPhone
+tippt man die Nummer unter dem Strichcode ein, und die Startbildschirm-Karte
+nennt keinen Code. Ein Link mit `#ki=…` merkt den Code trotzdem still, damit
+es später ohne neuen Link geht. Der Code der KI bleibt in der App, die
+Supabase-Funktion bleibt ausgeliefert.
+
+**Wieder einschalten**, wenn Guthaben da ist: `KI_AN = true`, `VERSION` und
+`FASSUNG` hochzählen, einmal echt testen.
+
+Die Tests der KI-Oberfläche laufen weiter mit `oeffne({ ki: true })` aus
+`tests/mz-hilfe.mjs`, das `KI_AN` beim Ausliefern umschreibt. Geprüft in
+`tests/test-mz-scan.mjs`, Abschnitt 7: KI aus, nichts davon sichtbar.
+
 ## Uwes Plan: Eiweiß, Rezepte, Studio (v7, 19.11.2026)
 
 Tobi hat den Verlauf eines anderen KI-Chats geschickt, in dem Uwe sein
