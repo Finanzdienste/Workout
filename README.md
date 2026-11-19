@@ -4675,8 +4675,8 @@ keine tauschen:
 
 | Eintrag | Zusatzübungen hinter jedem Training |
 | --- | --- |
-| Haltung beim Stehen | Kinn zurückziehen, Wandengel, Dead Bug |
-| Plattfuß / Fersen beim Stehen | Kurzer Fuß (neu), Einbeinstand, Wade dehnen |
+| Haltung beim Stehen | Kinn zurückziehen, Wandengel, Dead Bug (bis v266) |
+| Plattfuß / Fersen beim Stehen | Kurzer Fuß (neu), Einbeinstand, Wade dehnen (bis v266) |
 
 Einmal anhaken, dann hängen sie als *Zum Schluss · Beschwerden* hinter der
 letzten Übung jedes Trainings, wie alle Reha-Übungen: mit Dosis und Haken, ohne
@@ -4687,8 +4687,53 @@ beim Plattfuß das Gewölbe (`SPOTS.foot` in `js/figure.js`).
 
 Geprüft in `tests/test-injuries.mjs`: beide Einträge sperren in keinem Modus
 etwas, alle 336 Einheiten der vier Pläne bleiben unter ihnen bitgleich, die
-Übersicht sagt „Am Plan ändert sich nichts", und die fünf Zusatzübungen stehen
+Übersicht sagt „Am Plan ändert sich nichts", und die Zusatzübungen stehen
 in der Übungsliste hinter der letzten Übung.
+
+#### Nur, was der Plan nicht abdeckt (v267)
+
+> *„Sicher dass vier mal die Woche das zusätzliche Training notwendig ist?
+> Auch ohne 48h Regeneration"*
+> *„Entscheide du wies am meisten Sinn macht, aber sicher dass 100 min
+> zusätzliches Training optimal sind?"*
+> *„Also dachte eig dass viel durch mein Training schon abgedeckt ist"*
+
+**Vorher (v266)** waren es sechs Übungen in den vollen Dosen des Katalogs:
+18 bis 20 Minuten je Training, allein der Einbeinstand mit 3 × 45 s je Seite
+fast fünf. Die Ansage „8 bis 10 Minuten" stimmte nicht.
+
+**Jetzt** bleibt nur, was kein Plan-Satz trifft:
+
+| Eintrag | Zusatzübung | Dosis |
+| --- | --- | --- |
+| Haltung beim Stehen | Kinn zurückziehen (tiefe Halsbeuger) | 2 × 10, je 5 s halten |
+| Plattfuß / Fersen beim Stehen | Kurzer Fuß (Fußsohle) | 2 × 10, je 5 s halten |
+
+Rund 4 Minuten je Training. Weg sind: Wandengel und Dead Bug – Schulterblätter,
+hintere Schulter, Rückenstrecker und Bauch hat der Plan (Face Pull, Reverse
+Fly, Rudern, Klimmzüge, RDL, 9 Sätze Bauch); Einbeinstand und Wade dehnen –
+das einbeinige Wadenheben im Stand und das sitzende nehmen die Wade über den
+vollen Weg unter Last, Gleichgewicht inklusive.
+
+Die 48 Stunden Erholung gelten für schwere Sätze nahe am Versagen. Halten und
+Fußsohle brauchen sie nicht – deshalb bleibt es bei jedem Training.
+
+**`careDose`** am Eintrag gibt einer Übung aus dem Katalog eine eigene, kleinere
+Dosis (das Kinn steht dort mit 3 × 10). Will eine zweite angehakte Beschwerde
+dieselbe Übung in voller Dosis – Nackenverspannung –, gilt die volle, egal in
+welcher Reihenfolge angehakt (`careFor()`).
+
+**Und die Tabelle „Was das pro Woche kostet".** Tobis Screenshot: oben „Am
+Plan ändert sich nichts", darunter „Waden 6,0 → 5,7 (−0,3)", „Gesäß 7,9 → 7,7".
+Die Tabelle verglich den Plan, wie er gerechnet ist, mit den Einheiten von heute
+(`exOf()`) – und dazwischen liegt mehr als die Beschwerden: Einheiten, die vor
+dem Wechsel in den Cut trainiert und festgeschrieben wurden, Nacharbeit, Stufen,
+Vorrat. Bisher fiel das nicht auf, weil jede Beschwerde auch etwas sperrte.
+Jetzt kommt der Unterschied aus genau den Tauschen und Ausfällen, die auch die
+Übersicht darüber nennt (`injuryNotes()`); „vorher" ist „jetzt" ohne sie
+(`weeklyImpact()` in `js/injuries.js`). Geprüft mit einer festgeschriebenen
+Einheit 1: ohne Sperre keine Tabelle, mit „Überlasteter unterer Rücken" eine
+mit echten Verlusten.
 
 ## Verletzungen
 

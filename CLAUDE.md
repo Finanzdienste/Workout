@@ -139,7 +139,11 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (19.11.2026)
-- Workout v266: unter *Verletzt* „Haltung beim Stehen“ und „Plattfuß /
+- Workout v267: Haltung und Plattfuß nur noch mit dem, was der Plan nicht
+  abdeckt – Kinn zurückziehen und Kurzer Fuß, je 2 × 10 (`careDose`), rund 4
+  Minuten je Training; die Tabelle „Was das pro Woche kostet“ zählt nur noch,
+  was die Beschwerden ändern (`weeklyImpact()` aus `injuryNotes()`).
+- Davor v266: unter *Verletzt* „Haltung beim Stehen“ und „Plattfuß /
   Fersen beim Stehen“ – sperren nichts, die Pläne bleiben bitgleich, nur die
   Zusatzübungen hängen hinter jedem Training (neu: „Kurzer Fuß“; README
   „Haltung und Plattfuß“). Tobi wollte ausdrücklich keinen eigenen Modus.

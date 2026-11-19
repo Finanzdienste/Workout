@@ -458,13 +458,66 @@ await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(300);
 const schluss = await page.locator('.care-block .care-name').allTextContents();
 console.log('     hinter dem Training:', schluss.join(' | '));
-check(['Kinn zurückziehen', 'Wandengel', 'Dead Bug', 'Kurzer Fuß', 'Einbeinstand'].every((x) => schluss.includes(x)),
+check(['Kinn zurückziehen', 'Kurzer Fuß'].every((x) => schluss.includes(x)),
   'die Zusatzübungen für Haltung und Fuß stehen hinter der letzten Übung');
+// v267: nur, was der Plan nicht abdeckt – *„sicher dass 100 min zusätzliches
+// Training optimal sind?"*, *„dachte eig dass viel durch mein Training schon
+// abgedeckt ist"*. Zwei Übungen, kleine Dosis; die volle gilt nur, wenn eine
+// andere Beschwerde dieselbe Übung will.
+check(schluss.length === 2, `nur zwei: ${schluss.join(', ')}`);
+const dosis = async (name) => (await page.locator('.care-block .care-row', { hasText: name }).first().textContent()).replace(/\s+/g, ' ');
+check(/2 × 10, je 5 s halten/.test(await dosis('Kinn zurückziehen')) && /2 × 10, je 5 s halten/.test(await dosis('Kurzer Fuß')),
+  'mit der kleinen Dosis (je 2 × 10, 5 s halten)');
+const voll = await page.evaluate(async () => {
+  const { careFor } = await import('./js/injuries.js');
+  const d = (ids) => careFor(ids).find((c) => c.key === 'kinnZurueck').dose;
+  return { allein: d(['haltung']), mitNacken: d(['haltung', 'nacken']), nackenZuerst: d(['nacken', 'haltung']) };
+});
+check(voll.allein === '2 × 10, je 5 s halten' && voll.mitNacken === '3 × 10, je 5 s halten' && voll.nackenZuerst === '3 × 10, je 5 s halten',
+  `kommt Nackenverspannung dazu, gilt deren volle Dosis (${voll.mitNacken} / ${voll.nackenZuerst})`);
 const notizNeu = (await page.locator('.injury-note').textContent()).replace(/\s+/g, ' ');
 check(/Heute ändert das nichts/.test(notizNeu), 'im Training: heute ändert das an den Übungen nichts');
+// v267, Tobis Screenshot: „Am Plan ändert sich nichts" – und darunter „Was das
+// pro Woche kostet: Waden 6,0 → 5,7 (−0,3)". Die Tabelle verglich den Plan mit
+// den Einheiten von heute, und eine schon trainierte Einheit aus dem Plan davor
+// sieht anders aus. Nachgestellt: Einheit 1 festgeschrieben auf eine Übung mit
+// einem Satz. Kostet nichts, also keine Tabelle.
+const fest = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  store.startSession(1);
+  const erst = PLAN[0].ex[0];
+  store.festschreiben({ 1: [{ id: erst.id, sets: 1, bwSets: 1 }] });
+  const { exOf } = await import('./js/plan.js');
+  return { anders: JSON.stringify(exOf(PLAN[0], 'db')) !== JSON.stringify(PLAN[0].ex), id: erst.id };
+});
+check(fest.anders, `Voraussetzung: Einheit 1 sieht anders aus als im Plan (${fest.id} mit einem Satz)`);
+await zuVerletzt();
+await page.waitForTimeout(300);
+check(await page.locator('.inj-table').count() === 0,
+  'Haltung und Plattfuß kosten nichts: keine Tabelle „Was das pro Woche kostet“, auch nicht mit einer festgeschriebenen Einheit');
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('injuries', ['rueckenstrecker']);
+});
+await zuVerletzt();
+await page.waitForTimeout(300);
+const mitSperre = await page.evaluate(async () => {
+  const { weeklyImpact } = await import('./js/injuries.js');
+  const { injuryNotes, exOf, PLAN_WEEKS } = await import('./js/plan.js');
+  const { PLAN } = await import('./js/data.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const notes = PLAN.map((w) => injuryNotes(w.n, 'db'));
+  const imp = weeklyImpact(PLAN.map((w) => exOf(w, 'db')), notes, EX_BY_ID, 'db', PLAN_WEEKS);
+  const m = Object.keys(imp).sort((a, b) => (imp[a].after - imp[a].before) - (imp[b].after - imp[b].before))[0];
+  return { m, diff: imp[m].after - imp[m].before };
+});
+check(mitSperre.diff < -0.5, `eine echte Sperre kostet weiter (unterer Rücken: ${mitSperre.m} ${mitSperre.diff.toFixed(2)} Sätze die Woche)`);
+check(await page.locator('.inj-table tbody tr').count() > 0, 'und dann steht die Tabelle da');
 await page.evaluate(async () => {
   const store = await import('./js/store.js');
   store.setSetting('injuries', []);
+  store.verwirfEinheit(1);
 });
 
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

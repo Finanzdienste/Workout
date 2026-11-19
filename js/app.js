@@ -6359,6 +6359,7 @@ function renderInjuries() {
   // Auswirkungen über den ganzen Plan, nicht nur über heute
   const gone = [];
   const swapCount = new Map();
+  const notizen = [];
   let wegenPause = 0;
   PLAN.forEach((w) => {
     // Mit dem Modus, wie die Wochenrechnung darunter (exOf(w, mode)) – ohne
@@ -6367,6 +6368,7 @@ function renderInjuries() {
     // Hanteln selbst gesperrt ist und beide wegfallen (modusNotiz() in
     // js/plan.js).
     const r = injuryNotes(w.n, mode);
+    notizen.push(r);
     r.dropped.forEach((d) => {
       gone.push(d);
       if (d.reason === 'rest') wegenPause += d.sets;
@@ -6380,7 +6382,9 @@ function renderInjuries() {
   gone.forEach((d) => goneSets.set(d.id, (goneSets.get(d.id) || 0) + d.sets));
 
   const impact = act.length
-    ? weeklyImpact(PLAN, PLAN.map((w) => exOf(w, mode)), EX_BY_ID, mode, PLAN_WEEKS) : {};
+    // Nur, was die Beschwerden ändern – aus denselben Notizen wie die
+    // Übersicht darüber (v267, weeklyImpact() in js/injuries.js).
+    ? weeklyImpact(PLAN.map((w) => exOf(w, mode)), notizen, EX_BY_ID, mode, PLAN_WEEKS) : {};
   const hits = Object.entries(impact)
     .map(([m, v]) => ({ m, ...v, diff: v.after - v.before }))
     .filter((x) => Math.abs(x.diff) > 0.05)
@@ -6507,13 +6511,15 @@ function renderInjuries() {
                 // fallen weg" wäre dort schlicht falsch.
                 : [...i.avoid, ...(i.avoidDb || []), ...(i.avoidBw || [])].length
                   ? '<div class="small muted" style="margin-top:4px">Kein Ersatz – die Übungen fallen weg.</div>'
-                  : '<div class="small muted" style="margin-top:4px">Sperrt keine Übung – der Plan bleibt, wie er ist. Dazu kommen die Übungen unten, hinter jedem Training.</div>'}
+                  : '<div class="small muted" style="margin-top:4px">Sperrt keine Übung – der Plan bleibt, wie er ist. Dazu kommen die Übungen unten, kurz, hinter jedem Training.</div>'}
             </div>
           </div>
           ${(i.care || []).length ? `<div class="inj-care">
             <div class="small"><b>Was gut tut</b>${needsClearance(i.id)
               ? ' <span class="muted">– erst nach ärztlicher Freigabe</span>' : ''}</div>
-            ${i.care.map((k) => (CARE[k] ? careCard({ key: k, ...CARE[k] }) : '')).join('')}
+            ${i.care.map((k) => (CARE[k] ? careCard({
+              key: k, ...CARE[k], ...(i.careDose && i.careDose[k] ? { dose: i.careDose[k] } : {}),
+            }) : '')).join('')}
           </div>` : ''}` : ''}
         </section>`;
       }).join('')}

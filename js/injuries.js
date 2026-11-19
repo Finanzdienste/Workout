@@ -320,7 +320,16 @@ export const INJURIES = [
       + 'Halsbeuger, die Brustwirbelsäule und den Rumpf.',
     avoid: [],
     swap: {},
-    care: ['kinnZurueck', 'wandengel', 'deadBug'],
+    // Nur, was der Plan nicht schon abdeckt (v267). Tobi: „Entscheide du wies
+    // am meisten Sinn macht, aber sicher dass 100 min zusätzliches Training
+    // optimal sind?" und „Also dachte eig dass viel durch mein Training schon
+    // abgedeckt ist". Stimmt: Schulterblätter und hintere Schulter (Face Pull,
+    // Reverse Fly, Rudern, Klimmzüge), Rückenstrecker (RDL) und Bauch (9 Sätze)
+    // sind drin. Wandengel und Dead Bug fallen deshalb weg; was kein Plan-Satz
+    // trifft, sind die tiefen Halsbeuger – das Kinn, in kleinerer Dosis
+    // (`careDose`). Mit dem Plattfuß zusammen rund 4 Minuten je Training.
+    care: ['kinnZurueck'],
+    careDose: { kinnZurueck: '2 × 10, je 5 s halten' },
   },
   {
     id: 'nacken',
@@ -673,7 +682,10 @@ export const INJURIES = [
       + 'kräftigt die Muskeln, die das Gewölbe mittragen. Die Einlagen ersetzt das nicht.',
     avoid: [],
     swap: {},
-    care: ['kurzerFuss', 'einbeinstand', 'wadeGestreckt'],
+    // v267: nur noch der Kurze Fuß. Einbeinstand und Wade dehnen decken das
+    // einbeinige Wadenheben im Stand und das sitzende schon ab – voller Weg
+    // unter Last, Gleichgewicht inklusive. Die Fußsohle trifft kein Plan-Satz.
+    care: ['kurzerFuss'],
   },
 ];
 
@@ -882,8 +894,8 @@ export const CARE = {
       + 'Sprunggelenk in alle Richtungen, ohne es zu belasten.',
   },
   kurzerFuss: {
-    name: 'Kurzer Fuß', kind: 'kraeftigen', dose: '3 × 10, je 5 s halten',
-    cue: 'Erst im Sitzen, später im Stehen. Die Zehen bleiben lang und locker am Boden, '
+    name: 'Kurzer Fuß', kind: 'kraeftigen', dose: '2 × 10, je 5 s halten',
+    cue: 'Erst im Sitzen mit beiden Füßen zugleich, später im Stehen. Die Zehen bleiben lang und locker am Boden, '
       + 'den Fußballen Richtung Ferse ziehen, bis sich das Gewölbe hebt. Nicht die Zehen '
       + 'einkrallen – die Arbeit macht die Fußsohle.',
   },
@@ -1116,34 +1128,37 @@ export function modusTausch(items, active, mode) {
 }
 
 /**
- * Was die Auswahl im Schnitt pro Woche kostet.
+ * Was die Auswahl im Schnitt pro Woche kostet – und nur sie.
  *
  * Gerechnet über den ganzen Plan, damit die Zahl nicht vom heutigen Tag
- * abhängt: Sätze je Muskelgruppe mit und ohne Beschwerden, umgerechnet auf
- * eine Woche. Die angepasste Fassung kommt fertig herein – sie hängt an den
- * Nachbartagen und wird deshalb an einer Stelle in der App gerechnet, nicht
- * hier noch einmal.
+ * abhängt. `adjusted` sind die Einheiten, wie sie jetzt aussehen (exOf() je
+ * Plantag), `notes` je Plantag, was die Beschwerden daran getauscht haben und
+ * was wegfiel (injuryNotes() – dieselbe Quelle wie die Übersicht darüber).
+ * „Vorher" ist „jetzt" ohne genau diese Tausche und Ausfälle.
+ *
+ * Bis v266 war „vorher" der Plan, wie er gerechnet ist (w.ex). Zwischen dem
+ * und den Einheiten von heute liegt aber mehr als die Beschwerden: schon
+ * trainierte Einheiten aus dem Plan davor, Nacharbeit, Stufen, Vorrat. Mit
+ * Haltung und Plattfuß, die nichts sperren, stand dann über der Tabelle „Am
+ * Plan ändert sich nichts" und darin „Waden 6,0 → 5,7 (−0,3)".
  */
-export function weeklyImpact(plan, adjusted, byId, mode, weeks) {
-  const sum = (list) => {
-    const acc = {};
-    list.forEach((it) => {
-      const shares = byId.get(it.id)[mode].shares;
-      Object.entries(shares).forEach(([m, s]) => { acc[m] = (acc[m] || 0) + it.sets * s; });
-    });
-    return acc;
-  };
-  const before = {};
+export function weeklyImpact(adjusted, notes, byId, mode, weeks) {
   const after = {};
-  plan.forEach((w, i) => {
-    const a = sum(w.ex);
-    const b = sum(adjusted[i]);
-    Object.entries(a).forEach(([m, v]) => { before[m] = (before[m] || 0) + v; });
-    Object.entries(b).forEach(([m, v]) => { after[m] = (after[m] || 0) + v; });
+  const delta = {};
+  const add = (acc, id, sets) => {
+    const ex = byId.get(id);
+    const shares = (ex && ex[mode] && ex[mode].shares) || {};
+    Object.entries(shares).forEach(([m, s]) => { acc[m] = (acc[m] || 0) + sets * s; });
+  };
+  adjusted.forEach((list) => list.forEach((it) => add(after, it.id, it.sets)));
+  notes.forEach((r) => {
+    (r.dropped || []).forEach((d) => add(delta, d.id, -d.sets));
+    (r.swapped || []).forEach((x) => { add(delta, x.to, x.sets); add(delta, x.from, -x.sets); });
   });
   const out = {};
-  Object.keys(before).forEach((m) => {
-    out[m] = { before: before[m] / weeks, after: (after[m] || 0) / weeks };
+  new Set([...Object.keys(after), ...Object.keys(delta)]).forEach((m) => {
+    const a = (after[m] || 0) / weeks;
+    out[m] = { before: a - (delta[m] || 0) / weeks, after: a };
   });
   return out;
 }
@@ -1171,7 +1186,12 @@ export function careFor(active) {
     if (!inj) return;
     (inj.care || []).forEach((key) => {
       if (!CARE[key]) return;
-      const seen = out.get(key) || { key, ...CARE[key], wegen: [], clearance: false };
+      const seen = out.get(key) || { key, ...CARE[key], wegen: [], clearance: false, kurz: true };
+      // Eigene, kleinere Dosis eines Eintrags (`careDose`, seit v267). Will
+      // eine andere angehakte Beschwerde dieselbe Übung in voller Dosis, gilt
+      // die volle – die kürzere ist eine Zugabe, keine Obergrenze.
+      const eigene = inj.careDose && inj.careDose[key];
+      if (!eigene) { seen.dose = CARE[key].dose; seen.kurz = false; } else if (seen.kurz) seen.dose = eigene;
       seen.wegen.push(inj.name);
       seen.clearance = seen.clearance || needsClearance(id);
       out.set(key, seen);
