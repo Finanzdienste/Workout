@@ -895,10 +895,14 @@ export const CARE = {
       + 'Sprunggelenk in alle Richtungen, ohne es zu belasten.',
   },
   kurzerFuss: {
-    name: 'Kurzer Fuß', kind: 'kraeftigen', dose: '2 × 10, je 5 s halten',
-    cue: 'Erst im Sitzen mit beiden Füßen zugleich, später im Stehen. Die Zehen bleiben lang und locker am Boden, '
-      + 'den Fußballen Richtung Ferse ziehen, bis sich das Gewölbe hebt. Nicht die Zehen '
-      + 'einkrallen – die Arbeit macht die Fußsohle.',
+    // Hieß bis v268 „Kurzer Fuß", wie die Übung in der Physio heißt. Tobi:
+    // „Ich hab keinen kurzen Fuß sondern nen plattfuß nh" – der Name las sich
+    // wie eine Diagnose. Jetzt sagt er, was man tut; der Fachname steht im Text.
+    name: 'Fußgewölbe anheben', kind: 'kraeftigen', dose: '2 × 10, je 5 s halten',
+    cue: 'Die Übung gegen den Plattfuß – in der Physio heißt sie „Kurzer Fuß", weil der Fuß '
+      + 'dabei kürzer wird. Erst im Sitzen mit beiden Füßen zugleich, später im Stehen. Die '
+      + 'Zehen bleiben lang und locker am Boden, den Fußballen Richtung Ferse ziehen, bis '
+      + 'sich das Gewölbe hebt. Nicht die Zehen einkrallen – die Arbeit macht die Fußsohle.',
   },
   einbeinstand: {
     name: 'Einbeinstand', kind: 'kraeftigen', dose: '3 × 45 s je Seite',

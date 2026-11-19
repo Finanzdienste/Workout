@@ -4774,6 +4774,17 @@ Geprüft in `tests/test-injuries.mjs`: mit „Padel" an jedem Plantag nennt die
 Termin-Karte die Ausfälle, die Beschwerden-Karte bleibt bei „Heute ändert das
 nichts", unter *Verletzt* steht „Am Plan ändert sich nichts" ohne Tabelle.
 
+#### „Kurzer Fuß" heißt jetzt „Fußgewölbe anheben" (v269)
+
+> *„Ich hab keinen kurzen Fuß sondern nen plattfuß nh"*
+
+„Kurzer Fuß" ist der Fachname der Übung, las sich in der Liste aber wie eine
+Diagnose. Die Übung selbst ist dieselbe und die richtige für den Plattfuß. Jetzt
+heißt sie nach dem, was man tut, und der Hinweis beginnt mit „Die Übung gegen
+den Plattfuß – in der Physio heißt sie „Kurzer Fuß", weil der Fuß dabei kürzer
+wird". Der Schlüssel `kurzerFuss` bleibt (abgehakte Einheiten hängen daran).
+Geprüft in `tests/test-injuries.mjs`.
+
 ## Verletzungen
 
 Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl

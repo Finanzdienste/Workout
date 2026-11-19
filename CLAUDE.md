@@ -139,7 +139,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (19.11.2026)
-- Workout v268: Was ein Termin (Padel) herausnimmt, steht nicht mehr unter den
+- Workout v269: Die Zusatzübung „Kurzer Fuß“ heißt „Fußgewölbe anheben“ – Tobi
+  las den Fachnamen als Diagnose (Schlüssel `kurzerFuss` bleibt).
+- Davor v268: Was ein Termin (Padel) herausnimmt, steht nicht mehr unter den
   Beschwerden (Trainingskarte, *Verletzt*, Kostentabelle) – fiel auf, weil
   Haltung und Plattfuß dauerhaft angehakt sind. Auswahl gegen die Studienlage
   geprüft und gelassen (README „Nachgeprüft“).

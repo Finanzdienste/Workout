@@ -458,15 +458,20 @@ await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(300);
 const schluss = await page.locator('.care-block .care-name').allTextContents();
 console.log('     hinter dem Training:', schluss.join(' | '));
-check(['Kinn zurückziehen', 'Kurzer Fuß'].every((x) => schluss.includes(x)),
+check(['Kinn zurückziehen', 'Fußgewölbe anheben'].every((x) => schluss.includes(x)),
   'die Zusatzübungen für Haltung und Fuß stehen hinter der letzten Übung');
 // v267: nur, was der Plan nicht abdeckt – *„sicher dass 100 min zusätzliches
 // Training optimal sind?"*, *„dachte eig dass viel durch mein Training schon
 // abgedeckt ist"*. Zwei Übungen, kleine Dosis; die volle gilt nur, wenn eine
 // andere Beschwerde dieselbe Übung will.
 check(schluss.length === 2, `nur zwei: ${schluss.join(', ')}`);
+// v269: *„Ich hab keinen kurzen Fuß sondern nen plattfuß nh"* – die Übung heißt
+// nach dem, was man tut; „Kurzer Fuß" steht nur noch als Fachname im Hinweis.
+const fussText = (await page.locator('.care-block .care-row', { hasText: 'Fußgewölbe anheben' }).first().textContent()).replace(/\s+/g, ' ');
+check(!schluss.includes('Kurzer Fuß') && /gegen den Plattfuß/.test(fussText) && /„Kurzer Fuß"/.test(fussText),
+  'die Fußübung heißt „Fußgewölbe anheben“ und sagt, dass sie gegen den Plattfuß ist');
 const dosis = async (name) => (await page.locator('.care-block .care-row', { hasText: name }).first().textContent()).replace(/\s+/g, ' ');
-check(/2 × 10, je 5 s halten/.test(await dosis('Kinn zurückziehen')) && /2 × 10, je 5 s halten/.test(await dosis('Kurzer Fuß')),
+check(/2 × 10, je 5 s halten/.test(await dosis('Kinn zurückziehen')) && /2 × 10, je 5 s halten/.test(await dosis('Fußgewölbe anheben')),
   'mit der kleinen Dosis (je 2 × 10, 5 s halten)');
 const voll = await page.evaluate(async () => {
   const { careFor } = await import('./js/injuries.js');
