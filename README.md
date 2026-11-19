@@ -9861,6 +9861,16 @@ Anfragen wie ohne Bildschirmzeit, sie selbst als Letzte; die Kennung weder in
 der entschlüsselten Sicherung noch im Export, im Diagnoseprotokoll oder einer
 anderen Anfrage; die Einzeldatei. Gegen v262 rot.
 
+**v265 – die Bewerbungszentrale kommt dazu.** *„Hab nh zusätzliche App die
+noch nicht connected ist. Geht um die Bewerbungs app"* (Tobi, 19.11.) – die
+Widget-App (Release v15) kennt die Bewerbungszentrale jetzt als vierte Web-App
+(im Widget „Bewerbungen“). Dafür gibt es die Quelle in einer neuen Fassung
+(`BZ_APPS` mit `'bewerbungszentrale'`); `js/bildschirmzeit.js` ist wieder
+byte-gleich mit ihr und liegt jetzt in vier Apps. Für Workout ändert sich
+nichts: es meldet weiter als `'workout'`. Geprüft in
+`tests/test-bildschirmzeit.mjs`, Abschnitt I (die Liste in der Kopie und in der
+Einzeldatei). Gegen v264 rot.
+
 ## Mahlzeit im Unterordner (v264)
 
 > Tobi, 17.11.2026: *„Mein Arbeitskollege hat Probleme mit Blutzucker,
