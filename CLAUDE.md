@@ -138,8 +138,15 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Sendung der App, die Termine zeigen, ob verschoben wurde. Den Stand von To Do
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
-## Stand (17.11.2026)
-- Workout v264: `sw.js` lässt `/mahlzeit` in Ruhe; daneben die neue App
+## Stand (19.11.2026)
+- Workout v266: unter *Verletzt* „Haltung beim Stehen“ und „Plattfuß /
+  Fersen beim Stehen“ – sperren nichts, die Pläne bleiben bitgleich, nur die
+  Zusatzübungen hängen hinter jedem Training (neu: „Kurzer Fuß“; README
+  „Haltung und Plattfuß“). Tobi wollte ausdrücklich keinen eigenen Modus.
+- Davor v265: `js/bildschirmzeit.js` in der neuen Fassung der Quelle – sie
+  kennt die Bewerbungszentrale als vierte Web-App (Widget-App Release v15);
+  für Workout ändert sich nichts.
+- Davor v264: `sw.js` lässt `/mahlzeit` in Ruhe; daneben die neue App
   Mahlzeit v1 unter https://finanzdienste.github.io/Workout/mahlzeit/ (README
   „Mahlzeit im Unterordner“). Mahlzeit v2: Anleitung zum Startbildschirm je
   Handy (iPhone nach Safari-Fassung, mit Symbolen) und die Hafer-Frage
@@ -159,9 +166,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,
-  dann in Workout, Boxenstopp und Freizeit kopieren. Ohne Verbinden-Link
-  (`#bildschirmzeit=…` aus der Widget-App) passiert nichts. Die Widget-App
-  (Android, Release v1) liegt in Finanzdienste/Bildschirmzeit.
+  dann in Workout, Boxenstopp, Freizeit und Bewerbungszentrale kopieren. Ohne
+  Verbinden-Link (`#bildschirmzeit=…` aus der Widget-App) passiert nichts. Die
+  Widget-App (Android) liegt in Finanzdienste/Bildschirmzeit.
 - CI „Prüfung“, Job Browsertests: Playwright 1.56.1 kennt das Ubuntu 26.04
   der Runner nicht („does not support chromium on ubuntu26.04-x64“) – schon
   seit vor v263 rot, der Job „Pläne und erzeugte Dateien“ ist grün. Freizeit

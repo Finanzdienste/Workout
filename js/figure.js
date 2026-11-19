@@ -2182,6 +2182,8 @@ export const SPOTS = {
   shin: (j) => [between(j.kneeL, j.ankleL, 0.5), between(j.kneeR, j.ankleR, 0.5)],
   achilles: (j) => [between(j.kneeL, j.ankleL, 0.9), between(j.kneeR, j.ankleR, 0.9)],
   ankle: (j) => [j.ankleL, j.ankleR],
+  // Das Längsgewölbe, zwischen Knöchel und Zehen (v266, Plattfuß).
+  foot: (j) => [between(j.ankleL, j.toeL, 0.4), between(j.ankleR, j.toeR, 0.4)],
 };
 
 /** Schwache Perspektive: weiter hinten = kleiner. */

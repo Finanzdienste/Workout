@@ -4648,16 +4648,58 @@ aus dem sie in `js/injuries.js` mit Dauer statt Sätzen stehen.
 Abgehakt wird je Einheit (`log[n].care`), nicht je Tag: Wer eine Einheit
 zurücksetzt, setzt sie mit zurück.
 
+### Haltung und Plattfuß: eingebaut, ohne den Plan anzufassen (v266)
+
+> *„Da vllt entsprechende Übungen integrieren bzw vorhandene Übungen
+> austauschen oder so? Die aktuellen Übungen sind aber fein mathematisch
+> ausgewählt usw."*
+> *„Ich wil aufkeinenfall nen extra modus "Stabilität" oder so. Es soll da mit
+> eingebaut sein"*
+
+**Vorher** gab es für Beschwerden beim langen Stehen – Oberkörper, der nach
+vorn sackt, Nacken, Fersen – keinen passenden Eintrag. Der naheliegende,
+*Nackenverspannung*, hätte das Seitheben gesperrt und die seitliche Schulter
+geleert, um die es gar nicht geht.
+
+**Getauscht wird nichts, und das ist nachgerechnet, nicht bequem.** Der obere
+Rücken ist in jedem Plan schon gut versorgt: Im Cut bekommen die hintere
+Schulter 7,95 und die Schulterblattzieher (Nacken) 9,85 Sätze die Woche aus Face
+Pull, Reverse Fly, Rudern und Klimmzügen, im Aufbau 8 und 10. Mehr davon fehlt
+nicht, und eine andere Übung an derselben Stelle hätte nur die Anteile
+verschoben und den Plan neu rechnen lassen. Was fehlt, ist Haltearbeit – tiefe
+Halsbeuger, Brustwirbelsäule, Rumpf, Fußsohle –, und die zählt der Plan bewusst
+nicht als Sätze (siehe oben).
+
+**Jetzt** stehen unter *Verletzt* zwei Einträge, die keine Übung sperren und
+keine tauschen:
+
+| Eintrag | Zusatzübungen hinter jedem Training |
+| --- | --- |
+| Haltung beim Stehen | Kinn zurückziehen, Wandengel, Dead Bug |
+| Plattfuß / Fersen beim Stehen | Kurzer Fuß (neu), Einbeinstand, Wade dehnen |
+
+Einmal anhaken, dann hängen sie als *Zum Schluss · Beschwerden* hinter der
+letzten Übung jedes Trainings, wie alle Reha-Übungen: mit Dosis und Haken, ohne
+Sätze, ohne Wochenvolumen, ohne das Abschließen aufzuhalten. Kein Modus, kein
+zweiter Plan. Die Karte sagt statt „Kein Ersatz – die Übungen fallen weg"
+jetzt „Sperrt keine Übung – der Plan bleibt, wie er ist", die Figur markiert
+beim Plattfuß das Gewölbe (`SPOTS.foot` in `js/figure.js`).
+
+Geprüft in `tests/test-injuries.mjs`: beide Einträge sperren in keinem Modus
+etwas, alle 336 Einheiten der vier Pläne bleiben unter ihnen bitgleich, die
+Übersicht sagt „Am Plan ändert sich nichts", und die fünf Zusatzübungen stehen
+in der Übungsliste hinter der letzten Übung.
+
 ## Verletzungen
 
 Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl
 bleibt stehen, bis der Haken wieder weg ist – sie gilt also für alle kommenden
 Trainings, nicht nur für heute.
 
-**32 Einträge** in `js/injuries.js`, nach Körperregion sortiert, von der
-Schulter bis zur Achillessehne. Je Eintrag: eine kurze Beschreibung, welche
-Bewegung das Problem ist, welche Übungen deshalb gesperrt sind und wo es einen
-Ersatz gibt.
+**34 Einträge** in `js/injuries.js`, nach Körperregion sortiert, von der
+Schulter bis zum Fuß (Haltung und Plattfuß seit v266). Je Eintrag: eine
+kurze Beschreibung, welche Bewegung das Problem ist, welche Übungen deshalb
+gesperrt sind und wo es einen Ersatz gibt.
 
     avoid   Übungen, die mit dieser Beschwerde nicht in den Plan gehören.
     swap    Ersatz, wo es einen gibt, der dieselbe Richtung trainiert, ohne
@@ -4702,7 +4744,7 @@ Statistik, Kalender und der Verletzungs-Tab lesen alle daraus, damit die Zahlen
 nicht auseinanderlaufen. Die Schwelle (48 Stunden, Anteil ab 0,5) kommt als
 `REST` aus denselben erzeugten Daten wie der Plan.
 
-**Was gut tut.** 34 Zusatzübungen in `CARE`, jede mit Art (dehnen,
+**Was gut tut.** 35 Zusatzübungen in `CARE`, jede mit Art (dehnen,
 mobilisieren, kräftigen, entlasten), Dosierung und einem Hinweis, worauf es
 ankommt – beim Wandsitz etwa, dass die isometrische Belastung die Patellasehne
 reizarm belastet und den Schmerz oft noch am selben Tag senkt. Je Beschwerde
@@ -9860,6 +9902,16 @@ verbunden oder nicht; Wegschalten mit Sicherung und Kalender – dieselben
 Anfragen wie ohne Bildschirmzeit, sie selbst als Letzte; die Kennung weder in
 der entschlüsselten Sicherung noch im Export, im Diagnoseprotokoll oder einer
 anderen Anfrage; die Einzeldatei. Gegen v262 rot.
+
+**v265 – die Bewerbungszentrale kommt dazu.** *„Hab nh zusätzliche App die
+noch nicht connected ist. Geht um die Bewerbungs app"* (Tobi, 19.11.) – die
+Widget-App (Release v15) kennt die Bewerbungszentrale jetzt als vierte Web-App
+(im Widget „Bewerbungen“). Dafür gibt es die Quelle in einer neuen Fassung
+(`BZ_APPS` mit `'bewerbungszentrale'`); `js/bildschirmzeit.js` ist wieder
+byte-gleich mit ihr und liegt jetzt in vier Apps. Für Workout ändert sich
+nichts: es meldet weiter als `'workout'`. Geprüft in
+`tests/test-bildschirmzeit.mjs`, Abschnitt I (die Liste in der Kopie und in der
+Einzeldatei). Gegen v264 rot.
 
 ## Mahlzeit im Unterordner (v264)
 

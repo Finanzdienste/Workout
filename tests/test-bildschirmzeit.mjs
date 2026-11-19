@@ -36,6 +36,8 @@
  *      nicht entschlüsselt), im Export, im Diagnoseprotokoll oder einer
  *      anderen Anfrage.
  *   H. Die Einzeldatei: läuft, schweigt ohne Link und verbindet mit ihm.
+ *   I. Die Fassung der Quelle (v265): js/bildschirmzeit.js und die
+ *      Einzeldatei kennen alle vier Web-Apps, auch die Bewerbungszentrale.
  *
  *     node tests/test-bildschirmzeit.mjs           # alles
  *     node tests/test-bildschirmzeit.mjs B G       # nur diese Abschnitte
@@ -696,6 +698,16 @@ if (abschnitt('H')) {
   const importiert = (/import \{([^}]*)\} from '\.\/bildschirmzeit\.js';/.exec(readFileSync(path.join(ROOT, 'js', 'app.js'), 'utf8')) || [])[1] || '';
   const namen = (t) => t.split(',').map((n) => n.trim()).filter(Boolean).sort().join(', ');
   check(!!aussen && namen(aussen) === namen(importiert), `im Bündel nach außen nur, was app.js importiert (${namen(aussen)})`);
+}
+
+// I. Tobi, 19.11.: „Hab nh zusätzliche App die noch nicht connected ist. Geht um die Bewerbungs app“ –
+//    die Quelle (Finanzdienste/Bildschirmzeit, web/bildschirmzeit.js) kennt seitdem vier Apps; die Kopie muss dieselbe sein.
+if (abschnitt('I')) {
+  const liste = (t) => ((/(?:export )?const BZ_APPS = \[([^\]]*)\]/.exec(t) || [])[1] || '').split(',').map((s) => s.trim().replace(/'/g, '')).filter(Boolean).join(', ');
+  const kopie = liste(readFileSync(path.join(ROOT, 'js', 'bildschirmzeit.js'), 'utf8'));
+  check(kopie === 'boxenstopp, freizeit, workout, bewerbungszentrale', `js/bildschirmzeit.js ist die Fassung mit der Bewerbungszentrale (BZ_APPS: ${kopie})`);
+  const einzeln = liste(readFileSync(path.join(ROOT, 'dist', 'workout.html'), 'utf8'));
+  check(einzeln === kopie, `die Einzeldatei hat dieselbe Liste (${einzeln})`);
 }
 
 check(seitenFehler.length === 0, `keine Fehler in der Seite${seitenFehler.length ? `: ${seitenFehler.slice(0, 3).join(' | ')}` : ''}`);
