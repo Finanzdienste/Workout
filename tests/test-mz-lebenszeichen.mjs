@@ -5,6 +5,9 @@
  * Stunden; abschaltbar; ohne Netz kein Fehler.
  */
 import * as LZ from '../mahlzeit/js/lebenszeichen.js';
+import { readFileSync } from 'node:fs';
+
+const FASSUNG = readFileSync(new URL('../mahlzeit/js/app.js', import.meta.url), 'utf8').match(/export const FASSUNG = '([^']+)'/)[1];
 import { oeffne, pruefer } from './mz-hilfe.mjs';
 
 const { check, ende } = pruefer();
@@ -28,7 +31,7 @@ await o.page.route(/rest\/v1\/mahlzeit_nutzung/, async (r) => { gesendet.push({ 
 await o.page.waitForTimeout(4600);
 check(gesendet.length === 1, `beim Öffnen genau ein Lebenszeichen (${gesendet.length})`);
 const b = JSON.parse(gesendet[0]?.body || '{}');
-check(b.tag === TAG && b.essen === 2 && b.hafer === 1 && b.sport === 1 && b.werte === 2 && b.fassung === 'v6' && /^[a-z0-9]{8,24}$/.test(b.geraet), 'mit Tag, Zahlen, Fassung und Zufallskennung');
+check(b.tag === TAG && b.essen === 2 && b.hafer === 1 && b.sport === 1 && b.werte === 2 && b.fassung === FASSUNG && /^[a-z0-9]{8,24}$/.test(b.geraet), 'mit Tag, Zahlen, Fassung und Zufallskennung');
 const roh = gesendet[0]?.body || '';
 check(!/Döner|Gulasch|Haferbrei|Apfel|700|275|98|140|Uwe/.test(roh), 'kein Essen, keine Kalorien, kein Gewicht, kein Blutzucker, kein Name');
 check(gesendet[0].headers.apikey?.startsWith('sb_publishable_'), 'nur mit dem öffentlichen Schlüssel');

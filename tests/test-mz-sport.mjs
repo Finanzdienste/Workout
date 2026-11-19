@@ -84,6 +84,16 @@ check(zahlen.length > 500 && zahlen.every((z) => z >= 0 && z <= 100), 'alle Punk
 check(figur('kniebeugeStuhl').includes('<animate') && !figur('kniebeugeStuhl', { ruhig: true }).includes('<animate'), 'bewegt zwischen Start und Ende; mit „Bewegung reduzieren" still');
 check(figur('rudernKH').includes('class="eisen"') && figur('schwungstaebe').includes('class="stab"') && figur('wackelkissenStand').includes('kissen') && figur('radLocker').includes('class="rad"'), 'die Geräte sind mitgezeichnet: Hantel, Schwungstäbe, Wackelkissen, Rad');
 
+// --- Studio (v7): Uwes Plan – 1× Studio an den Maschinen, 1× zu Hause
+const st = ids(SP.einheit('studio', { geraete: ['studio'], beschwerden: [] }));
+check(st[0] === 'ergometer' && ['beinpresse', 'brustpresse', 'latzug', 'beinbeugerMaschine', 'schulterMaschine'].every((id) => st.includes(id)), 'Studio: Ergometer, Beinpresse, Brustpresse, Latzug, Beinbeuger, Schulterdrücken');
+check(!ids(SP.einheit('studio', { geraete: ['studio'], beschwerden: ['schulter'] })).some((id) => ['brustpresse', 'latzug', 'schulterMaschine'].includes(id)), 'Studio mit Schulter: kein Drücken, kein Latzug – Ruderzug bleibt');
+check(SP.einheit('studio', { geraete: [], beschwerden: [] }).length === 0, 'ohne Studio: keine Studio-Einheit');
+const mitStudio = (log) => SP.heuteDran(SP.sportOrdnen({ eingerichtet: true, geraete: ['studio', 'hanteln'], hanteln: [5], kraftProWoche: 2, log }), T);
+check(mitStudio([]).vorschlag === 'studio', 'mit Studio: diese Woche zuerst das Studio');
+check(mitStudio([{ tag: '2026-11-16', art: 'studio' }]).vorschlag === 'kraft' && mitStudio([{ tag: '2026-11-16', art: 'studio' }]).kraftWoche === 1, 'Studio Montag gemacht: Mittwoch zu Hause, zählt als 1 von 2');
+check(!mitStudio([{ tag: plus(T, -1), art: 'studio' }]).kraft, 'Studio gestern: heute Pause');
+
 // --- Im Browser
 const TAG = '2026-11-18';
 let o = await oeffne({ tag: TAG, zeit: '18:00' });
@@ -170,6 +180,26 @@ await p.click('#los-kraft');
 for (let i = 0; i < 3; i++) await p.click('#training-weiter');
 check((await p.locator('#uebung-dosis').innerText()).includes('8 kg je Hand'), 'Rudern jetzt mit 8 kg');
 await o.browser.close();
+
+// Studio im Browser: Gewicht an der Maschine eintragen, nächstes Mal steht es da
+o = await oeffne({ tag: '2026-11-23', stand: { ...stand, sport: { ...stand.sport, geraete: [...stand.sport.geraete, 'studio'] } } });
+p = o.page;
+await p.click('#reiter-sport');
+check(await p.locator('#los-studio').isVisible() && (await p.locator('#sport-hinweis').innerText()).includes('Studio'), 'neue Woche mit Studio: „guter Tag fürs Studio"');
+await p.click('#los-studio');
+check((await p.locator('#uebung-name').innerText()).startsWith('Fahrrad-Ergometer'), 'Studio beginnt mit dem Ergometer');
+await p.click('#training-weiter');
+check((await p.locator('#uebung-name').innerText()) === 'Beinpresse' && await p.locator('#maschine-kg').isVisible(), 'Beinpresse mit Feld fürs Gewicht');
+await p.fill('#maschine-kg', '60');
+n = Number((await p.locator('#training-stand').innerText()).match(/von (\d+)/)[1]);
+for (let i = 1; i < n; i++) await p.click('#training-weiter');
+const sp3 = (await o.gespeichert()).sport;
+check(sp3.gewichte.beinpresse === 60 && sp3.log.some((l) => l.art === 'studio' && l.tag === '2026-11-23'), 'Beinpresse 60 kg gemerkt, Studio festgehalten');
+await p.click('#training-ende [data-tun="ebene-zu"]');
+check((await p.locator('#sport-woche').innerText()).includes('🏢'), 'Woche: 🏢 fürs Studio');
+await o.browser.close();
+const st3 = await (async () => { const x = await oeffne({ tag: '2026-11-26', stand: { ...stand, sport: sp3 } }); await x.page.click('#reiter-sport'); await x.page.click('#los-studio'); await x.page.click('#training-weiter'); const v = await x.page.inputValue('#maschine-kg'); await x.browser.close(); return v; })();
+check(st3 === '60', 'nächstes Mal steht 60 kg schon im Feld');
 
 // Hafertag
 o = await oeffne({ tag: TAG, stand: { ...stand, hafer: { art: 'verteilt', proMonat: 3, tage: [TAG] } } });

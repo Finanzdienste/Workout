@@ -71,10 +71,36 @@ export const FIGUREN = {
   wackelkissenStand: U(stuhl(70, false), { ...S, kh: [44, 68], fh: [40, 84], ev: [58, 38], hv: [70, 40] }, { k: [51, 16], n: [51, 25], h: [50, 51] }, null, '<ellipse class="kissen" cx="53" cy="89.5" rx="9" ry="3"/>'),
   einbeinstand: U(stuhl(70, false), { ...S, kh: [44, 68], fh: [40, 84], ev: [58, 38], hv: [70, 40] }, { k: [51, 16] }),
 };
+// Studio (v7): Maschinen als Sitz, Polster und Griff
+const polster = (x1, y1, x2, y2) => linie([x1, y1], [x2, y2], 4);
+const SITZ_M = { ...SITZ, h: [42, 62], n: [40, 36], k: [40, 27] };
+FIGUREN.ergometer = null;
+FIGUREN.beinpresse = U([polster(18, 36, 36, 70), polster(36, 70, 52, 70), linie([44, 70], [44, 91])],
+  { k: [22, 38], n: [27, 46], h: [40, 66], kv: [56, 50], fv: [68, 62], kh: [55, 52], fh: [67, 64], ev: [34, 58], hv: [42, 68], eh: [33, 58], hh: [41, 68] },
+  { kv: [62, 58], fv: [78, 64], kh: [61, 60], fh: [77, 66] },
+  (p) => [linie([p.fv[0] + 2, p.fv[1] - 12], [p.fv[0] + 2, p.fv[1] + 10], 3.5, 'eisen')]);
+FIGUREN.brustpresse = U([polster(36, 28, 36, 64), ...stuhl(36, true).slice(0, 3)],
+  { ...SITZ_M, ev: [42, 46], hv: [54, 40], eh: [41, 46], hh: [53, 40] }, { ev: [56, 38], hv: [70, 38], eh: [55, 39], hh: [69, 39] },
+  (p) => [linie([p.hv[0], p.hv[1] - 5], [p.hv[0], p.hv[1] + 5], 3.5, 'eisen')]);
+FIGUREN.latzug = U([...stuhl(30, true).slice(0, 3), polster(52, 56, 62, 56), linie([48, 2], [48, 6], 1.5, 'ding')],
+  { ...SITZ_M, ev: [46, 18], hv: [48, 8], eh: [44, 18], hh: [46, 8] }, { ev: [36, 46], hv: [46, 32], eh: [35, 46], hh: [45, 32] },
+  (p) => [linie([p.hv[0] - 13, p.hv[1]], [p.hv[0] + 13, p.hv[1]], 3, 'eisen'), linie([p.hv[0], p.hv[1]], [48, 4], 1, 'ding')]);
+FIGUREN.ruderzug = U([linie([28, 70], [56, 70], 4), linie([84, 60], [84, 84], 4), linie([88, 50], [88, 91], 2)],
+  { k: [42, 37], n: [42, 46], h: [36, 68], kv: [56, 58], fv: [82, 70], kh: [55, 60], fh: [81, 72], ev: [56, 52], hv: [70, 52], eh: [55, 53], hh: [69, 53] },
+  { ev: [30, 60], hv: [48, 58], eh: [29, 61], hh: [47, 59], k: [40, 36], n: [40, 45] },
+  (p) => [linie([p.hv[0] - 1, p.hv[1] - 4], [p.hv[0] - 1, p.hv[1] + 4], 3, 'eisen'), linie([p.hv[0], p.hv[1]], [88, 56], 1, 'ding')]);
+FIGUREN.beinbeugerMaschine = U([polster(34, 30, 34, 64), ...stuhl(34, true).slice(0, 3), polster(54, 58, 64, 58)],
+  { ...SITZ_M, k: [42, 27], n: [42, 36], h: [44, 62], kv: [64, 62], fv: [84, 64], kh: [63, 64], fh: [83, 66], ev: [50, 50], hv: [56, 60], eh: [49, 50], hh: [55, 60] },
+  { kv: [64, 62], fv: [62, 84], kh: [63, 64], fh: [61, 86] },
+  (p) => [linie([p.fv[0] + 1, p.fv[1] - 3], [p.fv[0] + 1, p.fv[1] + 3], 5, 'eisen')]);
+FIGUREN.schulterMaschine = U([polster(36, 22, 36, 64), ...stuhl(36, true).slice(0, 3)],
+  { ...SITZ_M, ev: [50, 44], hv: [50, 30], eh: [48, 44], hh: [48, 30] }, { ev: [48, 22], hv: [47, 10], eh: [46, 22], hh: [45, 10] },
+  (p) => [linie([p.hv[0] - 3, p.hv[1]], [p.hv[0] + 4, p.hv[1]], 3.5, 'eisen')]);
 FIGUREN.radIntervall = FIGUREN.radLocker;
 // Das Rad: Sattel, Lenker, Schwungrad – fest unter der Figur
 const RAD = '<g class="rad"><circle cx="48" cy="80" r="11"/><path d="M 36 50 L 46 50 M 41 50 L 48 80 L 64 44 M 60 44 L 68 44 M 30 91 L 70 91 M 48 80 L 36 91 M 48 80 L 62 91"/></g>';
 FIGUREN.radLocker.extra = RAD;
+FIGUREN.ergometer = FIGUREN.radLocker;
 
 const GLIEDER = [['h', 'kh', 'hinten'], ['kh', 'fh', 'hinten'], ['n', 'eh', 'hinten'], ['eh', 'hh', 'hinten'], ['h', 'kv', ''], ['kv', 'fv', ''], ['n', 'ev', ''], ['ev', 'hv', '']];
 

@@ -153,6 +153,17 @@ mitEan.eigene = [pk];
 check(R.eigeneMitEan(mitEan, '4008400401621') === pk && R.eigeneMitEan(mitEan, '1') === null, 'schon gescannt: ohne Netz wiedergefunden');
 check(R.ordnen({ eigene: [pk] }).eigene[0].kcal100 === 480, 'eigene Sachen behalten kcal je 100 g und Strichcode im Speicher');
 
+// --- Eiweiß und Rezepte (v7)
+check(LEBENSMITTEL.every((l) => Number.isFinite(l.ei) && l.ei >= 0), 'jede Sache hat Eiweiß je Portion');
+check(LEBENSMITTEL.every((l) => (l.ei + l.kh) * 4 <= l.kcal + 20), 'Eiweiß und Kohlenhydrate passen zu den Kalorien');
+const se = R.summe([{ kcal: 455, kh: 49, ei: 36, m: 1 }, { kcal: 140, kh: 27, ei: 5, m: 2 }]);
+check(se.ei === 46, `Eiweiß wird mitgezählt (${se.ei} g)`);
+check(R.suche('overnight', LEBENSMITTEL).map((l) => l.id).slice(0, 3).join() === 'overnight_oats,overnight_oats_skyr,overnight_oats_whey', 'Uwes Overnight Oats in drei Fassungen');
+check(['mp_haehnchen_blech', 'mp_rinder_chili', 'mp_thunfisch_nudeln', 'mp_puten_reis'].every((id) => NACH_ID.get(id)?.k === 'rezepte'), 'die vier Meal-Prep-Gerichte im Bereich „Rezepte & Meal Prep"');
+check(NACH_ID.get('overnight_oats_skyr').kcal === 455 && NACH_ID.get('overnight_oats_skyr').ei === 36, 'Overnight Oats mit Skyr: 455 kcal, 36 g Eiweiß');
+const offEi = S.produktAusOff({ status: 1, product: { product_name: 'Skyr', serving_quantity: 150, nutriments: { 'energy-kcal_100g': 63, carbohydrates_100g: 4, proteins_100g: 11 } } }, '1');
+check(offEi.ei100 === 11 && S.sacheAusProdukt(offEi, 'x').ei === 17, 'Strichcode: Eiweiß aus Open Food Facts (150 g Skyr: 17 g)');
+
 // --- Kalenderdatei
 const ics = R.haferIcs(['2026-11-22', '2026-11-21'], new Date(Date.UTC(2026, 10, 17, 9, 30)));
 check((ics.match(/BEGIN:VEVENT/g) || []).length === 2, 'je Hafertag ein Termin');

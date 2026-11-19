@@ -50,6 +50,7 @@ export function produktAusOff(json, code) {
     kcal100 = Number.isFinite(kj) ? kj / 4.184 : Number.isFinite(energie) ? energie / 4.184 : NaN;
   }
   const kh100 = n(nu.carbohydrates_100g);
+  const ei100 = n(nu.proteins_100g);
   const name = String(p.product_name_de || p.product_name || p.generic_name_de || '').trim();
   const marke = String(p.brands || '').split(',')[0].trim();
   const portionGramm = n(p.serving_quantity);
@@ -63,6 +64,7 @@ export function produktAusOff(json, code) {
     portionGramm: Number.isFinite(portionGramm) && portionGramm >= 5 && portionGramm <= 1000 ? Math.round(portionGramm) : 0,
     kcal100: gut ? Math.round(kcal100) : null,
     kh100: Number.isFinite(kh100) && kh100 >= 0 && kh100 <= 100 ? Math.round(kh100 * 10) / 10 : 0,
+    ei100: Number.isFinite(ei100) && ei100 >= 0 && ei100 <= 100 ? Math.round(ei100 * 10) / 10 : 0,
     ohneWerte: !gut,
   };
 }
@@ -81,6 +83,8 @@ export function sacheAusProdukt(p, id) {
     g,
     kcal: Math.round((p.kcal100 * g) / 100),
     kh: Math.round((p.kh100 * g) / 100),
+    ei: Math.round(((p.ei100 || 0) * g) / 100),
+    ei100: p.ei100 || 0,
     kcal100: p.kcal100,
     kh100: p.kh100,
     ean: p.ean,

@@ -258,6 +258,38 @@ Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
 abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
 Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
 
+## Uwes Plan: Eiweiß, Rezepte, Studio (v7, 19.11.2026)
+
+Tobi hat den Verlauf eines anderen KI-Chats geschickt, in dem Uwe sein
+Frühstück (Overnight Oats) hat ausrechnen lassen und einen Plan bekam: 60
+Jahre, 125 kg, 176 cm, Bürojob, einmal die Woche Fitnessstudio an den
+Maschinen, einmal zu Hause mit Hanteln, dazwischen Heimtrainer; Eiweiß
+150–165 g am Tag; vier Meal-Prep-Gerichte. Auf die Frage, was davon in die
+App soll: „Alles“.
+
+- **Eiweiß wird mitgezählt:** jede der rund 210 Sachen hat Eiweiß je
+  Portion (`EIWEISS` in `js/lebensmittel.js`, Richtwerte wie die kcal);
+  „Heute“ zeigt „davon etwa … g Kohlenhydrate · … g Eiweiß“, das Eintragen
+  ebenso. Selbst eintragen hat ein Feld für Eiweiß, der Strichcode liest es
+  aus Open Food Facts (`proteins_100g`). Die KI liefert es noch nicht (das
+  Schema der Funktion kennt es nicht – beim nächsten Ausliefern nachziehen).
+  **Kein Eiweißziel:** Unter *Mehr → Tagesziel* steht, viel Eiweiß vorher mit
+  dem Arzt zu besprechen – bei Blutzuckerproblemen sollten die Nieren einmal
+  angeschaut sein. Wie bei den Hafertagen: keine Zahl, die die App vorgibt.
+- **Neuer Bereich „Rezepte & Meal Prep“:** Overnight Oats (385 kcal),
+  mit Skyr (455) und mit Eiweißpulver (450), Hähnchen-Kartoffel-Blech (590),
+  Rinder-Chili (620), Thunfisch-Nudel-Pfanne (580), Puten-Reis-Pfanne (560),
+  Magerquark mit Beeren (230) – je Portion, mit den Werten aus seinem Plan.
+- **Studio im Sport:** Gerät „Fitnessstudio“; dann eine eigene Einheit mit
+  Ergometer, Beinpresse, Brustpresse, Latzug (bei Schulter/Nacken der
+  Ruderzug), Ruderzug, Beinbeuger sitzend, Schulterdrücken an der Maschine –
+  mit Zeichnungen. Die App schlägt einmal die Woche das Studio vor, die
+  übrigen Male zu Hause; beides zählt als Kraft (nie zwei Tage
+  hintereinander). An jeder Maschine ein Feld fürs Gewicht, das beim nächsten
+  Mal schon dasteht.
+
+Geprüft in `tests/test-mz-rechnen.mjs` und `tests/test-mz-sport.mjs`.
+
 ## Heute
 
 Tagessumme groß, darunter die Kohlenhydrate (für den Blutzucker zählen die
@@ -381,7 +413,7 @@ Startbildschirm müsste er neu anlegen.
 | `index.html` | Gerüst: Kopf, Leiste unten, Platz für Ansicht, Ebene und Meldung |
 | `js/app.js` | Oberfläche – Heute, Hafer, Werte, Mehr, die Ebene „Essen eintragen“ |
 | `js/rechnen.js` | alles Rechnen ohne Seite: Suche, Summen, Tage, Hafertage, Kalenderdatei, Sicherung |
-| `js/lebensmittel.js` | die Liste: Kennung, Name, Portion, kcal, Kohlenhydrate, Bereich, Suchwörter, Tipp |
+| `js/lebensmittel.js` | die Liste: Kennung, Name, Portion, kcal, Kohlenhydrate, Eiweiß, Bereich, Suchwörter, Tipp |
 | `js/speicher.js` | localStorage, nur Schlüssel mit `mahlzeit.` |
 | `js/strichcode.js` | Prüfziffer, Open Food Facts, Kamera (`BarcodeDetector`) |
 | `js/figuren.js` | Strichfiguren der Sportübungen, Start- und Endstellung |

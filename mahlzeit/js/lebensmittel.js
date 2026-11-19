@@ -24,6 +24,7 @@ export const BEREICHE = [
   { id: 'obst', n: 'Obst & Gemüse', z: '🍎' },
   { id: 'trinken', n: 'Getränke', z: '🥤' },
   { id: 'alkohol', n: 'Bier, Wein & Co.', z: '🍺' },
+  { id: 'rezepte', n: 'Rezepte & Meal Prep', z: '🥗' },
   { id: 'hafer', n: 'Hafertag', z: '🌾' },
 ];
 
@@ -232,6 +233,17 @@ export const LEBENSMITTEL = [
   L('longdrink', 'Longdrink mit Cola o. ä.', '1 Glas', 220, 25, 'alkohol', 'whisky cola cuba libre wodka energy gin tonic', 'Mit Cola Zero oder Tonic light: rund 100 kcal weniger.'),
   L('gluehwein', 'Glühwein', '1 Becher (0,2 l)', 200, 22, 'alkohol', 'weihnachtsmarkt punsch'),
 
+  // Rezepte & Meal Prep (v7) – Uwes Frühstück und vier Gerichte zum Vorkochen,
+  // je Portion; Werte aus der Rechnung seines Plans (Tobi, 19.11.)
+  L('overnight_oats', 'Overnight Oats', '50 g Haferflocken, 30 g Haferkleie, 20 g Leinsamen, Zimt, Wasser', 385, 46, 'rezepte', 'oats haferflocken haferkleie leinsamen fruehstueck'),
+  L('overnight_oats_skyr', 'Overnight Oats mit Skyr', '50 g Haferflocken, 15 g Haferkleie, 20 g Leinsamen, 200 g Skyr', 455, 49, 'rezepte', 'oats haferflocken skyr eiweiss protein fruehstueck'),
+  L('overnight_oats_whey', 'Overnight Oats mit Eiweißpulver', '50 g Haferflocken, 15 g Haferkleie, 20 g Leinsamen, 30 g Whey', 450, 45, 'rezepte', 'oats haferflocken whey protein eiweisspulver fruehstueck'),
+  L('mp_haehnchen_blech', 'Hähnchen-Kartoffel-Blech', '1 Portion (200 g Hähnchen, 300 g Kartoffeln, Gemüse)', 590, 58, 'rezepte', 'haehnchen kartoffeln blech ofen meal prep'),
+  L('mp_rinder_chili', 'Rinder-Chili mit Bohnen und Mais', '1 Portion (½ Topf)', 620, 46, 'rezepte', 'chili rind hackfleisch bohnen mais meal prep'),
+  L('mp_thunfisch_nudeln', 'Thunfisch-Nudel-Pfanne mit Spinat', '1 Portion (75 g Nudeln, 1 Dose Thunfisch)', 580, 56, 'rezepte', 'thunfisch nudeln spinat meal prep'),
+  L('mp_puten_reis', 'Puten-Gemüse-Pfanne mit Reis', '1 Portion (190 g Pute, 70 g Reis)', 560, 64, 'rezepte', 'pute putenbrust reis asia wok gemuese meal prep'),
+  L('magerquark_beeren', 'Magerquark mit Beeren', '250 g Quark, 100 g Beeren', 230, 18, 'rezepte', 'quark beeren snack eiweiss'),
+
   // Hafertag – die Portionen nach dem Infoblatt (75 g Haferflocken je Mahlzeit)
   L('hafer_wasser', 'Haferbrei mit Wasser (Hafertag)', '75 g Haferflocken', 275, 44, 'hafer', 'hafertag haferschleim porridge haferkur suess'),
   L('hafer_bruehe', 'Haferbrei mit Gemüsebrühe (Hafertag)', '75 g Haferflocken, etwas Gemüse', 285, 45, 'hafer', 'hafertag haferschleim porridge haferkur herzhaft'),
@@ -242,5 +254,39 @@ export const BELIEBT = [
   'broetchen', 'butter', 'kaese', 'kaffee_milch', 'kaesebroetchen', 'apfel', 'banane',
   'currywurst_pommes', 'doener', 'schnitzel_pommes', 'pizza_salami', 'cola_flasche', 'bier', 'schokolade',
 ];
+
+/*
+ * Eiweiß je Portion in g (v7). Tobi, 19.11.: „Alles" – zu Uwes Plan, der
+ * sich ums Eiweiß dreht. Richtwerte wie die kcal, gerundet.
+ */
+const EIWEISS = {
+  broetchen: 5, vollkornbroetchen: 5, koernerbroetchen: 7, laugenbrezel: 7, laugenbroetchen: 6, croissant: 5, schokocroissant: 6,
+  toast: 2, vollkorntoast: 3, mischbrot: 3, vollkornbrot: 4, knaeckebrot: 1, butter: 0, margarine: 0, marmelade: 0, honig: 0,
+  nussnougat: 1, kaese: 6, kaese_light: 8, frischkaese: 1, camembert: 6, salami: 4, schinken: 8, putenbrust: 8, leberwurst: 2,
+  fleischwurst: 4, mett: 8, ei: 7, ruehrei: 14, spiegelei: 7, bacon: 6, muesli: 5, knuspermuesli: 4, cornflakes: 3, haferflocken: 7,
+  porridge_milch: 15, milch: 7, vollmilch: 7, joghurt: 6, fruchtjoghurt: 5, quark: 15, skyr: 16, huettenkaese: 12,
+  kaesebroetchen: 13, wurstbroetchen: 11, mettbroetchen: 20, leberkaesbroetchen: 18, fischbroetchen: 14, frikadellenbroetchen: 18,
+  kaesekuchen: 9, obstkuchen: 3, streuselkuchen: 5, torte: 5, berliner: 5, donut: 4, muffin: 5, teilchen: 5, franzbroetchen: 6,
+  nussecke: 7, kekse: 1, schokokekse: 1, lebkuchen: 1, spekulatius: 1, stollen: 3,
+  schnitzel_pommes: 38, schnitzel: 32, currywurst_pommes: 20, currywurst: 14, pommes: 5, mayo: 0, ketchup: 0,
+  bratwurst_broetchen: 17, bratwurst: 13, bockwurst: 10, frikadelle: 15, leberkaese: 18, doener: 35, duerum: 38, doener_teller: 40,
+  falafel: 18, pizza_margherita: 32, pizza_salami: 40, tk_pizza: 33, pizzastueck: 16, spaghetti_bolo: 30, nudeln_tomate: 17,
+  nudeln_sahne: 28, lasagne: 30, kaesespaetzle: 30, nudeln: 12, reis: 5, kartoffeln: 4, pueree: 4, bratkartoffeln: 5,
+  kartoffelsalat_mayo: 4, kartoffelsalat_essig: 4, knoedel: 5, braten: 35, roulade: 32, gulasch: 40, haehnchenbrust: 45,
+  haehnchen_halb: 60, nuggets: 15, burger: 26, cheeseburger: 15, fastfood_pommes: 4, fischstaebchen: 18, lachs: 30, backfisch: 25,
+  sushi: 14, asia_nudeln: 30, asia_reis: 25, curry: 35, chili: 30, eintopf: 22, gemuesesuppe: 4, gruenkohl: 45, salat_klein: 2,
+  salat_gross: 30, wrap: 25, auflauf: 22, fertiggericht: 20,
+  schokolade: 2, schokolade_tafel: 7, schokoriegel: 3, gummibaerchen: 2, chips: 2, chips_tuete: 11, flips: 3, salzstangen: 3,
+  nuesse: 5, erdnuesse: 6, muesliriegel: 2, proteinriegel: 20, eis_kugel: 2, eis_stiel: 3, pudding: 4, popcorn: 2,
+  gebrannte_mandeln: 18, zucker: 0, apfel: 0, banane: 1, birne: 1, orange: 1, mandarine: 0, trauben: 1, erdbeeren: 1, beeren: 1,
+  kiwi: 1, melone: 1, gurke: 1, tomate: 1, paprika: 1, moehre: 1, rohkost: 1, gemuese: 5, avocado: 2, smoothie: 1,
+  wasser: 0, kaffee: 0, kaffee_milch: 1, kaffee_mz: 1, cappuccino: 5, latte: 9, kakao: 8, tee: 0, cola_dose: 0, cola_flasche: 0,
+  cola_zero: 0, limo: 0, eistee: 0, apfelschorle: 0, saft: 1, energy: 0, energy_gross: 0, eiweissshake: 24,
+  bier: 2, bier_klein: 2, weizen: 3, alkoholfrei: 2, radler: 1, wein: 0, sekt: 0, spritz: 0, schnaps: 0, longdrink: 0, gluehwein: 0,
+  overnight_oats: 16, overnight_oats_skyr: 36, overnight_oats_whey: 38, mp_haehnchen_blech: 54, mp_rinder_chili: 52,
+  mp_thunfisch_nudeln: 50, mp_puten_reis: 53, magerquark_beeren: 31,
+  hafer_wasser: 10, hafer_bruehe: 11,
+};
+LEBENSMITTEL.forEach((l) => { l.ei = EIWEISS[l.id]; });
 
 export const NACH_ID = new Map(LEBENSMITTEL.map((l) => [l.id, l]));

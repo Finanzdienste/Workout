@@ -95,9 +95,10 @@ export function menge(m) {
 /** kcal eines Eintrags: kcal je Portion mal Menge, gerundet. */
 export const kcalVon = (e) => Math.round((e.kcal || 0) * (e.m || 1));
 export const khVon = (e) => Math.round((e.kh || 0) * (e.m || 1));
+export const eiVon = (e) => Math.round((e.ei || 0) * (e.m || 1));
 
 export function summe(eintraege = []) {
-  return eintraege.reduce((s, e) => ({ kcal: s.kcal + kcalVon(e), kh: s.kh + khVon(e) }), { kcal: 0, kh: 0 });
+  return eintraege.reduce((s, e) => ({ kcal: s.kcal + kcalVon(e), kh: s.kh + khVon(e), ei: s.ei + eiVon(e) }), { kcal: 0, kh: 0, ei: 0 });
 }
 
 // --- Suche -----------------------------------------------------------------
@@ -431,7 +432,7 @@ export function sacheAusKi(e, portionen, id) {
 
 /** kcal und Kohlenhydrate für so viele Gramm einer Sache mit Werten je 100 g. */
 export function fuerGramm(sache, g) {
-  return { kcal: Math.round(((sache.kcal100 || 0) * g) / 100), kh: eine(((sache.kh100 || 0) * g) / 100) };
+  return { kcal: Math.round(((sache.kcal100 || 0) * g) / 100), kh: eine(((sache.kh100 || 0) * g) / 100), ei: eine(((sache.ei100 || 0) * g) / 100) };
 }
 
 /** Eine Sache mit diesem Strichcode unter den eigenen – dann braucht es kein Netz. */

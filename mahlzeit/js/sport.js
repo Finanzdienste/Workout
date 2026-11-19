@@ -21,6 +21,7 @@ export const GERAETE = [
   { id: 'schwingstab', n: 'Schwingstab', z: '🎋' },
   { id: 'wackelkissen', n: 'Wackelkissen', z: '🟢' },
   { id: 'matte', n: 'Gymnastikmatte', z: '🧘' },
+  { id: 'studio', n: 'Fitnessstudio', z: '🏢' },
 ];
 
 export const BESCHWERDEN = [
@@ -123,6 +124,29 @@ export const UEBUNGEN = [
   U('wackelkissenStand', 'Einbeinstand auf dem Wackelkissen', 'balance', { sek: 30 },
     'Ein Fuß mittig aufs Kissen, neben einer Stuhllehne zum Festhalten. Erst mit beiden Händen, dann mit einer, irgendwann ohne.',
     { g: 'wackelkissen', je: true, statt: 'einbeinstand' }),
+  // --- Studio (v7): Maschinen geben den Gelenken Halt – Tobi, 19.11.: „Alles"
+  // zu Uwes Plan (1× Studio an den Maschinen, 1× zu Hause, dazwischen Rad).
+  U('ergometer', 'Fahrrad-Ergometer, locker', 'ausdauer', { sek: 360 },
+    'Locker treten zum Aufwärmen, du solltest dabei noch reden können. Danach ein paar Mal die Arme kreisen.',
+    { g: 'studio' }),
+  U('beinpresse', 'Beinpresse', 'kraft', { saetze: 3, wdh: '10–12' },
+    'Rücken fest ans Polster, Füße schulterbreit auf die Platte. Langsam beugen, bis die Knie etwa im rechten Winkel sind, dann wegdrücken – die Knie oben nicht ganz durchstrecken.',
+    { g: 'studio', m: true }),
+  U('brustpresse', 'Brustpresse', 'kraft', { saetze: 3, wdh: '10–12' },
+    'Sitz so einstellen, dass die Griffe auf Brusthöhe sind. Schulterblätter nach hinten unten ziehen, Griffe nach vorn drücken, langsam zurück. Ellenbogen leicht unter Schulterhöhe.',
+    { g: 'studio', m: true, nicht: ['schulter'] }),
+  U('latzug', 'Latzug zur Brust', 'kraft', { saetze: 3, wdh: '10–12' },
+    'Oberschenkel unter das Polster, Stange etwas breiter als schulterbreit. Brust raus, Stange zur oberen Brust ziehen, aus dem Rücken – ohne Schwung, langsam hoch.',
+    { g: 'studio', m: true, nicht: ['schulter', 'nacken'], statt: 'ruderzug' }),
+  U('ruderzug', 'Ruderzug am Kabel', 'kraft', { saetze: 3, wdh: '10–12' },
+    'Aufrecht sitzen, Füße an der Platte, Knie leicht gebeugt. Griff zum Bauch ziehen, Ellenbogen nah am Körper, Schulterblätter zusammen. Langsam zurück, der Rücken bleibt gerade.',
+    { g: 'studio', m: true }),
+  U('beinbeugerMaschine', 'Beinbeuger sitzend', 'kraft', { saetze: 3, wdh: '12–15' },
+    'Polster knapp über den Fersen, Oberschenkel fixiert. Fersen nach unten hinten ziehen, kurz halten, langsam zurück. Der Ausgleich zum vielen Sitzen.',
+    { g: 'studio', m: true }),
+  U('schulterMaschine', 'Schulterdrücken an der Maschine', 'kraft', { saetze: 2, wdh: '10–12' },
+    'Rücken ans Polster, Griffe auf Schulterhöhe. Nach oben drücken, kontrolliert absenken, kein Hohlkreuz.',
+    { g: 'studio', m: true, nicht: ['schulter', 'nacken'] }),
   U('einbeinstand', 'Einbeinstand', 'balance', { sek: 30 },
     'Neben einer Stuhllehne auf einem Bein stehen. Erst festhalten, dann loslassen.',
     { je: true }),
@@ -134,6 +158,9 @@ export const NACH_ID = new Map(UEBUNGEN.map((u) => [u.id, u]));
 export const BEWEGLICH = ['schulterkreisen', 'nackenSeite', 'brustdehnung', 'rumpfdrehen', 'katzeKuh', 'hueftbeugerStehend', 'beinbeugerDehnen', 'wadeGestreckt', 'piriformis', 'schwingstabLocker'];
 
 /** Kraft und Ausdauer: Aufwärmen, Kreis aus Kraftübungen, zum Schluss Ausdauer. */
+/** Der Tag im Studio: Ergometer, dann die Maschinen (v7). */
+export const STUDIO = ['ergometer', 'beinpresse', 'brustpresse', 'latzug', 'ruderzug', 'beinbeugerMaschine', 'schulterMaschine'];
+
 export const KRAFT = ['radLocker', 'kniebeugeStuhl', 'wandLiegestuetz', 'rudernKH', 'schulterdrueckenKH', 'beckenheben', 'vogelhund', 'bizepsKH', 'wackelkissenStand', 'schwingstabRumpf', 'schwungstaebe', 'radIntervall'];
 
 // --- Zusammenstellen -------------------------------------------------------
@@ -157,7 +184,7 @@ export function waehle(id, { geraete = [], beschwerden = [] } = {}, tiefe = 0) {
 
 /** Die Liste für eine Einheit („beweglich" oder „kraft"), ohne Doppelte. */
 export function einheit(typ, profil) {
-  const ids = typ === 'kraft' ? KRAFT : BEWEGLICH;
+  const ids = typ === 'kraft' ? KRAFT : typ === 'studio' ? STUDIO : BEWEGLICH;
   const gesehen = new Set();
   const liste = [];
   ids.forEach((id) => {
@@ -235,10 +262,14 @@ export function wochenanfang(tag) {
 export function heuteDran(sport, heute) {
   const log = sport.log || [];
   const montag = wochenanfang(heute);
-  const kraftWoche = log.filter((l) => l.art === 'kraft' && l.tag >= montag && l.tag <= heute).length;
-  const kraftZuletzt = log.filter((l) => l.art === 'kraft').map((l) => l.tag).sort().pop() || null;
+  const istKraft = (l) => l.art === 'kraft' || l.art === 'studio';
+  const kraftWoche = log.filter((l) => istKraft(l) && l.tag >= montag && l.tag <= heute).length;
+  const kraftZuletzt = log.filter(istKraft).map((l) => l.tag).sort().pop() || null;
   const beweglichHeute = log.some((l) => l.art === 'beweglich' && l.tag === heute);
-  const kraftHeute = log.some((l) => l.art === 'kraft' && l.tag === heute);
+  const kraftHeute = log.some((l) => istKraft(l) && l.tag === heute);
+  // Mit Studio: einmal die Woche dorthin, die übrigen Male zu Hause.
+  const studioWoche = log.some((l) => l.art === 'studio' && l.tag >= montag && l.tag <= heute);
+  const vorschlag = (sport.geraete || []).includes('studio') && !studioWoche ? 'studio' : 'kraft';
   const pause = kraftZuletzt && kraftZuletzt >= plus(heute, -1);
   return {
     beweglich: !beweglichHeute,
@@ -246,6 +277,7 @@ export function heuteDran(sport, heute) {
     kraftWoche,
     beweglichHeute,
     kraftHeute,
+    vorschlag,
     serie: serie(log, heute),
   };
 }
@@ -273,7 +305,7 @@ export function sportOrdnen(roh) {
   const beschwerden = Array.isArray(r.beschwerden) ? r.beschwerden.filter((b) => BESCHWERDEN.some((x) => x.id === b)) : [];
   const gewichte = {};
   Object.entries(r.gewichte && typeof r.gewichte === 'object' ? r.gewichte : {}).forEach(([k, v]) => { if (Number.isFinite(v) && v > 0) gewichte[k] = v; });
-  const log = Array.isArray(r.log) ? r.log.filter((l) => l && /^\d{4}-\d{2}-\d{2}$/.test(l.tag) && ['beweglich', 'kraft', 'rad'].includes(l.art)) : [];
+  const log = Array.isArray(r.log) ? r.log.filter((l) => l && /^\d{4}-\d{2}-\d{2}$/.test(l.tag) && ['beweglich', 'kraft', 'studio', 'rad'].includes(l.art)) : [];
   return {
     eingerichtet: r.eingerichtet === true,
     geraete,

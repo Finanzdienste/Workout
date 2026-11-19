@@ -153,7 +153,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Heimtrainer; `js/sport.js`). Mahlzeit v5: Strichfiguren je Übung
   (`js/figuren.js`). Mahlzeit v6: Lebenszeichen (nur Zahlen) in
   `mahlzeit_nutzung` – fragt Tobi, ob Uwe die App nutzt: die Abfrage steht in
-  `mahlzeit/README.md` „Lebenszeichen an Tobi“.
+  `mahlzeit/README.md` „Lebenszeichen an Tobi“. Mahlzeit v7: Eiweiß mitgezählt,
+  Bereich „Rezepte & Meal Prep“ (Uwes Overnight Oats und Gerichte), Studio-Tag
+  mit Maschinen. Uwe: 60, 125 kg, 176 cm, Bürojob, Studio 1×/Woche.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

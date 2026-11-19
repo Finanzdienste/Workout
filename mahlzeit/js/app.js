@@ -19,7 +19,7 @@ import * as SP from './sport.js';
 import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 
-export const FASSUNG = 'v6';
+export const FASSUNG = 'v7';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -110,7 +110,7 @@ function seiteHeute(stand) {
     <section class="karte summe" aria-live="polite">
       <p class="gross"><span id="summe-kcal">${R.zahl(summe.kcal)}</span> <span class="einheit">kcal</span></p>
       ${zielZeile(stand, summe.kcal)}
-      ${summe.kh ? `<p class="leise klein">davon etwa ${R.zahl(summe.kh)} g Kohlenhydrate</p>` : ''}
+      ${summe.kh || summe.ei ? `<p class="leise klein" id="summe-naehr">davon etwa ${R.zahl(summe.kh)} g Kohlenhydrate · ${R.zahl(summe.ei)} g Eiweiß</p>` : ''}
     </section>
     <button type="button" class="knopf haupt gross-knopf" data-tun="essen" id="essen-knopf">＋ Essen eintragen</button>`;
 
@@ -122,6 +122,9 @@ function seiteHeute(stand) {
   html += wochenKarte(stand, h);
   return html;
 }
+
+/** „etwa 27 g Kohlenhydrate · 5 g Eiweiß" */
+const naehrText = (w) => `etwa ${R.zahl(w.kh || 0)} g Kohlenhydrate${w.ei ? ` · ${R.zahl(w.ei)} g Eiweiß` : ''}`;
 
 function zielZeile(stand, kcal) {
   if (!stand.ziel) return '';
@@ -568,6 +571,7 @@ function seiteMehr(stand) {
       <button type="button" class="chip" data-tun="ziel-eigen" aria-pressed="${!!eigenesZiel}">${eigenesZiel ? `${R.zahl(stand.ziel)} ✎` : 'eigene Zahl'}</button>
     </div>
     <p class="klein leise">Hat dein Arzt eine Zahl genannt, nimm die. Sonst sind 1.800 bis 2.200 kcal für die meisten Männer, die abnehmen wollen, ein guter Anfang.${schnitt ? ` Du isst im Schnitt ${R.zahl(schnitt.kcal)} kcal am Tag.` : ''}</p>
+    <p class="klein" id="eiweiss-hinweis"><strong>Eiweiß:</strong> Die App zählt es mit (auf „Heute“ unter den Kalorien). Viel Eiweiß, wie es Pläne zum Muskelaufbau oft vorsehen, bitte vorher mit dem Arzt besprechen – bei Blutzuckerproblemen sollten die Nieren einmal angeschaut sein.</p>
   </section>
   <section class="karte" id="karte-eigene">
     <h3>⭐ Meine eigenen Sachen</h3>
@@ -733,11 +737,11 @@ function zeitChips(z) {
 function sacheHtml(stand) {
   const l = sucheSache(stand, ebene.id);
   if (!l) return '';
-  const e = { kcal: l.kcal, kh: l.kh, m: ebene.m };
+  const e = { kcal: l.kcal, kh: l.kh, ei: l.ei, m: ebene.m };
   const hat100 = Number.isFinite(l.kcal100) && l.kcal100 !== null;
   const g = R.leseZahl(ebene.gramm || '');
   const inGramm = hat100 && Number.isFinite(g) && g > 0 && g <= 5000;
-  const werte = inGramm ? R.fuerGramm(l, g) : { kcal: R.kcalVon(e), kh: R.khVon(e) };
+  const werte = inGramm ? R.fuerGramm(l, g) : { kcal: R.kcalVon(e), kh: R.khVon(e), ei: R.eiVon(e) };
   const herkunft = { off: 'aus Open Food Facts', ki: 'von der KI ausgerechnet' }[l.quelle] || '';
   return `
     <div class="ebene-kopf">
@@ -747,7 +751,7 @@ function sacheHtml(stand) {
     <div class="ebene-inhalt">
       <p class="leise">${esc(l.p || '')}${ebene.m !== 1 && !inGramm ? ` · ${R.menge(ebene.m)} ×` : ''}</p>
       <p class="gross"><span id="sache-kcal">${R.zahl(werte.kcal)}</span> <span class="einheit">kcal</span></p>
-      ${l.kh ? `<p class="leise klein" id="sache-kh">etwa ${R.zahl(werte.kh)} g Kohlenhydrate</p>` : ''}
+      ${l.kh || l.ei ? `<p class="leise klein" id="sache-kh">${naehrText(werte)}</p>` : ''}
       ${hat100 ? `<p class="klein leise" id="sache-100">${R.zahl(l.kcal100)} kcal je 100 g${herkunft ? ` · ${herkunft}` : ''}</p>` : ''}
       ${l.t ? `<p class="tipp" id="tipp">💡 ${esc(l.t)}</p>` : ''}
       <h3>Wie viel?</h3>
@@ -776,6 +780,7 @@ function eigenHtml() {
         <p class="klein leise" id="eigen-rechnung"></p>
       </details>
       <label>Kohlenhydrate (wenn bekannt)<span class="mit-einheit"><input id="eigen-kh" inputmode="decimal" autocomplete="off"><span class="einheit">g</span></span></label>
+      <label>Eiweiß (wenn bekannt)<span class="mit-einheit"><input id="eigen-ei" inputmode="decimal" autocomplete="off"><span class="einheit">g</span></span></label>
       <label class="haken-zeile"><input type="checkbox" id="eigen-merken" checked> Für später merken</label>
       <h3>Wann?</h3>
       ${zeitChips(ebene.z)}
@@ -832,10 +837,10 @@ function sportKarte(stand, h) {
   if (!d.beweglich && !d.kraft) return '';
   const min = SP.minuten(SP.einheit('beweglich', profilVon(sp)));
   return `<section class="karte sport-klein" id="sport-heute-karte">
-    <p>🤸 ${d.beweglich ? `<strong>Beweglichkeit:</strong> ${min} Minuten – heute noch nicht.` : '<strong>Beweglichkeit</strong> ✓'}${d.kraft ? ' Kraft und Ausdauer ist auch dran.' : ''}</p>
+    <p>🤸 ${d.beweglich ? `<strong>Beweglichkeit:</strong> ${min} Minuten – heute noch nicht.` : '<strong>Beweglichkeit</strong> ✓'}${d.kraft ? (d.vorschlag === 'studio' ? ' Diese Woche ist noch Studio dran.' : ' Kraft und Ausdauer ist auch dran.') : ''}</p>
     <div class="reihe">
       ${d.beweglich ? '<button type="button" class="knopf haupt" data-tun="training" data-typ="beweglich">Los geht’s</button>' : ''}
-      ${d.kraft ? '<button type="button" class="knopf" data-tun="training" data-typ="kraft">Kraft &amp; Ausdauer</button>' : ''}
+      ${d.kraft ? `<button type="button" class="knopf" data-tun="training" data-typ="${d.vorschlag}">${d.vorschlag === 'studio' ? 'Studio' : 'Kraft &amp; Ausdauer'}</button>` : ''}
     </div>
   </section>`;
 }
@@ -847,13 +852,15 @@ function seiteSport(stand) {
   const d = SP.heuteDran(sp, h);
   const beweglich = SP.einheit('beweglich', profilVon(sp));
   const kraft = SP.einheit('kraft', profilVon(sp));
+  const studio = sp.geraete.includes('studio') ? SP.einheit('studio', profilVon(sp)) : [];
+  const studioWoche = sp.log.some((l) => l.art === 'studio' && l.tag >= SP.wochenanfang(h));
   const hafertag = R.istHafertag(stand, h);
   const radHeute = sp.log.filter((l) => l.art === 'rad' && l.tag === h).reduce((s, l) => s + (l.min || 0), 0);
   const gewicht = R.werteVon(stand, 'gewicht').at(-1)?.wert;
   const woche = Array.from({ length: 7 }, (_, i) => R.plusTage(h, i - 6));
   const zeichen = (tag) => {
     const an = sp.log.filter((l) => l.tag === tag);
-    return [an.some((l) => l.art === 'beweglich') ? '🤸' : '', an.some((l) => l.art === 'kraft') ? '💪' : '', an.some((l) => l.art === 'rad') ? '🚲' : ''].join('');
+    return [an.some((l) => l.art === 'beweglich') ? '🤸' : '', an.some((l) => l.art === 'kraft') ? '💪' : '', an.some((l) => l.art === 'studio') ? '🏢' : '', an.some((l) => l.art === 'rad') ? '🚲' : ''].join('');
   };
   return `
   <h2 class="seitentitel">Sport 🤸</h2>
@@ -868,8 +875,12 @@ function seiteSport(stand) {
       ${d.kraftHeute ? '<span class="erledigt">✓ gemacht</span>'
     : `<button type="button" class="knopf${d.kraft && !hafertag ? ' haupt' : ''}" data-tun="training" data-typ="kraft" id="los-kraft">${d.kraft ? 'Los' : 'Trotzdem'}</button>`}
     </div>
+    ${studio.length ? `<div class="einheit-zeile">
+      <div><strong>Studio (Maschinen)</strong><small>${SP.minuten(studio)} Minuten · ${studio.length} Übungen · 1× die Woche${studioWoche ? ' · ✓ diese Woche' : ''}</small></div>
+      ${d.kraftHeute ? '' : `<button type="button" class="knopf${d.kraft && d.vorschlag === 'studio' && !hafertag ? ' haupt' : ''}" data-tun="training" data-typ="studio" id="los-studio">Los</button>`}
+    </div>` : ''}
     <p class="klein leise" id="sport-hinweis">${hafertag ? '🌾 Heute ist Hafertag – lieber nur Beweglichkeit oder locker Rad fahren.'
-    : d.kraft ? 'Heute ist Kraft dran.' : d.kraftHeute || d.kraftWoche < sp.kraftProWoche ? 'Kraft wieder übermorgen – die Muskeln brauchen einen Tag Pause.' : 'Kraft für diese Woche geschafft.'}</p>
+    : d.kraft ? (d.vorschlag === 'studio' ? 'Heute wäre ein guter Tag fürs Studio – diese Woche warst du noch nicht.' : 'Heute ist Kraft dran.') : d.kraftHeute || d.kraftWoche < sp.kraftProWoche ? 'Kraft wieder übermorgen – die Muskeln brauchen einen Tag Pause.' : 'Kraft für diese Woche geschafft.'}</p>
     ${d.serie >= 2 ? `<p id="sport-serie">🔥 ${d.serie} Tage am Stück beweglich</p>` : ''}
   </section>
   ${sp.geraete.includes('rad') ? `<section class="karte" id="sport-rad">
@@ -884,7 +895,7 @@ function seiteSport(stand) {
   <section class="karte" id="sport-woche">
     <h3>Die letzten 7 Tage</h3>
     <div class="sport-woche">${woche.map((t) => `<div class="${t === h ? 'heute' : ''}"><span>${zeichen(t) || '·'}</span><small>${esc(R.wochentag(t).slice(0, 2))}</small></div>`).join('')}</div>
-    <p class="klein leise">🤸 Beweglichkeit · 💪 Kraft &amp; Ausdauer · 🚲 Heimtrainer</p>
+    <p class="klein leise">🤸 Beweglichkeit · 💪 Kraft &amp; Ausdauer · 🏢 Studio · 🚲 Heimtrainer</p>
   </section>
   <section class="karte achtung" id="sport-zucker">
     <p><strong>Sport senkt den Blutzucker.</strong> Nimmst du Insulin oder Tabletten, die Unterzucker machen können: Traubenzucker in Reichweite. Wird dir zittrig oder schwummrig: aufhören, Traubenzucker essen.</p>
@@ -1005,12 +1016,14 @@ async function trainingStarten(typ) {
   if (!liste.length) return;
   const kg = {};
   liste.forEach((id) => { const g = SP.gewichtFuer(SP.NACH_ID.get(id), sp.hanteln, sp.gewichte); if (g) kg[id] = g; });
-  oeffneEbene({ art: 'training', typ, liste, i: 0, kg, urteil: {}, fertig: false, gemacht: 0 });
+  const maschine = {};
+  liste.forEach((id) => { if (SP.NACH_ID.get(id).m && sp.gewichte[id]) maschine[id] = sp.gewichte[id]; });
+  oeffneEbene({ art: 'training', typ, liste, i: 0, kg, urteil: {}, maschine, fertig: false, gemacht: 0 });
   try { wachBleiben = await navigator.wakeLock?.request('screen'); } catch { wachBleiben = null; }
 }
 
 function trainingHtml() {
-  const titel = ebene.typ === 'kraft' ? 'Kraft & Ausdauer' : 'Beweglichkeit';
+  const titel = { kraft: 'Kraft & Ausdauer', studio: 'Studio', beweglich: 'Beweglichkeit' }[ebene.typ];
   const kopf = `<div class="ebene-kopf">
       <button type="button" class="rund" data-tun="ebene-zu" aria-label="Beenden">✕</button>
       <h2>${titel}</h2>
@@ -1040,6 +1053,8 @@ function trainingHtml() {
           <p class="klein" id="uhr-text">${esc(phasen(u)[0].text || '')}</p>
           <button type="button" class="knopf" data-tun="uhr" id="uhr-knopf">Start</button>
         </div>` : ''}
+      ${u.m ? `<label class="feld gramm-feld"><span>Gewicht an der Maschine</span><input id="maschine-kg" inputmode="decimal" autocomplete="off" placeholder="kg" value="${ebene.maschine[u.id] ?? ''}"><span class="einheit">kg</span></label>
+        <p class="klein leise">${ebene.maschine[u.id] ? 'Wie letztes Mal – fällt es leicht (noch 2 Wiederholungen übrig nach 12), beim nächsten Mal eine Stufe mehr.' : 'Ein Gewicht, mit dem 10 saubere Wiederholungen gehen; trag es ein, dann steht es beim nächsten Mal hier.'}</p>` : ''}
       ${kg ? `<h3>Wie war das Gewicht?</h3>
         <div class="chips" role="group" aria-label="Gewicht">${[['leicht', 'zu leicht'], ['passt', 'passt'], ['schwer', 'zu schwer']].map(([id, n]) => `<button type="button" class="chip" data-tun="urteil" data-urteil="${id}" aria-pressed="${ebene.urteil[u.id] === id}">${n}</button>`).join('')}</div>` : ''}
       <div class="reihe training-knoepfe">
@@ -1051,6 +1066,11 @@ function trainingHtml() {
 
 function trainingWeiter(ausgelassen) {
   uhrAus();
+  const feld = $('#maschine-kg');
+  if (feld) {
+    const w = R.leseZahl(feld.value);
+    if (Number.isFinite(w) && w > 0 && w <= 400) ebene.maschine[ebene.liste[ebene.i]] = w;
+  }
   if (!ausgelassen) ebene.gemacht++;
   if (ebene.i + 1 < ebene.liste.length) {
     ebene.i++;
@@ -1061,9 +1081,10 @@ function trainingWeiter(ausgelassen) {
   // Ende: festhalten, Gewichte fürs nächste Mal
   const h = heute();
   const min = SP.minuten(ebene.liste.map((id) => SP.NACH_ID.get(id)));
-  const { typ, urteil, kg, gemacht } = ebene;
+  const { typ, urteil, kg, gemacht, maschine } = ebene;
   aendern((s) => {
     s.sport.log.push({ tag: h, art: typ, min, n: gemacht });
+    Object.entries(maschine).forEach(([id, w]) => { s.sport.gewichte[id] = w; });
     Object.entries(urteil).forEach(([id, wert]) => {
       if (kg[id]) s.sport.gewichte[id] = SP.naechstesGewicht(kg[id], s.sport.hanteln, wert);
     });
@@ -1349,14 +1370,14 @@ function eintragen() {
   if (Number.isFinite(l.kcal100) && l.kcal100 !== null && Number.isFinite(g) && g > 0 && g <= 5000) {
     const w = R.fuerGramm(l, g);
     aendern((s) => {
-      (s.tage[tag] ||= []).push({ id, f: l.id, n: l.n, p: `${R.zahl(g)} g`, m: 1, kcal: w.kcal, kh: Math.round(w.kh), z: ebene.z });
+      (s.tage[tag] ||= []).push({ id, f: l.id, n: l.n, p: `${R.zahl(g)} g`, m: 1, kcal: w.kcal, kh: Math.round(w.kh), ei: Math.round(w.ei), z: ebene.z });
     });
     ebene = { art: 'suche', tag, z: ebene.z, q: '', bereich: null, zuletzt: `${R.zahl(g)} g ${l.n} (${R.zahl(w.kcal)} kcal) eingetragen – noch etwas?` };
     zeige();
     return;
   }
   aendern((s) => {
-    (s.tage[tag] ||= []).push({ id, f: l.id, n: l.n, p: l.p || '', m: ebene.m, kcal: l.kcal, kh: l.kh || 0, z: ebene.z });
+    (s.tage[tag] ||= []).push({ id, f: l.id, n: l.n, p: l.p || '', m: ebene.m, kcal: l.kcal, kh: l.kh || 0, ei: l.ei || 0, z: ebene.z });
   });
   const text = `${ebene.m !== 1 ? `${R.menge(ebene.m)} × ` : ''}${l.n} (${R.zahl(R.kcalVon({ kcal: l.kcal, m: ebene.m }))} kcal) eingetragen – noch etwas?`;
   ebene = { art: 'suche', tag, z: ebene.z, q: '', bereich: null, zuletzt: text };
@@ -1367,6 +1388,12 @@ function eigenEintragen() {
   const name = $('#eigen-name').value.trim() || 'Eigenes Essen';
   const kcal = R.leseZahl($('#eigen-kcal').value);
   const khText = $('#eigen-kh').value.trim();
+  const eiText = $('#eigen-ei')?.value.trim() || '';
+  const ei = eiText ? R.leseZahl(eiText) : 0;
+  if (!Number.isFinite(ei) || ei < 0 || ei > 500) {
+    $('#eigen-fehler').textContent = 'Eiweiß bitte als Zahl – oder leer lassen.';
+    return;
+  }
   const kh = khText ? R.leseZahl(khText) : 0;
   const fehler = $('#eigen-fehler');
   if (!Number.isFinite(kcal) || kcal < 0 || kcal > 6000) {
@@ -1388,11 +1415,11 @@ function eigenEintragen() {
   aendern((s) => {
     if (merken) {
       s.eigene.unshift({
-        id: sacheId, n: name, p: mit100 ? `${R.zahl(gramm)} g` : '', kcal: Math.round(kcal), kh: Math.round(kh),
-        ...(mit100 ? { kcal100: Math.round(pro100), kh100: Math.round((kh / gramm) * 1000) / 10, g: Math.round(gramm) } : {}),
+        id: sacheId, n: name, p: mit100 ? `${R.zahl(gramm)} g` : '', kcal: Math.round(kcal), kh: Math.round(kh), ei: Math.round(ei),
+        ...(mit100 ? { kcal100: Math.round(pro100), kh100: Math.round((kh / gramm) * 1000) / 10, ei100: Math.round((ei / gramm) * 1000) / 10, g: Math.round(gramm) } : {}),
       });
     }
-    (s.tage[tag] ||= []).push({ id: neueId('e'), f: sacheId, n: name, p: '', m: 1, kcal: Math.round(kcal), kh: Math.round(kh), z });
+    (s.tage[tag] ||= []).push({ id: neueId('e'), f: sacheId, n: name, p: '', m: 1, kcal: Math.round(kcal), kh: Math.round(kh), ei: Math.round(ei), z });
   });
   ebene = { art: 'suche', tag, z, q: '', bereich: null, zuletzt: `${name} (${R.zahl(kcal)} kcal) eingetragen – noch etwas?` };
   zeige();
@@ -1424,7 +1451,7 @@ function haferMahlzeit(i) {
       s.tage[tag] = liste.filter((e) => e !== da);
       if (!s.tage[tag].length) delete s.tage[tag];
     } else {
-      (s.tage[tag] ||= []).push({ id: neueId('h'), f: l.id, n: l.n, p: l.p, m: 1, kcal: l.kcal, kh: l.kh, z: m.z, h: i });
+      (s.tage[tag] ||= []).push({ id: neueId('h'), f: l.id, n: l.n, p: l.p, m: 1, kcal: l.kcal, kh: l.kh, ei: l.ei || 0, z: m.z, h: i });
     }
   });
   zeige();
@@ -1837,10 +1864,10 @@ document.addEventListener('input', (ev) => {
     const l = sucheSache(lesen(), ebene.id);
     const g = R.leseZahl(ebene.gramm);
     const gut = Number.isFinite(g) && g > 0 && g <= 5000;
-    const w = gut ? R.fuerGramm(l, g) : { kcal: R.kcalVon({ kcal: l.kcal, m: ebene.m }), kh: R.khVon({ kh: l.kh, m: ebene.m }) };
+    const w = gut ? R.fuerGramm(l, g) : { kcal: R.kcalVon({ kcal: l.kcal, m: ebene.m }), kh: R.khVon({ kh: l.kh, m: ebene.m }), ei: R.eiVon({ ei: l.ei, m: ebene.m }) };
     $('#sache-kcal').textContent = R.zahl(w.kcal);
     const kh = $('#sache-kh');
-    if (kh) kh.textContent = `etwa ${R.zahl(w.kh)} g Kohlenhydrate`;
+    if (kh) kh.textContent = naehrText(w);
     document.querySelectorAll('#ebene [data-tun="menge"]').forEach((c) => c.setAttribute('aria-pressed', String(!gut && Number(c.dataset.m) === ebene.m)));
   } else if (ev.target.id === 'rezept-text' && ebene) {
     ebene.text = ev.target.value;
