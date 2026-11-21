@@ -258,6 +258,40 @@ Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
 abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
 Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
 
+## Schlaf und Schritte von der Uhr (v9, 21.11.2026)
+
+Tobi: „Er hat Sone smart watch. Kann man deren Werte nicht mit unserer App
+connecten? Zb schlaf“, dann „Dann lass doch ne richtige app aus unserer
+machen“ – und: „Er hat ein iphone“.
+
+**Warum nicht automatisch:** Die Werte der Uhr liegen auf dem iPhone in
+Apple Health. Darauf kommt nur eine echte iPhone-App. Für die braucht man
+einen Mac mit Xcode und ein Apple-Entwicklerkonto (99 € im Jahr), und
+verteilt wird sie über TestFlight. Davon ist nichts da (Tobi hat Android).
+
+Der Umweg über einen Kurzbefehl hilft auch nicht: Ein Link aus Kurzbefehle
+öffnet Safari, nicht die App vom Home-Bildschirm. Die hat auf dem iPhone
+einen eigenen Speicher (siehe v3, der Code zum Mitnehmen), die Werte kämen
+also nicht bei Uwes Einträgen an. Bliebe nur ein Weg über einen Server –
+dann lägen Uwes Gesundheitswerte bei Tobi, und das soll nicht sein
+(„Alles bleibt auf deinem Handy“).
+
+**Jetzt gilt:** Unter *Werte* gibt es zwei neue Karten:
+- **„😴 Schlaf“:** morgens die Zahl von der Uhr eintragen. Die App liest
+  „7:30“, „7,5“, „7 30“, „7h30“ und „7 Std 30 Min“ und speichert Minuten,
+  ein Wert je Nacht.
+- **„👟 Schritte“:** abends eintragen, „8.432“ mit Tausenderpunkt geht.
+
+Ab drei Einträgen steht der Schnitt der letzten sieben da. Die App bewertet
+nichts, wie bei allen Werten.
+
+Bekommt Tobi einmal Zugang zu einem Mac und einem Entwicklerkonto, ist die
+echte App der nächste Schritt (HealthKit, Schlafanalyse). Bis dahin ist das
+hier der Weg.
+
+Geprüft in `tests/test-mz-rechnen.mjs` (Lesen, Schnitt, `ordnen`) und
+`tests/test-mz-bedienung.mjs` (Eintragen, Ersetzen, Unsinn abgelehnt).
+
 ## KI aus, solange kein Guthaben da ist (v8, 19.11.2026)
 
 Tobi: „Der Kollege testet die app jetzt. Es muss also alles außer die ki

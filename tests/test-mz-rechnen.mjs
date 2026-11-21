@@ -210,4 +210,14 @@ grund = '';
 try { R.sicherungLesen('{kaputt'); } catch (e) { grund = e.message; }
 check(grund.includes('keine Sicherung'), 'kaputte Datei wird abgelehnt');
 
+// --- Schlaf und Schritte (v9)
+const schl = ['7:30', '7,5', '7.5', '7 30', '7h30', '7 Std 30 Min', '7 h', '7', '07:05'].map(R.leseSchlaf);
+check(schl.join() === '450,450,450,450,450,450,420,420,425', `Schlaf lesen: ${schl.join()}`);
+check([R.leseSchlaf('7:75'), R.leseSchlaf('lang'), R.leseSchlaf('')].every(Number.isNaN), 'Schlaf: 7:75, Wörter, leer → nicht lesbar');
+check(R.dauerText(450) === '7 Std 30 Min' && R.dauerText(420) === '7 Std', 'Dauer als Text');
+check(R.leseSchritte('8.432') === 8432 && R.leseSchritte('8 432') === 8432 && R.leseSchritte('12000') === 12000 && Number.isNaN(R.leseSchritte('8,4')), 'Schritte mit Tausenderpunkt');
+const mitSchlaf = R.ordnen({ werte: [420, 480, 450].map((wert, i) => ({ id: `s${i}`, art: 'schlaf', tag: `2026-11-1${i}`, wert })) });
+check(mitSchlaf.werte.length === 3, 'Schlaf übersteht ordnen (Sicherung, Neustart)');
+check(R.werteSchnitt(mitSchlaf, 'schlaf')?.wert === 450 && R.werteSchnitt({ werte: mitSchlaf.werte.slice(0, 2) }, 'schlaf') === null, 'Schnitt ab drei Nächten: 7 Std 30 Min');
+
 ende();

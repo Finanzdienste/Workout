@@ -21,7 +21,7 @@
  * vergleicht beide).
  */
 
-const VERSION = 'v8';
+const VERSION = 'v9';
 const CACHE = `mahlzeit-${VERSION}`;
 
 const SHELL = [

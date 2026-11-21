@@ -19,7 +19,7 @@ import * as SP from './sport.js';
 import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 
-export const FASSUNG = 'v8';
+export const FASSUNG = 'v9';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -493,6 +493,10 @@ function seiteWerte(stand) {
   const gewicht = R.werteVon(stand, 'gewicht');
   const zucker = R.werteVon(stand, 'zucker');
   const hba1c = R.werteVon(stand, 'hba1c');
+  const schlaf = R.werteVon(stand, 'schlaf');
+  const schritte = R.werteVon(stand, 'schritte');
+  const schlafSchnitt = R.werteSchnitt(stand, 'schlaf');
+  const schritteSchnitt = R.werteSchnitt(stand, 'schritte');
   const verlauf = R.gewichtVerlauf(stand);
   const wann = zustand.zuckerWann || (new Date().getHours() < 10 ? 'nuechtern' : 'sonst');
   const komma = (n) => String(n).replace('.', ',');
@@ -523,6 +527,27 @@ function seiteWerte(stand) {
     </form>
     ${liste(zucker, (w) => `${R.zahl(w.wert)} mg/dl <small>${esc(R.ZUCKER_WANN.find((z) => z.id === w.wann)?.n || '')}${R.istHafertag(stand, w.tag) ? ' · 🌾' : ''}</small>`)}
     <p class="klein leise">Was die Werte für dich heißen, sagt dein Arzt. Unterzucker merkt man an Zittern, Schwitzen, Heißhunger oder Schwindel – dann Traubenzucker.</p>
+  </section>
+  <section class="karte" id="karte-schlaf">
+    <h3>😴 Schlaf</h3>
+    <p class="klein">Was deine Uhr für letzte Nacht anzeigt – in ihrer App oder in Apple Health unter „Schlaf“.</p>
+    <form class="werteform" data-form="schlaf">
+      <label class="feld"><span class="unsichtbar">Schlaf in Stunden</span><input id="w-schlaf" inputmode="decimal" autocomplete="off" placeholder="z. B. 7:30"><span class="einheit">Std</span></label>
+      <button type="submit" class="knopf haupt">Eintragen</button>
+    </form>
+    ${schlafSchnitt ? `<p id="schlaf-schnitt">Schnitt der letzten ${schlafSchnitt.anzahl} Nächte: <strong>${R.dauerText(schlafSchnitt.wert)}</strong></p>` : ''}
+    ${liste(schlaf, (w) => R.dauerText(w.wert))}
+    <p class="klein leise">Morgens eintragen, ein Wert je Nacht – ein zweiter ersetzt den ersten.</p>
+  </section>
+  <section class="karte" id="karte-schritte">
+    <h3>👟 Schritte</h3>
+    <form class="werteform" data-form="schritte">
+      <label class="feld"><span class="unsichtbar">Schritte heute</span><input id="w-schritte" inputmode="numeric" autocomplete="off" placeholder="z. B. 6.500"><span class="einheit">Schritte</span></label>
+      <button type="submit" class="knopf haupt">Eintragen</button>
+    </form>
+    ${schritteSchnitt ? `<p id="schritte-schnitt">Schnitt der letzten ${schritteSchnitt.anzahl} Tage: <strong>${R.zahl(schritteSchnitt.wert)}</strong></p>` : ''}
+    ${liste(schritte, (w) => R.zahl(w.wert))}
+    <p class="klein leise">Abends, was die Uhr für heute zählt. Ein Wert je Tag – ein späterer ersetzt den früheren.</p>
   </section>
   <section class="karte" id="karte-hba1c">
     <h3>🧪 Langzeitwert (HbA1c)</h3>
@@ -1526,8 +1551,15 @@ function einlesen(datei) {
 function wertEintragen(art) {
   const h = heute();
   const feld = $(`#w-${art}`);
-  let wert = R.leseZahl(feld.value);
-  const grenzen = { gewicht: [30, 300, 'Gewicht bitte in kg, z. B. 98,4'], zucker: [20, 600, 'Blutzucker bitte in mg/dl, z. B. 120'], hba1c: [3, 20, 'HbA1c bitte in Prozent, z. B. 7,2'] };
+  const lesen = { schlaf: R.leseSchlaf, schritte: R.leseSchritte }[art] || R.leseZahl;
+  let wert = lesen(feld.value);
+  const grenzen = {
+    gewicht: [30, 300, 'Gewicht bitte in kg, z. B. 98,4'],
+    zucker: [20, 600, 'Blutzucker bitte in mg/dl, z. B. 120'],
+    hba1c: [3, 20, 'HbA1c bitte in Prozent, z. B. 7,2'],
+    schlaf: [30, 1200, 'Schlaf bitte so, wie die Uhr ihn zeigt, z. B. 7:30 oder 7,5'],
+    schritte: [1, 150000, 'Schritte bitte als Zahl, z. B. 6.500'],
+  };
   if (art === 'zucker' && Number.isFinite(wert)) {
     const mgdl = R.vielleichtMmol(wert);
     if (mgdl) {
@@ -1545,8 +1577,8 @@ function wertEintragen(art) {
   const d = new Date();
   const uhr = art === 'zucker' ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
   aendern((s) => {
-    if (art === 'gewicht') s.werte = s.werte.filter((w) => !(w.art === 'gewicht' && w.tag === tag));
-    const w = { id: neueId('w'), art, tag, wert: Math.round(wert * 10) / 10 };
+    if (['gewicht', 'schlaf', 'schritte'].includes(art)) s.werte = s.werte.filter((w) => !(w.art === art && w.tag === tag));
+    const w = { id: neueId('w'), art, tag, wert: ['schlaf', 'schritte'].includes(art) ? Math.round(wert) : Math.round(wert * 10) / 10 };
     if (uhr) w.uhr = uhr;
     if (art === 'zucker') w.wann = zustand.zuckerWann || (d.getHours() < 10 ? 'nuechtern' : 'sonst');
     s.werte.push(w);

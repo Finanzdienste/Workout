@@ -170,6 +170,20 @@ check((await page.locator('#karte-zucker').innerText()).includes('117 mg/dl'), '
 await page.fill('#w-hba1c', '7,2');
 await page.click('form[data-form="hba1c"] button');
 check((await page.locator('#karte-hba1c').innerText()).includes('7,2 %'), 'HbA1c 7,2 %');
+// Schlaf und Schritte von der Uhr (v9)
+await page.fill('#w-schlaf', '7:30');
+await page.click('form[data-form="schlaf"] button');
+check((await page.locator('#karte-schlaf').innerText()).includes('7 Std 30 Min'), 'Schlaf 7:30 → „7 Std 30 Min"');
+await page.fill('#w-schlaf', '6,5');
+await page.click('form[data-form="schlaf"] button');
+const sl = (await gespeichert()).werte.filter((w) => w.art === 'schlaf');
+check(sl.length === 1 && sl[0].wert === 390, 'zweiter Schlaf derselben Nacht ersetzt den ersten (6,5 → 390 Minuten)');
+await page.fill('#w-schlaf', 'lang');
+await page.click('form[data-form="schlaf"] button');
+check((await gespeichert()).werte.filter((w) => w.art === 'schlaf').length === 1 && (await page.locator('#meldung').innerText()).includes('7:30'), 'Unsinn wird nicht gespeichert, die Meldung zeigt, wie es geht');
+await page.fill('#w-schritte', '8.432');
+await page.click('form[data-form="schritte"] button');
+check((await gespeichert()).werte.find((w) => w.art === 'schritte')?.wert === 8432 && (await page.locator('#karte-schritte').innerText()).includes('8.432'), 'Schritte „8.432" → 8432, angezeigt als 8.432');
 
 // --- Schmale Handys
 await page.setViewportSize({ width: 340, height: 700 });

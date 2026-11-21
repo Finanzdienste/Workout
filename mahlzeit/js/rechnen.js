@@ -486,6 +486,45 @@ export function leseZahl(text) {
   return Number(t);
 }
 
+// --- Schlaf und Schritte von der Uhr (v9) ---------------------------------
+
+/**
+ * Schlaf als Minuten aus dem, was man von der Uhr abliest: „7:30“, „7,5“,
+ * „7 30“, „7h30“, „7 Std 30 Min“, „7 h“. Sonst NaN.
+ */
+export function leseSchlaf(text) {
+  const t = String(text ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const m = t.match(/^(\d{1,2}) ?(?::|h|std\.?|stunden?|\s) ?(\d{1,2}) ?(?:m|min\.?|minuten)?$/);
+  if (m) {
+    const min = Number(m[2]);
+    return min < 60 ? Number(m[1]) * 60 + min : NaN;
+  }
+  const h = leseZahl(t.replace(/ ?(?:h|std\.?|stunden?)$/, ''));
+  return Number.isFinite(h) ? Math.round(h * 60) : NaN;
+}
+
+/** „8.432“, „8 432“, „8432“ → 8432; sonst NaN. */
+export function leseSchritte(text) {
+  const t = String(text ?? '').trim().replace(/[.\s'’]/g, '');
+  return /^\d{1,6}$/.test(t) ? Number(t) : NaN;
+}
+
+/** 450 → „7 Std 30 Min“, 420 → „7 Std“. */
+export function dauerText(min) {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return `${h} Std${m ? ` ${m} Min` : ''}`;
+}
+
+/** Schnitt der letzten sieben Einträge einer Art (ab drei), sonst null. */
+export function werteSchnitt(stand, art) {
+  const letzte = werteVon(stand, art).slice(-7);
+  if (letzte.length < 3) return null;
+  return { wert: Math.round(letzte.reduce((a, w) => a + w.wert, 0) / letzte.length), anzahl: letzte.length };
+}
+
+export const WERTE_ARTEN = ['gewicht', 'zucker', 'hba1c', 'schlaf', 'schritte'];
+
 /** Werte einer Art, ältester zuerst. */
 export function werteVon(stand, art) {
   return (stand.werte || []).filter((w) => w.art === art).sort((a, b) => (a.tag + (a.uhr || '')).localeCompare(b.tag + (b.uhr || '')));
@@ -541,7 +580,7 @@ export function ordnen(roh) {
     if ([1, 2, 3, 4].includes(roh.hafer.alleMonate)) s.hafer.alleMonate = roh.hafer.alleMonate;
     if (Array.isArray(roh.hafer.tage)) s.hafer.tage = [...new Set(roh.hafer.tage.filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t)))].sort();
   }
-  if (Array.isArray(roh.werte)) s.werte = roh.werte.filter((w) => w && ['gewicht', 'zucker', 'hba1c'].includes(w.art) && Number.isFinite(w.wert) && /^\d{4}-\d{2}-\d{2}$/.test(w.tag));
+  if (Array.isArray(roh.werte)) s.werte = roh.werte.filter((w) => w && WERTE_ARTEN.includes(w.art) && Number.isFinite(w.wert) && /^\d{4}-\d{2}-\d{2}$/.test(w.tag));
   if (roh.hinweise && typeof roh.hinweise === 'object') s.hinweise = { ...roh.hinweise };
   if (typeof roh.sicherung === 'string') s.sicherung = roh.sicherung;
   s.sport = sportOrdnen(roh.sport);
