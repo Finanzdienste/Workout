@@ -140,14 +140,22 @@ let ki = await kiNachbauen(p, (r, z) => (z === CODE ? [200, { ok: true }] : [401
 await p.click('#essen-knopf');
 await p.click('#rezept-knopf');
 check(await p.locator('.ki-freischalten').isVisible(), 'Rezept ohne Code: erst freischalten');
+check((await p.locator('.ki-freischalten').innerText()).includes('Bitte Tobi, dir den Freischalt-Code zu schicken') && await p.locator('.ki-freischalten input').isHidden(), 'v12: „Bitte Tobi, dir den Freischalt-Code zu schicken“ – kein Eingabefeld zu sehen');
+await p.evaluate(() => { window.__geteilt = []; navigator.share = async (d) => { window.__geteilt.push(d.text); }; });
+await p.click('#tobi-fragen');
+check((await p.evaluate(() => window.__geteilt[0] || '')).includes('Freischalt-Code'), '„Tobi um den Code bitten“: die Nachricht an Tobi ist fertig');
+await p.evaluate(() => { navigator.clipboard.readText = async () => 'kein code hier'; });
+await p.click('#code-einfuegen');
+check((await p.locator('.ki-freischalten .fehler').innerText()).includes('Kopieren'), 'Einfügen ohne Code in der Zwischenablage: sagt, wie es geht');
+await p.click('.ki-freischalten summary');
 await p.fill('.ki-freischalten input', 'zzzzz-zzzzz');
-await p.click('.ki-freischalten button');
+await p.click('form[data-form="ki-code"] button');
 await p.waitForFunction(() => document.querySelector('.ki-freischalten .fehler')?.textContent.includes('stimmt nicht'));
 check(true, 'falscher Code: „stimmt nicht"');
-await p.fill('.ki-freischalten input', 'abcde fghjk');
-await p.click('.ki-freischalten button');
+await p.evaluate(() => { navigator.clipboard.readText = async () => 'Hier ist dein Link: https://finanzdienste.github.io/Workout/mahlzeit/#ki=abcde-fghjk – einmal antippen'; });
+await p.click('#code-einfuegen');
 await p.waitForSelector('#ausrechnen');
-check(ki.at(-1).rumpf.art === 'pruefen' && ki.at(-1).zugang === CODE, 'richtiger Code: geprüft (ohne Auswertung) und freigeschaltet');
+check(ki.at(-1).rumpf.art === 'pruefen' && ki.at(-1).zugang === CODE, 'Tobis ganze Nachricht eingefügt: Code herausgelesen, geprüft (ohne Auswertung), freigeschaltet');
 check(await p.evaluate(() => JSON.parse(localStorage.getItem('mahlzeit.ki.v1')).code) === CODE, '… gemerkt, getrennt vom Stand');
 await zu(o);
 
@@ -200,6 +208,18 @@ await p.fill('#rezept-text', 'Pfannkuchen');
 await p.click('#ausrechnen');
 await p.waitForFunction(() => document.querySelector('#ki-fehler')?.textContent.includes('Morgen'));
 check(await p.locator('#ausrechnen').isEnabled(), 'Grenze erreicht: der Satz der Funktion, der Knopf geht wieder');
+await zu(o);
+
+// Code gesperrt (401) mitten im Gebrauch: zurück zu „Bitte Tobi …“ (v12)
+o = await oeffne({ tag: TAG, weitere: MIT_CODE, ki: true });
+p = o.page;
+await kiNachbauen(p, () => [401, { fehler: 'Der Freischalt-Code stimmt nicht (mehr).' }]);
+await p.click('#essen-knopf');
+await p.click('#rezept-knopf');
+await p.fill('#rezept-text', 'Pfannkuchen');
+await p.click('#ausrechnen');
+await p.waitForSelector('.ki-freischalten');
+check((await p.locator('#meldung').innerText()).includes('bitte Tobi um einen neuen') && await p.evaluate(() => localStorage.getItem('mahlzeit.ki.v1')) === null, 'Code gilt nicht mehr: vergessen, „bitte Tobi um einen neuen“, wieder der Kasten');
 await zu(o);
 
 // --- 5. Packung fotografieren, nach einem unbekannten Strichcode

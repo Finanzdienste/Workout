@@ -20,7 +20,7 @@ import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 import * as UHR from './uhr.js';
 
-export const FASSUNG = 'v11';
+export const FASSUNG = 'v12';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -1172,13 +1172,26 @@ async function kameraAn() {
 
 const scanStatus = (text) => { const el = $('#scan-status'); if (el) el.textContent = text; };
 
+/*
+ * Noch nicht freigeschaltet (v12). Tobi, 21.11.2026: „Statt ihn nach einem
+ * freischalt Code zu fragen soll in solchen Situationen dort stehen dass er
+ * tobi bitten soll den freischalt Code zu schicken. Er selbst soll generell so
+ * wenig wie möglich machen.“ Darum: ein Knopf, der die Bitte an Tobi
+ * vorbereitet, und einer, der den Code aus Tobis kopierter Nachricht holt –
+ * Link oder Code, egal. Eintippen nur noch versteckt (für Tobi am Handy).
+ */
 function freischaltenHtml() {
   return `<div class="karte hinweis ki-freischalten">
-    <p><strong>Die KI ist noch nicht freigeschaltet.</strong> Dafür brauchst du den Code aus dem Link, mit dem du die App bekommen hast – er sieht aus wie ABCDE-FGHJK.</p>
-    <form class="werteform" data-form="ki-code">
-      <label class="feld"><span class="unsichtbar">Freischalt-Code</span><input class="ki-code-feld" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCDE-FGHJK"></label>
-      <button type="submit" class="knopf haupt">Freischalten</button>
-    </form>
+    <p><strong>Die KI ist bei dir noch nicht freigeschaltet.</strong> Bitte Tobi, dir den Freischalt-Code zu schicken.</p>
+    <button type="button" class="knopf haupt" data-tun="tobi-fragen" id="tobi-fragen">📨 Tobi um den Code bitten</button>
+    <p class="klein">Ist seine Nachricht da: sie gedrückt halten → <strong>„Kopieren“</strong>, dann hier tippen:</p>
+    <button type="button" class="knopf" data-tun="code-einfuegen" id="code-einfuegen">📋 Code von Tobi einfügen</button>
+    <details class="code-von-hand"><summary>Code eintippen</summary>
+      <form class="werteform" data-form="ki-code">
+        <label class="feld"><span class="unsichtbar">Freischalt-Code</span><input class="ki-code-feld" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCDE-FGHJK"></label>
+        <button type="submit" class="knopf haupt">Freischalten</button>
+      </form>
+    </details>
     <p class="fehler" role="alert"></p>
   </div>`;
 }
@@ -1347,7 +1360,11 @@ async function ausrechnen() {
   } catch (err) {
     if (ebene !== meine) return;
     meine.laeuft = false;
-    meine.fehler = err.message;
+    if (err.status === 401) {
+      // Code gesperrt oder vergessen: wieder der Kasten „Bitte Tobi …“ (v12)
+      K.kiCodeWeg();
+      meldung('Der Freischalt-Code gilt nicht mehr – bitte Tobi um einen neuen.');
+    } else meine.fehler = err.message;
     zeigeEbene();
   }
 }
@@ -1373,7 +1390,11 @@ async function netzSuchen() {
   } catch (err) {
     if (ebene !== meine) return;
     meine.laeuft = false;
-    meine.fehler = err.message;
+    if (err.status === 401) {
+      // Code gesperrt oder vergessen: wieder der Kasten „Bitte Tobi …“ (v12)
+      K.kiCodeWeg();
+      meldung('Der Freischalt-Code gilt nicht mehr – bitte Tobi um einen neuen.');
+    } else meine.fehler = err.message;
     zeigeEbene();
   }
 }
@@ -1436,10 +1457,35 @@ function oeffneScan() {
 }
 
 async function freischalten(form) {
-  const feld = form.querySelector('input');
-  const fehler = form.parentElement.querySelector('.fehler');
-  const code = K.codeOrdnen(feld.value);
+  const code = K.codeAusText(form.querySelector('input').value);
+  const fehler = form.closest('.ki-freischalten')?.querySelector('.fehler') || form.parentElement.querySelector('.fehler');
   if (!code) { fehler.textContent = 'So sieht der Code nicht aus – zehn Zeichen, etwa ABCDE-FGHJK.'; return; }
+  await mitCodeFreischalten(code, fehler);
+}
+
+/** Den Code aus der Zwischenablage (Tobis kopierte Nachricht) – Uwe tippt nur den Knopf. */
+async function codeEinfuegen(knopf) {
+  const fehler = knopf.closest('.ki-freischalten')?.querySelector('.fehler');
+  let text = '';
+  try { text = await navigator.clipboard.readText(); } catch { /* nicht erlaubt */ }
+  const code = K.codeAusText(text);
+  if (!code) {
+    if (fehler) fehler.textContent = 'Da ist noch kein Code. Tobis Nachricht gedrückt halten → „Kopieren“, dann noch einmal tippen.';
+    return;
+  }
+  await mitCodeFreischalten(code, fehler);
+}
+
+function tobiFragen() {
+  const text = 'Hallo Tobi, kannst du mir den Freischalt-Code für die KI in Mahlzeit schicken? 🙂';
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+  }
+}
+
+async function mitCodeFreischalten(code, fehler) {
   fehler.textContent = 'Prüfe …';
   try {
     await K.codePruefen(code);
@@ -1867,6 +1913,8 @@ document.addEventListener('click', (ev) => {
       zeigeEbene();
       break;
     case 'erg-speichern': ergebnisSpeichern(!!el.dataset.eintragen); break;
+    case 'tobi-fragen': tobiFragen(); break;
+    case 'code-einfuegen': codeEinfuegen(el); break;
     case 'ki-code-weg':
       if (confirm('Den Freischalt-Code von diesem Handy entfernen? Die KI geht dann erst wieder mit dem Code.')) {
         K.kiCodeWeg();

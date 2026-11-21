@@ -209,7 +209,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sobald die Funktion per GET „ki: true“ meldet. Seit dem 21.11. sind
   `GEMINI_API_KEY` und `TAVILY_API_KEY` in Supabase eingetragen, und beides
   ist live geprüft. Gemini ist oft überlastet, deshalb geht es reihum durch
-  die Modelle, mit `thinking_level: "low"`.
+  die Modelle, mit `thinking_level: "low"`. Mahlzeit v12: Ohne Code steht „Bitte Tobi, dir den
+  Freischalt-Code zu schicken“, mit Knöpfen zum Bitten und Einfügen (Uwe soll
+  so wenig wie möglich tun). `mahlzeit_ki` hat jetzt `grund`, `versuche` und
+  `ms`; die Abfrage steht in `mahlzeit/README.md` (v12).
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

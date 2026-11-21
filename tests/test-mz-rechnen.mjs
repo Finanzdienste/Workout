@@ -220,4 +220,9 @@ const mitSchlaf = R.ordnen({ werte: [420, 480, 450].map((wert, i) => ({ id: `s${
 check(mitSchlaf.werte.length === 3, 'Schlaf übersteht ordnen (Sicherung, Neustart)');
 check(R.werteSchnitt(mitSchlaf, 'schlaf')?.wert === 450 && R.werteSchnitt({ werte: mitSchlaf.werte.slice(0, 2) }, 'schlaf') === null, 'Schnitt ab drei Nächten: 7 Std 30 Min');
 
+// --- Code aus Tobis Nachricht (v12)
+check(K.codeAusText('Hier dein Link: https://finanzdienste.github.io/Workout/mahlzeit/#ki=ABCDE-FGHJK – antippen') === 'ABCDE-FGHJK', 'Code aus der ganzen Nachricht mit Link');
+check(K.codeAusText('Dein Code: abcde-fghjk 🙂') === 'ABCDE-FGHJK' && K.codeAusText('ABCDEFGHJK') === 'ABCDE-FGHJK', 'Code allein, klein oder ohne Strich');
+check(K.codeAusText('Hallo Uwe, wie gehts?') === null && K.codeAusText('') === null, 'kein Code im Text: null');
+
 ende();

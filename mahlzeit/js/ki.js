@@ -63,6 +63,18 @@ export function codeOrdnen(text) {
 }
 
 /** Der Code aus „#ki=ABCDE-FGHJK" (auch zwischen anderen Angaben im Hash) oder null. */
+/**
+ * Der Code aus irgendeinem Text – Tobis ganzer Nachricht mit Link
+ * („…/mahlzeit/#ki=ABCDE-FGHJK“) oder nur dem Code. Sonst null. (v12)
+ */
+export function codeAusText(text) {
+  const t = String(text || '');
+  const link = t.match(/[#&]ki=([A-Za-z0-9-]{10,12})/);
+  if (link) return codeOrdnen(link[1]);
+  const nackt = t.toUpperCase().match(/(?:^|[^A-Z0-9])([A-HJ-NP-Z2-9]{5}-?[A-HJ-NP-Z2-9]{5})(?![A-Z0-9])/);
+  return nackt ? codeOrdnen(nackt[1]) : null;
+}
+
 export function codeAusAdresse(hash) {
   const m = String(hash || '').match(/(?:^#|&)ki=([^&]+)/);
   return m ? codeOrdnen(decodeURIComponent(m[1])) : null;

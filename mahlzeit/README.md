@@ -258,6 +258,58 @@ Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
 abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
 Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
 
+## Uwe muss nichts eintippen, Tobi sieht, warum die KI nicht konnte (v12, 21.11.2026)
+
+Tobi: „Statt ihn nach einem freischalt Code zu fragen soll in solchen
+Situationen dort stehen dass er tobi bitten soll den freischalt Code zu
+schicken. Er selbst soll generell so wenig wie möglich machen. Aber können
+wir nicht auch mit loggen ob die ais zb alle überlastet waren?“
+
+**Vorher:** Ohne Code stand dort „Die KI ist noch nicht freigeschaltet. Dafür
+brauchst du den Code aus dem Link …“ mit einem Eingabefeld. In
+`mahlzeit_ki` stand je Anfrage nur ok oder nicht ok.
+
+**Freischalten, jetzt:**
+- Der Kasten sagt **„Bitte Tobi, dir den Freischalt-Code zu schicken.“**
+- **„📨 Tobi um den Code bitten“** öffnet das Teilen-Menü mit einer fertigen
+  Nachricht an Tobi (sonst WhatsApp).
+- **„📋 Code von Tobi einfügen“** holt den Code aus der Zwischenablage. Es
+  reicht, Tobis Nachricht zu kopieren, ob Link oder Code (`codeAusText` in
+  `js/ki.js`).
+- Eintippen geht nur noch unter „Code eintippen“, zugeklappt.
+- Ein Link allein hilft auf dem iPhone nicht: Er öffnet Safari, nicht die
+  App vom Home-Bildschirm, und die hat ihren eigenen Speicher.
+- Wird ein Code mitten im Gebrauch abgelehnt (401), vergisst die App ihn und
+  sagt „Der Freischalt-Code gilt nicht mehr – bitte Tobi um einen neuen“.
+
+**Protokoll, jetzt:** `mahlzeit_ki` hat drei neue Spalten:
+- `grund`: ok, ueberlastet, kontingent, zeit, guthaben, schluessel,
+  unlesbar oder fehler. Bei einem Fehlschlag zählt der Grund von Gemini,
+  nicht der vom Claude-Ersatz ohne Guthaben.
+- `versuche`: je versuchtes Modell `{modell, grund, ms}`.
+- `ms`: wie lange die Anfrage gedauert hat.
+
+Die Funktion ist dafür als Version 10 ausgeliefert.
+
+**Für Tobi nachsehen** (Supabase, SQL):
+
+```sql
+-- Die letzten Anfragen: was, ob es ging, warum nicht, wie lange
+select at, art, ok, grund, modell, round(ms / 1000.0) as sekunden,
+       jsonb_path_query_array(versuche, '$[*].grund') as versuche
+from public.mahlzeit_ki order by at desc limit 20;
+-- Wie oft war alles überlastet (je Tag)?
+select date(at) as tag, count(*) filter (where grund = 'ueberlastet') as ueberlastet, count(*) as alle
+from public.mahlzeit_ki group by 1 order by 1 desc;
+```
+
+Geprüft:
+- `tests/test-mz-ki.mjs`: Grund und Versuche bei Erfolg nach zwei
+  Überlastungen und wenn alles überlastet ist, dazu `grundVon`.
+- `tests/test-mz-scan.mjs`: Kasten, Teilen, Einfügen ohne und mit Code, der
+  Code aus Tobis ganzer Nachricht, 401 im Gebrauch.
+- `tests/test-mz-rechnen.mjs`: `codeAusText`.
+
 ## Gemini und Tavily statt Claude (v11, 21.11.2026)
 
 Tobi: „Wir benutzen in der anderen app ja gemini und tavily. Können wir doch

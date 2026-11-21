@@ -72,7 +72,7 @@ export type Umgebung = {
   /** Auswertungen der letzten 24 Stunden: mit diesem Code und insgesamt. */
   gezaehlt: (hash: string) => Promise<{ zugang: number; alle: number }>;
   /** Eine Auswertung festhalten (auch eine misslungene, sie zählt mit). */
-  merken: (eintrag: { hash: string; art: string; usd: number; modell: string; ok: boolean }) => Promise<void>;
+  merken: (eintrag: Eintrag) => Promise<void>;
   /** Fragt Claude; fehlt sie, ist der Schlüssel nicht eingerichtet. */
   claude?: (rumpf: Record<string, unknown>) => Promise<ClaudeAntwort>;
   /** Fragt Gemini (v11, zuerst gefragt, kostenlos); fehlt sie, gibt es keinen GEMINI_API_KEY. */
@@ -80,6 +80,22 @@ export type Umgebung = {
   /** Sucht im Internet (Tavily, wie rezept-web in Boxenstopp); fehlt sie, gibt es keinen TAVILY_API_KEY. */
   suchen?: (q: string) => Promise<Treffer[]>;
 };
+
+/** Was eine Anfrage ergab (v12) – für Tobis Nachsehen in mahlzeit_ki. */
+export type Versuch = { modell: string; grund: string; ms: number };
+export type Eintrag = { hash: string; art: string; usd: number; modell: string; ok: boolean; grund?: string; versuche?: Versuch[]; ms?: number };
+
+/** Warum ein Versuch misslang, als ein Wort. */
+export function grundVon(e: unknown): string {
+  const f = e as { grenze?: boolean; dauerhaft?: boolean; message?: string } | null;
+  const m = String(f?.message ?? "");
+  if (f?.grenze || /\b429\b|quota|kontingent/i.test(m)) return "kontingent";
+  if (/credit balance|guthaben/i.test(m)) return "guthaben";
+  if (f?.dauerhaft) return "schluessel";
+  if (/zeit abgelaufen|timed? ?out|timeout/i.test(m)) return "zeit";
+  if (/\b50[0-9]\b|high demand|overload|überlastet|unavailable/i.test(m)) return "ueberlastet";
+  return "fehler";
+}
 
 export async function pruefsumme(code: string): Promise<string> {
   const daten = new TextEncoder().encode(codeOrdnen(code));
@@ -457,6 +473,8 @@ export function erstelleHandler(env: Umgebung) {
     if (env.claude) wege.push({ name: MODELL, gemini: false, frag: env.claude, rumpf: () => anfrageRumpf(eingabe, treffer) });
     let antwort: ClaudeAntwort | null = null;
     let letzterFehler: unknown = null;
+    const versuche: Versuch[] = [];
+    const beginn = Date.now();
     let geminiFehler: { dauerhaft?: boolean; grenze?: boolean } | null = null;
     // Die Funktion darf nicht ewig laufen (Supabase bricht sonst selbst ab): nach
     // 75 Sekunden kein neuer Versuch mehr.
@@ -465,19 +483,25 @@ export function erstelleHandler(env: Umgebung) {
       if (Date.now() > frist) break;
       // Ist der Gemini-Schlüssel selbst falsch, hilft kein anderes Gemini-Modell.
       if (weg.gemini && geminiFehler?.dauerhaft) continue;
+      const t0 = Date.now();
       try {
         antwort = await weg.frag(weg.rumpf());
+        versuche.push({ modell: weg.name, grund: "ok", ms: Date.now() - t0 });
         if (weg.gemini) geminiZuletzt = weg.name;
         antwort = { ...antwort, modell: weg.gemini ? weg.name : antwort.modell };
         break;
       } catch (e) {
         letzterFehler = e;
+        versuche.push({ modell: weg.name, grund: grundVon(e), ms: Date.now() - t0 });
         if (weg.gemini) geminiFehler = e as { dauerhaft?: boolean; grenze?: boolean };
         console.error(`${weg.name}:`, e instanceof Error ? e.message : e);
       }
     }
     if (!antwort) {
-      await env.merken({ hash, art: eingabe.hinweis, usd: 0, modell: wege.at(-1)?.name ?? "", ok: false }).catch(() => {});
+      // Der Grund, der zählt: der von Gemini, wenn er vorübergehend war (sonst der letzte).
+      const gemGrund = versuche.find((v) => v.modell.startsWith("gemini") && v.grund !== "schluessel")?.grund;
+      const grund = gemGrund ?? versuche.at(-1)?.grund ?? (Date.now() > frist ? "zeit" : "fehler");
+      await env.merken({ hash, art: eingabe.hinweis, usd: 0, modell: versuche.at(-1)?.modell ?? "", ok: false, grund, versuche, ms: Date.now() - beginn }).catch(() => {});
       // Gemini hakt nur vorübergehend (überlastet, Kontingent): das sagen – nicht
       // den dauerhaften Fehler von Claude (kein Guthaben), der danach kam.
       const e = (geminiFehler && !geminiFehler.dauerhaft ? geminiFehler : letzterFehler) as { dauerhaft?: boolean; grenze?: boolean } | null;
@@ -498,7 +522,7 @@ export function erstelleHandler(env: Umgebung) {
         ergebnis = null;
       }
     }
-    await env.merken({ hash, art: eingabe.hinweis, usd, modell: antwort.modell, ok: !!ergebnis }).catch((e) => console.error("merken:", e));
+    await env.merken({ hash, art: eingabe.hinweis, usd, modell: antwort.modell, ok: !!ergebnis, grund: ergebnis ? "ok" : "unlesbar", versuche, ms: Date.now() - beginn }).catch((e) => console.error("merken:", e));
     if (!ergebnis) return fehler(502, eingabe.art === "suchen" ? "Daraus ließ sich nichts ablesen. Anders schreiben – oder selbst eintragen." : "Die KI konnte das nicht auswerten. Versuch es mit einem schärferen Foto oder als Text.");
     return json(200, { ergebnis });
   };

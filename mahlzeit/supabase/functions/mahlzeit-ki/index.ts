@@ -166,12 +166,12 @@ Deno.serve(erstelleHandler({
     return { zugang: zeilen.filter((z) => z.zugang === hash.slice(0, 16)).length, alle: zeilen.length };
   },
 
-  async merken({ hash, art, usd, modell, ok }) {
+  async merken({ hash, art, usd, modell, ok, grund, versuche, ms }) {
     const betrag = Math.round(usd * 1e6) / 1e6;
     await db("mahlzeit_ki", {
       method: "POST",
       headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({ zugang: hash.slice(0, 16), art, usd: betrag, modell, ok }),
+      body: JSON.stringify({ zugang: hash.slice(0, 16), art, usd: betrag, modell, ok, grund: grund ?? null, versuche: versuche ?? null, ms: ms ?? null }),
     });
     if (betrag > 0) {
       await db("fragmal_kosten", {
