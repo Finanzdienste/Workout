@@ -117,6 +117,49 @@ export function vorratBilanz(seite) {
 // halten – darunter steht die Warnung, darüber die nüchterne Zahl.
 const VORRAT_KRITISCH = 0.34;
 
+/**
+ * Die Muskelgruppen, die eine Übungsliste direkt trifft (Anteil ab 0,5 – die
+ * Schwelle, mit der auch der Plan rechnet), im Modus `mode`.
+ */
+function direkteGruppen(items, mode) {
+  const g = new Set();
+  items.forEach((it) => {
+    const ex = EX_BY_ID.get(it.id);
+    if (!ex) return;
+    Object.entries(ex[mode].shares).forEach(([m, a]) => { if (a >= 0.5) g.add(m); });
+  });
+  return g;
+}
+
+/**
+ * Trifft jedes Training mit dem, was da ist, alle Muskelgruppen seiner
+ * Hantel-Fassung? (v273)
+ *
+ *     „Wie gesagt, es muss nicht jede Übung 1:1 n bodyweight equivalent
+ *      haben. Hauptsache jedes Training hat die gleichen muskelgruppen wie
+ *      das Hantel equivalent"
+ *
+ * Verglichen je Einheit: die Hantel-Fassung des Plans, wie sie ohne Abwahl
+ * wäre (planSaetze(), Beschwerden schon drin), gegen die Liste im Modus
+ * `seite` mit dem, was da ist (exBasis()). { fehlt: [[Gruppe, Trainings]],
+ * trainings, von } – `fehlt` leer heißt: jedes Training trifft sie alle.
+ * Gezählt wird, was fehlt, nicht was dazukommt: Ohne Stange trifft das
+ * Rucksack-Rudern statt der Chin-ups Bizeps und Nacken direkt mit – ein
+ * Mehr, keine Lücke (die Wochenzeile darunter nennt es, wo es spürbar ist).
+ */
+export function vorratDeckung(seite) {
+  const zaehle = new Map();
+  let trainings = 0;
+  PLAN.forEach((w) => {
+    const soll = direkteGruppen(planSaetze(w, 'db'), 'db');
+    const ist = direkteGruppen(exBasis(w, seite), seite);
+    const weg = [...soll].filter((m) => !ist.has(m));
+    if (weg.length) trainings++;
+    weg.forEach((m) => zaehle.set(m, (zaehle.get(m) || 0) + 1));
+  });
+  return { fehlt: [...zaehle.entries()].sort((a, b) => b[1] - a[1]), trainings, von: PLAN.length };
+}
+
 /** Was der Vorrat gerade kostet – in Übungen und in Muskelgruppen. */
 export function vorratFolgen(seite) {
   if (nichtsAbgewaehlt()) {
@@ -125,32 +168,40 @@ export function vorratFolgen(seite) {
   }
   const raus = nichtMoeglich(seite);
   const nm = (id) => resolve({ id, sets: 0 }, seite).name;
-  // Getrennt aufgeführt, und das ist keine Kosmetik: Ein Tausch mit denselben
-  // Anteilen kostet nichts, einer auf denselben Hauptmuskel verschiebt die
-  // Nebenanteile. Beides „getauscht" zu nennen wäre die bequemere und die
-  // falsche Auskunft.
-  const genau = [];
-  const nah = [];
+  // Bis v272 getrennt in „Eins zu eins getauscht" und „Ersetzt" – das las
+  // sich wie eine Regel, nach der jede Übung ihr Gegenstück braucht. Der
+  // Maßstab ist das Training (vorratDeckung()); was sich bei den Nebenanteilen
+  // verschiebt, sagt die Zeile „Je Woche bleiben dann" in Zahlen.
+  const getauscht = [];
   const weg = [];
   raus.forEach((id) => {
     const zu = ersatzFuer(id, seite);
     if (!zu) weg.push(nm(id));
-    else (ersatzGenau(id, zu, seite) ? genau : nah).push(`${nm(id)} → ${nm(zu)}`);
+    else getauscht.push(`${nm(id)} → ${nm(zu)}`);
   });
+  const deckung = raus.length ? vorratDeckung(seite) : null;
+  const mit = seite === 'bw' ? 'wie mit Hanteln' : 'wie geplant';
+  const deckungsSatz = !deckung ? ''
+    : !deckung.fehlt.length ? `<b>Jedes Training trifft weiter alle Muskelgruppen ${mit}.</b>`
+      : `<b>In ${deckung.trainings} von ${deckung.von} Trainings fehlt dann eine Muskelgruppe ${
+        seite === 'bw' ? 'der Hantel-Fassung' : 'des Plans'}:</b> ${esc(deckung.fehlt
+        .map(([m, k]) => `${MUSCLE_LABEL[m] || m} (${plural(k, 'Training', 'Trainings')})`).join(', '))}.${
+        // Ohne Hanteln mit Hanteln trainieren: Der Bodyweight-Modus hat für
+        // jede Übung eine eigene Fassung und deckt dann alles – das sagt die
+        // Karte, statt nur die Lücke zu zählen (der Knopf darüber stellt um).
+        seite === 'db' && !vorratDeckung('bw').fehlt.length
+          ? ' Mit <i>Bodyweight</i> (Knopf darüber) träfe jedes Training sie alle.' : ''}`;
   const bilanz = vorratBilanz(seite);
   const kritisch = bilanz.filter((k) => k.bleibt < k.soll * VORRAT_KRITISCH)
     .map((k) => MUSCLE_LABEL[k.m] || k.m);
   const wo = seite === 'bw' ? 'Im Bodyweight-Modus' : 'Im Hantel-Modus';
   return `
-    <div class="small muted" style="margin-top:10px"><b>${esc(wo)} heißt das:</b>
-      ${raus.length ? `${plural(raus.length, 'Übung fällt', 'Übungen fallen')} aus dem Plan.`
+    <div class="small muted vorrat-deckung" style="margin-top:10px"><b>${esc(wo)} heißt das:</b>
+      ${raus.length ? `${deckungsSatz} ${plural(raus.length, 'Übung geht', 'Übungen gehen')} ohne das,
+        was fehlt, nicht – ${weg.length ? 'wo es eine gibt, steht' : 'an ihrer Stelle steht'} eine für
+        dieselben Muskeln${weg.length ? ' an ihrer Stelle' : ''}.`
         : 'nichts – keine Übung dieses Modus braucht, was fehlt.'}</div>
-    ${genau.length ? `<div class="small muted">Eins zu eins getauscht: ${esc(genau.join(' · '))}
-      <span class="muted">– gleiche Muskelanteile, die Wochenrechnung bleibt also
-      stehen.</span></div>` : ''}
-    ${nah.length ? `<div class="small muted">Ersetzt: ${esc(nah.join(' · '))}
-      <span class="muted">– derselbe Hauptmuskel, aber nicht dieselbe Übung. Die
-      Nebenanteile verschieben sich; wie weit, steht gleich darunter.</span></div>` : ''}
+    ${getauscht.length ? `<div class="small muted">Getauscht: ${esc(getauscht.join(' · '))}</div>` : ''}
     ${weg.length ? `<div class="small muted">Ersatzlos weg: ${esc(weg.join(' · '))}</div>` : ''}
     ${bilanz.length ? `<div class="small muted" style="margin-top:6px">Je Woche bleiben dann:
       ${bilanz.map((k) => `${esc(MUSCLE_LABEL[k.m] || k.m)}

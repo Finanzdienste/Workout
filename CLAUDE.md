@@ -139,7 +139,13 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (21.11.2026)
-- Workout v272: Die Knöpfe *Bodyweight*/*Hanteln* in *Mehr → Was da ist*
+- Workout v273: *Was da ist* sagt zuerst, ob jedes Training alle
+  Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
+  „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die
+  gleichen muskelgruppen wie das Hantel equivalent“. Wache in
+  `tests/test-vorrat.mjs`: alle vier Pläne, mit/ohne Bänder und Stange,
+  keine Lücke (README „Jedes Training alle Muskelgruppen“).
+- Davor v272: Die Knöpfe *Bodyweight*/*Hanteln* in *Mehr → Was da ist*
   stellen das Training um wie *Womit trainierst du* (vorher nur die
   Geräteliste) – Tobi: „Hab auf bodyweight umgestellt aber trotzdem steht das
   heutige Workout auf Hanteln?“. Mit Hanteln stehen Bänder und Stange mit in

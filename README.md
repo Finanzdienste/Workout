@@ -2275,6 +2275,47 @@ ohne die Stufe, die sie erst möglich macht; die gewichteten Liegestütze warnte
 vor Hantelscheiben, die es im Bodyweight-Modus gar nicht gibt; und Chin-ups
 nannten einen Stuhl, den die Geräteangabe verschwieg.
 
+### Jedes Training alle Muskelgruppen – auch ohne Band und Stange (v273)
+
+    „Wie gesagt, es muss nicht jede Übung 1:1 n bodyweight equivalent haben.
+     Hauptsache jedes Training hat die gleichen muskelgruppen wie das Hantel
+     equivalent"
+
+Genau das ist der Maßstab dieses Abschnitts – gerechnet hat die App ihn
+schon, gesagt hat sie ihn nicht. Unter *Mehr → Was da ist* stand ohne Bänder
+und Stange „14 Übungen fallen aus dem Plan. Eins zu eins getauscht: Band-Curls
+→ Rucksack-Curls · …", dazu eine zweite Liste „Ersetzt". Das las sich, als
+brauche jede Übung ihr Gegenstück, und „fallen aus dem Plan" stimmte nicht:
+ersetzt wurden alle 14.
+
+Nachgerechnet am 21.11., je Einheit, alle vier Pläne (336 Einheiten): Die
+Bodyweight-Fassung trifft jede Muskelgruppe direkt (Anteil ab 0,5), die ihre
+Hantel-Fassung trifft – mit allem, ohne Stange, ohne Bänder und ohne beides.
+Keine einzige Lücke. Ohne Stange kommt etwas dazu: Für Chin-ups und Pull-ups
+springt das Rucksack-Rudern ein und trifft Bizeps (22 Einheiten) und Nacken
+(38) direkt mit. Das ist ein Mehr, keine Lücke; spürbar wird es in der Zeile
+„Je Woche bleiben dann: Nacken 11,2 statt 9,8 Sätze".
+
+Jetzt steht in *Was da ist* zuerst, worauf es ankommt (`vorratDeckung()` in
+`js/ansicht-vorrat.js`):
+
+* **„Jedes Training trifft weiter alle Muskelgruppen wie mit Hanteln."** –
+  oder, wo nicht, welche fehlt und in wie vielen Trainings. Gemessen an der
+  Hantel-Fassung des Plans, wie sie ohne Abwahl wäre (Beschwerden schon
+  drin), gegen die Liste mit dem, was da ist. Im Hantel-Modus „wie geplant".
+* **Darunter eine Liste „Getauscht"** statt „Eins zu eins" und „Ersetzt";
+  was sich bei den Nebenanteilen verschiebt, sagt die Wochenzeile in Zahlen.
+* **Mit Hanteln, aber ohne Hanteln** – alle drei Hanteln abgewählt – fehlen in
+  77 von 84 Trainings Waden, Oberschenkel, Beinbeuger oder Gesäß: Für Goblet
+  Squat und Wadenheben gibt es im Hantel-Modus keinen Ersatz. Die Karte sagt
+  dann auch, dass *Bodyweight* sie alle träfe – der Knopf steht direkt
+  darüber (v272).
+
+Geprüft in `tests/test-vorrat.mjs`: die Wache über alle vier Pläne und die
+vier Gerätefälle (keine Einheit mit Lücke) und die Sätze der Karte; gegen v272
+5 von 46 Prüfungen rot (die Wache selbst war schon grün – sie hält den
+Maßstab fest, damit ihn die nächste Änderung am Katalog nicht still bricht).
+
 ## Kalender
 
 Der Plan ist eine Liste von Einheiten, gelebt wird er aber in Tagen. Der Tab
