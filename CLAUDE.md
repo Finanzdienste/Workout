@@ -190,7 +190,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   kein Anthropic-Guthaben hat – Uwe testet die App seit dem 19.11. Mahlzeit v9:
   Schlaf und Schritte unter *Werte* zum Abtippen von der Uhr – Uwe hat ein
   iPhone, an Apple Health kommt nur eine echte App (Mac + Entwicklerkonto
-  fehlen).
+  fehlen). Mahlzeit v10: Uwe ist einverstanden, dass Tobi seine Werte sieht –
+  Kurzbefehl „Mahlzeit Uhr“ (richtet Tobi auf Uwes iPhone ein, Anleitung in
+  der App) → Supabase-Funktion `mahlzeit-uhr` → `mahlzeit_uhr`; Abfrage in
+  `mahlzeit/README.md` „Die Uhr schickt Schlaf und Schritte selbst“.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

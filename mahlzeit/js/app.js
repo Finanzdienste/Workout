@@ -18,8 +18,9 @@ import * as K from './ki.js';
 import * as SP from './sport.js';
 import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
+import * as UHR from './uhr.js';
 
-export const FASSUNG = 'v9';
+export const FASSUNG = 'v10';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -149,6 +150,14 @@ function kartenOben(stand, tag, h) {
       <h3>📲 Als App auf den Startbildschirm</h3>
       ${installierenHtml()}
       <button type="button" class="knopf leise" data-tun="install-spaeter">Später</button>
+    </section>`;
+  }
+  if (tag === h && geraet() === 'ios' && !stand.uhr && !stand.hinweise.uhrSpaeter) {
+    html += `<section class="karte hinweis" id="uhr-hinweis">
+      <p>⌚ <strong>Schlaf und Schritte von deiner Uhr</strong> können von selbst hier landen. Dafür muss <strong>Tobi</strong> einmal etwas an deinem Handy einrichten – etwa zehn Minuten.</p>
+      <p class="klein">Gib ihm dein Handy und tipp auf „Tobi richtet ein“.</p>
+      <div class="reihe"><button type="button" class="knopf" data-tun="uhr-einrichten">Tobi richtet ein</button>
+      <button type="button" class="knopf leise" data-tun="hinweis-weg" data-hinweis="uhrSpaeter">Später</button></div>
     </section>`;
   }
   if (R.istHafertag(stand, tag)) html += haferHeute(stand, tag);
@@ -536,8 +545,8 @@ function seiteWerte(stand) {
       <button type="submit" class="knopf haupt">Eintragen</button>
     </form>
     ${schlafSchnitt ? `<p id="schlaf-schnitt">Schnitt der letzten ${schlafSchnitt.anzahl} Nächte: <strong>${R.dauerText(schlafSchnitt.wert)}</strong></p>` : ''}
-    ${liste(schlaf, (w) => R.dauerText(w.wert))}
-    <p class="klein leise">Morgens eintragen, ein Wert je Nacht – ein zweiter ersetzt den ersten.</p>
+    ${liste(schlaf, (w) => `${R.dauerText(w.wert)}${w.quelle === 'uhr' ? ' <small title="von der Uhr">⌚</small>' : ''}`)}
+    <p class="klein leise">${stand.uhr ? 'Kommt von der Uhr (⌚). Was du selbst einträgst, bleibt stehen.' : 'Morgens eintragen, ein Wert je Nacht – ein zweiter ersetzt den ersten.'}</p>
   </section>
   <section class="karte" id="karte-schritte">
     <h3>👟 Schritte</h3>
@@ -546,8 +555,8 @@ function seiteWerte(stand) {
       <button type="submit" class="knopf haupt">Eintragen</button>
     </form>
     ${schritteSchnitt ? `<p id="schritte-schnitt">Schnitt der letzten ${schritteSchnitt.anzahl} Tage: <strong>${R.zahl(schritteSchnitt.wert)}</strong></p>` : ''}
-    ${liste(schritte, (w) => R.zahl(w.wert))}
-    <p class="klein leise">Abends, was die Uhr für heute zählt. Ein Wert je Tag – ein späterer ersetzt den früheren.</p>
+    ${liste(schritte, (w) => `${R.zahl(w.wert)}${w.quelle === 'uhr' ? ' <small title="von der Uhr">⌚</small>' : ''}`)}
+    <p class="klein leise">${stand.uhr ? 'Kommt von der Uhr (⌚), zweimal am Tag.' : 'Abends, was die Uhr für heute zählt. Ein Wert je Tag – ein späterer ersetzt den früheren.'}</p>
   </section>
   <section class="karte" id="karte-hba1c">
     <h3>🧪 Langzeitwert (HbA1c)</h3>
@@ -612,6 +621,10 @@ function seiteMehr(stand) {
     : freischaltenHtml()}
     <p class="klein leise">Was dabei das Handy verlässt: beim Strichcode nur die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel. Beim Rezept der Text bzw. die Fotos – an die KI Claude von Anthropic, über Tobis Zugang. Sonst nichts.</p>
   </section>` : ''}
+  <section class="karte" id="karte-uhr">
+    <h3>⌚ Uhr: Schlaf und Schritte</h3>
+    ${uhrStatusHtml(stand)}
+  </section>
   <section class="karte" id="karte-lebenszeichen">
     <h3>📶 Lebenszeichen an Tobi</h3>
     <p>Damit Tobi weiß, ob dir die App etwas bringt, meldet sie höchstens alle drei Stunden nur Zahlen: wie viele Einträge heute, wie viele Hafer-Mahlzeiten, Sporteinheiten und Werte – nie, was du isst, wiegst oder misst.</p>
@@ -635,7 +648,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
-    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi (nur Zahlen, abschaltbar, siehe oben) und, wenn du einen Strichcode nachschlägst, ${K.KI_AN ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
+    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi (nur Zahlen, abschaltbar, siehe oben) ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.KI_AN ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
     <p>Die Kalorien sind Richtwerte für übliche Portionen – ein Döner vom Imbiss nebenan kann 100 kcal mehr oder weniger haben. Für den Überblick reicht das; genauer wird es mit der Packung in der Hand („Selbst eintragen“).</p>
     <p>Die App ersetzt keine ärztliche Beratung. Was die Hafertage angeht, steht die Quelle unter „Hafer“.</p>
     <p class="klein leise">Fassung ${FASSUNG}</p>
@@ -705,6 +718,8 @@ function zeigeEbene() {
     if (S.kannLive() && !ebene.nichtGefunden) kameraAn();
   } else if (ebene.art === 'rezept') {
     el.innerHTML = rezeptHtml();
+  } else if (ebene.art === 'uhr') {
+    el.innerHTML = uhrHtml(stand);
   } else if (ebene.art === 'training') {
     el.innerHTML = trainingHtml();
   } else if (ebene.art === 'ki-ergebnis') {
@@ -1609,6 +1624,109 @@ function wertWeg(id) {
   if (alt) meldung('Gelöscht.', () => { aendern((s) => { s.werte.push(alt); }); zeige(); });
 }
 
+// --- Uhr (v10) ---------------------------------------------------------------
+
+/*
+ * Schlaf und Schritte von Uwes Uhr über einen Kurzbefehl, den Tobi auf dem
+ * iPhone einrichtet (js/uhr.js, supabase/functions/mahlzeit-uhr). Die
+ * Anleitung steht hier, für Tobi – die Namen so, wie sie in der deutschen
+ * Kurzbefehle-App heißen.
+ */
+function uhrStatusHtml(stand) {
+  if (!stand.uhr) {
+    return `<p>Schlaf und Schritte von der Uhr landen von selbst unter „Werte“. ${geraet() === 'ios' ? 'Einrichten muss das einmal Tobi an deinem Handy – etwa zehn Minuten.' : 'Das geht nur mit dem iPhone (über Apple Health).'}</p>
+      <button type="button" class="knopf" data-tun="uhr-einrichten" id="uhr-einrichten">Tobi richtet ein</button>`;
+  }
+  const z = UHR.zuletztGeholt();
+  return `<p id="uhr-stand">${z.angekommen ? `Verbunden. Zuletzt angekommen: <strong>${esc(zeitText(z.angekommen))}</strong>.` : 'Eingerichtet, aber noch nichts angekommen.'}</p>
+    <div class="reihe"><button type="button" class="knopf leise" data-tun="uhr-einrichten">Anleitung für Tobi</button>
+    <button type="button" class="knopf leise" data-tun="uhr-trennen">Trennen</button></div>`;
+}
+
+/** „heute, 09:31“ / „gestern, 21:30“ / „Mi, 19.11., 09:30“ */
+function zeitText(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const tag = R.tagVon(d);
+  const uhr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const h = heute();
+  const gestern = R.plusTage(h, -1);
+  return `${tag === h ? 'heute' : tag === gestern ? 'gestern' : R.datumKurz(tag)}, ${uhr}`;
+}
+
+function uhrEinrichten() {
+  if (!lesen().uhr) aendern((s) => { s.uhr = { k: UHR.neuerSchluessel() }; });
+  oeffneEbene({ art: 'uhr', status: '' });
+}
+
+function uhrHtml(stand) {
+  const adresse = UHR.senderAdresse(stand.uhr?.k || '');
+  const v = (name) => `<span class="var">${name}</span>`;
+  return `
+    <div class="ebene-kopf">
+      <button type="button" class="rund" data-tun="ebene-zu" aria-label="Schließen">✕</button>
+      <h2>Für Tobi: Uhr verbinden</h2>
+    </div>
+    <div class="ebene-inhalt anleitung">
+      <p class="karte hinweis">Uwe, gib das Handy jetzt Tobi. 🙂 Danach kommen Schlaf und Schritte von selbst – zweimal am Tag.</p>
+      <p>Die Uhr muss ihre Daten an <strong>Apple Health</strong> geben (in ihrer App unter Einstellungen → Apple Health/Health verbinden; bei der Apple Watch von selbst). Dann ein Kurzbefehl, der sie hierher schickt:</p>
+      <h3>1. Diese Adresse kopieren</h3>
+      <p class="adresse" id="uhr-adresse">${esc(adresse)}</p>
+      <button type="button" class="knopf haupt" data-tun="uhr-kopieren" id="uhr-kopieren">Adresse kopieren</button>
+      <h3>2. Kurzbefehl bauen</h3>
+      <p class="klein">In der App <strong>Kurzbefehle</strong> (blau-rosa Symbol; fehlt sie: im App Store „Kurzbefehle“ laden).</p>
+      <ol class="schritte">
+        <li>Unten <strong>„Kurzbefehle“</strong>, oben rechts <strong>„+“</strong>. Oben auf den Namen tippen → <strong>„Umbenennen“</strong> → <code>Mahlzeit Uhr</code>.</li>
+        <li><strong>Schlaf:</strong> Im Suchfeld <code>Health-Samples suchen</code> → antippen. In der Aktion bei <strong>Typ</strong> <strong>„Schlafanalyse“</strong> wählen. <strong>„Filter hinzufügen“</strong> → <strong>„Startdatum“ · „ist in den letzten“ · 2 · „Tage“</strong>.</li>
+        <li>Im Suchfeld <code>Wiederholen mit jedem</code> → antippen.</li>
+        <li><code>Text</code> → antippen. Die Aktion muss <em>zwischen</em> „Wiederholen mit jedem“ und „Ende der Wiederholung“ stehen – sonst gedrückt halten und hineinziehen.</li>
+        <li>In das Textfeld tippen, über der Tastatur ${v('Wiederholungsobjekt')} antippen. Dann das blaue ${v('Wiederholungsobjekt')} im Text antippen → <strong>„Wert“</strong>. Dahinter ein <code>|</code> tippen (Taste <strong>„#+=“</strong>).</li>
+        <li>Wieder ${v('Wiederholungsobjekt')} einfügen, antippen → <strong>„Startdatum“</strong>, darunter <strong>Datumsformat „ISO 8601“</strong> und <strong>„Zeit einschließen“ an</strong>. Ein <code>|</code>. Noch einmal ${v('Wiederholungsobjekt')} → <strong>„Enddatum“</strong>, ebenso ISO 8601 mit Zeit.<small>Im Feld steht dann: Wert|Startdatum|Enddatum</small></li>
+        <li><em>Unter</em> „Ende der Wiederholung“: <code>Text kombinieren</code> → es nimmt ${v('Wiederholungsergebnisse')}. Bei „mit“ <strong>„Neue Zeile“</strong> wählen.</li>
+        <li><strong>Schritte:</strong> Punkt 2 bis 7 noch einmal, mit diesen Unterschieden: Typ <strong>„Schritte“</strong>, dazu in der Aktion <strong>„Gruppieren nach“ · „Tag“</strong> (ggf. erst „Mehr anzeigen“). Im Text nur ${v('Wiederholungsobjekt')} → <strong>„Startdatum“</strong> (ISO 8601, Zeit an), <code>|</code>, ${v('Wiederholungsobjekt')} → <strong>„Wert“</strong>.</li>
+        <li><code>Inhalte von URL abrufen</code> → antippen. Auf <strong>„URL“</strong> tippen und die kopierte Adresse einfügen. Auf den Pfeil <strong>›</strong> tippen: <strong>Methode „POST“</strong>, <strong>Anfragetext „JSON“</strong>.</li>
+        <li><strong>„Neues Feld hinzufügen“ → „Text“</strong>: Schlüssel <code>schlaf</code>, Wert: über der Tastatur <strong>„Variable auswählen“</strong> und die <em>erste</em> Aktion „Text kombinieren“ antippen. Noch ein Feld: <code>schritte</code> → die <em>zweite</em> „Text kombinieren“.</li>
+        <li>Unten rechts <strong>▶</strong> tippen. Health fragt nach Zugriff: <strong>Schlaf und Schritte erlauben</strong>. Fragt das iPhone, ob es an „supabase.co“ senden darf: <strong>„Immer erlauben“</strong>.</li>
+      </ol>
+      <h3>3. Nachsehen</h3>
+      <p id="uhr-status" role="status">${esc(ebene.status || '')}</p>
+      <button type="button" class="knopf" data-tun="uhr-nachsehen" id="uhr-nachsehen">Ist etwas angekommen?</button>
+      <h3>4. Zweimal am Tag von selbst</h3>
+      <ol class="schritte">
+        <li>In Kurzbefehle unten <strong>„Automation“</strong> → <strong>„+“</strong> (oder „Neue Automation“) → <strong>„Tageszeit“</strong>.</li>
+        <li><strong>09:30</strong>, <strong>„Täglich“</strong>, <strong>„Sofort ausführen“</strong> wählen, „Bei Ausführung benachrichtigen“ aus → <strong>„Weiter“</strong> → <strong>„Mahlzeit Uhr“</strong>.</li>
+        <li>Dasselbe noch einmal für <strong>21:30</strong>.</li>
+      </ol>
+      <p class="klein leise">Ist das Handy zu der Zeit gesperrt, lässt iOS den Kurzbefehl nicht an Health – dann holt es der nächste Lauf nach (er schickt immer zwei Tage). Kommt trotzdem tagelang nichts an: statt „Tageszeit“ den Auslöser <strong>„App“ → eine App, die Uwe täglich öffnet → „Wird geöffnet“ → „Sofort ausführen“</strong>.</p>
+      <p class="klein leise">Was ankommt, liegt in Tobis Datenbank (Supabase) – Uwe ist damit einverstanden. Trennen unter „Mehr“.</p>
+      <button type="button" class="knopf haupt gross-knopf" data-tun="ebene-zu">Fertig</button>
+    </div>`;
+}
+
+let uhrLaeuft = false;
+async function uhrHolen({ immer = false } = {}) {
+  const k = lesen().uhr?.k;
+  if (!k || uhrLaeuft) return;
+  uhrLaeuft = true;
+  if (immer && ebene?.art === 'uhr') { ebene.status = 'Sehe nach …'; zeigeEbene(); }
+  const daten = await UHR.holen(k, { heute: heute(), immer });
+  uhrLaeuft = false;
+  let neu = 0;
+  if (daten) aendern((s) => { neu = UHR.uebernehmen(s, daten.werte, () => neueId('w')); });
+  if (immer && ebene?.art === 'uhr') {
+    const st = lesen();
+    const letzt = (art) => R.werteVon(st, art).filter((w) => w.quelle === 'uhr').at(-1);
+    const sl = letzt('schlaf');
+    const sr = letzt('schritte');
+    ebene.status = !daten
+      ? 'Keine Verbindung. Ist das Handy online?'
+      : !daten.zuletzt
+        ? 'Noch nichts angekommen. Den Kurzbefehl einmal mit ▶ ausführen, dann noch mal nachsehen.'
+        : `✓ Angekommen (${zeitText(daten.zuletzt)}).${sl ? ` Schlaf ${R.datumKurz(sl.tag)}: ${R.dauerText(sl.wert)}.` : ' Noch kein Schlaf – Typ „Schlafanalyse“ und „Zeit einschließen“ prüfen.'}${sr ? ` Schritte ${R.datumKurz(sr.tag)}: ${R.zahl(sr.wert)}.` : ''}`;
+    zeigeEbene();
+  } else if (neu && !ebene) zeige();
+}
+
 // --- Ereignisse ------------------------------------------------------------
 
 document.addEventListener('click', (ev) => {
@@ -1626,6 +1744,23 @@ document.addEventListener('click', (ev) => {
     }
     case 'essen': oeffneEssen(); break;
     case 'ebene-zu': schliesseEbene(); break;
+    case 'uhr-einrichten': uhrEinrichten(); break;
+    case 'uhr-kopieren': {
+      const k = lesen().uhr?.k;
+      if (!k) break;
+      const adresse = UHR.senderAdresse(k);
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(adresse).then(() => meldung('Adresse kopiert.'), () => meldung(adresse));
+      else meldung(adresse);
+      break;
+    }
+    case 'uhr-nachsehen': uhrHolen({ immer: true }); break;
+    case 'uhr-trennen':
+      if (confirm('Die Uhr trennen? Was schon da ist, bleibt. Den Kurzbefehl „Mahlzeit Uhr“ dann in der App Kurzbefehle löschen.')) {
+        aendern((s) => { delete s.uhr; });
+        zeige();
+        meldung('Getrennt.');
+      }
+      break;
     case 'bereich':
       ebene.bereich = el.dataset.bereich || null;
       ebene.zuletzt = null;
@@ -1961,6 +2096,10 @@ window.addEventListener('storage', (ev) => {
 const lebenszeichen = () => LZ.melden(lesen(), { tag: heute(), fassung: FASSUNG, alsApp: standalone() });
 setTimeout(lebenszeichen, 4000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') lebenszeichen(); });
+
+// Schlaf und Schritte von der Uhr: beim Öffnen und beim Zurückkommen (höchstens alle zehn Minuten).
+setTimeout(() => uhrHolen(), 1500);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') uhrHolen(); });
 
 // Über Mitternacht offen geblieben: beim Zurückkommen stimmt „Heute" wieder.
 document.addEventListener('visibilitychange', () => {

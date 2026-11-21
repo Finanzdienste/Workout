@@ -585,6 +585,7 @@ export function ordnen(roh) {
   if (typeof roh.sicherung === 'string') s.sicherung = roh.sicherung;
   s.sport = sportOrdnen(roh.sport);
   if (roh.meldung === false) s.meldung = false;
+  if (/^[a-z0-9]{16,40}$/.test(roh.uhr?.k || '')) s.uhr = { k: roh.uhr.k };
   return s;
 }
 

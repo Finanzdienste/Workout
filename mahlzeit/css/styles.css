@@ -326,3 +326,9 @@ button, .knopf { font: inherit; color: inherit; }
 .figur .kissen { fill: var(--haupt); opacity: .5; stroke: none; }
 .figur .pfeil { stroke: var(--haupt); stroke-width: 1.6; }
 .figur .hinweis-text { fill: var(--haupt); font-size: 9px; stroke: none; }
+
+/* Uhr verbinden (v10): Anleitung für Tobi */
+.anleitung h3 { margin: 1.2rem 0 .4rem; }
+.anleitung code { font-family: ui-monospace, Menlo, monospace; font-size: .92em; background: var(--grund); border: 1px solid var(--linie); border-radius: 6px; padding: 0 .3em; white-space: nowrap; }
+.anleitung .var { display: inline-block; background: #2f6fd6; color: #fff; border-radius: 6px; padding: 0 .35em; font-size: .9em; font-weight: 600; }
+.adresse { font-family: ui-monospace, Menlo, monospace; font-size: .82rem; word-break: break-all; background: var(--karte); border: 1.5px solid var(--linie); border-radius: 10px; padding: .6rem .7rem; user-select: all; }

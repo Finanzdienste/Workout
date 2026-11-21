@@ -258,6 +258,85 @@ Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
 abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
 Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
 
+## Die Uhr schickt Schlaf und Schritte selbst (v10, 21.11.2026)
+
+Tobi: „Doch Uwe meinte ich kann all seine gesundheitsdaten haben“, und auf
+die Wahl zwischen der Bezahl-App „Health Auto Export“ und einem eigenen
+Kurzbefehl: „Ne lass weg 2 machen. Ich kann das ja auch auf Uwes Handy
+einrichten. Er kann ja n Pop up bekommen ‚an dieser Stelle muss Tobi was an
+deinem Handy einrichten‘“.
+
+**Was vorher galt (v9):** Schlaf und Schritte tippte Uwe von der Uhr ab. Der
+Weg über einen Server war ausgeschlossen, weil seine Gesundheitswerte nicht
+bei Tobi liegen sollten. Uwe ist jetzt einverstanden.
+
+**Jetzt gilt:**
+1. Die Uhr gibt ihre Werte an Apple Health. Ein Kurzbefehl „Mahlzeit Uhr“
+   liest daraus Schlaf und Schritte der letzten zwei Tage.
+2. Er schickt sie an die Supabase-Funktion `mahlzeit-uhr`
+   (`supabase/functions/mahlzeit-uhr/`, `verify_jwt` false), zweimal am Tag
+   über Automationen um 09:30 und 21:30.
+3. Sie stehen dann in `mahlzeit_uhr`: ein Wert je Schlüssel, Art und Tag; ein
+   späterer Lauf ersetzt den Wert. Das Rohe kommt 14 Tage lang in
+   `mahlzeit_uhr_eingang`. Beide Tabellen haben RLS ohne Regeln, nur die
+   Funktion kommt heran.
+4. Die App holt die Werte beim Öffnen und beim Zurückkommen ab, höchstens
+   alle zehn Minuten (`js/uhr.js`). Unter *Werte* stehen sie mit ⌚. Was Uwe
+   selbst eingetragen hat, bleibt stehen.
+
+**Der Schlüssel** entsteht in der App: 20 zufällige Zeichen in `stand.uhr.k`.
+Er zieht mit der Sicherung um, und die Adresse des Kurzbefehls enthält ihn.
+Ohne Schlüssel gibt die Funktion nichts heraus, und eine fremde Seite
+bekommt auch mit ihm nichts (CORS, 403).
+
+**Der Hinweis an Uwe:** Auf dem iPhone steht auf der Startseite: „⌚ Schlaf
+und Schritte von deiner Uhr … muss Tobi einmal einrichten – Tobi richtet
+ein / Später“. „Später“ blendet ihn aus; unter *Mehr → Uhr* geht es
+jederzeit. Die Ebene „Für Tobi: Uhr verbinden“ zeigt die Adresse mit dem
+Knopf „Adresse kopieren“ und die Anleitung, Schritt für Schritt mit den
+deutschen Namen der Kurzbefehle-App. Dazu kommt „Ist etwas angekommen?“, das
+sofort nachsieht und sagt, was fehlt.
+
+**Was der Kurzbefehl schickt:** JSON `{ schlaf, schritte }`, je eine Zeile
+pro Health-Sample:
+- Schlaf: `Wert|Startdatum|Enddatum`
+- Schritte, nach Tag gruppiert: `Startdatum|Wert`
+
+Am iPhone hat das hier niemand nachgeprüft. Deshalb liest die Funktion
+großzügig:
+- Die Felder dürfen in beliebiger Reihenfolge kommen.
+- Datumsangaben gehen als ISO 8601 oder deutsch.
+- Zahlen dürfen eine Einheit oder einen Tausenderpunkt haben.
+- „Im Bett“ und „Wach“ zählen nicht mit.
+- Wenn iPhone und Uhr dieselbe Nacht melden, wird sie nur einmal gezählt.
+- Eine Nacht gehört zu dem Tag, an dem Uwe aufwacht.
+- Fehlt die Uhrzeit, sagt die Antwort „Zeit einschließen anschalten“.
+
+**Grenzen:**
+- Ist das Handy zur Automationszeit gesperrt, gibt iOS Health nicht heraus.
+  Dann holt der nächste Lauf nach, weil er immer zwei Tage schickt. Kommt
+  trotzdem tagelang nichts: als Auslöser „App wird geöffnet“ nehmen (steht
+  in der Anleitung).
+- Ruhepuls, Gewicht und Blutzucker kommen noch nicht mit. Das wäre je ein
+  weiterer Block im Kurzbefehl.
+
+**Für Tobi nachsehen** (Supabase, SQL):
+
+```sql
+select art, tag, wert, at from public.mahlzeit_uhr
+where geraet <> 'testclaudeuhr0000001' order by tag desc, art;
+-- was zuletzt roh ankam, wenn etwas nicht stimmt:
+select at, werte, left(roh, 400) from public.mahlzeit_uhr_eingang order by at desc limit 5;
+```
+
+Schlaf steht in Minuten (435 = 7 Std 15 Min). Die Zeile
+`testclaudeuhr0000001` ist vom Test beim Ausliefern am 21.11.
+
+Geprüft in `tests/test-mz-uhr.mjs`: Lesen in allen Formen, die Funktion mit
+nachgebauter Datenbank, das Übernehmen in den Stand, und in der App der
+Hinweis, die Anleitung, das Nachsehen, das Abholen beim Öffnen und das
+Trennen.
+
 ## Schlaf und Schritte von der Uhr (v9, 21.11.2026)
 
 Tobi: „Er hat Sone smart watch. Kann man deren Werte nicht mit unserer App
