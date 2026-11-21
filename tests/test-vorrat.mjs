@@ -221,9 +221,25 @@ check(!/so gut wie nichts übrig/.test(text),
   'und ohne Warnung – keine Gruppe fällt mehr unter ein Drittel des Plans');
 check(!/Scheibengröße hinzufügen/.test(text),
   'die Scheiben stehen auf der Hantel-Seite, nicht auf der Bodyweight-Seite');
+// v273: Der Maßstab ist das Training, nicht die einzelne Übung –
+//     „Wie gesagt, es muss nicht jede Übung 1:1 n bodyweight equivalent
+//      haben. Hauptsache jedes Training hat die gleichen muskelgruppen wie
+//      das Hantel equivalent"
+check(/Jedes Training trifft weiter alle Muskelgruppen wie mit Hanteln\./.test(text),
+  `die Karte sagt zuerst, ob jedes Training dieselben Muskelgruppen trifft (${(/Bodyweight-Modus heißt das:[^.]{0,120}\./.exec(text) || ['(nicht gefunden)'])[0]})`);
+check(!/Eins zu eins/.test(text) && !/fallen aus dem Plan/.test(text) && /Getauscht: .*Band-Curls → /.test(text),
+  'keine „Eins zu eins"-Liste und kein „fallen aus dem Plan" mehr – die Tausche stehen unter „Getauscht"');
 
-// Umschalten auf die Hantel-Seite – „alles aus bodyweight +".
-await page.locator('[data-act="vorrat-seite"][data-v="db"]').first().click();
+// Umschalten auf Hanteln – „alles aus bodyweight +". Seit v272 stellt der
+// Knopf in „Was da ist" das Training um, wie „Womit trainierst du":
+//
+//     „Hab auf bodyweight umgestellt aber trotzdem steht das heutige Workout
+//      auf Hanteln?"
+const vorratKnopf = (label) => page.locator('.section-title:has-text("Was da ist") + .card button', { hasText: label }).first();
+const modusJetzt = () => page.evaluate(async () => (await import('./js/store.js')).getState().mode);
+const womitGewaehlt = async () => ((await page.locator('.section-title:has-text("Womit trainierst du") + .card [aria-pressed="true"]')
+  .first().textContent({ timeout: 1500 }).catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+await vorratKnopf('Hanteln').click();
 await page.waitForTimeout(300);
 const dbText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/Alles aus Bodyweight zählt hier mit/.test(dbText),
@@ -232,6 +248,32 @@ check(/Kurzhanteln/.test(dbText) && /Langhantel/.test(dbText) && /SZ-Stange/.tes
   'und listet die Hanteln darunter');
 check(/Scheibengröße hinzufügen/.test(dbText),
   'die Scheiben-Auflistung steht darunter, wie bisher');
+check(/Jedes Training trifft weiter alle Muskelgruppen wie geplant\./.test(dbText),
+  'auch mit Hanteln sagt die Karte es – gemessen am Plan');
+const mitHanteln = { modus: await modusJetzt(), womit: await womitGewaehlt() };
+check(mitHanteln.modus === 'db' && /Hanteln/.test(mitHanteln.womit),
+  `„Hanteln" in „Was da ist" stellt das Training um – Modus ${mitHanteln.modus}, unter „Womit trainierst du" „${mitHanteln.womit}" (bis v271 nur die Liste)`);
+// Bänder und Stange stehen mit Hanteln in der Liste – abwählbar, ohne auf
+// Bodyweight umzustellen.
+const vorratZeilen = await page.locator('.section-title:has-text("Was da ist") + .card [data-act="toggle-vorrat"]')
+  .evaluateAll((els) => els.map((e) => e.dataset.v));
+check(['band-gelb', 'band-rot', 'stange', 'kurzhantel', 'langhantel'].every((id) => vorratZeilen.includes(id)),
+  `mit Hanteln stehen Bänder, Stange und Hanteln zum Abwählen da (${vorratZeilen.join(', ')})`);
+// Und zurück auf Bodyweight: der Fokus bleibt auf dem Knopf, den man getippt
+// hat – nicht auf dem gleichen unter „Womit trainierst du".
+await vorratKnopf('Bodyweight').click();
+await page.waitForTimeout(300);
+const mitBw = {
+  modus: await modusJetzt(),
+  womit: await womitGewaehlt(),
+  fokus: await page.evaluate(() => document.activeElement && document.activeElement.id),
+  zeilen: await page.locator('.section-title:has-text("Was da ist") + .card [data-act="toggle-vorrat"]')
+    .evaluateAll((els) => els.map((e) => e.dataset.v)),
+};
+check(mitBw.modus === 'bw' && /Bodyweight/.test(mitBw.womit) && mitBw.fokus === 'vorrat-bw',
+  `„Bodyweight" stellt zurück – Modus ${mitBw.modus}, „${mitBw.womit}", Fokus auf ${mitBw.fokus || 'nichts'}`);
+check(mitBw.zeilen.join(',') === 'band-gelb,band-rot,stange',
+  `mit Bodyweight nur Bänder und Stange (${mitBw.zeilen.join(', ')})`);
 
 // Im Training: der Tausch ist benannt.
 await page.evaluate(async () => {
@@ -279,7 +321,118 @@ console.log('     im Training:', (/Statt [^–]{0,60}–[^.]{0,60}/.exec(liste) 
 check(/Statt .{3,40}dafür fehlt gerade das Gerät/.test(liste),
   'und an der Übung steht, wofür sie eingesprungen ist – ein stiller Tausch wäre keiner');
 
-// --- 6. Umstellen mitten im Training, ohne Verlust ----------------------
+// --- 5b. Jedes Training dieselben Muskelgruppen wie mit Hanteln (v273) ---
+//
+// Tobis Maßstab für die Fassung ohne Hanteln, als Wache über alle vier Pläne:
+// Je Einheit trifft die Bodyweight-Fassung – mit allem, ohne Stange, ohne
+// Bänder, ohne beides – jede Muskelgruppe direkt (Anteil ab 0,5), die ihre
+// Hantel-Fassung trifft. Nicht Übung für Übung, sondern das Training. Dazu
+// kommen darf etwas: Ohne Stange springt für die Chin-ups das Rucksack-Rudern
+// ein und trifft Bizeps und Nacken direkt mit (am 21.11. in 50 von 336
+// Einheiten) – das steht in der Ausgabe, fehlt aber nichts.
+const gleicheGruppen = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLANS } = await import('./js/data.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const { vorratFassung } = await import('./js/vorrat.js');
+  const direkt = (items, mode) => {
+    const g = new Set();
+    items.forEach((it) => Object.entries(EX_BY_ID.get(it.id)[mode].shares)
+      .forEach(([m, a]) => { if (a >= 0.5) g.add(m); }));
+    return g;
+  };
+  const faelle = [[], ['stange'], ['band-gelb', 'band-rot'], ['band-gelb', 'band-rot', 'stange']];
+  const vorher = store.getState().fehlt;
+  const out = {};
+  for (const fehlt of faelle) {
+    store.setSetting('fehlt', fehlt);
+    const abw = [];
+    const dazu = new Map();
+    let einheiten = 0;
+    Object.entries(PLANS).forEach(([key, v]) => v.plan.forEach((w, i) => {
+      einheiten++;
+      const db = direkt(w.ex, 'db');
+      const bw = direkt(vorratFassung(w.ex.map((it) => ({ id: it.id, sets: it.bwSets ?? it.sets })), 'bw').items, 'bw');
+      const fehlen = [...db].filter((m) => !bw.has(m));
+      if (fehlen.length) abw.push(`${key} ${i + 1}: ohne ${fehlen.join(',')}`);
+      [...bw].filter((m) => !db.has(m)).forEach((m) => dazu.set(m, (dazu.get(m) || 0) + 1));
+    }));
+    out[fehlt.join('+') || 'alles da'] = { einheiten, abw, dazu: [...dazu.entries()].map(([m, k]) => `${m} ${k}`).join(', ') };
+  }
+  store.setSetting('fehlt', vorher);
+  return out;
+});
+for (const [fall, r] of Object.entries(gleicheGruppen)) {
+  if (r.dazu) console.log(`     ${fall}, dazu direkt: ${r.dazu}`);
+  check(r.einheiten >= 4 * 84 && r.abw.length === 0,
+    `${fall}: jedes Bodyweight-Training trifft alle Muskelgruppen seiner Hantel-Fassung (${r.einheiten} Einheiten, ${r.abw.length} mit Lücke${r.abw.length ? ` – ${r.abw.slice(0, 3).join(' · ')}` : ''})`);
+}
+
+// --- 5c. Mit Hanteln, aber ohne Hanteln: die Karte zeigt auf Bodyweight ---
+{
+  const ctx3 = await browser.newContext({ viewport: { width: 414, height: 896 } });
+  await ctx3.route('**/rest/v1/**', (r) => r.fulfill({ status: 204, body: '' }));
+  const p3 = await ctx3.newPage();
+  p3.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
+  await p3.addInitScript(() => {
+    if (sessionStorage.getItem('gesaet')) return;
+    sessionStorage.setItem('gesaet', '1');
+    localStorage.setItem('workout.state.v1', JSON.stringify({
+      greeted: true, name: 'T', mode: 'db', tab: 'settings', fehlt: ['kurzhantel', 'langhantel', 'sz'],
+    }));
+  });
+  await p3.goto(URL, { waitUntil: 'networkidle' });
+  await p3.waitForTimeout(400);
+  const karte = ((await p3.locator('.section-title:has-text("Was da ist") + .card').first().textContent()
+    .catch(() => '')) || '').replace(/\s+/g, ' ');
+  const satz = (/In \d+ von \d+ Trainings fehlt dann eine Muskelgruppe des Plans:[^.]*\./.exec(karte) || [''])[0];
+  console.log(`     ohne Hanteln im Hantel-Modus: ${satz}`);
+  check(!!satz && /Oberschenkel/.test(satz),
+    '5c ohne Hanteln im Hantel-Modus nennt die Karte die Trainings, denen eine Muskelgruppe fehlt');
+  check(/Mit Bodyweight \(Knopf darüber\) träfe jedes Training sie alle\./.test(karte),
+    '5c und dass Bodyweight sie alle träfe');
+  await ctx3.close();
+}
+
+// --- 6. Tobis Fall: in „Was da ist" auf Bodyweight, das Training folgt ----
+//
+//     „Hab auf bodyweight umgestellt aber trotzdem steht das heutige Workout
+//      auf Hanteln?"
+//
+// Mit Hanteln unterwegs, unter Mehr → Was da ist „Bodyweight" getippt: Bis
+// v271 wechselte das nur die Liste, vorn blieb „Hanteln · 4 Übungen · 14
+// Sätze" und „▶︎ Start 🏋️ Hanteln". Eigener Kontext, frischer Zustand.
+{
+  const ctx2 = await browser.newContext({ viewport: { width: 414, height: 896 } });
+  await ctx2.route('**/rest/v1/**', (r) => r.fulfill({ status: 204, body: '' }));
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
+  await p2.addInitScript(() => {
+    if (sessionStorage.getItem('gesaet')) return;
+    sessionStorage.setItem('gesaet', '1');
+    localStorage.setItem('workout.state.v1', JSON.stringify({
+      greeted: true, name: 'T', mode: 'db', tab: 'settings', fehlt: ['band-gelb', 'band-rot', 'stange'],
+    }));
+  });
+  await p2.goto(URL, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(400);
+  await p2.locator('.section-title:has-text("Was da ist") + .card button', { hasText: 'Bodyweight' }).first().click();
+  await p2.waitForTimeout(300);
+  const toast = ((await p2.locator('#toast').textContent().catch(() => '')) || '').trim();
+  await p2.locator('.tab[data-tab="dashboard"]').click();
+  await p2.waitForTimeout(400);
+  const sub = ((await p2.locator('#view .hero-sub').first().textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const start = ((await p2.locator('#view [data-act="start-session"] .start-modus').first().textContent()
+    .catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const modus = await p2.evaluate(async () => (await import('./js/store.js')).getState().mode);
+  console.log(`     Tobis Fall: ${toast} · ${sub} · Start ${start} · Modus ${modus}`);
+  check(modus === 'bw' && /^Bodyweight · /.test(sub) && /Bodyweight/.test(start),
+    `6 „Bodyweight" in „Was da ist" – vorn steht das Workout von heute auf Bodyweight („${sub}", Start „${start}")`);
+  check(/^Bodyweight – /.test(toast), `6 und der Wechsel sagt es („${toast}")`);
+  await ctx2.close();
+}
+
+// --- 7. Umstellen mitten im Training, ohne Verlust ----------------------
 //
 //     „Es muss die Möglichkeit geben innerhalb eines Workouts auch in den
 //      Einstellungen was ändern zu können. Das bisher trainierte muss dann

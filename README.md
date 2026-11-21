@@ -2275,6 +2275,47 @@ ohne die Stufe, die sie erst möglich macht; die gewichteten Liegestütze warnte
 vor Hantelscheiben, die es im Bodyweight-Modus gar nicht gibt; und Chin-ups
 nannten einen Stuhl, den die Geräteangabe verschwieg.
 
+### Jedes Training alle Muskelgruppen – auch ohne Band und Stange (v273)
+
+    „Wie gesagt, es muss nicht jede Übung 1:1 n bodyweight equivalent haben.
+     Hauptsache jedes Training hat die gleichen muskelgruppen wie das Hantel
+     equivalent"
+
+Genau das ist der Maßstab dieses Abschnitts – gerechnet hat die App ihn
+schon, gesagt hat sie ihn nicht. Unter *Mehr → Was da ist* stand ohne Bänder
+und Stange „14 Übungen fallen aus dem Plan. Eins zu eins getauscht: Band-Curls
+→ Rucksack-Curls · …", dazu eine zweite Liste „Ersetzt". Das las sich, als
+brauche jede Übung ihr Gegenstück, und „fallen aus dem Plan" stimmte nicht:
+ersetzt wurden alle 14.
+
+Nachgerechnet am 21.11., je Einheit, alle vier Pläne (336 Einheiten): Die
+Bodyweight-Fassung trifft jede Muskelgruppe direkt (Anteil ab 0,5), die ihre
+Hantel-Fassung trifft – mit allem, ohne Stange, ohne Bänder und ohne beides.
+Keine einzige Lücke. Ohne Stange kommt etwas dazu: Für Chin-ups und Pull-ups
+springt das Rucksack-Rudern ein und trifft Bizeps (22 Einheiten) und Nacken
+(38) direkt mit. Das ist ein Mehr, keine Lücke; spürbar wird es in der Zeile
+„Je Woche bleiben dann: Nacken 11,2 statt 9,8 Sätze".
+
+Jetzt steht in *Was da ist* zuerst, worauf es ankommt (`vorratDeckung()` in
+`js/ansicht-vorrat.js`):
+
+* **„Jedes Training trifft weiter alle Muskelgruppen wie mit Hanteln."** –
+  oder, wo nicht, welche fehlt und in wie vielen Trainings. Gemessen an der
+  Hantel-Fassung des Plans, wie sie ohne Abwahl wäre (Beschwerden schon
+  drin), gegen die Liste mit dem, was da ist. Im Hantel-Modus „wie geplant".
+* **Darunter eine Liste „Getauscht"** statt „Eins zu eins" und „Ersetzt";
+  was sich bei den Nebenanteilen verschiebt, sagt die Wochenzeile in Zahlen.
+* **Mit Hanteln, aber ohne Hanteln** – alle drei Hanteln abgewählt – fehlen in
+  77 von 84 Trainings Waden, Oberschenkel, Beinbeuger oder Gesäß: Für Goblet
+  Squat und Wadenheben gibt es im Hantel-Modus keinen Ersatz. Die Karte sagt
+  dann auch, dass *Bodyweight* sie alle träfe – der Knopf steht direkt
+  darüber (v272).
+
+Geprüft in `tests/test-vorrat.mjs`: die Wache über alle vier Pläne und die
+vier Gerätefälle (keine Einheit mit Lücke) und die Sätze der Karte; gegen v272
+5 von 46 Prüfungen rot (die Wache selbst war schon grün – sie hält den
+Maßstab fest, damit ihn die nächste Änderung am Katalog nicht still bricht).
+
 ## Kalender
 
 Der Plan ist eine Liste von Einheiten, gelebt wird er aber in Tagen. Der Tab
@@ -5646,6 +5687,42 @@ Einen Schalter „Modus je Workout merken" gibt es nicht mehr: Die eigene
 Variante einer Einheit gilt immer, wenn sie eine hat (`workoutMode()` in
 `js/store.js`), alle anderen nehmen die Wahl unter *Mehr*. Welche Einheiten
 beim Umstellen mitwechseln, steht oben unter *Was umgestellt wird*.
+
+### „Was da ist" stellt mit um (v272)
+
+    „Hab auf bodyweight umgestellt aber trotzdem steht das heutige Workout
+     auf Hanteln?"
+
+Unter *Mehr → Was da ist* standen seit dem 01.10. dieselben zwei Knöpfe
+*Bodyweight* und *Hanteln* wie unter *Womit trainierst du* – gleich gebaut,
+gleich orange, wenn gewählt. Sie wechselten aber nur, **welche Geräteliste**
+man sah (Bänder und Stange oder die Hanteln), nicht das Training. So war es
+damals gewollt („kein zweiter Modus-Schalter", Kopf von `js/ansicht-vorrat.js`),
+auf Tobis Wunsch, im Equipment-Bereich „zwischen bodyweight und Hanteln
+wechseln" zu können. Tobi war ohne Bänder und Stange unterwegs, hakte sie dort
+ab, tippte *Bodyweight* – und vorn stand weiter „Hanteln · 4 Übungen · 14
+Sätze" und „▶︎ Start 🏋️ Hanteln".
+
+Wer in *Was da ist* ankreuzt, was fehlt, will mit dem trainieren, was da ist
+(„je nachdem was man grad hat"). Deshalb gilt jetzt:
+
+* **Ein Modus, zwei Stellen.** Die Knöpfe in *Was da ist* tun dasselbe wie die
+  unter *Womit trainierst du* (`set-modus`), samt Hinweis („Bodyweight –
+  Abgehaktes bleibt gespeichert") und denselben Regeln dafür, welche Einheit
+  mitwechselt. Beide zeigen immer dieselbe Wahl; eine eigene „Seite" des
+  Vorrats (`ui.vorratSeite`) gibt es nicht mehr.
+* **Die Liste ist die des Modus, in dem trainiert wird.** Mit Bodyweight:
+  Bänder und Stange. Mit Hanteln „alles aus bodyweight +" – Bänder und Stange
+  stehen dort jetzt mit in der Liste, dann die Hanteln. Vorher standen sie nur
+  auf der Bodyweight-Seite; wer mit Hanteln trainierte und die Stange abwählen
+  wollte, musste umblättern – was jetzt das Training umstellen würde.
+* Der Fokus bleibt nach dem Tippen auf dem Knopf in *Was da ist* und springt
+  nicht auf den gleichen darüber (`id="vorrat-bw"`, `focusKey()`).
+
+Geprüft in `tests/test-vorrat.mjs`: Tobis Fall mit frischem Zustand (Hanteln,
+Bänder und Stange abgewählt, in *Was da ist* auf *Bodyweight* – vorn
+„Bodyweight · …", der Startknopf sagt Bodyweight), dazu das Umstellen hin und
+zurück, die Liste je Modus und der Fokus; gegen v271 5 von 37 Prüfungen rot.
 
 ## Übungszuordnung
 

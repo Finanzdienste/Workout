@@ -1109,7 +1109,8 @@ await abschnitt('Z21', async () => {
  * ------------------------------------------------------------------ */
 const stange = async (f) => {
   await f.tab('settings');
-  await f.klick('[data-act="vorrat-seite"][data-v="bw"]');
+  // Seit v272 steht die Stange auch mit Hanteln in „Was da ist" – kein
+  // Umschalten nötig (der Knopf dort stellte jetzt das Training um).
   await f.klick('[data-act="toggle-vorrat"][data-v="stange"]', 400);
 };
 const stimmig = (f) => f.M(({ P, store }) => {

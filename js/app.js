@@ -1951,10 +1951,9 @@ const ui = {
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
-  // Welche Seite des Geräte-Vorrats offen steht: 'bw' oder 'db'. Fängt bei dem
-  // Modus an, in dem gerade trainiert wird – wer mit Hanteln arbeitet, sucht
-  // die Hanteln.
-  vorratSeite: store.getState().mode === 'bw' ? 'bw' : 'db',
+  // Eine eigene „Seite" des Geräte-Vorrats gibt es seit v272 nicht mehr: Die
+  // Karte zeigt den Modus, in dem trainiert wird, und ihre Knöpfe stellen ihn
+  // um (vorratKarte() in js/ansicht-vorrat.js).
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
@@ -7538,7 +7537,7 @@ function renderSettings() {
       ${s.supersatz ? superVorschau() : ''}
     </div>
 
-    ${vorratKarte(ui.vorratSeite)}
+    ${vorratKarte(s.mode === 'bw' ? 'bw' : 'db')}
 
     <div class="section-title">Töne und Hinweise</div>
     <div class="card">
@@ -9675,10 +9674,6 @@ view.addEventListener('click', (e) => {
     }
     case 'toggle-aufwaermen':
       store.setSetting('aufwaermen', !store.getState().aufwaermen);
-      render();
-      break;
-    case 'vorrat-seite':
-      ui.vorratSeite = t.dataset.v === 'bw' ? 'bw' : 'db';
       render();
       break;
     case 'toggle-vorrat': {
