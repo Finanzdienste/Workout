@@ -222,8 +222,16 @@ check(!/so gut wie nichts übrig/.test(text),
 check(!/Scheibengröße hinzufügen/.test(text),
   'die Scheiben stehen auf der Hantel-Seite, nicht auf der Bodyweight-Seite');
 
-// Umschalten auf die Hantel-Seite – „alles aus bodyweight +".
-await page.locator('[data-act="vorrat-seite"][data-v="db"]').first().click();
+// Umschalten auf Hanteln – „alles aus bodyweight +". Seit v272 stellt der
+// Knopf in „Was da ist" das Training um, wie „Womit trainierst du":
+//
+//     „Hab auf bodyweight umgestellt aber trotzdem steht das heutige Workout
+//      auf Hanteln?"
+const vorratKnopf = (label) => page.locator('.section-title:has-text("Was da ist") + .card button', { hasText: label }).first();
+const modusJetzt = () => page.evaluate(async () => (await import('./js/store.js')).getState().mode);
+const womitGewaehlt = async () => ((await page.locator('.section-title:has-text("Womit trainierst du") + .card [aria-pressed="true"]')
+  .first().textContent({ timeout: 1500 }).catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+await vorratKnopf('Hanteln').click();
 await page.waitForTimeout(300);
 const dbText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/Alles aus Bodyweight zählt hier mit/.test(dbText),
@@ -232,6 +240,30 @@ check(/Kurzhanteln/.test(dbText) && /Langhantel/.test(dbText) && /SZ-Stange/.tes
   'und listet die Hanteln darunter');
 check(/Scheibengröße hinzufügen/.test(dbText),
   'die Scheiben-Auflistung steht darunter, wie bisher');
+const mitHanteln = { modus: await modusJetzt(), womit: await womitGewaehlt() };
+check(mitHanteln.modus === 'db' && /Hanteln/.test(mitHanteln.womit),
+  `„Hanteln" in „Was da ist" stellt das Training um – Modus ${mitHanteln.modus}, unter „Womit trainierst du" „${mitHanteln.womit}" (bis v271 nur die Liste)`);
+// Bänder und Stange stehen mit Hanteln in der Liste – abwählbar, ohne auf
+// Bodyweight umzustellen.
+const vorratZeilen = await page.locator('.section-title:has-text("Was da ist") + .card [data-act="toggle-vorrat"]')
+  .evaluateAll((els) => els.map((e) => e.dataset.v));
+check(['band-gelb', 'band-rot', 'stange', 'kurzhantel', 'langhantel'].every((id) => vorratZeilen.includes(id)),
+  `mit Hanteln stehen Bänder, Stange und Hanteln zum Abwählen da (${vorratZeilen.join(', ')})`);
+// Und zurück auf Bodyweight: der Fokus bleibt auf dem Knopf, den man getippt
+// hat – nicht auf dem gleichen unter „Womit trainierst du".
+await vorratKnopf('Bodyweight').click();
+await page.waitForTimeout(300);
+const mitBw = {
+  modus: await modusJetzt(),
+  womit: await womitGewaehlt(),
+  fokus: await page.evaluate(() => document.activeElement && document.activeElement.id),
+  zeilen: await page.locator('.section-title:has-text("Was da ist") + .card [data-act="toggle-vorrat"]')
+    .evaluateAll((els) => els.map((e) => e.dataset.v)),
+};
+check(mitBw.modus === 'bw' && /Bodyweight/.test(mitBw.womit) && mitBw.fokus === 'vorrat-bw',
+  `„Bodyweight" stellt zurück – Modus ${mitBw.modus}, „${mitBw.womit}", Fokus auf ${mitBw.fokus || 'nichts'}`);
+check(mitBw.zeilen.join(',') === 'band-gelb,band-rot,stange',
+  `mit Bodyweight nur Bänder und Stange (${mitBw.zeilen.join(', ')})`);
 
 // Im Training: der Tausch ist benannt.
 await page.evaluate(async () => {
@@ -279,7 +311,45 @@ console.log('     im Training:', (/Statt [^–]{0,60}–[^.]{0,60}/.exec(liste) 
 check(/Statt .{3,40}dafür fehlt gerade das Gerät/.test(liste),
   'und an der Übung steht, wofür sie eingesprungen ist – ein stiller Tausch wäre keiner');
 
-// --- 6. Umstellen mitten im Training, ohne Verlust ----------------------
+// --- 6. Tobis Fall: in „Was da ist" auf Bodyweight, das Training folgt ----
+//
+//     „Hab auf bodyweight umgestellt aber trotzdem steht das heutige Workout
+//      auf Hanteln?"
+//
+// Mit Hanteln unterwegs, unter Mehr → Was da ist „Bodyweight" getippt: Bis
+// v271 wechselte das nur die Liste, vorn blieb „Hanteln · 4 Übungen · 14
+// Sätze" und „▶︎ Start 🏋️ Hanteln". Eigener Kontext, frischer Zustand.
+{
+  const ctx2 = await browser.newContext({ viewport: { width: 414, height: 896 } });
+  await ctx2.route('**/rest/v1/**', (r) => r.fulfill({ status: 204, body: '' }));
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
+  await p2.addInitScript(() => {
+    if (sessionStorage.getItem('gesaet')) return;
+    sessionStorage.setItem('gesaet', '1');
+    localStorage.setItem('workout.state.v1', JSON.stringify({
+      greeted: true, name: 'T', mode: 'db', tab: 'settings', fehlt: ['band-gelb', 'band-rot', 'stange'],
+    }));
+  });
+  await p2.goto(URL, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(400);
+  await p2.locator('.section-title:has-text("Was da ist") + .card button', { hasText: 'Bodyweight' }).first().click();
+  await p2.waitForTimeout(300);
+  const toast = ((await p2.locator('#toast').textContent().catch(() => '')) || '').trim();
+  await p2.locator('.tab[data-tab="dashboard"]').click();
+  await p2.waitForTimeout(400);
+  const sub = ((await p2.locator('#view .hero-sub').first().textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const start = ((await p2.locator('#view [data-act="start-session"] .start-modus').first().textContent()
+    .catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const modus = await p2.evaluate(async () => (await import('./js/store.js')).getState().mode);
+  console.log(`     Tobis Fall: ${toast} · ${sub} · Start ${start} · Modus ${modus}`);
+  check(modus === 'bw' && /^Bodyweight · /.test(sub) && /Bodyweight/.test(start),
+    `6 „Bodyweight" in „Was da ist" – vorn steht das Workout von heute auf Bodyweight („${sub}", Start „${start}")`);
+  check(/^Bodyweight – /.test(toast), `6 und der Wechsel sagt es („${toast}")`);
+  await ctx2.close();
+}
+
+// --- 7. Umstellen mitten im Training, ohne Verlust ----------------------
 //
 //     „Es muss die Möglichkeit geben innerhalb eines Workouts auch in den
 //      Einstellungen was ändern zu können. Das bisher trainierte muss dann

@@ -5647,6 +5647,42 @@ Variante einer Einheit gilt immer, wenn sie eine hat (`workoutMode()` in
 `js/store.js`), alle anderen nehmen die Wahl unter *Mehr*. Welche Einheiten
 beim Umstellen mitwechseln, steht oben unter *Was umgestellt wird*.
 
+### „Was da ist" stellt mit um (v272)
+
+    „Hab auf bodyweight umgestellt aber trotzdem steht das heutige Workout
+     auf Hanteln?"
+
+Unter *Mehr → Was da ist* standen seit dem 01.10. dieselben zwei Knöpfe
+*Bodyweight* und *Hanteln* wie unter *Womit trainierst du* – gleich gebaut,
+gleich orange, wenn gewählt. Sie wechselten aber nur, **welche Geräteliste**
+man sah (Bänder und Stange oder die Hanteln), nicht das Training. So war es
+damals gewollt („kein zweiter Modus-Schalter", Kopf von `js/ansicht-vorrat.js`),
+auf Tobis Wunsch, im Equipment-Bereich „zwischen bodyweight und Hanteln
+wechseln" zu können. Tobi war ohne Bänder und Stange unterwegs, hakte sie dort
+ab, tippte *Bodyweight* – und vorn stand weiter „Hanteln · 4 Übungen · 14
+Sätze" und „▶︎ Start 🏋️ Hanteln".
+
+Wer in *Was da ist* ankreuzt, was fehlt, will mit dem trainieren, was da ist
+(„je nachdem was man grad hat"). Deshalb gilt jetzt:
+
+* **Ein Modus, zwei Stellen.** Die Knöpfe in *Was da ist* tun dasselbe wie die
+  unter *Womit trainierst du* (`set-modus`), samt Hinweis („Bodyweight –
+  Abgehaktes bleibt gespeichert") und denselben Regeln dafür, welche Einheit
+  mitwechselt. Beide zeigen immer dieselbe Wahl; eine eigene „Seite" des
+  Vorrats (`ui.vorratSeite`) gibt es nicht mehr.
+* **Die Liste ist die des Modus, in dem trainiert wird.** Mit Bodyweight:
+  Bänder und Stange. Mit Hanteln „alles aus bodyweight +" – Bänder und Stange
+  stehen dort jetzt mit in der Liste, dann die Hanteln. Vorher standen sie nur
+  auf der Bodyweight-Seite; wer mit Hanteln trainierte und die Stange abwählen
+  wollte, musste umblättern – was jetzt das Training umstellen würde.
+* Der Fokus bleibt nach dem Tippen auf dem Knopf in *Was da ist* und springt
+  nicht auf den gleichen darüber (`id="vorrat-bw"`, `focusKey()`).
+
+Geprüft in `tests/test-vorrat.mjs`: Tobis Fall mit frischem Zustand (Hanteln,
+Bänder und Stange abgewählt, in *Was da ist* auf *Bodyweight* – vorn
+„Bodyweight · …", der Startknopf sagt Bodyweight), dazu das Umstellen hin und
+zurück, die Liste je Modus und der Fokus; gegen v271 5 von 37 Prüfungen rot.
+
 ## Übungszuordnung
 
 Alle 39 Übungen aus `js/data.js`, Stand 04.11. Die ersten

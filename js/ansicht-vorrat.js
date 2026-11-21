@@ -11,10 +11,21 @@
  *      und gelb und Klimmzugstange ankreuzen und bei Hanteln ist dann ‚alles
  *      aus bodyweight +' und dann halt die Hantel Auflistung."
  *
- * Der Umschalter ist dabei kein zweiter Modus-Schalter: Er wechselt nur, welche
- * Liste man gerade sieht. Angehakt bleibt beides – Bänder und Stange zählen in
- * beiden Modi, die Hanteln nur im Hantel-Modus, weil im Bodyweight-Modus keine
- * Übung eine braucht.
+ * **Der Umschalter ist der Modus-Schalter selbst (v272).** Bis v271 wechselte
+ * er nur, welche Liste man sah – und sah genauso aus wie die Wahl unter
+ * „Womit trainierst du" darüber:
+ *
+ *     „Hab auf bodyweight umgestellt aber trotzdem steht das heutige Workout
+ *      auf Hanteln?"
+ *
+ * Wer hier ankreuzt, was fehlt, ist gerade dort, wo er mit dem trainiert, was
+ * da ist („je nachdem was man grad hat") – Bodyweight hier heißt Bodyweight im
+ * Training. Gezeigt wird deshalb die Liste des Modus, in dem trainiert wird:
+ * mit Bodyweight Bänder und Stange, mit Hanteln „alles aus bodyweight +" –
+ * Bänder und Stange stehen dort mit in der Liste, damit man sie auch mit
+ * Hanteln abwählen kann, ohne umzustellen. Angehakt bleibt beides; die
+ * Hanteln zählen nur im Hantel-Modus, weil im Bodyweight-Modus keine Übung
+ * eine braucht.
  *
  * Was das Abwählen kostet, steht darunter und wird nicht beschönigt: Ohne Band
  * und Stange bleiben im Bodyweight-Modus Muskelgruppen ohne jede Übung.
@@ -24,8 +35,9 @@
  * sondern die Übung ist nicht gewollt. Was der Plan daraus macht, steht in
  * js/vorrat.js; hier steht nur, wie es aussieht.
  *
- * Welche Seite gerade gezeigt wird, weiß js/app.js – vorratKarte() bekommt sie
- * als Argument. Geändert wird hier nichts.
+ * Den Modus kennt js/app.js – vorratKarte() bekommt ihn als Argument, die
+ * Knöpfe tragen dieselbe Aktion wie die Wahl darüber (set-modus). Geändert
+ * wird hier nichts.
  * ------------------------------------------------------------------ */
 import * as store from './store.js';
 import { EXERCISES, PLAN } from './data.js';
@@ -150,9 +162,16 @@ export function vorratFolgen(seite) {
       Für ein Wochenende ist das egal, über Monate nicht.</div>` : ''}`;
 }
 
-export function vorratKarte(gewaehlteSeite) {
-  const seite = gewaehlteSeite === 'bw' ? 'bw' : 'db';
+/**
+ * Die Karte „Was da ist" – für den Modus, in dem trainiert wird (`mode`, aus
+ * js/app.js). Die beiden Knöpfe stellen ihn um, wie „Womit trainierst du"
+ * (v272); ihre id hält den Fokus nach dem Neuzeichnen auf dem Knopf, den man
+ * getippt hat, statt auf dem gleichen darüber (focusKey() in js/app.js).
+ */
+export function vorratKarte(mode) {
+  const seite = mode === 'bw' ? 'bw' : 'db';
   const weg = fehlt();
+  const zeilen = (s) => GERAETE.filter((g) => g.seite === s).map(vorratZeile).join('');
   return `
     <div class="section-title">Was da ist${weg.length ? ` · ${weg.length} fehlt` : ''}</div>
     <div class="card">
@@ -160,15 +179,19 @@ export function vorratKarte(gewaehlteSeite) {
         sucht dann eine Übung, die denselben Muskel trifft und mit dem geht, was da ist –
         und lässt den Rest weg, statt ihn dir hinzustellen. Was das an Wochenvolumen
         verschiebt, steht unten. Zum Wiedereinschalten, wenn du zurück bist.</div>
-      <div class="btn-row nav" style="margin-top:10px">
+      <div class="btn-row nav" style="margin-top:10px" role="group" aria-label="Womit trainierst du">
         ${[['bw', '🤸 Bodyweight'], ['db', '🏋️ Hanteln']].map(([k, label]) => `
-          <button type="button" class="btn ${seite === k ? 'btn-primary' : ''}"
-                  aria-pressed="${seite === k}" data-act="vorrat-seite" data-v="${k}">${label}</button>`).join('')}
+          <button type="button" class="btn ${seite === k ? 'btn-primary' : ''}" id="vorrat-${k}"
+                  aria-pressed="${seite === k}" data-act="set-modus" data-v="${k}">${label}</button>`).join('')}
       </div>
+      <div class="small muted vorrat-modus" style="margin-top:6px">Damit trainierst du auch –
+        dieselbe Wahl wie oben unter <i>Womit trainierst du</i>, ab sofort.</div>
       ${seite === 'db' ? `<div class="small muted" style="margin-top:10px">Alles aus
         Bodyweight zählt hier mit – auch der Hantelplan hat Übungen am Band und an der
-        Stange. Dazu:</div>` : ''}
-      ${GERAETE.filter((g) => g.seite === seite).map(vorratZeile).join('')}
+        Stange:</div>` : ''}
+      ${zeilen('bw')}
+      ${seite === 'db' ? `<div class="small muted" style="margin-top:10px">Dazu die Hanteln:</div>
+      ${zeilen('db')}` : ''}
       ${vorratFolgen(seite)}
     </div>
     ${seite === 'db' ? scheibenKarte() : ''}`;
