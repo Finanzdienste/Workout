@@ -272,5 +272,48 @@ check(await o.page.evaluate(() => location.hash) === '' && await o.page.evaluate
 check(!(await o.page.locator('#meldung').innerText()).includes('KI'), '… ohne Meldung „KI freigeschaltet"');
 await zu(o);
 
+// --- 8. Im Internet nachsehen (v11): Tavily und Gemini über die Funktion
+o = await oeffne({ tag: TAG, zeit: '12:30', weitere: MIT_CODE, ki: true });
+p = o.page;
+ki = await kiNachbauen(p, (rumpf) => (rumpf.art === 'suchen'
+  ? [200, { ergebnis: { art: 'packung', name: 'Leberkäsbrötchen', ean: '', portionen: 1, gesamt_gramm: 0, gesamt_kcal: 0, gesamt_kh: 0, kcal_100g: 280, kh_100g: 25, gesamt_ei: 0, ei_100g: 11, quelle: 'https://fddb.info/db/de/leberkaesbroetchen.html', portion_text: '1 Brötchen (180 g)', portion_gramm: 180, zutaten: [], hinweis: '' } }]
+  : [400, { fehler: '?' }]));
+await p.click('#essen-knopf');
+await p.fill('#suche', 'Leberkäsbrötchen');
+await p.waitForSelector('#netz-knopf');
+check((await p.locator('#netz-knopf').innerText()).includes('Leberkäsbrötchen'), 'nicht in der Liste: „Im Internet nachsehen: Leberkäsbrötchen“');
+await p.click('#netz-knopf');
+check((await p.locator('#netz-text').inputValue()) === 'Leberkäsbrötchen', 'das Suchwort steht schon drin');
+await p.click('#ausrechnen');
+await p.waitForSelector('#erg-quelle');
+check(ki[0].rumpf.art === 'suchen' && ki[0].rumpf.text === 'Leberkäsbrötchen' && ki[0].zugang === CODE, 'geschickt: art „suchen“, das Wort, mit Code');
+check((await p.locator('#ebene h2').innerText()) === 'Gefunden' && (await p.locator('#erg-quelle').innerText()).includes('fddb.info'), 'Ergebnis: „Gefunden“, laut fddb.info');
+check((await p.locator('#erg-portion').innerText()).includes('1 Brötchen (180 g): 504 kcal') && (await p.locator('#ebene').innerText()).includes('11 g Eiweiß'), '1 Brötchen (180 g): 504 kcal, mit Eiweiß');
+await p.click('#erg-eintragen');
+await p.waitForSelector('#sache-kcal');
+const gespeicherteSache = (await o.gespeichert()).eigene[0];
+check(gespeicherteSache.n === 'Leberkäsbrötchen' && gespeicherteSache.ei === 20 && gespeicherteSache.url.includes('fddb'), 'gespeichert als eigene Sache, mit Eiweiß und Quelle');
+await zu(o);
+
+// Ohne Suche (die Funktion hat keinen Tavily-Schlüssel): kein Knopf
+o = await oeffne({ tag: TAG, weitere: { ...MIT_CODE, 'mahlzeit.kistatus.v1': JSON.stringify({ ki: true, suche: false, um: 9e15 }) } });
+await o.page.click('#essen-knopf');
+await o.page.fill('#suche', 'Quarkkeulchen');
+await o.page.waitForSelector('#nichts');
+check(await o.page.locator('#netz-knopf').count() === 0 && await o.page.locator('#rezept-knopf').isVisible(), 'KI ja, Suche nein: Rezept geht, „Im Internet nachsehen“ fehlt');
+await zu(o);
+
+// Die Funktion meldet beim Öffnen „eingerichtet“: die KI erscheint ohne neue Fassung
+o = await oeffne({ tag: TAG, weitere: MIT_CODE });
+p = o.page;
+await p.route(KI, (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ ki: true, gemini: true, claude: false, suche: true }) }));
+await p.reload();
+await p.waitForSelector('html[data-bereit="1"]');
+await p.waitForFunction(() => JSON.parse(localStorage.getItem('mahlzeit.kistatus.v1') || '{}').ki === true);
+await p.waitForTimeout(200);
+await p.click('#essen-knopf');
+check(await p.locator('#rezept-knopf').isVisible(), 'Funktion sagt „eingerichtet“: „Rezept oder Foto“ ist da');
+await zu(o);
+
 check(alleFehler.length === 0, `keine Fehler in der Seite${alleFehler.length ? `: ${alleFehler.slice(0, 3).join(' | ')}` : ''}`);
 ende();

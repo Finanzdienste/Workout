@@ -403,7 +403,7 @@ const eine = (x) => Math.round(x * 10) / 10;
  * lässt sich auch in Gramm eintragen.
  */
 export function sacheAusKi(e, portionen, id) {
-  const basis = { id, n: e.name, kcal100: e.kcal_100g, kh100: e.kh_100g, quelle: 'ki', hinweis: e.hinweis || '' };
+  const basis = { id, n: e.name, kcal100: e.kcal_100g, kh100: e.kh_100g, ei100: e.ei_100g || 0, quelle: 'ki', hinweis: e.hinweis || '', ...(e.quelle ? { url: e.quelle } : {}) };
   if (e.art === 'packung') {
     const g = e.portion_gramm > 0 ? Math.round(e.portion_gramm) : 100;
     return {
@@ -412,6 +412,7 @@ export function sacheAusKi(e, portionen, id) {
       g,
       kcal: Math.round((e.kcal_100g * g) / 100),
       kh: Math.round((e.kh_100g * g) / 100),
+      ei: Math.round(((e.ei_100g || 0) * g) / 100),
       ean: e.ean || undefined,
     };
   }
@@ -419,12 +420,14 @@ export function sacheAusKi(e, portionen, id) {
   const g = e.gesamt_gramm > 0 ? Math.round(e.gesamt_gramm / n) : 0;
   const kcal = e.gesamt_kcal > 0 ? Math.round(e.gesamt_kcal / n) : Math.round((e.kcal_100g * g) / 100);
   const kh = e.gesamt_kh > 0 ? Math.round(e.gesamt_kh / n) : Math.round((e.kh_100g * g) / 100);
+  const ei = e.gesamt_ei > 0 ? Math.round(e.gesamt_ei / n) : Math.round(((e.ei_100g || 0) * g) / 100);
   return {
     ...basis,
     p: g ? `1 Portion (${g} g)` : '1 Portion',
     g: g || undefined,
     kcal,
     kh,
+    ei,
     portionen: n,
     zutaten: (e.zutaten || []).slice(0, 30),
   };

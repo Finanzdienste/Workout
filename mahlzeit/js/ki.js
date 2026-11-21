@@ -1,7 +1,8 @@
 /*
  * Die KI: Rezepte (Text oder Foto), Nährwerttabellen und Strichcode-Fotos
- * auswerten – über die Supabase-Funktion mahlzeit-ki
- * (supabase/functions/mahlzeit-ki). Der Anthropic-Schlüssel bleibt dort;
+ * auswerten und (v11) im Internet nachsehen – über die Supabase-Funktion
+ * mahlzeit-ki (supabase/functions/mahlzeit-ki), mit Gemini von Google und der
+ * Suche Tavily. Die Schlüssel bleiben dort;
  * die App schickt nur ihren Freischalt-Code mit (Kopf x-zugang).
  *
  * Der Code kommt mit dem Link („…/mahlzeit/#ki=ABCDE-FGHJK") oder wird
@@ -10,14 +11,46 @@
  */
 
 /*
- * Schalter (v8): Solange Tobi kein Anthropic-Guthaben hat, ist die KI aus –
- * kein Knopf „Rezept oder Foto“, kein Freischalten, kein Strichcode-Foto.
- * Tobi, 19.11.2026: „Der Kollege testet die app jetzt. Es muss also alles
- * außer die ki optimal sein. Lass den ki Teil rausnehmen solange ich kein
- * api hab“. Ein Code aus dem Link wird trotzdem still gemerkt, damit es
- * später ohne neuen Link geht. Wieder an: true, VERSION/FASSUNG hochzählen.
+ * An oder aus (v8, seit v11 von selbst): Tobi, 19.11.2026: „Lass den ki Teil
+ * rausnehmen solange ich kein api hab“. Bis v10 stand hier ein fester
+ * Schalter. Seit v11 fragt die App die Funktion (GET), was eingerichtet ist –
+ * Gemini (kostenlos) oder Claude, und die Suche (Tavily) –, und blendet die
+ * KI erst dann ein. Trägt Tobi den Gemini-Schlüssel in Supabase ein, ist sie
+ * beim nächsten Öffnen da, ohne neue Fassung. Ein Code aus dem Link wird
+ * vorher still gemerkt.
  */
-export const KI_AN = false;
+const STATUS = 'mahlzeit.kistatus.v1';
+const STATUS_AN = 12 * 3600 * 1000;
+const STATUS_AUS = 30 * 60 * 1000;
+
+function status() {
+  try { return JSON.parse(localStorage.getItem(STATUS) || 'null') || {}; } catch { return {}; }
+}
+
+/** Ist eine KI eingerichtet (Stand der letzten Nachfrage)? */
+export const kiAn = () => status().ki === true;
+/** Und die Suche im Internet? */
+export const sucheAn = () => status().ki === true && status().suche === true;
+
+/**
+ * Bei der Funktion nachfragen, was eingerichtet ist – ist die KI an, alle zwölf
+ * Stunden, sonst alle halbe Stunde. Gibt true zurück, wenn sich etwas geändert
+ * hat. Wirft nie; ohne Netz bleibt der letzte Stand.
+ */
+export async function statusHolen({ jetzt = Date.now(), holen = (...a) => fetch(...a) } = {}) {
+  const alt = status();
+  if (Number.isFinite(alt.um) && jetzt - alt.um < (alt.ki ? STATUS_AN : STATUS_AUS)) return false;
+  try {
+    const res = await holen(KI_ADRESSE, { cache: 'no-store' });
+    if (!res.ok) return false;
+    const d = await res.json();
+    const neu = { ki: d.ki === true, suche: d.suche === true, um: jetzt };
+    localStorage.setItem(STATUS, JSON.stringify(neu));
+    return neu.ki !== !!alt.ki || neu.suche !== !!alt.suche;
+  } catch {
+    return false;
+  }
+}
 
 export const KI_ADRESSE = 'https://vjyohppohmvhhxgwouti.supabase.co/functions/v1/mahlzeit-ki';
 const SCHLUESSEL = 'mahlzeit.ki.v1';

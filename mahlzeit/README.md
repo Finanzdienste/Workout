@@ -258,6 +258,63 @@ Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
 abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
 Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
 
+## Gemini und Tavily statt Claude (v11, 21.11.2026)
+
+Tobi: „Wir benutzen in der anderen app ja gemini und tavily. Können wir doch
+hier auch machen“.
+
+**Vorher:** Seit v3 rechnete Claude (Opus 5.5) Rezepte, Kochbuchseiten und
+Packungen aus. Der Anthropic-Schlüssel ist der von amy-chat. Weil auf ihm
+seit dem 17.11. kein Guthaben ist, hat v8 die KI mit einem festen Schalter
+ausgeblendet.
+
+**Jetzt:**
+- **Gemini zuerst.** Die Funktion `mahlzeit-ki` (Version 4) fragt zuerst
+  Gemini (`gemini-3.8-flash`, Interactions-API, `store: false`). Das ist
+  gebaut wie in Boxenstopp (`js/ki.js`), mit dem Secret `GEMINI_API_KEY`.
+  Gemini ist kostenlos, dafür darf Google die Anfragen zum Verbessern nutzen.
+  Hin geht nur das Rezept, das Foto oder das Suchwort, nichts über Uwe. Das
+  steht so auch unter *Mehr → KI und Strichcode*.
+- **Claude nur noch als Ersatz,** wenn Gemini hakt und der Anthropic-Schlüssel
+  Guthaben hat.
+- **Neu: „🔎 Im Internet nachsehen“.** Der Knopf steht unter den Treffern der
+  Suche („Nicht dabei?“). Tavily sucht nach „… Kalorien Nährwerte pro 100 g“
+  (Secret `TAVILY_API_KEY`, wie bei rezept-web in Boxenstopp). Gemini liest
+  aus den fünf Ergebnissen kcal, Kohlenhydrate und Eiweiß je 100 g und eine
+  übliche Portion ab, mit Quelle („Laut fddb.info“). Gilt nur eine Adresse
+  aus den Ergebnissen, keine ausgedachte.
+- **Eiweiß** liefert die KI jetzt mit, bei Rezepten, Packungen und der Suche.
+- **Kein fester Schalter mehr.** Die App fragt die Funktion per GET, was
+  eingerichtet ist (`{ ki, gemini, claude, suche }`, nur ja/nein). Ist die
+  KI an, fragt sie alle zwölf Stunden, sonst jede halbe Stunde. Maßgeblich
+  ist Gemini: Der Anthropic-Schlüssel ohne Guthaben schaltet nichts ein.
+  Sobald Tobi den Gemini-Schlüssel einträgt, erscheinen „Rezept oder Foto“
+  und die Suche bei Uwe von selbst, ohne neue Fassung.
+
+**Stand beim Ausliefern:** GET gab `{"ki":false,"gemini":false,"claude":true,"suche":false}`
+zurück. In Supabase fehlen also beide Secrets, Tobi muss sie eintragen:
+
+1. https://aistudio.google.com/apikey → „API-Schlüssel erstellen“ → kopieren.
+2. Supabase → Projekt „Finanzdienste's Project“ → *Edge Functions* →
+   *Secrets* → *Add new secret* → Name `GEMINI_API_KEY`, Wert einfügen →
+   *Save*.
+3. Genauso `TAVILY_API_KEY` mit dem Schlüssel von https://app.tavily.com
+   (Boxenstopp hat dafür einen).
+
+Geprüft in `tests/test-mz-ki.mjs`:
+- der Datenstrom von Gemini
+- der Gemini-Rumpf
+- die Reihenfolge Gemini vor Claude, das Gratis-Kontingent
+- die Suche: Begriff, Ergebnisse, Quelle, nichts gefunden, Tavily-Kontingent,
+  ohne Schlüssel
+- GET, auch nur mit Anthropic-Schlüssel
+
+In `tests/test-mz-scan.mjs`, Abschnitt 8:
+- der Knopf „Im Internet nachsehen“
+- das Ergebnis mit Quelle und Eiweiß
+- KI an, Suche aus
+- die KI erscheint, sobald die Funktion „eingerichtet“ meldet
+
 ## Die Uhr schickt Schlaf und Schritte selbst (v10, 21.11.2026)
 
 Tobi: „Doch Uwe meinte ich kann all seine gesundheitsdaten haben“, und auf

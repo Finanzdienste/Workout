@@ -144,4 +144,85 @@ check(res.status === 503 && res.headers.get('access-control-allow-origin') === H
 check(!/Tobi/.test(H.SYSTEM), 'kein Name im Systemtext');
 check(H.SYSTEM.includes('Keine Ernährungs- oder Gesundheitsratschläge'), 'Systemtext: keine Gesundheitsratschläge');
 
+
+// --- v11: Gemini zuerst, Tavily für die Suche
+const SSE = [
+  'event: interaction.start\ndata: {"event_type":"interaction.start","interaction":{"status":"in_progress"}}',
+  `data: ${JSON.stringify({ event_type: 'step.delta', delta: { type: 'text', text: JSON.stringify(REZEPT).slice(0, 40) } })}`,
+  `data: ${JSON.stringify({ event_type: 'step.delta', delta: { type: 'text', text: JSON.stringify(REZEPT).slice(40) } })}`,
+  'data: {"event_type":"interaction.completed","interaction":{"status":"completed","usage":{"total_input_tokens":1200,"total_output_tokens":300,"total_thought_tokens":50}}}',
+].join('\r\n\r\n');
+const gl = H.geminiLesen(SSE);
+check(JSON.parse(gl.text).name === 'Spaghetti Bolognese' && gl.stop === null && gl.usage.output_tokens === 350 && gl.modell === H.GEMINI_MODELL, 'Datenstrom von Gemini gelesen (Text aus den Stücken, Verbrauch)');
+const amEnde = H.geminiLesen(`data: ${JSON.stringify({ event_type: 'interaction.completed', interaction: { status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: '{"a":1}' }] }] } })}`);
+check(amEnde.text === '{"a":1}', 'Text nur am Ende (nicht gestreamt) geht auch');
+check(H.geminiLesen('data: {"event_type":"interaction.completed","interaction":{"status":"incomplete"}}').stop === 'max_tokens', 'abgeschnitten → max_tokens');
+let geworfen = null;
+try { H.geminiLesen('data: [{"error":{"code":429,"message":"quota"}}]'); } catch (e) { geworfen = e; }
+check(geworfen?.status === 429, 'Fehler im Strom (als Liste) wird geworfen');
+
+const gr = H.geminiRumpf({ art: 'auswerten', text: 'Linsen', bilder: [{ typ: 'image/jpeg', daten: 'QUJD' }], portionen: 2, hinweis: 'rezept' });
+check(gr.model === 'gemini-3.8-flash' && gr.store === false && gr.stream === true && gr.input[0].type === 'image' && gr.input[0].mime_type === 'image/jpeg' && gr.input.at(-1).text.includes('2 Portionen'), 'Gemini-Rumpf wie in Boxenstopp: Foto, Text, store: false');
+check(!JSON.stringify(gr.response_format.schema).includes('additionalProperties') && gr.response_format.mime_type === 'application/json', '… Schema ohne additionalProperties');
+
+const TREFFER = [
+  { titel: 'Döner Kebab Nährwerte – fddb', url: 'https://fddb.info/db/de/lebensmittel/doener/index.html', text: 'Döner Kebab: 215 kcal je 100 g, Kohlenhydrate 19 g, Eiweiß 12 g. Portion 1 Stück (350 g).' },
+  { titel: 'Döner selbst machen', url: 'https://www.chefkoch.de/rezepte/doener', text: 'Rezept …' },
+];
+const DOENER = { ...REZEPT, art: 'packung', name: 'Döner Kebab', gesamt_gramm: 0, gesamt_kcal: 0, gesamt_kh: 0, gesamt_ei: 0, kcal_100g: 215, kh_100g: 19, ei_100g: 12, quelle: 'https://fddb.info/db/de/lebensmittel/doener/index.html', portion_text: '1 Döner (350 g)', portion_gramm: 350, zutaten: [], hinweis: 'Werte von fddb.' };
+function umgebung11({ gemini = null, claude = null, suche = TREFFER, sucheWirft = null } = {}) {
+  const log = { gemini: [], claude: [], suche: [], gemerkt: [] };
+  const h = H.erstelleHandler({
+    erlaubteUrspruenge: [HERKUNFT], zugang: async () => true, gezaehlt: async () => ({ zugang: 0, alle: 0 }), merken: async (e) => { log.gemerkt.push(e); },
+    gemini: gemini && (async (r) => { log.gemini.push(r); return gemini(r); }),
+    claude: claude && (async (r) => { log.claude.push(r); return claude(r); }),
+    suchen: suche && (async (q) => { log.suche.push(q); if (sucheWirft) throw sucheWirft; return suche; }),
+  });
+  return { h, log };
+}
+const alsGemini = (obj) => async () => ({ text: JSON.stringify(obj), stop: null, modell: 'gemini-3.8-flash', usage: { input_tokens: 100, output_tokens: 50 } });
+
+let u = umgebung11({ gemini: alsGemini(REZEPT), claude: alsGemini(REZEPT) });
+res = await u.h(anfrage(rezeptText));
+check(res.status === 200 && u.log.gemini.length === 1 && u.log.claude.length === 0 && u.log.gemerkt[0].usd === 0, 'Rezept: Gemini gefragt, Claude nicht, kostet 0');
+u = umgebung11({ gemini: async () => { throw Object.assign(new Error('Server'), { grenze: false }); }, claude: alsGemini(REZEPT) });
+res = await u.h(anfrage(rezeptText));
+check(res.status === 200 && u.log.claude.length === 1, 'Gemini hakt: Claude springt ein, wenn es ihn gibt');
+u = umgebung11({ gemini: async () => { throw Object.assign(new Error('quota'), { grenze: true }); } });
+res = await u.h(anfrage(rezeptText));
+check(res.status === 429 && (await res.json()).fehler.includes('Gratis-Kontingent'), 'Gratis-Kontingent bei Google aufgebraucht: 429 mit Satz');
+
+u = umgebung11({ gemini: alsGemini(DOENER) });
+res = await u.h(anfrage({ art: 'suchen', text: '  Döner   Kebab ' }));
+const doener = (await res.json()).ergebnis;
+check(res.status === 200 && u.log.suche[0] === 'Döner Kebab', 'Suche: Tavily bekommt den Suchbegriff (aufgeräumt)');
+check(u.log.gemini[0].input.at(-1).text.includes('fddb.info') && u.log.gemini[0].input.at(-1).text.includes('Er sucht: Döner Kebab'), '… die KI bekommt die Ergebnisse');
+check(doener.art === 'packung' && doener.kcal_100g === 215 && doener.ei_100g === 12 && doener.portion_gramm === 350 && doener.quelle.includes('fddb'), 'Ergebnis: 215 kcal und 12 g Eiweiß je 100 g, 1 Döner 350 g, Quelle fddb');
+u = umgebung11({ gemini: alsGemini({ ...DOENER, quelle: 'https://ausgedacht.example/x' }) });
+res = await u.h(anfrage({ art: 'suchen', text: 'Döner' }));
+check((await res.json()).ergebnis.quelle === TREFFER[0].url, 'eine ausgedachte Quelle wird durch ein echtes Ergebnis ersetzt');
+u = umgebung11({ gemini: alsGemini(DOENER), suche: [] });
+res = await u.h(anfrage({ art: 'suchen', text: 'Xyzzy' }));
+check(res.status === 404 && u.log.gemini.length === 0 && (await res.json()).fehler.includes('nichts'), 'nichts gefunden: 404, die KI wird gar nicht erst gefragt');
+u = umgebung11({ gemini: alsGemini(DOENER), sucheWirft: Object.assign(new Error('432'), { grenze: true }) });
+res = await u.h(anfrage({ art: 'suchen', text: 'Döner' }));
+check(res.status === 429 && (await res.json()).fehler.includes('aufgebraucht'), 'Tavily-Kontingent aufgebraucht: 429');
+u = umgebung11({ gemini: alsGemini(DOENER), suche: null });
+res = await u.h(anfrage({ art: 'suchen', text: 'Döner' }));
+check(res.status === 503 && (await res.json()).fehler.includes('TAVILY'), 'ohne Tavily-Schlüssel: 503');
+res = await u.h(anfrage({ art: 'suchen', text: 'x' }));
+check(res.status === 400, 'zu kurzer Suchbegriff: 400');
+check(H.trefferOrdnen({ results: [{ title: 'a', url: 'javascript:alert(1)', content: 'x' }, { title: 'b', url: 'https://b.de', content: 'y'.repeat(5000) }] }).map((t) => `${t.url}:${t.text.length}`).join() === 'https://b.de/:1200', 'Tavily-Ergebnisse: nur http(s), Text gekürzt');
+
+// Was eingerichtet ist (GET, ohne Code)
+res = await umgebung11({ gemini: alsGemini(REZEPT) }).h(new Request('https://x.supabase.co/functions/v1/mahlzeit-ki', { headers: { origin: HERKUNFT } }));
+let st = await res.json();
+check(st.ki === true && st.gemini === true && st.claude === false && st.suche === true && res.headers.get('access-control-allow-origin') === HERKUNFT, 'GET: KI und Suche eingerichtet');
+res = await umgebung11({ suche: TREFFER }).h(new Request('https://x.supabase.co/functions/v1/mahlzeit-ki'));
+st = await res.json();
+check(st.ki === false && st.suche === false, 'GET ohne Gemini und Claude: nichts davon (Suche braucht die KI)');
+res = await umgebung11({ claude: alsGemini(REZEPT), suche: TREFFER }).h(new Request('https://x.supabase.co/functions/v1/mahlzeit-ki'));
+st = await res.json();
+check(st.ki === false && st.claude === true, 'GET nur mit Anthropic-Schlüssel (ohne Guthaben): KI bleibt aus – maßgeblich ist Gemini');
+
 ende();

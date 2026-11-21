@@ -52,8 +52,8 @@ function vorbereiten({ tag, zeit, stand, schluessel, weitere }) {
  * Dialoge (confirm, prompt) beantwortet `dialog.antwort` (true/false) bzw.
  * `dialog.text` für prompt; mitgeschrieben in `dialoge`. `kontext` geht an
  * newContext (etwa userAgent), `skripte` laufen vor jeder Seite. `ki: true`
- * schaltet die KI ein, die in der App aus ist, solange Tobi kein Guthaben hat
- * (KI_AN in js/ki.js, v8) – so bleiben ihre Tests in Gebrauch.
+ * schaltet die KI ein, die in der App aus ist, bis die Funktion sagt, dass sie
+ * eingerichtet ist (js/ki.js, v8/v11) – so bleiben ihre Tests in Gebrauch.
  */
 export async function oeffne({
   tag = '2026-11-17', zeit = '08:15', stand = null, weitere = null,
@@ -69,13 +69,14 @@ export async function oeffne({
   await ctx.route(/supabase\.co|openfoodfacts\.org/, (r) => r.abort());
   // Das Lebenszeichen (v6) still annehmen – sonst stünde in jedem Test ein
   // abgebrochener Abruf als Fehler in der Konsole.
+  // Die Nachfrage, was eingerichtet ist (v11): still „nichts“ – Tests mit ki: true haben den Stand schon.
+  await ctx.route(/functions\/v1\/mahlzeit-ki/, (r) => (r.request().method() === 'GET'
+    ? r.fulfill({ status: 200, contentType: 'application/json', body: '{"ki":false,"suche":false}', headers: { 'access-control-allow-origin': '*' } })
+    : r.fallback()));
   await ctx.route(/rest\/v1\/mahlzeit_nutzung/, (r) => r.fulfill({ status: 201, body: '', headers: { 'access-control-allow-origin': '*' } }));
   if (ki) {
-    await ctx.route(/\/mahlzeit\/js\/ki\.js/, async (r) => {
-      const res = await r.fetch();
-      const text = (await res.text()).replace('export const KI_AN = false;', 'export const KI_AN = true;');
-      await r.fulfill({ response: res, body: text });
-    });
+    // Als hätte die Funktion gesagt: KI und Suche eingerichtet (v11) – ohne neue Nachfrage.
+    await ctx.addInitScript(() => { try { localStorage.setItem('mahlzeit.kistatus.v1', JSON.stringify({ ki: true, suche: true, um: 9e15 })); } catch { /* about:blank */ } });
   }
   const page = await ctx.newPage();
   const fehler = [];

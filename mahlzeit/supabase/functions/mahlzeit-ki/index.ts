@@ -7,6 +7,10 @@
  *
  *   ANTHROPIC_API_KEY    der Schlüssel aus der Anthropic Console
  *
+ *   GEMINI_API_KEY       ein kostenloser Schlüssel aus aistudio.google.com
+ *                        (v11, wird zuerst gefragt)
+ *   TAVILY_API_KEY       für die Suche im Internet (schon da für rezept-web)
+ *
  * Optional:
  *
  *   ERLAUBTE_URSPRUENGE  von welchen Adressen die App fragen darf, durch Komma
@@ -19,7 +23,7 @@
  */
 
 import Anthropic from "npm:@anthropic-ai/sdk@1.7.0";
-import { erstelleHandler, type ClaudeAntwort } from "./handler.ts";
+import { erstelleHandler, geminiLesen, trefferOrdnen, type ClaudeAntwort, type Treffer } from "./handler.ts";
 
 const KEIN_NUTZER = "00000000-0000-0000-0000-000000000000";
 
@@ -71,6 +75,41 @@ async function claude(rumpf: Record<string, unknown>): Promise<ClaudeAntwort> {
   };
 }
 
+const geminiSchluessel = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GEMINI_KEY");
+const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/interactions?alt=sse";
+
+async function gemini(rumpf: Record<string, unknown>): Promise<ClaudeAntwort> {
+  const res = await fetch(GEMINI_API, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": geminiSchluessel! },
+    body: JSON.stringify(rumpf),
+    signal: AbortSignal.timeout(110_000),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    let info: { error?: { message?: string } } | null = null;
+    try { const j = JSON.parse(text); info = Array.isArray(j) ? j[0] : j; } catch { /* kein JSON */ }
+    const meldung = info?.error?.message || `HTTP ${res.status}`;
+    // 429: Gratis-Kontingent; 400/401/403: Schlüssel falsch oder gesperrt – vergeht nicht von selbst
+    throw Object.assign(new Error(meldung), { grenze: res.status === 429, dauerhaft: [400, 401, 403].includes(res.status) && !/thinking/i.test(meldung) });
+  }
+  return geminiLesen(text);
+}
+
+const tavilySchluessel = Deno.env.get("TAVILY_API_KEY");
+
+async function suchen(q: string): Promise<Treffer[]> {
+  const res = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilySchluessel}` },
+    body: JSON.stringify({ query: `${q} Kalorien Nährwerte pro 100 g`, max_results: 5, search_depth: "basic", include_answer: false, include_raw_content: false, include_images: false }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if ([429, 432, 433].includes(res.status)) { await res.body?.cancel(); throw Object.assign(new Error(`Tavily ${res.status}`), { grenze: true }); }
+  if (!res.ok) { await res.body?.cancel(); throw new Error(`Tavily ${res.status}`); }
+  return trefferOrdnen(await res.json());
+}
+
 Deno.serve(erstelleHandler({
   erlaubteUrspruenge: (Deno.env.get("ERLAUBTE_URSPRUENGE") ?? "https://finanzdienste.github.io")
     .split(",").map((s) => s.trim()).filter(Boolean),
@@ -106,4 +145,6 @@ Deno.serve(erstelleHandler({
   },
 
   claude: client ? claude : undefined,
+  gemini: geminiSchluessel ? gemini : undefined,
+  suchen: tavilySchluessel ? suchen : undefined,
 }));

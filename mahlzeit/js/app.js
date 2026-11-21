@@ -20,7 +20,7 @@ import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 import * as UHR from './uhr.js';
 
-export const FASSUNG = 'v10';
+export const FASSUNG = 'v11';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -225,7 +225,7 @@ function installierenHtml() {
         ${wichtig}`;
     }
     const neu = safari >= 26;
-    const code = K.KI_AN ? K.kiCode() : null;
+    const code = K.kiAn() ? K.kiCode() : null;
     const codeZeile = code
       ? `<p class="klein" id="install-code">Dein KI-Code: <strong>${esc(code)}</strong> <button type="button" class="link" data-tun="code-kopieren">kopieren</button> – das iPhone gibt der App vom Home-Bildschirm einen eigenen Speicher. Nach dem Hinzufügen dort einmal unter „Mehr“ einfügen.</p>`
       : '';
@@ -613,13 +613,13 @@ function seiteMehr(stand) {
       <button type="button" class="weg" data-tun="eigen-weg" data-id="${esc(e.id)}" aria-label="${esc(e.n)} vergessen">✕</button></li>`).join('')}</ul>`
     : '<p class="klein leise">Noch keine. Unter „Essen eintragen“ → „Selbst eintragen“ merkt sich die App, was du dort einträgst.</p>'}
   </section>
-  ${K.KI_AN ? `<section class="karte" id="karte-ki">
+  ${K.kiAn() ? `<section class="karte" id="karte-ki">
     <h3>✨ KI und Strichcode</h3>
     ${K.kiCode()
     ? `<p id="ki-status">Freigeschaltet (Code ${esc(K.kiCode().slice(0, 5))}-•••••). Rezepte, Kochbuchseiten und Nährwerttabellen rechnet die KI aus – unter „Essen eintragen“ → „Rezept oder Foto“.</p>
       <button type="button" class="knopf leise" data-tun="ki-code-weg">Code entfernen</button>`
     : freischaltenHtml()}
-    <p class="klein leise">Was dabei das Handy verlässt: beim Strichcode nur die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel. Beim Rezept der Text bzw. die Fotos – an die KI Claude von Anthropic, über Tobis Zugang. Sonst nichts.</p>
+    <p class="klein leise">Was dabei das Handy verlässt: beim Strichcode nur die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel. Beim Rezept der Text bzw. die Fotos, bei „Im Internet nachsehen“ das Suchwort – an die KI Gemini von Google (und die Suche Tavily), über Tobis Zugang. Google darf solche Anfragen zum Verbessern nutzen; etwas über dich geht nicht mit. Sonst nichts.</p>
   </section>` : ''}
   <section class="karte" id="karte-uhr">
     <h3>⌚ Uhr: Schlaf und Schritte</h3>
@@ -648,7 +648,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
-    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi (nur Zahlen, abschaltbar, siehe oben) ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.KI_AN ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
+    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi (nur Zahlen, abschaltbar, siehe oben) ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.kiAn() ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
     <p>Die Kalorien sind Richtwerte für übliche Portionen – ein Döner vom Imbiss nebenan kann 100 kcal mehr oder weniger haben. Für den Überblick reicht das; genauer wird es mit der Packung in der Hand („Selbst eintragen“).</p>
     <p>Die App ersetzt keine ärztliche Beratung. Was die Hafertage angeht, steht die Quelle unter „Hafer“.</p>
     <p class="klein leise">Fassung ${FASSUNG}</p>
@@ -707,7 +707,7 @@ function zeigeEbene() {
         </label>
         <div class="werkzeuge">
           <button type="button" class="knopf leise" data-tun="scan" id="scan-knopf">${SYMBOL.strich} Strichcode</button>
-          ${K.KI_AN ? '<button type="button" class="knopf leise" data-tun="rezept" id="rezept-knopf">✨ Rezept oder Foto</button>' : '<button type="button" class="knopf leise" data-tun="eigen" id="eigen-knopf">✎ Selbst eintragen</button>'}
+          ${K.kiAn() ? '<button type="button" class="knopf leise" data-tun="rezept" id="rezept-knopf">✨ Rezept oder Foto</button>' : '<button type="button" class="knopf leise" data-tun="eigen" id="eigen-knopf">✎ Selbst eintragen</button>'}
         </div>
         <div id="treffer">${trefferHtml(stand)}</div>
       </div>`;
@@ -742,7 +742,10 @@ function sacheZeile(l) {
 
 function trefferHtml(stand) {
   const alle = alleSachen(stand);
-  const selbst = '<button type="button" class="knopf leise breit" data-tun="eigen">✎ Nicht dabei? Selbst eintragen</button>';
+  const netz = ebene.q.trim().length >= 2 && K.sucheAn()
+    ? `<button type="button" class="knopf breit" data-tun="netz-suche" id="netz-knopf">🔎 Im Internet nachsehen: „${esc(ebene.q.trim())}“</button>`
+    : '';
+  const selbst = `${netz}<button type="button" class="knopf leise breit" data-tun="eigen">✎ Nicht dabei? Selbst eintragen</button>`;
   if (ebene.q.trim()) {
     const treffer = R.suche(ebene.q, alle, R.haeufigkeit(stand));
     if (!treffer.length) {
@@ -1182,7 +1185,7 @@ function freischaltenHtml() {
 
 function scanHtml() {
   const live = S.kannLive();
-  const code = K.KI_AN && K.kiCode();
+  const code = K.kiAn() && K.kiCode();
   const ng = ebene.nichtGefunden;
   return `
     <div class="ebene-kopf">
@@ -1264,6 +1267,7 @@ async function strichcodeFoto(datei) {
 }
 
 function rezeptHtml() {
+  if (ebene.hinweis === 'suche') return sucheHtml();
   const packung = ebene.hinweis === 'packung';
   const kopf = `<div class="ebene-kopf">
       <button type="button" class="rund" data-tun="zurueck-suche" aria-label="Zurück">‹</button>
@@ -1286,7 +1290,24 @@ function rezeptHtml() {
         <div class="chips" role="group" aria-label="Portionen">${[0, 1, 2, 3, 4, 6, 8].map((n) => `<button type="button" class="chip" data-tun="rezept-portionen" data-n="${n}" aria-pressed="${(ebene.portionen || 0) === n}">${n || 'weiß nicht'}</button>`).join('')}</div>`}
       <p class="fehler" id="ki-fehler" role="alert">${esc(ebene.fehler || '')}</p>
       <button type="button" class="knopf haupt gross-knopf" data-tun="ausrechnen" id="ausrechnen" ${ebene.laeuft ? 'disabled' : ''}>${ebene.laeuft ? 'Die KI rechnet … (bis zu einer Minute)' : 'Ausrechnen'}</button>
-      <p class="klein leise">Text und Fotos gehen dafür an die KI Claude von Anthropic – sonst nichts von dir.</p>
+      <p class="klein leise">Text und Fotos gehen dafür an die KI Gemini von Google – sonst nichts von dir.</p>
+    </div>`;
+}
+
+/* Im Internet nachsehen (v11): ein Gericht oder Produkt, das die Liste nicht kennt. */
+function sucheHtml() {
+  const kopf = `<div class="ebene-kopf">
+      <button type="button" class="rund" data-tun="zurueck-suche" aria-label="Zurück">‹</button>
+      <h2>Im Internet nachsehen</h2>
+    </div>`;
+  if (!K.kiCode()) return `${kopf}<div class="ebene-inhalt">${freischaltenHtml()}</div>`;
+  return `${kopf}
+    <div class="ebene-inhalt">
+      <p>Was suchst du? Ein Gericht oder Produkt – die App sucht die Nährwerte im Internet und rechnet je 100 g und je Portion.</p>
+      <label class="textfeld"><span class="unsichtbar">Suchwort</span><input id="netz-text" maxlength="200" autocomplete="off" value="${esc(ebene.text)}" placeholder="z. B. Leberkäsbrötchen, Snickers, Döner"></label>
+      <p class="fehler" id="ki-fehler" role="alert">${esc(ebene.fehler || '')}</p>
+      <button type="button" class="knopf haupt gross-knopf" data-tun="ausrechnen" id="ausrechnen" ${ebene.laeuft ? 'disabled' : ''}>${ebene.laeuft ? 'Sucht und rechnet … (bis zu einer halben Minute)' : 'Nachsehen'}</button>
+      <p class="klein leise">Das Suchwort geht an die Suche Tavily und die KI Gemini von Google – sonst nichts von dir.</p>
     </div>`;
 }
 
@@ -1298,6 +1319,7 @@ function oeffneRezept(hinweis = 'rezept', mehr = {}) {
 }
 
 async function ausrechnen() {
+  if (ebene.hinweis === 'suche') { netzSuchen(); return; }
   const text = (ebene.hinweis === 'packung' ? '' : ($('#rezept-text')?.value ?? ebene.text)).trim();
   ebene.text = text;
   if (!text && !ebene.bilder.length) {
@@ -1330,11 +1352,42 @@ async function ausrechnen() {
   }
 }
 
+async function netzSuchen() {
+  const text = ($('#netz-text')?.value ?? ebene.text).replace(/\s+/g, ' ').trim();
+  ebene.text = text;
+  if (text.length < 2) { ebene.fehler = 'Bitte ein Wort eingeben, z. B. „Leberkäsbrötchen“.'; zeigeEbene(); return; }
+  const meine = ebene;
+  ebene.laeuft = true;
+  ebene.fehler = '';
+  zeigeEbene();
+  try {
+    const { ergebnis: e } = await K.kiFragen({ art: 'suchen', text });
+    if (ebene !== meine) return;
+    meine.laeuft = false;
+    if (e.art === 'unklar' || !(e.kcal_100g > 0)) {
+      meine.fehler = `Dazu ließ sich nichts finden.${e.hinweis ? ` ${e.hinweis}` : ''}`;
+      zeigeEbene();
+      return;
+    }
+    kiErgebnisZeigen(e, null);
+  } catch (err) {
+    if (ebene !== meine) return;
+    meine.laeuft = false;
+    meine.fehler = err.message;
+    zeigeEbene();
+  }
+}
+
 function kiErgebnisZeigen(e, portionen) {
   kameraAus();
   ebene = { ...ebene, art: 'ki-ergebnis', e, portionen: portionen || e.portionen || 1, name: e.name, laeuft: false };
   zeigeEbene();
   $('#ebene').scrollTo(0, 0);
+}
+
+/** „https://www.fddb.info/db/…“ → „fddb.info“ */
+function quelleName(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return 'Internet'; }
 }
 
 function ergebnisHtml() {
@@ -1344,12 +1397,13 @@ function ergebnisHtml() {
   return `
     <div class="ebene-kopf">
       <button type="button" class="rund" data-tun="zurueck-rezept" aria-label="Zurück">‹</button>
-      <h2>Ausgerechnet</h2>
+      <h2>${e.quelle ? 'Gefunden' : 'Ausgerechnet'}</h2>
     </div>
     <div class="ebene-inhalt">
       <label class="textfeld">Name<input id="erg-name" maxlength="60" autocomplete="off" value="${esc(ebene.name)}"></label>
       <p class="gross"><span id="erg-100">${R.zahl(e.kcal_100g)}</span> <span class="einheit">kcal je 100 g</span></p>
-      <p class="leise klein">${String(e.kh_100g).replace('.', ',')} g Kohlenhydrate je 100 g</p>
+      <p class="leise klein">${String(e.kh_100g).replace('.', ',')} g Kohlenhydrate${e.ei_100g ? ` · ${String(e.ei_100g).replace('.', ',')} g Eiweiß` : ''} je 100 g</p>
+      ${e.quelle ? `<p class="klein" id="erg-quelle">Laut <a href="${esc(e.quelle)}" target="_blank" rel="noopener noreferrer">${esc(quelleName(e.quelle))}</a></p>` : ''}
       ${packung
     ? `<p id="erg-portion">${esc(vorschau.p)}: <strong>${R.zahl(vorschau.kcal)} kcal</strong></p>`
     : `<div class="karte">
@@ -1360,7 +1414,7 @@ function ergebnisHtml() {
         </div>
         ${e.zutaten.length ? `<details class="rechnung"><summary>So hat die KI gerechnet</summary><ul class="punkte">${e.zutaten.map((z) => `<li>${esc(z.menge)} ${esc(z.name)} – ${R.zahl(z.kcal)} kcal</li>`).join('')}</ul></details>` : ''}`}
       ${e.hinweis ? `<p class="klein leise" id="erg-hinweis">ℹ️ ${esc(e.hinweis)}</p>` : ''}
-      <p class="klein leise">Die KI schätzt – so gut wie das Rezept genau ist. Für den Überblick reicht es.</p>
+      <p class="klein leise">${e.quelle ? 'Werte aus dem Internet, von der KI zusammengefasst – für den Überblick reicht es.' : 'Die KI schätzt – so gut wie das Rezept genau ist. Für den Überblick reicht es.'}</p>
       <button type="button" class="knopf haupt gross-knopf" data-tun="erg-speichern" data-eintragen="1" id="erg-eintragen">Speichern und eintragen</button>
       <button type="button" class="knopf leise breit" data-tun="erg-speichern" data-eintragen="" id="erg-merken">Nur speichern</button>
     </div>`;
@@ -1790,6 +1844,7 @@ document.addEventListener('click', (ev) => {
     case 'scan': oeffneScan(); break;
     case 'scan-neu': oeffneScan(); break;
     case 'rezept': oeffneRezept('rezept'); break;
+    case 'netz-suche': oeffneRezept('suche', { text: ebene.q.trim() }); break;
     case 'packung-foto': oeffneRezept('packung', { ean: ebene.nichtGefunden?.code || '' }); break;
     case 'rezept-art': ebene.hinweis = el.dataset.art; ebene.text = $('#rezept-text')?.value ?? ebene.text; ebene.fehler = ''; zeigeEbene(); break;
     case 'rezept-portionen':
@@ -2097,6 +2152,9 @@ const lebenszeichen = () => LZ.melden(lesen(), { tag: heute(), fassung: FASSUNG,
 setTimeout(lebenszeichen, 4000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') lebenszeichen(); });
 
+// Ist die KI eingerichtet (v11)? Beim Öffnen nachfragen; ändert sich etwas, neu zeichnen.
+setTimeout(() => K.statusHolen().then((anders) => { if (anders && !ebene) zeige(); }), 800);
+
 // Schlaf und Schritte von der Uhr: beim Öffnen und beim Zurückkommen (höchstens alle zehn Minuten).
 setTimeout(() => uhrHolen(), 1500);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') uhrHolen(); });
@@ -2134,7 +2192,7 @@ const ausLink = K.codeAusAdresse(location.hash);
 if (ausLink) {
   K.kiCodeSetzen(ausLink);
   history.replaceState(history.state, '', location.pathname + location.search);
-  if (K.KI_AN) setTimeout(() => meldung('KI freigeschaltet ✨ – Rezepte und Fotos rechnet jetzt die KI aus.'), 200);
+  if (K.kiAn()) setTimeout(() => meldung('KI freigeschaltet ✨ – Rezepte und Fotos rechnet jetzt die KI aus.'), 200);
 }
 
 zeige();
