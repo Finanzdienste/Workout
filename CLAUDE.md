@@ -206,8 +206,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   der App) → Supabase-Funktion `mahlzeit-uhr` → `mahlzeit_uhr`; Abfrage in
   `mahlzeit/README.md` „Die Uhr schickt Schlaf und Schritte selbst“. Mahlzeit v11: `mahlzeit-ki` fragt Gemini (kostenlos) vor
   Claude, „Im Internet nachsehen“ über Tavily; die App blendet die KI ein,
-  sobald die Funktion per GET „ki: true“ meldet. Am 21.11. fehlten in Supabase
-  die Secrets `GEMINI_API_KEY` und `TAVILY_API_KEY` (Tobi trägt sie ein).
+  sobald die Funktion per GET „ki: true“ meldet. Seit dem 21.11. sind
+  `GEMINI_API_KEY` und `TAVILY_API_KEY` in Supabase eingetragen, und beides
+  ist live geprüft. Gemini ist oft überlastet, deshalb geht es reihum durch
+  die Modelle, mit `thinking_level: "low"`.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

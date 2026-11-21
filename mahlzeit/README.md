@@ -291,7 +291,29 @@ ausgeblendet.
   Sobald Tobi den Gemini-Schlüssel einträgt, erscheinen „Rezept oder Foto“
   und die Suche bei Uwe von selbst, ohne neue Fassung.
 
-**Stand beim Ausliefern:** GET gab `{"ki":false,"gemini":false,"claude":true,"suche":false}`
+**Live geprüft am 21.11., nachdem Tobi die Schlüssel eingetragen hatte:**
+- „Leberkäsbrötchen“: 264 kcal und 10,6 g Eiweiß je 100 g, 1 Brötchen mit
+  190 g, Quelle arise-app.com, nach 29 s.
+- Linseneintopf (Rezept): nach 45 s.
+
+Davor sind zwei Dinge aufgefallen:
+- **Gemini war überlastet** (503 „high demand“). Jetzt geht es reihum weiter
+  mit 3.8 → 3.7 → 3.6 → 3.5 → 3.5-lite (`GEMINI_MODELLE`, dieselbe Liste wie
+  in Boxenstopp). Das Modell, das zuletzt geantwortet hat, kommt zuerst dran.
+  Ist alles überlastet, sagt die App „gerade überlastet, in ein paar Minuten
+  noch einmal“ und nicht „Sag Tobi Bescheid“. Das kam vorher vom Claude-Ersatz
+  ohne Guthaben.
+- **Gemini dachte ohne Vorgabe über 40 s nach** und schickte bis dahin nur
+  „keep-alive“. Jetzt gilt `thinking_level: "low"` (wie die Angebote in
+  Boxenstopp). Kennt ein Modell die Vorgabe nicht, fragt die Funktion einmal
+  ohne sie.
+
+Dazu kommen Zeitgrenzen: 30 s je Modell, nach 75 s kein neuer Versuch. Den
+Datenstrom liest die Funktion Stück für Stück und hört beim Ende-Ereignis
+auf. Der Test-Code dafür („Claude-Test 21.11.“ in `mahlzeit_zugang`) ist
+wieder abgeschaltet.
+
+**Stand beim ersten Ausliefern (vorher):** GET gab `{"ki":false,"gemini":false,"claude":true,"suche":false}`
 zurück. In Supabase fehlen also beide Secrets, Tobi muss sie eintragen:
 
 1. https://aistudio.google.com/apikey → „API-Schlüssel erstellen“ → kopieren.

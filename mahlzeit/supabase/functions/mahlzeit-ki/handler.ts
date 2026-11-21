@@ -34,6 +34,16 @@
 export const MODELL = "claude-opus-5-5";
 /** Wie in Boxenstopp (js/ki.js): kostenlos über Googles Interactions-API. */
 export const GEMINI_MODELL = "gemini-3.8-flash";
+/*
+ * Ist Gemini überlastet (503, am 21.11. gleich beim ersten Test) oder ein
+ * Modell am Tageskontingent (429), reihum das nächste – dieselbe Liste wie
+ * GEMINI_MODELLE in Boxenstopp (js/ki.js). Das Modell, das zuletzt
+ * geantwortet hat, kommt beim nächsten Mal zuerst (nur im Speicher).
+ */
+export const GEMINI_MODELLE = [GEMINI_MODELL, "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
+let geminiZuletzt = "";
+/** Für die Tests: wieder mit dem ersten Modell anfangen. */
+export const geminiModellZuruecksetzen = () => { geminiZuletzt = ""; };
 export const MAX_SUCHE = 200;
 export const GRENZE_ZUGANG = 30;
 export const GRENZE_ALLE = 100;
@@ -178,7 +188,9 @@ export function geminiRumpf(eingabe: Eingabe, treffer: Treffer[] = []): Record<s
     system_instruction: SYSTEM,
     input,
     response_format: { type: "text", mime_type: "application/json", schema: ohneZusatz(SCHEMA) },
-    generation_config: { max_output_tokens: 8000 },
+    // Ohne Vorgabe denkt Gemini lange nach und schickt bis dahin nur „keep-alive“
+    // (21.11.: über 40 Sekunden) – für Nährwerte reicht wenig Nachdenken.
+    generation_config: { max_output_tokens: 8000, thinking_level: "low" },
     store: false,
     stream: true,
   };
@@ -435,25 +447,42 @@ export function erstelleHandler(env: Umgebung) {
       if (!treffer.length) return fehler(404, `Im Internet nichts zu „${eingabe.text}“ gefunden. Anders schreiben – oder selbst eintragen.`);
     }
 
-    // Erst Gemini (kostenlos), dann Claude, wenn es ihn gibt (v11).
-    const wege: { name: string; frag: (r: Record<string, unknown>) => Promise<ClaudeAntwort>; rumpf: () => Record<string, unknown> }[] = [];
-    if (env.gemini) wege.push({ name: GEMINI_MODELL, frag: env.gemini, rumpf: () => geminiRumpf(eingabe, treffer) });
-    if (env.claude) wege.push({ name: MODELL, frag: env.claude, rumpf: () => anfrageRumpf(eingabe, treffer) });
+    // Erst Gemini (kostenlos, reihum die Modelle), dann Claude, wenn es ihn gibt (v11).
+    type Weg = { name: string; gemini: boolean; frag: (r: Record<string, unknown>) => Promise<ClaudeAntwort>; rumpf: () => Record<string, unknown> };
+    const wege: Weg[] = [];
+    if (env.gemini) {
+      const reihe = geminiZuletzt ? [geminiZuletzt, ...GEMINI_MODELLE.filter((m) => m !== geminiZuletzt)] : GEMINI_MODELLE;
+      for (const m of reihe) wege.push({ name: m, gemini: true, frag: env.gemini, rumpf: () => ({ ...geminiRumpf(eingabe, treffer), model: m }) });
+    }
+    if (env.claude) wege.push({ name: MODELL, gemini: false, frag: env.claude, rumpf: () => anfrageRumpf(eingabe, treffer) });
     let antwort: ClaudeAntwort | null = null;
     let letzterFehler: unknown = null;
+    let geminiFehler: { dauerhaft?: boolean; grenze?: boolean } | null = null;
+    // Die Funktion darf nicht ewig laufen (Supabase bricht sonst selbst ab): nach
+    // 75 Sekunden kein neuer Versuch mehr.
+    const frist = Date.now() + 75_000;
     for (const weg of wege) {
+      if (Date.now() > frist) break;
+      // Ist der Gemini-Schlüssel selbst falsch, hilft kein anderes Gemini-Modell.
+      if (weg.gemini && geminiFehler?.dauerhaft) continue;
       try {
         antwort = await weg.frag(weg.rumpf());
+        if (weg.gemini) geminiZuletzt = weg.name;
+        antwort = { ...antwort, modell: weg.gemini ? weg.name : antwort.modell };
         break;
       } catch (e) {
         letzterFehler = e;
+        if (weg.gemini) geminiFehler = e as { dauerhaft?: boolean; grenze?: boolean };
         console.error(`${weg.name}:`, e instanceof Error ? e.message : e);
-        await env.merken({ hash, art: eingabe.hinweis, usd: 0, modell: weg.name, ok: false }).catch(() => {});
       }
     }
     if (!antwort) {
-      const e = letzterFehler as { dauerhaft?: boolean; grenze?: boolean } | null;
+      await env.merken({ hash, art: eingabe.hinweis, usd: 0, modell: wege.at(-1)?.name ?? "", ok: false }).catch(() => {});
+      // Gemini hakt nur vorübergehend (überlastet, Kontingent): das sagen – nicht
+      // den dauerhaften Fehler von Claude (kein Guthaben), der danach kam.
+      const e = (geminiFehler && !geminiFehler.dauerhaft ? geminiFehler : letzterFehler) as { dauerhaft?: boolean; grenze?: boolean } | null;
       if (e?.grenze) return fehler(429, "Die KI ist für heute ausgelastet (Gratis-Kontingent). Morgen geht es weiter – selbst eintragen geht immer.");
+      if (geminiFehler && !geminiFehler.dauerhaft) return fehler(503, "Die KI ist gerade überlastet. In ein paar Minuten noch einmal versuchen – selbst eintragen geht immer.");
       // Ein Fehler, der nicht von selbst vergeht (Guthaben leer, Schlüssel
       // ungültig – am 17.11. gleich beim ersten Versuch): nicht „gleich noch
       // einmal", sondern Bescheid sagen.

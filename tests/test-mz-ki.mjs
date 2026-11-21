@@ -188,6 +188,26 @@ check(res.status === 200 && u.log.gemini.length === 1 && u.log.claude.length ===
 u = umgebung11({ gemini: async () => { throw Object.assign(new Error('Server'), { grenze: false }); }, claude: alsGemini(REZEPT) });
 res = await u.h(anfrage(rezeptText));
 check(res.status === 200 && u.log.claude.length === 1, 'Gemini hakt: Claude springt ein, wenn es ihn gibt');
+// Überlastet: reihum das nächste Gemini-Modell (wie Boxenstopp), das zuletzt gute zuerst
+H.geminiModellZuruecksetzen();
+let modelle = [];
+u = umgebung11({ gemini: async (r) => { modelle.push(r.model); if (r.model !== 'gemini-3.6-flash') throw Object.assign(new Error('503 high demand'), {}); return alsGemini(REZEPT)(); }, claude: async () => { throw Object.assign(new Error('credit'), { dauerhaft: true }); } });
+res = await u.h(anfrage(rezeptText));
+check(res.status === 200 && modelle.join() === 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash', `überlastet: 3.8 → 3.7 → 3.6 antwortet (${modelle.join()})`);
+modelle = [];
+res = await u.h(anfrage(rezeptText));
+check(res.status === 200 && modelle[0] === 'gemini-3.6-flash', 'beim nächsten Mal gleich das Modell, das geantwortet hat');
+modelle = [];
+H.geminiModellZuruecksetzen();
+u = umgebung11({ gemini: async (r) => { modelle.push(r.model); throw new Error('503 high demand'); }, claude: async () => { throw Object.assign(new Error('credit'), { dauerhaft: true }); } });
+res = await u.h(anfrage(rezeptText));
+let fe = (await res.json()).fehler;
+check(res.status === 503 && modelle.length === 5 && fe.includes('überlastet') && !fe.includes('Tobi'), `alle überlastet, Claude ohne Guthaben: „überlastet, gleich noch einmal“ statt „Sag Tobi Bescheid“ (${fe})`);
+modelle = [];
+u = umgebung11({ gemini: async (r) => { modelle.push(r.model); throw Object.assign(new Error('401 key'), { dauerhaft: true }); } });
+res = await u.h(anfrage(rezeptText));
+check(res.status === 503 && modelle.length === 1 && (await res.json()).fehler.includes('Tobi'), 'Gemini-Schlüssel falsch: kein zweites Modell, „Sag Tobi Bescheid“');
+H.geminiModellZuruecksetzen();
 u = umgebung11({ gemini: async () => { throw Object.assign(new Error('quota'), { grenze: true }); } });
 res = await u.h(anfrage(rezeptText));
 check(res.status === 429 && (await res.json()).fehler.includes('Gratis-Kontingent'), 'Gratis-Kontingent bei Google aufgebraucht: 429 mit Satz');

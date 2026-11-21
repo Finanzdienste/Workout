@@ -79,21 +79,59 @@ const geminiSchluessel = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GEMINI_
 const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/interactions?alt=sse";
 
 async function gemini(rumpf: Record<string, unknown>): Promise<ClaudeAntwort> {
-  const res = await fetch(GEMINI_API, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": geminiSchluessel! },
-    body: JSON.stringify(rumpf),
-    signal: AbortSignal.timeout(110_000),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    let info: { error?: { message?: string } } | null = null;
-    try { const j = JSON.parse(text); info = Array.isArray(j) ? j[0] : j; } catch { /* kein JSON */ }
-    const meldung = info?.error?.message || `HTTP ${res.status}`;
-    // 429: Gratis-Kontingent; 400/401/403: Schlüssel falsch oder gesperrt – vergeht nicht von selbst
-    throw Object.assign(new Error(meldung), { grenze: res.status === 429, dauerhaft: [400, 401, 403].includes(res.status) && !/thinking/i.test(meldung) });
+  const abbruch = new AbortController();
+  const uhr = setTimeout(() => abbruch.abort(), 30_000);
+  let alles = "";
+  try {
+    const res = await fetch(GEMINI_API, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": geminiSchluessel! },
+      body: JSON.stringify(rumpf),
+      signal: abbruch.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      let info: { error?: { message?: string } } | null = null;
+      try { const j = JSON.parse(text); info = Array.isArray(j) ? j[0] : j; } catch { /* kein JSON */ }
+      const meldung = info?.error?.message || `HTTP ${res.status}`;
+      // Kennt das Modell die Denkstufe nicht: einmal ohne sie (wie Boxenstopp).
+      const gc = rumpf.generation_config as Record<string, unknown> | undefined;
+      if (res.status === 400 && /thinking/i.test(meldung) && gc?.thinking_level) {
+        const ohne = { ...gc };
+        delete ohne.thinking_level;
+        clearTimeout(uhr);
+        return gemini({ ...rumpf, generation_config: ohne });
+      }
+      // 429: Gratis-Kontingent; 400/401/403: Schlüssel falsch oder gesperrt – vergeht nicht von selbst
+      // 404: dieses Modell gibt es (noch) nicht – dann das nächste, wie bei 503.
+      throw Object.assign(new Error(`${res.status} ${meldung}`), { grenze: res.status === 429, dauerhaft: [401, 403].includes(res.status) || (res.status === 400 && /api.?key|permission|denied/i.test(meldung)) });
+    }
+    // Stück für Stück lesen und beim Ende der Antwort aufhören – der Strom bleibt
+    // sonst offen, und das Warten läuft in die Zeitgrenze (21.11., erster Test).
+    const leser = res.body!.getReader();
+    const dekoder = new TextDecoder();
+    for (;;) {
+      const { done, value } = await leser.read();
+      if (done) break;
+      alles += dekoder.decode(value, { stream: true });
+      // Das Ende-Ereignis ganz abwarten (bis zur Leerzeile), dann nicht weiter auf den Strom warten.
+      const ende = alles.replace(/\r\n/g, "\n").search(/"event_type"\s*:\s*"interaction\.(?:completed|complete|done|failed|error)"|"status"\s*:\s*"(?:completed|failed|incomplete|cancelled)"/);
+      if (ende >= 0 && alles.replace(/\r\n/g, "\n").indexOf("\n\n", ende) >= 0) {
+        await leser.cancel().catch(() => {});
+        break;
+      }
+    }
+    const antwort = geminiLesen(alles);
+    if (!antwort.text) console.error("Gemini ohne Text:", alles.slice(0, 800));
+    return antwort;
+  } catch (e) {
+    // Zum Nachsehen im Protokoll: welche Ereignisse kamen (ohne Inhalt der Anfrage).
+    console.error("Gemini roh:", alles.length, (alles.match(/"event_type"\s*:\s*"[^"]+"/g) ?? []).slice(0, 12).join(" "), alles.slice(-300));
+    if (abbruch.signal.aborted) throw new Error("Gemini: Zeit abgelaufen");
+    throw e;
+  } finally {
+    clearTimeout(uhr);
   }
-  return geminiLesen(text);
 }
 
 const tavilySchluessel = Deno.env.get("TAVILY_API_KEY");
