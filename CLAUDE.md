@@ -47,8 +47,14 @@ offline funktionieren.“ Das gilt für jede Änderung und jede neue Funktion:
   beim Ereignis `online`, beim nächsten Abgleich und beim nächsten Start.
   Nichts geht verloren, nichts kommt doppelt an, und was sich inzwischen
   anderswo geändert hat, wird zusammengeführt statt überschrieben.
-- Was nur mit Netz geht (KI, Senden, neue Angebote, Push), sagt ohne Netz in
-  einem Satz, dass es Netz braucht; der Rest der App bleibt benutzbar.
+- Was nur mit Netz geht, wird ohne Netz vorgemerkt und läuft von selbst,
+  sobald Netz da ist – Tobi, 22.11.2026: „sowas wie mails senden könnte er sich
+  doch vormerken und dann machen sobald er internet hat“. Also Mails senden,
+  KI-Aufträge und Ähnliches: sichtbar „wartet auf Netz“ (mit „Nicht senden“),
+  vor dem Ausführen gegen den neuesten Stand geprüft, nie doppelt. Braucht es
+  eine Anmeldung, die nur nach einem Tipp aufgeht (Google), reicht dann ein Tipp.
+  Nur was sich nicht vormerken lässt (neue Angebote, eine Suche, Push), sagt
+  ohne Netz in einem Satz, dass es Netz braucht; der Rest bleibt benutzbar.
 - Neue Funktionen bekommen einen Test ohne Netz (Server aus oder Anfragen
   abbrechen – Playwrights `setOffline()` schneidet die Anfragen des Service
   Workers nicht ab).
