@@ -37,6 +37,22 @@ Grund und dem Befehl, den ich als Nachricht schicke (`/model fable|opus|sonnet`,
 - `/fast` (dasselbe Modell schneller, kostet Guthaben extra) nur, wenn ich auf
   etwas warte, das eilt.
 
+## Offline zuerst
+Tobi, 22.11.2026: „Generell sollen all meine Apps auch so weit wie möglich
+offline funktionieren.“ Das gilt für jede Änderung und jede neue Funktion:
+- Was ohne Netz gehen kann, geht ohne Netz: App-Hülle und zuletzt geladene
+  Daten liegen im Vorrat von `sw.js`, ebenso Bilder und Kartenkacheln, die
+  man schon gesehen hat.
+- Änderungen ohne Netz werden lokal gemerkt und von selbst nachgeschickt –
+  beim Ereignis `online`, beim nächsten Abgleich und beim nächsten Start.
+  Nichts geht verloren, nichts kommt doppelt an, und was sich inzwischen
+  anderswo geändert hat, wird zusammengeführt statt überschrieben.
+- Was nur mit Netz geht (KI, Senden, neue Angebote, Push), sagt ohne Netz in
+  einem Satz, dass es Netz braucht; der Rest der App bleibt benutzbar.
+- Neue Funktionen bekommen einen Test ohne Netz (Server aus oder Anfragen
+  abbrechen – Playwrights `setOffline()` schneidet die Anfragen des Service
+  Workers nicht ab).
+
 ## Das Repository
 - **Workout-App** (Wurzel): PWA für Tobi, live unter
   https://finanzdienste.github.io/Workout/. Kein Bauschritt außer zwei
