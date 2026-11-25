@@ -160,7 +160,7 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Sendung der App, die Termine zeigen, ob verschoben wurde. Den Stand von To Do
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
-## Stand (21.11.2026)
+## Stand (25.11.2026)
 - Workout v273: *Was da ist* sagt zuerst, ob jedes Training alle
   Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
   „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die
