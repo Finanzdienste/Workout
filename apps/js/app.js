@@ -13,7 +13,7 @@
  */
 import { auswerten, zusammenfassung, dauer, datumKurz, tagAus, uhrAus, TAGE } from './modell.js';
 
-export const FASSUNG = 'a1';
+export const FASSUNG = 'a2';
 
 const SERVER = {
   url: 'https://vjyohppohmvhhxgwouti.supabase.co',
@@ -162,7 +162,8 @@ function anmeldung() {
   return `<form id="anmelden" class="karte" novalidate>
       <label class="feld"><span>Passwort</span>
         <input type="password" id="pass" name="pass" autocomplete="current-password" required>
-        <span class="leise klein">Dasselbe wie für die Übersicht in der Workout-App. Es bleibt auf diesem Gerät.</span>
+        <span class="leise klein">Dasselbe wie für die Übersicht in der Workout-App. Es bleibt auf diesem Gerät.
+          Vergessen? Sag Claude Bescheid – es setzt ein neues.</span>
       </label>
       <button type="submit" class="knopf" ${hinweis === 'Lädt …' ? 'disabled' : ''}>${hinweis === 'Lädt …' ? 'Lädt …' : 'Öffnen'}</button>
       <p class="fehler" id="fehler" role="alert">${esc(fehler || offline)}</p>

@@ -175,7 +175,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `sd_geraete`, `freizeit_person`, `freizeit_bock` (eingespielt am 25.11.).
   Gefunden: Die Worker von Frag mal (Amy) und Body Check (Bauchbuch) löschen
   beim Aktivieren alle fremden Vorräte im Ursprung – offen (README „Meine
-  Apps“).
+  Apps“). Meine Apps a2: Tobi hatte das Passwort der Übersichten vergessen –
+  am 25.11. neu gesetzt, in `admin_liste()` steht nur noch die Prüfsumme
+  (README „Passwort vergessen“). Das Passwort nie ins Repo oder in Notizen.
 - Davor v273: *Was da ist* sagt zuerst, ob jedes Training alle
   Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
   „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die

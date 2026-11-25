@@ -10254,6 +10254,38 @@ Boxenstopp und den anderen Apps. `apps/sw.js` füllt seinen Vorrat deshalb nach
 einem Seitenaufruf mit Netz neu, falls er fehlt. Behoben ist es erst, wenn die
 beiden nur noch ihre eigenen Vorräte wegräumen (offen, 25.11.).
 
+### Passwort vergessen (Meine Apps a2)
+
+> Tobi, 25.11.2026: *„Ich kenn mein Passwort zur Workout app nicht mehr“*
+
+Ein Passwort gilt für alle drei Übersichten: *Mehr → Übersicht* in der
+Workout-App, `schilddruese/uebersicht.html` und *Meine Apps*. Es steckt in
+`admin_liste()`; die beiden anderen fragen diese Funktion. Bis zum 25.11. stand
+es dort im Klartext. Seitdem steht dort nur die SHA-256-Prüfsumme, und ein
+falsches Passwort kostet eine Sekunde. Das alte wurde nicht ausgelesen, sondern
+durch ein zufälliges ersetzt (drei Vierergruppen, ohne verwechselbare Zeichen).
+
+Neu setzen: ein Passwort ausdenken oder würfeln, die Prüfsumme bilden
+(`printf %s 'NEUES-PASSWORT' | sha256sum`) und in Supabase → SQL Editor:
+
+```sql
+create or replace function public.admin_liste(pass text)
+returns setof nutzung
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if pass is null
+     or encode(sha256(convert_to(pass, 'UTF8')), 'hex') is distinct from 'PRÜFSUMME' then
+    perform pg_sleep(1);
+    raise exception 'nope' using errcode = '42501';
+  end if;
+  return query select * from nutzung order by einheiten desc;
+end $$;
+```
+
+Rechte und Aufrufer bleiben dabei, wie sie sind. Das Passwort selbst gehört in
+kein Repo, keine Notiz und keine Datei. Unter dem Passwortfeld von *Meine Apps*
+steht deshalb: „Vergessen? Sag Claude Bescheid – es setzt ein neues.“
+
 Eine neue Fassung der Seite: `VERSION` in `apps/sw.js` und `FASSUNG` in
 `apps/js/app.js` zusammen hochzählen; die Symbole kommen aus
 `node tools/apps-icons.mjs`.
@@ -10536,6 +10568,11 @@ revoke all on function melde(jsonb), entferne(text), admin_liste(text)
   from public, anon, authenticated;
 grant execute on function melde(jsonb), entferne(text), admin_liste(text) to anon;
 ```
+
+   **Achtung, seit dem 25.11.:** Live prüft `admin_liste()` nur noch eine
+   Prüfsumme. Ein erneuter Lauf dieses Blocks setzte wieder ein Passwort im
+   Klartext; danach wie unter [Passwort vergessen](#passwort-vergessen-meine-apps-a2)
+   neu setzen.
 
    Der Block lässt sich jederzeit erneut ausführen – auch über eine bestehende
    Einrichtung. Er legt nichts doppelt an, löscht keine Zeilen und bringt eine

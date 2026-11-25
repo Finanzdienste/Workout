@@ -194,6 +194,7 @@ const page = await seite(ctx);
 await page.goto(`${BASIS}/apps/`, { waitUntil: 'networkidle' });
 check(await page.title() === 'Meine Apps', 'die Seite heißt „Meine Apps“');
 check(await page.locator('#pass').isVisible(), 'ohne Anmeldung: das Passwortfeld');
+check((await page.locator('#anmelden').textContent()).includes('Vergessen? Sag Claude Bescheid'), 'unter dem Feld: was tun, wenn das Passwort weg ist');
 check(aufrufe.length === 0, 'ohne Passwort geht keine Anfrage hinaus');
 await page.fill('#pass', 'falsch');
 await page.click('#anmelden button');
