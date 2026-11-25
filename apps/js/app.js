@@ -10,10 +10,14 @@
  * sofort da – ohne Netz mit „Ohne Netz – Stand von …“. Sobald Netz da ist
  * (Ereignis `online`, Zurückkommen in die App, „Neu laden“), holt die Seite
  * von selbst nach. Es gibt nichts zu senden, also auch nichts vorzumerken.
+ *
+ * Dazu, mit demselben Passwort, das Tagebuch, das jemand in Body Check mit
+ * Tobi teilt (bodycheck_lesen, Meine Apps a3). Es liegt mit im Stand dieses
+ * Geräts; wird das Teilen beendet, ist es beim nächsten Laden auch hier weg.
  */
-import { auswerten, zusammenfassung, dauer, datumKurz, tagAus, uhrAus, TAGE } from './modell.js';
+import { auswerten, zusammenfassung, dauer, datumKurz, tagAus, uhrAus, letzteTage, TAGE } from './modell.js';
 
-export const FASSUNG = 'a2';
+export const FASSUNG = 'a3';
 
 const SERVER = {
   url: 'https://vjyohppohmvhhxgwouti.supabase.co',
@@ -31,9 +35,12 @@ const lesen = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch
 const schreiben = (k, v) => {
   try {
     if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v));
-  } catch { /* gesperrter Speicher: dann eben ohne Gedächtnis */ }
+    return true;
+  } catch { return false; /* gesperrter oder voller Speicher: dann eben ohne Gedächtnis */ }
 };
 
+/** Der Stand, den die Seite zeigt – aus dem Speicher oder frisch geholt. */
+let aktuell = lesen(STAND);
 let laeuft = null;
 let hinweis = '';
 
@@ -43,11 +50,11 @@ let hinweis = '';
 
 class FalschesPasswort extends Error {}
 
-async function abrufen(pass) {
+async function abrufen(funktion, pass, gueltig) {
   const abbruch = new AbortController();
   const uhr = setTimeout(() => abbruch.abort(), 15000);
   try {
-    const res = await fetch(`${SERVER.url}/rest/v1/rpc/apps_uebersicht`, {
+    const res = await fetch(`${SERVER.url}/rest/v1/rpc/${funktion}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SERVER.key },
       body: JSON.stringify({ pass }),
@@ -61,7 +68,7 @@ async function abrufen(pass) {
       if (daten && daten.message === 'nope') throw new FalschesPasswort('Falsches Passwort.');
       throw new Error(`Der Server antwortet nicht wie erwartet (${res.status}).`);
     }
-    if (!daten || typeof daten !== 'object' || !daten.heute) throw new Error('Die Antwort ist unvollständig.');
+    if (!gueltig(daten)) throw new Error('Die Antwort ist unvollständig.');
     return daten;
   } finally {
     clearTimeout(uhr);
@@ -75,10 +82,18 @@ function holen(pass) {
   if (laeuft) return laeuft;
   hinweis = 'Lädt …';
   zeichnen();
-  laeuft = abrufen(wort)
-    .then((daten) => {
+  // Das Tagebuch für sich: Geht es nicht (Funktion fehlt, Server hakt), bleibt
+  // der Rest der Übersicht frisch und das Tagebuch auf seinem letzten Stand.
+  const tagebuch = abrufen('bodycheck_lesen', wort, Array.isArray).then((liste) => ({ liste }), (fehler) => ({ fehler }));
+  laeuft = Promise.all([abrufen('apps_uebersicht', wort, (d) => !!(d && typeof d === 'object' && d.heute)), tagebuch])
+    .then(([daten, bc]) => {
+      const jetzt = Date.now();
+      const vorher = aktuell || {};
+      aktuell = bc.liste
+        ? { daten, geholt: jetzt, bodycheck: bc.liste, bodycheckGeholt: jetzt }
+        : { daten, geholt: jetzt, bodycheck: vorher.bodycheck || [], bodycheckGeholt: vorher.bodycheckGeholt || null, bodycheckFehler: true };
       schreiben(PASS, wort);
-      schreiben(STAND, { daten, geholt: Date.now() });
+      schreiben(STAND, aktuell);
       hinweis = '';
     })
     .catch((e) => {
@@ -126,7 +141,33 @@ function personZeile(p, nurZuletzt) {
   return `<li><b>${esc(p.name)}</b> <span>${esc(teile.join(' · '))}</span></li>`;
 }
 
-function karte(app) {
+function tagebuchHtml(app, heute) {
+  if (!app.tagebuecher || !app.tagebuecher.length) return '';
+  const ab = letzteTage(heute)[0];
+  const tagHtml = (t) => `<section class="tag">
+      <h3>${esc(t.kopf)}</h3>
+      ${t.werte.length ? `<p class="tageswerte">${esc(t.werte.join(' · '))}</p>` : ''}
+      ${t.notiz ? `<p class="tagesnotiz">${esc(`„${t.notiz}“`)}</p>` : ''}
+      ${t.eintraege.length ? `<ul class="eintraege">${t.eintraege.map((e) => `<li><span class="zeit">${esc(e.zeit)}</span><span><b>${esc(e.art)}</b>${e.text ? ` ${esc(e.text)}` : ''}</span></li>`).join('')}</ul>` : ''}
+    </section>`;
+  return app.tagebuecher.map((tb) => {
+    const titel = `Tagebuch von ${tb.name}${app.tagebuecher.length > 1 && tb.geraet ? ` (${tb.geraet})` : ''}`;
+    const neu = tb.tage.filter((t) => t.tag >= ab && t.tag <= heute);
+    const alt = tb.tage.filter((t) => t.tag < ab);
+    const spaeter = tb.tage.filter((t) => t.tag > heute);
+    const mittel = tb.mittel.length ? `<p class="zeile">Regelmäßig: ${esc(tb.mittel.join(' · '))}</p>` : '';
+    const leer = !tb.tage.length ? '<p class="leise">Noch nichts eingetragen.</p>' : '';
+    const juengst = !neu.length && tb.tage.length ? `<p class="leise">In den letzten ${TAGE} Tagen nichts eingetragen.</p>` : '';
+    return `<details class="tagebuch" data-key="${esc(`tb:${tb.geraet}`)}">
+        <summary>${esc(titel)}</summary>
+        ${mittel}${leer}${juengst}
+        ${[...spaeter, ...neu].map(tagHtml).join('')}
+        ${alt.length ? `<details class="aeltere" data-key="${esc(`alt:${tb.geraet}`)}"><summary>${esc(`Ältere Tage (${alt.length})`)}</summary>${alt.map(tagHtml).join('')}</details>` : ''}
+      </details>`;
+  }).join('');
+}
+
+function karte(app, heute) {
   const symbol = app.pfad ? `<img class="symbol-bild" alt="" src="${esc(`${app.pfad}icon-192.png`)}">` : '';
   const kopf = `<header>
       <span class="symbol" style="--farbe:${esc(app.farbe)}" aria-hidden="true"><b>${esc(app.name[0])}</b>${symbol}</span>
@@ -134,24 +175,30 @@ function karte(app) {
       <span class="pille">${esc(app.wann)}</span>
     </header>`;
   if (app.misstNichts) {
-    return `<article class="app stufe-nichts" data-app="${esc(app.id)}">${kopf}<p class="leise">${esc(app.misstNichts)}</p></article>`;
+    const fehlt = app.id === 'bodycheck' && aktuell && aktuell.bodycheckFehler
+      ? '<p class="blind">Ob etwas geteilt ist, ließ sich gerade nicht nachsehen.</p>' : '';
+    return `<article class="app stufe-nichts" data-app="${esc(app.id)}">${kopf}<p class="leise">${esc(app.misstNichts)}</p>${fehlt}</article>`;
   }
   const leute = app.leute.length ? `<ul class="leute">${app.leute.map((p) => personZeile(p, app.nurZuletzt)).join('')}</ul>` : '';
   const namen = [...new Set(app.weitere.map((p) => p.name))];
   const kurz = namen.length > 3 ? `${namen.slice(0, 3).join(', ')} und ${namen.length - 3} mehr` : namen.join(', ');
   const weitere = app.weitere.length
-    ? `<details class="weitere"><summary>${esc(`${app.leute.length ? 'Weitere' : 'Früher'}: ${kurz}`)}</summary>
+    ? `<details class="weitere" data-key="${esc(`w:${app.id}`)}"><summary>${esc(`${app.leute.length ? 'Weitere' : 'Früher'}: ${kurz}`)}</summary>
         <ul class="leute">${app.weitere.map((p) => `<li><b>${esc(p.name)}</b> <span>${esc(p.zuletzt ? `zuletzt am ${datumKurz(p.zuletzt)}` : 'noch nie')}${p.notiz.length ? esc(` · ${p.notiz.join(' · ')}`) : ''}</span></li>`).join('')}</ul>
       </details>`
     : '';
   const leer = !app.leute.length && !app.weitere.length ? `<p class="leise">${esc(app.leer || 'Noch nichts gemeldet.')}</p>` : '';
   const zeilen = app.zeilen.map((z) => `<p class="zeile">${esc(z)}</p>`).join('');
+  const tagebuch = tagebuchHtml(app, heute);
+  const tbFehler = app.id === 'bodycheck' && aktuell && aktuell.bodycheckFehler
+    ? `<p class="blind">${esc(`Das Tagebuch ließ sich gerade nicht holen${aktuell.bodycheckGeholt ? ` – hier steht der Stand von ${wannGeholt(aktuell.bodycheckGeholt)}` : ''}.`)}</p>`
+    : '';
   const blind = app.blind ? `<p class="blind">${esc(app.blind)}</p>` : '';
   const oeffnen = app.pfad ? ` · <a href="${esc(app.pfad)}">Öffnen</a>` : '';
   return `<article class="app stufe-${esc(app.stufe)}" data-app="${esc(app.id)}">
       ${kopf}
       ${app.nurZuletzt ? '' : streifen(app)}
-      ${leute}${leer}${weitere}${zeilen}${blind}
+      ${leute}${leer}${weitere}${zeilen}${tagebuch}${tbFehler}${blind}
       <p class="quelle">Gemessen über ${esc(app.quelle)}${oeffnen}</p>
     </article>`;
 }
@@ -171,7 +218,7 @@ function anmeldung() {
 }
 
 function zeichnen() {
-  const stand = lesen(STAND);
+  const stand = aktuell;
   const angemeldet = !!lesen(PASS);
   const haupt = $('#inhalt');
   if (!stand || !stand.daten || (!angemeldet && hinweis !== 'Lädt …' && !laeuft)) {
@@ -185,13 +232,15 @@ function zeichnen() {
     return;
   }
   const heute = tagAus(new Date().toISOString());
-  const apps = auswerten(stand.daten, heute);
+  const apps = auswerten(stand.daten, heute, stand.bodycheck || []);
   const { satz, still } = zusammenfassung(apps, heute);
   let standText = `Stand: ${wannGeholt(stand.geholt)}`;
   let standArt = '';
   if (hinweis === 'Lädt …') standText += ' · lädt …';
   else if (hinweis === 'ohne-netz') { standText = `Ohne Netz – Stand von ${wannGeholt(stand.geholt)}. Lädt von selbst, sobald Netz da ist.`; standArt = 'warn'; }
   else if (hinweis) { standText += ` · ${hinweis}`; standArt = 'warn'; }
+  // Was aufgeklappt war (das Tagebuch, „Weitere“), bleibt es nach dem Nachladen.
+  const offen = new Set([...haupt.querySelectorAll('details[open][data-key]')].map((d) => d.dataset.key));
   haupt.innerHTML = `
     <section class="kopf-karte">
       <p class="satz">${esc(satz)}</p>
@@ -202,12 +251,14 @@ function zeichnen() {
         <button type="button" class="knopf klein leise-knopf" id="abmelden">Abmelden</button>
       </div>
     </section>
-    <section id="apps">${apps.map(karte).join('')}</section>
-    <p class="leise klein fuss">Je App: wer sie an welchem der letzten ${TAGE} Tage benutzt hat. Grün bis 2 Tage, gelb bis 7, rot länger. „Tobi“ kommt vom Bildschirmzeit-Widget. Keine Werte, keine Einträge.</p>`;
+    <section id="apps">${apps.map((a) => karte(a, heute)).join('')}</section>
+    <p class="leise klein fuss">Je App: wer sie an welchem der letzten ${TAGE} Tage benutzt hat. Grün bis 2 Tage, gelb bis 7, rot länger. „Tobi“ kommt vom Bildschirmzeit-Widget. Einträge stehen hier nur aus Body Check – und nur, was dort ausdrücklich geteilt wird.</p>`;
+  haupt.querySelectorAll('details[data-key]').forEach((d) => { if (offen.has(d.dataset.key)) d.open = true; });
   $('#neu').addEventListener('click', () => holen());
   $('#abmelden').addEventListener('click', () => {
     schreiben(PASS, null);
     schreiben(STAND, null);
+    aktuell = null;
     hinweis = '';
     zeichnen();
   });
@@ -223,7 +274,7 @@ function zeichnen() {
  * ------------------------------------------------------------------ */
 
 function veraltet() {
-  const stand = lesen(STAND);
+  const stand = aktuell;
   return !stand || !stand.geholt || Date.now() - stand.geholt > FRISCH_GENUG;
 }
 

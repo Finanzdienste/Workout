@@ -10226,7 +10226,7 @@ dasselbe wie für die Workout-Übersicht; die Seite merkt es sich auf dem Gerät
 | Schilddrüse | Lebenszeichen (`sd_geraete`) – am 25.11. hatte sich noch kein Gerät gemeldet |
 | Frag mal | Anmeldung und Weiterlaufen der Sitzung (`auth.sessions`), Antworten aus `fragmal_kosten` (app `fragmal`); die Konten heißen „Konto 1/2“ nach Reihenfolge |
 | Bildschirmzeit-Widget | wann es zuletzt Zahlen geholt hat (`bildschirmzeit_geraet`); ohne Streifen, weil es keinen Verlauf gibt |
-| Body Check | nichts – **mit Absicht**: Die App verspricht, dass nichts das Handy verlässt („keine Zählung von Aufrufen“). Die Karte sagt „misst nichts“, und daran ändert die Übersicht nichts. |
+| Body Check | bis a2 nichts (die App versprach, dass nichts das Handy verlässt). Seit a3 das Tagebuch, das jemand ausdrücklich teilt (`bodycheck_lesen`, siehe unten); ohne das „nicht geteilt“, und es zählt nicht mit. |
 
 **Der Server** ([`tools/apps-uebersicht.sql`](tools/apps-uebersicht.sql),
 am 25.11. eingespielt): `apps_uebersicht(pass)` prüft das Passwort über
@@ -10253,6 +10253,67 @@ auf finanzdienste.github.io also auch die von Workout, Mahlzeit, Schilddrüse,
 Boxenstopp und den anderen Apps. `apps/sw.js` füllt seinen Vorrat deshalb nach
 einem Seitenaufruf mit Netz neu, falls er fehlt. Behoben ist es erst, wenn die
 beiden nur noch ihre eigenen Vorräte wegräumen (offen, 25.11.).
+
+### Body Check: das geteilte Tagebuch (Meine Apps a3)
+
+> Tobi, 25.11.2026: *„Body Check schickt jetzt Amys Tagebuch nach Supabase,
+> sobald sie in der App zugestimmt hat. Lies es mit der Funktion
+> bodycheck_lesen(pass). […] Zeig das in der Master-Übersicht bei Body Check
+> an, statt „zählt bewusst nichts“: wann zuletzt aktualisiert, und Amys
+> Einträge übersichtlich nach Tagen.“*
+
+**Vorher:** Die Karte sagte „misst nichts“. Body Check versprach bis Fassung
+30, dass nichts das Handy verlässt.
+
+**Woher es kommt:** Seit Body Check Fassung 31/32 fragt die App
+„Dein Tagebuch mit … teilen?“ und sagt dazu, dass dann *das ganze Tagebuch*
+geht („alle Einträge, Mittel, Werte und Notizen“). Vor „Ja, teilen“ geht nichts
+weg. „Teilen beenden“ unter *Mehr* bittet den Server, den Stand zu löschen
+(`bodycheck_beenden`). Geschrieben wird nur mit einem Kopplungsschlüssel
+(`bodycheck_kopplung`). Gelesen wird über `bodycheck_lesen(pass)` mit dem
+Passwort der Übersichten: je Gerät `name`, `geraet` („Gerät 1a2b“),
+`aktualisiert`, `fassung` und `stand`. Gebaut hat das eine andere Sitzung im
+Repo Bauchbuch, nicht dieses Repo. Am 25.11. war noch nichts geteilt (0
+Zeilen).
+
+**Jetzt:** *Meine Apps* holt beim Laden zusätzlich `bodycheck_lesen`.
+- **Ist etwas geteilt:** Body Check zählt wie jede App. Benutzt ist ein Tag
+  mit Einträgen oder Tageswerten, dazu der Tag der letzten Aktualisierung.
+  Unter dem Namen steht zum Beispiel „Amy · heute · an 3 von 14 Tagen ·
+  7 Einträge in 14 Tagen · aktualisiert heute um 14:05“.
+- **Das Tagebuch selbst** ist zugeklappt („▸ Tagebuch von Amy“), damit es nicht
+  gleich offen dasteht, wenn jemand mit aufs Handy schaut. Aufgeklappt stehen
+  die Tage der letzten 14 Tage, neuester zuerst („Mi 25.11.“): die Tageswerte
+  („Stimmung: gut · Schlaf: ok · Wasser: 5 Gläser“), die Tagesnotiz und die
+  Einträge nach Uhrzeit („08:10 Essen Haferflocken · Milchprodukte · Kaffee
+  (Getränk)“). Ältere Tage stehen zugeklappt darunter, die regelmäßigen Mittel
+  oben. Was aufgeklappt war, bleibt es auch nach dem Nachladen.
+- **Ist nichts geteilt:** „nicht geteilt“, dazu ein Satz, dass Body Check erst
+  nach „Ja, teilen“ schickt. In „6 von 8 Apps“ zählt es dann nicht mit.
+- **Teilen beendet:** Der Server gibt nichts mehr zurück, und beim nächsten
+  Laden ist das Tagebuch auch aus dem Speicher dieses Geräts weg.
+- **Lässt sich nur das Tagebuch nicht holen** (Fehler beim Server): Der Rest
+  ist frisch, das Tagebuch bleibt auf seinem letzten Stand, mit „Das Tagebuch
+  ließ sich gerade nicht holen – hier steht der Stand von …“.
+- **Ohne Netz:** Das Tagebuch liegt mit im Stand auf dem Gerät und steht wie
+  alles andere da.
+
+**Die Namen** zu den Kennungen (Beschwerden, Zutaten, Stuhlformen,
+Tagesfragen …) kommen aus Body Check selbst: `node tools/bodycheck-woerter.mjs
+<Klon von Bauchbuch>` schreibt `apps/js/bodycheck-woerter.js`. Eigene Auslöser
+und Aktivitäten bringt der Stand mit. Eine Kennung, die erst später dazukommt,
+steht bis zum nächsten Lauf so da, wie sie ist. Gelesen wird der Stand in
+`apps/js/tagebuch.js`, alles als Text, nie als HTML.
+
+Geprüft in `tests/test-apps.mjs`:
+- **In Node:** Tage, Einträge, Tageswerte, Mittel, eigene Auslöser,
+  unbekannte Kennungen, ein Tag in der Zukunft, ein kaputter Stand, zwei
+  Geräte.
+- **Im Browser:** zugeklappt, dann aufgeklappt, Notiz als Text, aufgeklappt
+  nach dem Nachladen, ohne Netz, ein Server, der hakt, „Teilen beenden“ (auch
+  aus dem Speicher weg), dasselbe Passwort für beide Aufrufe.
+
+Gegen a2 rot.
 
 ### Passwort vergessen (Meine Apps a2)
 

@@ -178,6 +178,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Apps“). Meine Apps a2: Tobi hatte das Passwort der Übersichten vergessen –
   am 25.11. neu gesetzt, in `admin_liste()` steht nur noch die Prüfsumme
   (README „Passwort vergessen“). Das Passwort nie ins Repo oder in Notizen.
+  Meine Apps a3: bei Body Check das Tagebuch, das Amy nach „Ja, teilen“ teilt
+  (`bodycheck_lesen(pass)`, gebaut im Repo Bauchbuch, Fassung 31/32) –
+  zugeklappt, nach Tagen (`apps/js/tagebuch.js`); Namen der Kennungen aus
+  `node tools/bodycheck-woerter.mjs <Bauchbuch>`. Am 25.11. noch 0 Zeilen.
 - Davor v273: *Was da ist* sagt zuerst, ob jedes Training alle
   Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
   „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die

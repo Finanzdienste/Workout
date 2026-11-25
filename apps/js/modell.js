@@ -10,13 +10,17 @@
  * (apps_uebersicht). Ein Tag ist immer ein Tag in Berlin, als „JJJJ-MM-TT“.
  */
 
+import { tagebuchTage, standardMittel } from './tagebuch.js';
+
 /** So viele Tage zeigt der Streifen je App. */
 export const TAGE = 14;
 
 /**
  * Alle Apps, auch die, die nichts melden. `pfad` ist relativ zu /Workout/apps/
  * (alle liegen auf finanzdienste.github.io); `blind` sagt, was die Übersicht
- * nicht sehen kann, `misstNichts`, warum sie gar nichts sieht.
+ * nicht sehen kann, `misstNichts`, warum sie gar nichts sieht. Body Check
+ * sieht nur, was jemand dort ausdrücklich teilt (`ungeteilt`, solange nichts
+ * geteilt ist).
  */
 export const APPS = [
   {
@@ -57,7 +61,8 @@ export const APPS = [
   },
   {
     id: 'bodycheck', name: 'Body Check', pfad: '../../Bauchbuch/', farbe: '#b0603a',
-    misstNichts: 'Zählt bewusst nichts: Die App verspricht, dass nichts das Handy verlässt.',
+    quelle: 'geteiltes Tagebuch – nur nach „Ja, teilen“ in Body Check',
+    ungeteilt: 'Noch nichts geteilt. Body Check schickt das Tagebuch erst, wenn in der App „Ja, teilen“ getippt wurde.',
   },
 ];
 
@@ -137,6 +142,7 @@ export function stufe(zuletzt, heute) {
 }
 
 const zahl = (x) => (Number.isFinite(Number(x)) ? Number(x) : 0);
+const text = (x) => (x === null || x === undefined ? '' : String(x).trim());
 const liste = (x) => (Array.isArray(x) ? x : []);
 const mehrzahl = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
 
@@ -147,7 +153,7 @@ const mehrzahl = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
  *     zeilen: [Text], ...App-Angaben }
  * Sortiert: zuletzt benutzt zuerst, nie benutzt danach, „misst nichts“ ans Ende.
  */
-export function auswerten(daten, heute = tagAus(daten && daten.heute) || tagAus(new Date().toISOString())) {
+export function auswerten(daten, heute = tagAus(daten && daten.heute) || tagAus(new Date().toISOString()), bodycheck = []) {
   const d = daten || {};
   const fenster = letzteTage(heute);
   const imFenster = new Set(fenster);
@@ -266,6 +272,31 @@ export function auswerten(daten, heute = tagAus(daten && daten.heute) || tagAus(
     if (p && tagAus(d.widget) === heute) p.notiz.push(`zuletzt um ${uhrAus(d.widget)} Zahlen geholt`);
   }
 
+  // Body Check: je geteiltem Gerät das Tagebuch (bodycheck_lesen). Benutzt
+  // ist ein Tag, an dem etwas eingetragen ist; dazu der Tag der letzten
+  // Aktualisierung (die App schickt nur, wenn sich etwas geändert hat).
+  const bc = apps.get('bodycheck');
+  const geteilt = liste(bodycheck).filter((z) => z && z.stand && typeof z.stand === 'object');
+  if (!geteilt.length) bc.misstNichts = bc.ungeteilt;
+  bc.tagebuecher = geteilt.map((z) => {
+    const name = text(z.name) || 'ohne Namen';
+    const p = person('bodycheck', name);
+    const tage = tagebuchTage(z.stand);
+    merke(p, tagAus(z.aktualisiert));
+    tage.forEach((t) => merke(p, t.tag));
+    return { name, geraet: text(z.geraet), aktualisiert: z.aktualisiert || null, fassung: text(z.fassung), tage, mittel: standardMittel(z.stand), person: p };
+  });
+  bc.tagebuecher.forEach((t) => {
+    const n = t.tage.filter((x) => imFenster.has(x.tag)).reduce((s, x) => s + x.eintraege.length, 0);
+    if (n) t.person.notiz.push(`${mehrzahl(n, 'Eintrag', 'Einträge')} in ${TAGE} Tagen`);
+    if (t.aktualisiert) {
+      const tag = tagAus(t.aktualisiert);
+      t.person.notiz.push(`aktualisiert ${tag === heute ? 'heute' : `am ${datumKurz(tag)}`} um ${uhrAus(t.aktualisiert)}`);
+    }
+    if (bc.tagebuecher.length > 1 && t.geraet) t.person.notiz.push(t.geraet);
+    delete t.person;
+  });
+
   const ergebnis = [...apps.values()].map((a) => {
     const leute = [...a.leute.values()]
       .map((p) => ({
@@ -294,7 +325,7 @@ export function auswerten(daten, heute = tagAus(daten && daten.heute) || tagAus(
       weitere: leute.filter((p) => !p.tage || nebenbei(p)),
       zuletzt,
       stufe: a.misstNichts ? 'nichts' : stufe(zuletzt, heute),
-      wann: a.misstNichts ? 'misst nichts' : wann(zuletzt, heute),
+      wann: a.misstNichts ? (a.ungeteilt ? 'nicht geteilt' : 'misst nichts') : wann(zuletzt, heute),
       streifen,
       aktiv: streifen.filter((t) => t.an).length,
     };

@@ -103,6 +103,28 @@ function zahlen(heute) {
   };
 }
 
+/** Ein Tagebuchstand, wie Body Check ihn teilt (dort js/store.js). */
+function tagebuch(heute) {
+  const v = (n) => vor(n, heute);
+  return {
+    eintraege: [
+      { id: 'e1', am: v(0), um: '08:10', art: 'essen', was: 'Haferflocken', portion: 'gross',
+        zutaten: [{ id: 'milch', rolle: 'haupt' }, { id: 'kaffee', rolle: 'getraenk' }, { id: 'x:dinkel', rolle: 'beilage' }] },
+      { id: 'e2', am: v(0), um: '07:30', art: 'medikament', mittel: 'Ibuprofen', dosis: '400 mg', essen: 'mit' },
+      { id: 'e3', am: v(0), um: '10:00', art: 'beschwerde', staerke: 6, arten: ['brennen', 'neuartig'],
+        notiz: '<img src=x onerror="window.__boese2=1">nach dem Kaffee' },
+      { id: 'e4', am: v(1), um: '19:00', art: 'stuhl', form: 6, dringend: true, warnzeichen: [] },
+      { id: 'e5', am: v(1), um: '19:30', ungefaehr: true, tageszeit: 'abends', art: 'aktivitaet', aktivitaeten: ['laufen'], intensitaet: 'hart' },
+      { id: 'e6', am: v(20), um: '12:00', art: 'notiz', text: 'Lange her' },
+      { id: 'e7', am: v(-1), um: '09:00', art: 'notiz', text: 'Uhr vorgestellt' },
+    ],
+    tage: { [v(0)]: { stimmung: 0, schlaf: 3, wasser: 6, notiz: 'guter Tag' }, [v(2)]: { stress: 2 }, [v(3)]: { wasser: 0 } },
+    eigeneAusloeser: [{ id: 'x:dinkel', name: 'Dinkel' }],
+    standardMittel: [{ id: 'm1', mittel: 'L-Thyroxin', dosis: '50 µg', tageszeit: 'morgens' }],
+  };
+}
+const geteilt = (heute) => [{ name: 'Amy', geraet: 'Gerät 1a2b', aktualisiert: `${heute}T13:05:00Z`, fassung: '32', stand: tagebuch(heute) }];
+
 const apps = M.auswerten(zahlen(H), H);
 const app = (id) => apps.find((a) => a.id === id);
 const leute = (id) => app(id).leute.map((p) => p.name);
@@ -139,7 +161,8 @@ check(app('freizeit').weitere.some((p) => p.name === 'Jan' && p.zuletzt === vor(
 check(app('freizeit').zeilen.includes('3 Personen im Raum'), 'Freizeit: Personen im Raum');
 check(app('fragmal').zuletzt === vor(13) && app('fragmal').stufe === 'alt' && app('fragmal').leute.length === 1, 'Frag mal: zuletzt vor 13 Tagen, rot; Konto 1 (vor 14) nur unter „Weitere“');
 check(app('widget').wann === 'heute' && app('widget').leute[0].notiz.some((n) => /^zuletzt um \d\d:\d\d Zahlen geholt$/.test(n)), 'Widget: heute, mit Uhrzeit');
-check(app('bodycheck').stufe === 'nichts' && apps[apps.length - 1].id === 'bodycheck', 'Body Check misst nichts und steht unten');
+check(app('bodycheck').stufe === 'nichts' && app('bodycheck').wann === 'nicht geteilt' && app('bodycheck').misstNichts.startsWith('Noch nichts geteilt')
+  && apps[apps.length - 1].id === 'bodycheck', 'Body Check ohne geteiltes Tagebuch: „nicht geteilt“, steht unten, zählt nicht mit');
 const reihe = apps.map((a) => a.id);
 check(reihe.indexOf('schilddruese') > reihe.indexOf('fragmal') && reihe.indexOf('workout') < reihe.indexOf('bewerbungszentrale'), `Reihenfolge: zuletzt benutzt zuerst, nie danach (${reihe.join(', ')})`);
 
@@ -153,6 +176,32 @@ check(M.tagAus('2026-11-24T23:30:00Z') === '2026-11-25' && M.tagAus('2026-07-24T
 const leer = M.auswerten({ heute: H }, H);
 check(leer.length === M.APPS.length && leer.every((a) => a.stufe === 'nie' || a.stufe === 'nichts'), 'leere Antwort: alle Karten, nichts kaputt');
 
+// --- Ohne Browser: das geteilte Tagebuch aus Body Check
+const T = await import(path.join(ORDNER, 'js', 'tagebuch.js'));
+const mitBc = M.auswerten(zahlen(H), H, geteilt(H));
+const bc = mitBc.find((a) => a.id === 'bodycheck');
+const amy = bc.leute.find((p) => p.name === 'Amy');
+check(!bc.misstNichts && bc.stufe === 'frisch' && bc.wann === 'heute', 'Body Check mit geteiltem Tagebuch: heute, grün');
+check(amy && amy.tage === 3, `Amy an 3 der 14 Tage (Einträge heute und gestern, Tageswert vor 2; ein Tag nur mit 0 Gläsern und ein Tag in der Zukunft zählen nicht) – ${amy && amy.tage}`);
+check(amy.notiz[0] === '5 Einträge in 14 Tagen' && /^aktualisiert heute um \d\d:\d\d$/.test(amy.notiz[1]), `Amy: Einträge und wann aktualisiert (${amy.notiz.join(' · ')})`);
+check(M.zusammenfassung(mitBc, H).satz === 'In den letzten 7 Tagen benutzt: 7 von 9 Apps.', 'geteilt zählt Body Check mit: 7 von 9');
+const tb = bc.tagebuecher[0];
+check(tb.tage.map((t) => t.tag).join() === [vor(-1), vor(0), vor(1), vor(2), vor(20)].join(), 'die Tage, neuester zuerst');
+const heuteTag = tb.tage.find((t) => t.tag === H);
+check(/^(Mo|Di|Mi|Do|Fr|Sa|So) \d+\.\d+\.$/.test(heuteTag.kopf) && heuteTag.kopf === T.tagKopf(H), `der Tag heißt wie „Mi 25.11.“ (${heuteTag.kopf})`);
+check(heuteTag.eintraege.map((e) => `${e.zeit} ${e.art}`).join(' | ') === '07:30 Mittel | 08:10 Essen | 10:00 Beschwerden', 'Einträge nach Uhrzeit');
+check(heuteTag.eintraege[1].text === 'Haferflocken · Milchprodukte · Kaffee (Getränk) · Dinkel (Beilage) · Portion groß', `Essen mit Zutaten, Rolle und eigenem Auslöser (${heuteTag.eintraege[1].text})`);
+check(heuteTag.eintraege[0].text === 'Ibuprofen 400 mg · mit/nach Essen', `Mittel (${heuteTag.eintraege[0].text})`);
+check(heuteTag.eintraege[2].text.startsWith('Brennen, neuartig · Stärke 6/10 · '), `Beschwerden, eine unbekannte Kennung bleibt stehen (${heuteTag.eintraege[2].text})`);
+check(heuteTag.werte.join(' · ') === 'Stimmung: gut · Schlaf: schlecht · Wasser: 6 Gläser' && heuteTag.notiz === 'guter Tag', `Tageswerte und Tagesnotiz (${heuteTag.werte.join(' · ')})`);
+const gestern = tb.tage.find((t) => t.tag === vor(1));
+check(gestern.eintraege.map((e) => `${e.zeit} ${e.art}: ${e.text}`).join(' | ') === '19:00 Stuhlgang: Typ 6: breiig · dringend | abends Aktivität: Laufen · anstrengend', `Stuhlgang und Aktivität mit Zeitknopf (${gestern.eintraege.map((e) => e.text).join(' | ')})`);
+check(tb.mittel.join() === 'L-Thyroxin 50 µg morgens', 'die regelmäßigen Mittel');
+check(T.tagebuchTage(null).length === 0 && T.tagebuchTage({ eintraege: [{ am: 'kaputt' }, null], tage: { x: {} } }).length === 0, 'ein kaputter Stand bricht nichts');
+const zwei = M.auswerten({ heute: H }, H, [...geteilt(H), { ...geteilt(H)[0], geraet: 'Gerät 9z8y', aktualisiert: `${vor(3)}T10:00:00Z`, stand: { eintraege: [] } }]);
+check(zwei.find((a) => a.id === 'bodycheck').tagebuecher.length === 2, 'zwei geteilte Geräte: zwei Tagebücher');
+check(M.auswerten({ heute: H }, H, [{ name: 'Amy', stand: null }]).find((a) => a.id === 'bodycheck').misstNichts, 'eine Zeile ohne Stand gilt als nicht geteilt');
+
 // --- Im Browser
 const PORT = 8146;
 const BASIS = `http://127.0.0.1:${PORT}`;
@@ -164,7 +213,9 @@ const browser = await chromium.launch();
 const fehler = [];
 const aufrufe = [];
 let modus = 'gut';
+let modusBc = 'geteilt';
 let verzoegern = 0;
+const zaehle = (f) => aufrufe.filter((a) => a.url.endsWith(`/rpc/${f}`)).length;
 
 async function kontext() {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'de-DE' });
@@ -176,6 +227,11 @@ async function kontext() {
     const { pass } = JSON.parse(req.postData() || '{}');
     if (pass !== 'geheim') {
       await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: '42501', message: 'nope' }) });
+      return;
+    }
+    if (req.url().endsWith('/rpc/bodycheck_lesen')) {
+      if (modusBc === 'kaputt') { await route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' }); return; }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(modusBc === 'leer' ? [] : geteilt(heute)) });
       return;
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(zahlen(heute)) });
@@ -205,17 +261,31 @@ await page.fill('#pass', 'geheim');
 await page.click('#anmelden button');
 await page.waitForSelector('article.app[data-app="workout"]');
 const karten = await page.locator('article.app').evaluateAll((els) => els.map((e) => e.dataset.app));
-check(karten.length === 9 && karten[0] === 'workout' && karten[8] === 'bodycheck', `je App eine Karte, zuletzt benutzt zuerst (${karten.join(', ')})`);
-const anfrage = aufrufe[aufrufe.length - 1];
-check(anfrage.url.endsWith('/rest/v1/rpc/apps_uebersicht') && anfrage.kopf.apikey && !anfrage.kopf.authorization, 'ein Aufruf an apps_uebersicht, nur mit apikey');
-check(await page.locator('.satz').textContent() === 'In den letzten 7 Tagen benutzt: 6 von 8 Apps.', 'oben der Satz, wie viele benutzt werden');
+check(karten.length === 9 && karten[0] === 'workout' && karten[8] === 'schilddruese', `je App eine Karte, zuletzt benutzt zuerst (${karten.join(', ')})`);
+const anfrage = aufrufe.filter((a) => a.url.endsWith('/rest/v1/rpc/apps_uebersicht')).pop();
+const anfrageBc = aufrufe.filter((a) => a.url.endsWith('/rest/v1/rpc/bodycheck_lesen')).pop();
+check(anfrage && anfrage.kopf.apikey && !anfrage.kopf.authorization, 'ein Aufruf an apps_uebersicht, nur mit apikey');
+check(anfrageBc && JSON.parse(anfrageBc.body).pass === 'geheim' && !anfrageBc.kopf.authorization, 'und einer an bodycheck_lesen, mit demselben Passwort');
+check(await page.locator('.satz').textContent() === 'In den letzten 7 Tagen benutzt: 7 von 9 Apps.', 'oben der Satz, wie viele benutzt werden');
 const workout = page.locator('article[data-app="workout"]');
 check(await workout.locator('.pille').textContent() === 'heute' && await workout.evaluate((e) => e.classList.contains('stufe-frisch')), 'Workout: Pille „heute“, grün');
 check((await workout.locator('.leute li').first().textContent()).includes('Tobi') && (await workout.locator('.leute li').first().textContent()).includes('an 5 von 14 Tagen'), 'Workout: Tobi an 5 von 14 Tagen');
 check(await workout.locator('.streifen i').count() === 14 && await workout.locator('.streifen i.an').count() === 5, 'Workout: 14 Kästchen, 5 davon an');
 check((await workout.locator('details.weitere').textContent()).includes('Amy'), 'Workout: Amy unter „Weitere“');
 check((await page.locator('article[data-app="schilddruese"]').textContent()).includes('Noch kein Gerät hat sich gemeldet.'), 'Schilddrüse: „Noch kein Gerät hat sich gemeldet.“');
-check((await page.locator('article[data-app="bodycheck"] .pille').textContent()) === 'misst nichts', 'Body Check: „misst nichts“');
+const bcKarte = page.locator('article[data-app="bodycheck"]');
+check((await bcKarte.locator('.pille').textContent()) === 'heute' && (await bcKarte.locator('.leute li').first().textContent()).includes('aktualisiert heute um'), 'Body Check: heute, „aktualisiert heute um …“');
+check(await bcKarte.locator('details.tagebuch summary').first().textContent() === 'Tagebuch von Amy' && !(await bcKarte.locator('details.tagebuch').evaluate((d) => d.open)), 'das Tagebuch ist zugeklappt: „Tagebuch von Amy“');
+await bcKarte.locator('details.tagebuch > summary').click();
+const tbText = await bcKarte.locator('details.tagebuch').innerText();
+check(tbText.includes('Haferflocken · Milchprodukte · Kaffee (Getränk)') && tbText.includes('Stimmung: gut') && tbText.includes('Regelmäßig: L-Thyroxin 50 µg morgens'), 'aufgeklappt: Tage mit Einträgen, Tageswerten und Mitteln');
+const koepfe = await bcKarte.locator('details.tagebuch > section.tag h3').allTextContents();
+check(koepfe.join() === [vor(-1, heute), heute, vor(1, heute), vor(2, heute)].map(T.tagKopf).join(), `je Tag ein Kopf, neuester zuerst (${koepfe.join(', ')})`);
+check(await bcKarte.locator('details.aeltere summary').textContent() === 'Ältere Tage (1)' && !tbText.includes('Lange her'), 'Ältere Tage zugeklappt darunter');
+check(await page.evaluate(() => !window.__boese2) && tbText.includes('<img src=x'), 'Notizen stehen als Text da, nicht als HTML');
+await page.click('#neu');
+await page.waitForFunction(() => !document.querySelector('#stand').textContent.includes('lädt'));
+check(await bcKarte.locator('details.tagebuch').evaluate((d) => d.open), 'nach dem Nachladen bleibt das Tagebuch aufgeklappt');
 check((await page.locator('article[data-app="boxenstopp"]').textContent()).includes('Amy und Marielle'), 'Boxenstopp sagt, wen es nicht sieht');
 check((await page.locator('article[data-app="mahlzeit"]').textContent()).includes('Uwe'), 'Mahlzeit: Uwe');
 const widget = page.locator('article[data-app="widget"]');
@@ -230,13 +300,13 @@ check((await page.locator('#stand').textContent()).startsWith('Stand: heute '), 
 
 // 2. Neu geöffnet: sofort der letzte Stand, dann aufgefrischt
 await page.evaluate(() => navigator.serviceWorker.ready);
-const vorher = aufrufe.length;
+const vorher = zaehle('apps_uebersicht');
 verzoegern = 1500;
 await page.reload({ waitUntil: 'domcontentloaded' });
 const sofort = await page.waitForFunction(() => document.querySelectorAll('article.app').length === 9
   && document.querySelector('#stand').textContent.includes('lädt'), null, { timeout: 1000 }).then(() => true).catch(() => false);
-for (let i = 0; i < 20 && aufrufe.length === vorher; i++) await new Promise((r) => setTimeout(r, 50));
-check(sofort && aufrufe.length === vorher + 1, 'neu geöffnet: der letzte Stand steht sofort da, während der Server noch antwortet');
+for (let i = 0; i < 20 && zaehle('apps_uebersicht') === vorher; i++) await new Promise((r) => setTimeout(r, 50));
+check(sofort && zaehle('apps_uebersicht') === vorher + 1, 'neu geöffnet: der letzte Stand steht sofort da, während der Server noch antwortet');
 await page.waitForFunction(() => !document.querySelector('#stand').textContent.includes('lädt'));
 verzoegern = 0;
 check(await page.evaluate(() => !!navigator.serviceWorker.controller), 'der eigene Worker steuert die Seite');
@@ -249,12 +319,28 @@ await page.waitForSelector('#stand.warn');
 const ohne = await page.locator('#stand').textContent();
 check(ohne.startsWith('Ohne Netz – Stand von heute ') && ohne.includes('sobald Netz da ist'), `ohne Netz: die Seite geht auf, mit dem letzten Stand (${ohne})`);
 check(await page.locator('article.app').count() === 9, 'ohne Netz: alle Karten da');
-const vorOnline = aufrufe.length;
+check(await page.locator('article[data-app="bodycheck"] details.tagebuch').count() === 1, 'ohne Netz: das Tagebuch auch');
+const vorOnline = zaehle('apps_uebersicht');
 server = await starte(PORT, 0);
 modus = 'gut';
 await page.evaluate(() => window.dispatchEvent(new Event('online')));
 await page.waitForFunction(() => !document.querySelector('#stand').classList.contains('warn') && !document.querySelector('#stand').textContent.includes('lädt'));
-check(aufrufe.length === vorOnline + 1, 'mit `online` holt die Seite von selbst nach – einmal');
+check(zaehle('apps_uebersicht') === vorOnline + 1, 'mit `online` holt die Seite von selbst nach – einmal');
+
+// Das Tagebuch lässt sich nicht holen: der Rest frisch, das Tagebuch bleibt
+modusBc = 'kaputt';
+await page.click('#neu');
+await page.waitForFunction(() => !document.querySelector('#stand').textContent.includes('lädt'));
+const kaputt = await page.locator('article[data-app="bodycheck"]').innerText();
+check(kaputt.includes('Tagebuch von Amy') && kaputt.includes('Das Tagebuch ließ sich gerade nicht holen – hier steht der Stand von heute'), 'Tagebuch nicht abrufbar: der letzte Stand bleibt, mit Hinweis');
+// Amy beendet das Teilen: beim nächsten Laden ist es auch hier weg
+modusBc = 'leer';
+await page.click('#neu');
+await page.waitForFunction(() => !document.querySelector('#stand').textContent.includes('lädt'));
+check(await page.locator('article[data-app="bodycheck"] .pille').textContent() === 'nicht geteilt'
+  && await page.locator('article[data-app="bodycheck"] details.tagebuch').count() === 0
+  && !(await page.evaluate(() => localStorage.getItem('apps.stand.v1'))).includes('Haferflocken'), 'Teilen beendet: kein Tagebuch mehr, auch nicht im Speicher');
+modusBc = 'geteilt';
 
 // Abmelden
 await page.click('#abmelden');

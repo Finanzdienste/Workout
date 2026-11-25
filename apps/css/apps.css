@@ -160,3 +160,21 @@ a { color: var(--haupt); }
 .blind { font-size: .9rem; color: var(--mittel); }
 .quelle { font-size: .82rem; color: var(--leise); margin-top: 8px; }
 .fuss { margin-top: 16px; }
+
+/* Das geteilte Tagebuch aus Body Check (Meine Apps a3) */
+.tagebuch { margin-top: 10px; border-top: 1px solid var(--linie); padding-top: 6px; }
+.tagebuch > summary { cursor: pointer; font-weight: 650; min-height: 40px; display: flex; align-items: center; color: var(--haupt); }
+.tag { padding: 8px 0; border-top: 1px solid var(--linie); }
+.tag:first-of-type { border-top: 0; }
+.tag h3 { font-size: .98rem; margin: 0 0 4px; }
+.tageswerte { font-size: .9rem; color: var(--leise); }
+.tagesnotiz { font-size: .92rem; font-style: italic; overflow-wrap: anywhere; }
+.eintraege { list-style: none; padding: 0; margin: 4px 0 0; }
+.eintraege li { display: grid; grid-template-columns: 4.4em 1fr; gap: 6px; padding: 3px 0; font-size: .94rem; overflow-wrap: anywhere; }
+.eintraege .zeit { color: var(--leise); font-variant-numeric: tabular-nums; }
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before { content: '▸'; display: inline-block; width: 1.1em; transition: transform .15s; }
+details[open] > summary::before { transform: rotate(90deg); }
+.aeltere { margin-top: 6px; }
+.aeltere > summary { cursor: pointer; color: var(--leise); min-height: 36px; display: flex; align-items: center; }
