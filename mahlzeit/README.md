@@ -258,6 +258,51 @@ Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
 abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
 Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
 
+## Uwes Werte gehen an Tobi (v13, 25.11.2026)
+
+Tobi fragte: „Kannst du sehen welche werte er einträgt?“ Bis dahin nicht, das
+Lebenszeichen (v6) schickte nur Anzahlen. Zur Wahl standen nur die Art oder
+die Werte selbst. Tobi: „Mach Variante 2“. Uwe ist einverstanden („Uwe
+meinte ich kann all seine gesundheitsdaten haben“, 21.11.).
+
+**Jetzt gilt:**
+- **Was die App schickt:** Gewicht, Blutzucker (mit Uhrzeit und „wann“),
+  HbA1c, Schlaf und Schritte der letzten 60 Tage, mit Datum und Herkunft (⌚
+  von der Uhr). Was Uwe isst, geht nicht mit.
+- **Wann:** an die Datenbankfunktion `mahlzeit_werte_melden`, beim Öffnen,
+  beim Weglegen und beim Ereignis `online`, aber nur, wenn sich seit dem
+  letzten Mal etwas geändert hat.
+- **Wohin:** Die Funktion ersetzt die 60 Tage je Gerät in `mahlzeit_werte`,
+  so kommen auch Löschungen an. Sie läuft als security definer, mit dem
+  öffentlichen Schlüssel aufrufbar. Die Tabelle hat RLS ohne Regeln, lesen
+  geht nur mit dem geheimen Schlüssel.
+- **Ohne Netz:** Die App merkt sich nichts als „geschickt“ und schickt beim
+  nächsten Mal nach.
+- **Abschalten:** Derselbe Schalter wie beim Lebenszeichen (*Mehr →
+  Lebenszeichen an Tobi*) stellt beides ab.
+- **Texte in der App:** Die Karte unter *Mehr*, das „Hallo“ und „Über die
+  App“ sagen jetzt, dass die Werte an Tobi gehen.
+
+**Für Tobi nachsehen** (Supabase, SQL):
+
+```sql
+-- Uwes Werte (Gerät aus mahlzeit_nutzung, als App vom Startbildschirm)
+select tag, art, wert, uhr, wann, quelle from public.mahlzeit_werte
+where geraet = '0jhz8uo152qh' order by tag desc, art;
+-- Gewicht im Verlauf
+select tag, wert as kg from public.mahlzeit_werte where art = 'gewicht' order by tag;
+```
+
+Einheiten: Gewicht in kg, Blutzucker in mg/dl, HbA1c in %, Schlaf in Minuten,
+Schritte als Anzahl.
+
+Geprüft in `tests/test-mz-lebenszeichen.mjs`:
+- nur Werte, kein Essen, 60 Tage
+- beim Öffnen geschickt, ohne Änderung kein zweites Mal
+- ein neues Gewicht ersetzt das alte
+- abgeschaltet geht nichts
+- ohne Netz nichts verloren, bei `online` kommt es nach
+
 ## Uwe muss nichts eintippen, Tobi sieht, warum die KI nicht konnte (v12, 21.11.2026)
 
 Tobi: „Statt ihn nach einem freischalt Code zu fragen soll in solchen

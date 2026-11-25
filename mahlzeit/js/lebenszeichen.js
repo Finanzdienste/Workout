@@ -12,6 +12,14 @@
  * Ziel ist die Tabelle mahlzeit_nutzung in Tobis Supabase-Projekt: Die App
  * darf dort nur einfügen, lesen kann nur der geheime Schlüssel. Abschalten
  * unter „Mehr → Lebenszeichen an Tobi".
+ *
+ * Seit v13 auch die Werte selbst (werteMelden): Gewicht, Blutzucker, HbA1c,
+ * Schlaf und Schritte der letzten 60 Tage, mit Datum – Tobi, 25.11.2026:
+ * „Mach Variante 2“, Uwe ist einverstanden („Uwe meinte ich kann all seine
+ * gesundheitsdaten haben“, 21.11.). Was er isst, geht weiter nicht mit. Ziel
+ * ist mahlzeit_werte über die Funktion mahlzeit_werte_melden, die die 60 Tage
+ * je Gerät ersetzt – so kommen auch Löschungen an. Geschickt wird nur, wenn
+ * sich etwas geändert hat; derselbe Schalter stellt beides ab.
  */
 
 export const ADRESSE = 'https://vjyohppohmvhhxgwouti.supabase.co/rest/v1/mahlzeit_nutzung';
@@ -62,6 +70,47 @@ export async function melden(stand, { tag, fassung, alsApp, jetzt = Date.now(), 
     return res.ok;
   } catch {
     try { localStorage.removeItem(ZULETZT); } catch { /* egal */ }
+    return false;
+  }
+}
+
+// --- Die Werte selbst (v13) ---------------------------------------------------
+
+export const WERTE_ADRESSE = 'https://vjyohppohmvhhxgwouti.supabase.co/rest/v1/rpc/mahlzeit_werte_melden';
+const WERTE_ZULETZT = 'mahlzeit.wertegemeldet.v1';
+export const WERTE_TAGE = 60;
+
+/** Die Werte ab einem Tag, so wie sie gehen – ohne alles andere aus dem Stand. */
+export function werteFuerTobi(stand, von) {
+  return (stand.werte || []).filter((w) => w.tag >= von).slice(-600).map((w) => ({
+    id: String(w.id), art: w.art, tag: w.tag, wert: w.wert,
+    ...(w.uhr ? { uhr: w.uhr } : {}), ...(w.wann ? { wann: w.wann } : {}), ...(w.quelle ? { quelle: w.quelle } : {}),
+  }));
+}
+
+function plusTage(tag, n) {
+  const d = new Date(`${tag}T12:00:00`);
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Schickt die Werte, wenn sie sich seit dem letzten Mal geändert haben. Wirft nie. */
+export async function werteMelden(stand, { tag, holen = (...a) => fetch(...a) } = {}) {
+  try {
+    if (stand.meldung === false) return false;
+    const von = plusTage(tag, -WERTE_TAGE);
+    const werte = werteFuerTobi(stand, von);
+    const fingerabdruck = `${von}|${JSON.stringify(werte)}`;
+    if (localStorage.getItem(WERTE_ZULETZT) === fingerabdruck) return false;
+    const res = await holen(WERTE_ADRESSE, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: OEFFENTLICH },
+      body: JSON.stringify({ p_geraet: geraet(), p_von: von, p_werte: werte }),
+      keepalive: true,
+    });
+    if (res.ok) localStorage.setItem(WERTE_ZULETZT, fingerabdruck);
+    return res.ok;
+  } catch {
     return false;
   }
 }

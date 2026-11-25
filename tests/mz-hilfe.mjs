@@ -74,6 +74,8 @@ export async function oeffne({
     ? r.fulfill({ status: 200, contentType: 'application/json', body: '{"ki":false,"suche":false}', headers: { 'access-control-allow-origin': '*' } })
     : r.fallback()));
   await ctx.route(/rest\/v1\/mahlzeit_nutzung/, (r) => r.fulfill({ status: 201, body: '', headers: { 'access-control-allow-origin': '*' } }));
+  // Die Werte an Tobi (v13) ebenso still annehmen.
+  await ctx.route(/rest\/v1\/rpc\/mahlzeit_werte_melden/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '0', headers: { 'access-control-allow-origin': '*' } }));
   if (ki) {
     // Als hätte die Funktion gesagt: KI und Suche eingerichtet (v11) – ohne neue Nachfrage.
     await ctx.addInitScript(() => { try { localStorage.setItem('mahlzeit.kistatus.v1', JSON.stringify({ ki: true, suche: true, um: 9e15 })); } catch { /* about:blank */ } });

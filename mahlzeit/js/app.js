@@ -20,7 +20,7 @@ import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 import * as UHR from './uhr.js';
 
-export const FASSUNG = 'v12';
+export const FASSUNG = 'v13';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -141,7 +141,7 @@ function kartenOben(stand, tag, h) {
   if (!stand.hinweise.willkommen && tag === h) {
     html += `<section class="karte hinweis" id="willkommen">
       <p><strong>Hallo!</strong> Keine Fragen, kein Konto. Tipp auf „Essen eintragen“ und such, was du gegessen hast – die App sagt dir die Kalorien. Alles bleibt auf deinem Handy.</p>
-      <p class="klein">Nur ob du die App nutzt, erfährt Tobi – als Zahl, ohne was du isst (abschaltbar unter „Mehr“).</p>
+      <p class="klein">Tobi erfährt, ob du die App nutzt, und sieht deine Werte (Gewicht, Blutzucker, Schlaf …) – nicht, was du isst. Abschaltbar unter „Mehr“.</p>
       <button type="button" class="knopf leise" data-tun="hinweis-weg" data-hinweis="willkommen">Alles klar</button>
     </section>`;
   }
@@ -627,7 +627,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-lebenszeichen">
     <h3>📶 Lebenszeichen an Tobi</h3>
-    <p>Damit Tobi weiß, ob dir die App etwas bringt, meldet sie höchstens alle drei Stunden nur Zahlen: wie viele Einträge heute, wie viele Hafer-Mahlzeiten, Sporteinheiten und Werte – nie, was du isst, wiegst oder misst.</p>
+    <p>Damit Tobi weiß, ob dir die App etwas bringt, meldet sie höchstens alle drei Stunden, wie viele Einträge, Hafer-Mahlzeiten und Sporteinheiten du hast. Dazu gehen deine <strong>Werte</strong> an Tobi – Gewicht, Blutzucker, HbA1c, Schlaf und Schritte mit Datum, die letzten 60 Tage. Was du isst, geht nicht mit.</p>
     <div class="chips" role="group" aria-label="Lebenszeichen">
       <button type="button" class="chip" data-tun="meldung" data-an="1" aria-pressed="${stand.meldung !== false}">an</button>
       <button type="button" class="chip" data-tun="meldung" data-an="" aria-pressed="${stand.meldung === false}">aus</button>
@@ -648,7 +648,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
-    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi (nur Zahlen, abschaltbar, siehe oben) ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.kiAn() ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
+    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi mit deinen Werten (abschaltbar, siehe oben) ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.kiAn() ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
     <p>Die Kalorien sind Richtwerte für übliche Portionen – ein Döner vom Imbiss nebenan kann 100 kcal mehr oder weniger haben. Für den Überblick reicht das; genauer wird es mit der Packung in der Hand („Selbst eintragen“).</p>
     <p>Die App ersetzt keine ärztliche Beratung. Was die Hafertage angeht, steht die Quelle unter „Hafer“.</p>
     <p class="klein leise">Fassung ${FASSUNG}</p>
@@ -2196,9 +2196,14 @@ window.addEventListener('storage', (ev) => {
 });
 
 // Lebenszeichen: beim Öffnen (kurz danach) und beim Weglegen, höchstens alle drei Stunden.
-const lebenszeichen = () => LZ.melden(lesen(), { tag: heute(), fassung: FASSUNG, alsApp: standalone() });
+const lebenszeichen = () => {
+  LZ.melden(lesen(), { tag: heute(), fassung: FASSUNG, alsApp: standalone() });
+  LZ.werteMelden(lesen(), { tag: heute() });
+};
 setTimeout(lebenszeichen, 4000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') lebenszeichen(); });
+// Ohne Netz bleibt es ungeschickt und kommt nach, sobald wieder Netz da ist (v13, „Offline zuerst“).
+window.addEventListener('online', lebenszeichen);
 
 // Ist die KI eingerichtet (v11)? Beim Öffnen nachfragen; ändert sich etwas, neu zeichnen.
 setTimeout(() => K.statusHolen().then((anders) => { if (anders && !ebene) zeige(); }), 800);

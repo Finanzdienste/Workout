@@ -234,7 +234,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   die Modelle, mit `thinking_level: "low"`. Mahlzeit v12: Ohne Code steht „Bitte Tobi, dir den
   Freischalt-Code zu schicken“, mit Knöpfen zum Bitten und Einfügen (Uwe soll
   so wenig wie möglich tun). `mahlzeit_ki` hat jetzt `grund`, `versuche` und
-  `ms`; die Abfrage steht in `mahlzeit/README.md` (v12).
+  `ms`; die Abfrage steht in `mahlzeit/README.md` (v12). Mahlzeit v13: Uwes Werte
+  (Gewicht, Blutzucker, HbA1c, Schlaf, Schritte, 60 Tage) gehen an Tobi, in
+  `mahlzeit_werte` über die Datenbankfunktion `mahlzeit_werte_melden`. Uwes
+  Gerät ist `0jhz8uo152qh`; die Abfrage steht in `mahlzeit/README.md` (v13).
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,
