@@ -31,6 +31,10 @@ nichts.
 > Worker, eigene Tests (`tests/test-mz-*.mjs`); siehe
 > [Mahlzeit im Unterordner](#mahlzeit-im-unterordner-v264).
 >
+> **Und:** [`apps/`](#meine-apps-v274) (v274) – *Meine Apps*, Tobis Übersicht
+> über alle seine Apps: wer welche wann benutzt hat. Eigener Ordner, eigener
+> Worker, Test `tests/test-apps.mjs`.
+>
 > **Umgezogen:** Die Freizeit-App (was in Hamburg los ist, Konzerte,
 > Merkliste) hat ein eigenes Repository,
 > [Finanzdienste/Freizeit](https://github.com/Finanzdienste/Freizeit), und
@@ -10191,6 +10195,77 @@ byte-gleich mit ihr und liegt jetzt in vier Apps. Für Workout ändert sich
 nichts: es meldet weiter als `'workout'`. Geprüft in
 `tests/test-bildschirmzeit.mjs`, Abschnitt I (die Liste in der Kopie und in der
 Einzeldatei). Gegen v264 rot.
+
+## Meine Apps (v274)
+
+> Tobi, 25.11.2026: *„Können wir mir nicht mal ne masterübersicht aus allen
+> meinen Apps bauen damit ich seh ob die genutzt werden?“*
+
+**Vorher:** Jede App meldete etwas, aber jede an einer anderen Stelle – die
+Workout-Übersicht unter *Mehr*, die Schilddrüse in `schilddruese/uebersicht.html`,
+Mahlzeit nur auf Nachfrage per SQL, Freizeit nur dem Gastgeber in der App, das
+Widget nur auf dem Startbildschirm. Ob eine App überhaupt benutzt wird, sah man
+nirgends auf einen Blick.
+
+**Jetzt:** <https://finanzdienste.github.io/Workout/apps/> – eine Seite für
+den Startbildschirm, je App eine Karte: eine Ampel (grün bis 2 Tage, gelb bis 7,
+rot länger, grau noch nie), 14 Kästchen für die letzten 14 Tage und darunter
+wer: „Uwe · heute · an 7 von 14 Tagen · 29 Einträge“. Oben ein Satz: „In den
+letzten 7 Tagen benutzt: 6 von 8 Apps. Still: Frag mal (seit 12.11.),
+Schilddrüse (noch nie).“ Zuletzt benutzte Apps stehen oben. Das Passwort ist
+dasselbe wie für die Workout-Übersicht; die Seite merkt es sich auf dem Gerät
+(*Abmelden* nimmt es und den Stand wieder weg).
+
+| App | Woher die Seite es weiß |
+| --- | --- |
+| Workout | Bildschirmzeit-Widget (Tobi, mit Minuten) und Rückkanal (`nutzung`, je Name, mit letztem Training) |
+| Boxenstopp | Widget und KI-Anfragen (`fragmal_kosten`, app `boxenstopp`). **Blind** für Amy und Marielle: Boxenstopp meldet nichts, das steht auf der Karte. |
+| Bewerbungszentrale | Widget |
+| Freizeit | Widget, „zuletzt in der App“ und Haken der Eingeladenen (`freizeit_person`, `freizeit_bock`) – die Eingeladenen wissen das („Tobi sieht deine Haken und wann du zuletzt in der App warst.“) |
+| Mahlzeit | Lebenszeichen (`mahlzeit_nutzung`): Uwe heißt Uwe, andere Geräte „Gerät 1a2b“; ein Gerät, das nur einen Tag kurz offen war, steht unter „Weitere“ |
+| Schilddrüse | Lebenszeichen (`sd_geraete`) – am 25.11. hatte sich noch kein Gerät gemeldet |
+| Frag mal | Anmeldung und Weiterlaufen der Sitzung (`auth.sessions`), Antworten aus `fragmal_kosten` (app `fragmal`); die Konten heißen „Konto 1/2“ nach Reihenfolge |
+| Bildschirmzeit-Widget | wann es zuletzt Zahlen geholt hat (`bildschirmzeit_geraet`); ohne Streifen, weil es keinen Verlauf gibt |
+| Body Check | nichts – **mit Absicht**: Die App verspricht, dass nichts das Handy verlässt („keine Zählung von Aufrufen“). Die Karte sagt „misst nichts“, und daran ändert die Übersicht nichts. |
+
+**Der Server** ([`tools/apps-uebersicht.sql`](tools/apps-uebersicht.sql),
+am 25.11. eingespielt): `apps_uebersicht(pass)` prüft das Passwort über
+`admin_liste()` und gibt alles der letzten 60 Tage in einem Aufruf zurück –
+Zahlen und Tage, keine Werte, keine Einträge, keine Kennungen (Geräte heißen
+„Gerät 1a2b“, Freizeit-Personen eine Prüfsumme). Drei Quellen kennen nur den
+letzten Tag (`nutzung`, `sd_geraete`, Freizeit); für sie schreibt ein Trigger
+ab jetzt jeden Tag nach `apps_tag`, rückwirkend stand dort, was die Tabellen
+hergaben. Der Trigger fängt jeden eigenen Fehler ab: Die Übersicht darf nie die
+Meldung einer App kaputt machen. Er hängt auch an den Tabellen der Freizeit-App
+(Kommentar am Trigger nennt dieses Repo).
+
+**Offline zuerst:** Der letzte Stand liegt im `localStorage` und steht beim
+Öffnen sofort da; ohne Netz „Ohne Netz – Stand von heute 14:05. Lädt von selbst,
+sobald Netz da ist.“ Nachgeholt wird beim Ereignis `online`, beim Zurückkommen
+in die App (älter als 2 Minuten) und mit *Neu laden*. Zum ersten Öffnen ohne Netz:
+„Zum ersten Öffnen braucht die Übersicht Netz.“ Die Seite schickt nichts, also
+gibt es nichts vorzumerken. `apps/sw.js` hat einen eigenen Vorrat (`apps-a1`,
+Symbole der anderen Apps in `apps-bilder`), und `sw.js` lässt `/apps` in Ruhe.
+
+**Gefunden dabei:** Die Worker von Frag mal (`Amy/sw.js`) und Body Check
+(`Bauchbuch/sw.js`) löschen beim Aktivieren *alle* Vorräte außer dem eigenen –
+auf finanzdienste.github.io also auch die von Workout, Mahlzeit, Schilddrüse,
+Boxenstopp und den anderen Apps. `apps/sw.js` füllt seinen Vorrat deshalb nach
+einem Seitenaufruf mit Netz neu, falls er fehlt. Behoben ist es erst, wenn die
+beiden nur noch ihre eigenen Vorräte wegräumen (offen, 25.11.).
+
+Eine neue Fassung der Seite: `VERSION` in `apps/sw.js` und `FASSUNG` in
+`apps/js/app.js` zusammen hochzählen; die Symbole kommen aus
+`node tools/apps-icons.mjs`.
+
+Geprüft in `tests/test-apps.mjs` (Supabase gespielt, Server wirklich aus):
+das Rechnen in Node (wer, wann, an wie vielen Tagen, Minuten nur aus den 14
+Tagen, Tobi aus Widget und Rückkanal ist eine Person, Tag in Berlin, Ampel,
+Reihenfolge, leere Antwort); im Browser falsches und richtiges Passwort, je App
+eine Karte, Namen als Text statt HTML, kein Wischen zur Seite, neu geöffnet
+sofort der letzte Stand, ohne Netz mit Stand und Hinweis, `online` holt nach,
+Abmelden, erstes Öffnen ohne Netz, und dass der Workout-Worker unter `/apps/`
+nicht die Workout-App ausliefert. Gegen v273 rot.
 
 ## Mahlzeit im Unterordner (v264)
 

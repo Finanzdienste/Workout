@@ -71,6 +71,13 @@ offline funktionieren.“ Das gilt für jede Änderung und jede neue Funktion:
   Worker (`VERSION` dort und `FASSUNG` in `js/app.js` zusammen hochzählen),
   eigene Tests (`tests/test-mz-*.mjs`), Regeln in `mahlzeit/README.md`. Werte
   werden bewusst nicht bewertet (geht an einen Dritten).
+- **`apps/`** (seit v274): *Meine Apps* – Tobis Übersicht, wer welche seiner
+  Apps wann benutzt hat (https://finanzdienste.github.io/Workout/apps/).
+  Eigener Service Worker (`VERSION` dort und `FASSUNG` in `apps/js/app.js`
+  zusammen hochzählen), Test `tests/test-apps.mjs`, Server
+  `tools/apps-uebersicht.sql` (`apps_uebersicht(pass)`, Passwort wie die
+  Workout-Übersicht). Eine neue App oder Quelle kommt in `APPS` in
+  `apps/js/modell.js` und in die SQL-Funktion.
 - **`freizeit/`**: nur noch eine Weiterleitung; die Freizeit-App liegt in
   `Finanzdienste/Freizeit`.
 - **`README.md` ist das Gedächtnis der Workout-App**: jede Entscheidung mit
@@ -161,7 +168,15 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sieht man dort nicht, nur in der App (v257) oder im Protokoll in Apps Script.
 
 ## Stand (25.11.2026)
-- Workout v273: *Was da ist* sagt zuerst, ob jedes Training alle
+- Workout v274: *Meine Apps* unter `apps/` – je App Ampel, 14 Tage und wer
+  (Tobi über das Widget, Uwe, Freizeit-Leute, Konten von Frag mal); Body
+  Check misst mit Absicht nichts, Boxenstopp ist blind für Amy und Marielle.
+  Supabase: `apps_uebersicht`, `apps_tag` mit Triggern auf `nutzung`,
+  `sd_geraete`, `freizeit_person`, `freizeit_bock` (eingespielt am 25.11.).
+  Gefunden: Die Worker von Frag mal (Amy) und Body Check (Bauchbuch) löschen
+  beim Aktivieren alle fremden Vorräte im Ursprung – offen (README „Meine
+  Apps“).
+- Davor v273: *Was da ist* sagt zuerst, ob jedes Training alle
   Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
   „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die
   gleichen muskelgruppen wie das Hantel equivalent“. Wache in

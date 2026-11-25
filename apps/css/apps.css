@@ -1,0 +1,162 @@
+/*
+ * Meine Apps – Gestaltung.
+ *
+ * Eine Karte je App, oben die Ampel als Pille, darunter 14 Kästchen für die
+ * letzten 14 Tage. Hell und dunkel folgen dem Handy.
+ */
+:root {
+  --grund: #f3f4f6;
+  --karte: #ffffff;
+  --text: #1d232b;
+  --leise: #5d6672;
+  --linie: #dfe3e8;
+  --haupt: #34495e;
+  --auf-haupt: #ffffff;
+  --frisch: #1f8a4c;
+  --frisch-hell: #dff3e7;
+  --mittel: #a86b00;
+  --mittel-hell: #fbefd5;
+  --alt: #b3261e;
+  --alt-hell: #fbe3e1;
+  --nie: #6b7480;
+  --nie-hell: #eceff2;
+  --kaestchen: #e6e9ed;
+  --schatten: 0 1px 2px rgba(20, 30, 40, .06), 0 2px 8px rgba(20, 30, 40, .05);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --grund: #111418;
+    --karte: #1b2026;
+    --text: #e6eaee;
+    --leise: #9ba5b0;
+    --linie: #2c333b;
+    --haupt: #8fb3d6;
+    --auf-haupt: #0e1722;
+    --frisch: #5cc98b;
+    --frisch-hell: #17331f;
+    --mittel: #e3b04f;
+    --mittel-hell: #3a2c10;
+    --alt: #ff8a80;
+    --alt-hell: #3d1a18;
+    --nie: #a3acb6;
+    --nie-hell: #262c33;
+    --kaestchen: #2a3038;
+    --schatten: none;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--grund);
+  color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: max(16px, env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+}
+h1 { font-size: 1.6rem; margin: .4rem 0 0; }
+h2 { font-size: 1.1rem; margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+p { margin: .35rem 0; }
+a { color: var(--haupt); }
+.leise { color: var(--leise); }
+.klein { font-size: .88rem; }
+.unter-titel { margin-top: 0; }
+
+.karte, .kopf-karte, .app {
+  background: var(--karte);
+  border-radius: 14px;
+  box-shadow: var(--schatten);
+  border: 1px solid var(--linie);
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+.satz { font-weight: 650; font-size: 1.05rem; }
+.stand { font-size: .9rem; color: var(--leise); }
+.stand.warn { color: var(--mittel); font-weight: 600; }
+.knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+.knopf {
+  appearance: none;
+  border: 0;
+  border-radius: 10px;
+  background: var(--haupt);
+  color: var(--auf-haupt);
+  font: inherit;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 10px 18px;
+  cursor: pointer;
+}
+.knopf.klein { min-height: 40px; padding: 8px 14px; font-size: .95rem; }
+.knopf.leise-knopf { background: transparent; color: var(--haupt); border: 1px solid var(--linie); }
+.knopf[disabled] { opacity: .6; }
+
+.feld { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.feld > span:first-child { font-weight: 600; }
+.feld input {
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--linie);
+  background: var(--grund);
+  color: var(--text);
+}
+.fehler { color: var(--alt); font-weight: 600; }
+.fehler:empty { display: none; }
+
+.app header { display: flex; align-items: center; gap: 10px; }
+.symbol {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--farbe, var(--haupt));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 1.05rem;
+}
+.symbol-bild { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pille {
+  flex: none;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: .88rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.stufe-frisch .pille { background: var(--frisch-hell); color: var(--frisch); }
+.stufe-mittel .pille { background: var(--mittel-hell); color: var(--mittel); }
+.stufe-alt .pille { background: var(--alt-hell); color: var(--alt); }
+.stufe-nie .pille, .stufe-nichts .pille { background: var(--nie-hell); color: var(--nie); }
+
+.streifen {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 4px;
+  margin: 12px 0 2px;
+}
+.streifen i { display: block; height: 18px; border-radius: 4px; background: var(--kaestchen); }
+.stufe-frisch .streifen i.an { background: var(--frisch); }
+.stufe-mittel .streifen i.an { background: var(--mittel); }
+.stufe-alt .streifen i.an { background: var(--alt); }
+.streifen-fuss { display: flex; justify-content: space-between; font-size: .78rem; color: var(--leise); }
+
+.leute { list-style: none; padding: 0; margin: 10px 0 0; }
+.leute li { padding: 5px 0; border-top: 1px solid var(--linie); overflow-wrap: anywhere; }
+.leute li:first-child { border-top: 0; }
+.leute li span { color: var(--leise); }
+.weitere { margin-top: 6px; }
+.weitere summary { cursor: pointer; color: var(--leise); font-size: .92rem; min-height: 32px; display: flex; align-items: center; }
+.zeile { font-size: .92rem; }
+.blind { font-size: .9rem; color: var(--mittel); }
+.quelle { font-size: .82rem; color: var(--leise); margin-top: 8px; }
+.fuss { margin-top: 16px; }

@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v273';
+const VERSION = 'v274';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -148,6 +148,8 @@ self.addEventListener('fetch', (event) => {
   // Zeile lieferte dieser Worker unter /mahlzeit/ offline die Workout-App aus,
   // solange der eigene Worker von Mahlzeit noch nicht registriert war.
   if (url.pathname.startsWith(new URL('./mahlzeit', self.location).pathname)) return;
+  // Und für „Meine Apps“ (apps/sw.js, Vorrat apps-…, v274), aus demselben Grund.
+  if (url.pathname.startsWith(new URL('./apps', self.location).pathname)) return;
 
   // Nur im Zwischenspeicher dieser Fassung nachsehen. caches.match() ohne
   // Angabe durchsucht *alle* – ein übrig gebliebener alter Zwischenspeicher
