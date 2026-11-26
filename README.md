@@ -10222,7 +10222,7 @@ dasselbe wie für die Workout-Übersicht; die Seite merkt es sich auf dem Gerät
 | Boxenstopp | Widget und KI-Anfragen (`fragmal_kosten`, app `boxenstopp`). **Blind** für Amy und Marielle: Boxenstopp meldet nichts, das steht auf der Karte. |
 | Bewerbungszentrale | Widget |
 | Freizeit | Widget, „zuletzt in der App“ und Haken der Eingeladenen (`freizeit_person`, `freizeit_bock`) – die Eingeladenen wissen das („Tobi sieht deine Haken und wann du zuletzt in der App warst.“) |
-| Mahlzeit | Lebenszeichen (`mahlzeit_nutzung`): Uwe heißt Uwe, andere Geräte „Gerät 1a2b“; ein Gerät, das nur einen Tag kurz offen war, steht unter „Weitere“ |
+| Mahlzeit | Lebenszeichen (`mahlzeit_nutzung`): Uwe heißt Uwe, andere Geräte „Gerät 1a2b“; ein Gerät, das nur einen Tag kurz offen war, steht unter „Weitere“. Seit a4 dazu Uwes Werte (`mahlzeit_lesen`, siehe unten) |
 | Schilddrüse | Lebenszeichen (`sd_geraete`) – am 25.11. hatte sich noch kein Gerät gemeldet |
 | Frag mal | Anmeldung und Weiterlaufen der Sitzung (`auth.sessions`), Antworten aus `fragmal_kosten` (app `fragmal`); die Konten heißen „Konto 1/2“ nach Reihenfolge |
 | Bildschirmzeit-Widget | wann es zuletzt Zahlen geholt hat (`bildschirmzeit_geraet`); ohne Streifen, weil es keinen Verlauf gibt |
@@ -10253,6 +10253,54 @@ auf finanzdienste.github.io also auch die von Workout, Mahlzeit, Schilddrüse,
 Boxenstopp und den anderen Apps. `apps/sw.js` füllt seinen Vorrat deshalb nach
 einem Seitenaufruf mit Netz neu, falls er fehlt. Behoben ist es erst, wenn die
 beiden nur noch ihre eigenen Vorräte wegräumen (offen, 25.11.).
+
+### Uwes Werte aus Mahlzeit (Meine Apps a4)
+
+> Tobi, 26.11.2026: *„Dachte wir haben bei Uwe jetzt eingestellt dass wir
+> seine Sachen tiefgehend sehen können“*
+
+**Vorher:** Seine Werte kamen seit Mahlzeit v13 bei Supabase an, aber die
+Übersicht zeigte nur, *ob* Uwe die App benutzt. Nachsehen ging nur per SQL.
+Uwe ist einverstanden: *„Uwe meinte ich kann all seine gesundheitsdaten haben“*
+(21.11., `mahlzeit/README.md` v10/v13).
+
+**Jetzt:** Die Karte Mahlzeit hat „▸ Werte von Uwe“, zugeklappt wie das
+Tagebuch bei Body Check.
+- **Oben** steht der letzte Wert je Art: „Gewicht am 26.11.: 126,2 kg (seit
+  21.11.: +0,8 kg)“, Blutzucker mit Uhrzeit und „nüchtern/vor/nach dem
+  Essen“, HbA1c, Schlaf, Schritte.
+- **Darunter die Tage**, neuester zuerst, je Tag die Werte und die Zahlen des
+  Lebenszeichens („9 Einträge · 1 × Sport · 3 × Hafer“).
+- **Ältere Tage** (über 14 Tage, bis 60) stehen zugeklappt darunter.
+- **Von der Uhr** (⌚, `mahlzeit_uhr`) zählt ein Wert nur, wenn die App für den
+  Tag nicht schon einen derselben Art hat.
+- **Wie in Mahlzeit selbst** wird nichts bewertet: keine Farbe, kein „zu hoch“.
+  Beim Gewicht steht nur der Unterschied als Zahl.
+
+**Der Server:** `mahlzeit_lesen(pass)` in
+[`tools/apps-uebersicht.sql`](tools/apps-uebersicht.sql), eingespielt am
+26.11., mit demselben Passwort über `admin_liste()`. Die Funktion gibt je Gerät
+die Werte der letzten 60 Tage aus `mahlzeit_werte` und `mahlzeit_uhr` zurück.
+Uwe steht zuerst, `testclaude01` fehlt. Ein Gerät, das nur Uhr-Zeilen hat und
+nicht Uwe ist, war ein Test und erscheint nicht.
+
+**Was Uwe isst, steht hier nicht:** Mahlzeit schickt es nicht. In v13 wählte
+Tobi „Variante 2“, also nur die Werte. Soll das Essen mit, braucht es eine
+neue Fassung von Mahlzeit, kein Zutun der Übersicht.
+
+**Offline und Fehler** wie beim Tagebuch:
+- Die Werte liegen mit im Stand auf dem Gerät.
+- Lassen sie sich nicht holen, bleibt der letzte Stand, mit „Die Werte ließen
+  sich gerade nicht holen – hier steht der Stand von …“.
+- Gelesen wird in `apps/js/werte.js`.
+
+Geprüft in `tests/test-apps.mjs`:
+- **In Node:** Überblick, Tage, zwei Blutzucker an einem Tag, Uhr nur als
+  Lücke, das Testgerät, kaputte Werte.
+- **Im Browser:** zugeklappt, aufgeklappt, nichts bewertet, ohne Netz, ein
+  Server, der hakt.
+
+Gegen a3 rot.
 
 ### Body Check: das geteilte Tagebuch (Meine Apps a3)
 

@@ -184,3 +184,34 @@ end $$;
 revoke all on function apps_wer(text, text, text) from public, anon, authenticated;
 revoke all on function apps_uebersicht(text) from public, anon, authenticated;
 grant execute on function apps_uebersicht(text) to anon;
+
+-- Meine Apps a4 (26.11.2026): Uwes Werte aus Mahlzeit, tiefer als nur „benutzt“.
+-- Tobi: „Dachte wir haben bei Uwe jetzt eingestellt dass wir seine Sachen
+-- tiefgehend sehen können“ – Uwe ist einverstanden (Mahlzeit v10/v13, README
+-- dort). Je Gerät die Werte der letzten 60 Tage (Gewicht, Blutzucker, HbA1c,
+-- Schlaf, Schritte; mahlzeit_werte) und was die Uhr direkt geschickt hat
+-- (mahlzeit_uhr). Was Uwe isst, schickt die App nicht – also steht es hier
+-- auch nicht. Dasselbe Passwort wie die anderen Übersichten.
+create or replace function mahlzeit_lesen(pass text)
+returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  ab date := (now() at time zone 'Europe/Berlin')::date - 59;
+begin
+  perform 1 from admin_liste(pass) limit 1;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'wer', apps_wer('mahlzeit', g.geraet),
+             'werte', coalesce((
+               select jsonb_agg(jsonb_build_object('tag', w.tag, 'art', w.art, 'wert', w.wert, 'uhr', w.uhr,
+                                                   'wann', w.wann, 'quelle', w.quelle) order by w.tag, w.uhr nulls first)
+               from mahlzeit_werte w where w.geraet = g.geraet and w.tag >= ab), '[]'::jsonb),
+             'uhr', coalesce((
+               select jsonb_agg(jsonb_build_object('tag', u.tag, 'art', u.art, 'wert', u.wert) order by u.tag)
+               from mahlzeit_uhr u where u.geraet = g.geraet and u.tag >= ab), '[]'::jsonb))
+           order by (g.geraet = '0jhz8uo152qh') desc, g.geraet)
+    from (select geraet from mahlzeit_werte union select geraet from mahlzeit_uhr) g
+    where g.geraet <> 'testclaude01'), '[]'::jsonb);
+end $$;
+revoke all on function mahlzeit_lesen(text) from public, anon, authenticated;
+grant execute on function mahlzeit_lesen(text) to anon;

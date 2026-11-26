@@ -14,10 +14,11 @@
  * Dazu, mit demselben Passwort, das Tagebuch, das jemand in Body Check mit
  * Tobi teilt (bodycheck_lesen, Meine Apps a3). Es liegt mit im Stand dieses
  * Geräts; wird das Teilen beendet, ist es beim nächsten Laden auch hier weg.
+ * Ebenso Uwes Werte aus Mahlzeit (mahlzeit_lesen, Meine Apps a4).
  */
 import { auswerten, zusammenfassung, dauer, datumKurz, tagAus, uhrAus, letzteTage, TAGE } from './modell.js';
 
-export const FASSUNG = 'a3';
+export const FASSUNG = 'a4';
 
 const SERVER = {
   url: 'https://vjyohppohmvhhxgwouti.supabase.co',
@@ -84,14 +85,22 @@ function holen(pass) {
   zeichnen();
   // Das Tagebuch für sich: Geht es nicht (Funktion fehlt, Server hakt), bleibt
   // der Rest der Übersicht frisch und das Tagebuch auf seinem letzten Stand.
-  const tagebuch = abrufen('bodycheck_lesen', wort, Array.isArray).then((liste) => ({ liste }), (fehler) => ({ fehler }));
-  laeuft = Promise.all([abrufen('apps_uebersicht', wort, (d) => !!(d && typeof d === 'object' && d.heute)), tagebuch])
-    .then(([daten, bc]) => {
+  // Ebenso Uwes Werte.
+  const fuer = (funktion) => abrufen(funktion, wort, Array.isArray).then((liste) => ({ liste }), (fehler) => ({ fehler }));
+  laeuft = Promise.all([abrufen('apps_uebersicht', wort, (d) => !!(d && typeof d === 'object' && d.heute)), fuer('bodycheck_lesen'), fuer('mahlzeit_lesen')])
+    .then(([daten, bc, mz]) => {
       const jetzt = Date.now();
       const vorher = aktuell || {};
-      aktuell = bc.liste
-        ? { daten, geholt: jetzt, bodycheck: bc.liste, bodycheckGeholt: jetzt }
-        : { daten, geholt: jetzt, bodycheck: vorher.bodycheck || [], bodycheckGeholt: vorher.bodycheckGeholt || null, bodycheckFehler: true };
+      aktuell = {
+        daten,
+        geholt: jetzt,
+        ...(bc.liste
+          ? { bodycheck: bc.liste, bodycheckGeholt: jetzt }
+          : { bodycheck: vorher.bodycheck || [], bodycheckGeholt: vorher.bodycheckGeholt || null, bodycheckFehler: true }),
+        ...(mz.liste
+          ? { mahlzeit: mz.liste, mahlzeitGeholt: jetzt }
+          : { mahlzeit: vorher.mahlzeit || [], mahlzeitGeholt: vorher.mahlzeitGeholt || null, mahlzeitFehler: true }),
+      };
       schreiben(PASS, wort);
       schreiben(STAND, aktuell);
       hinweis = '';
@@ -167,6 +176,27 @@ function tagebuchHtml(app, heute) {
   }).join('');
 }
 
+function werteHtml(app, heute) {
+  if (!app.werteBuecher || !app.werteBuecher.length) return '';
+  const ab = letzteTage(heute)[0];
+  const tagHtml = (t) => `<section class="tag">
+      <h3>${esc(t.kopf)}</h3>
+      ${t.zahlen ? `<p class="tageswerte">${esc(t.zahlen)}</p>` : ''}
+      ${t.werte.length ? `<ul class="werte-liste">${t.werte.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+    </section>`;
+  return app.werteBuecher.map((wb) => {
+    const neu = wb.tage.filter((t) => t.tag >= ab);
+    const alt = wb.tage.filter((t) => t.tag < ab);
+    return `<details class="tagebuch" data-key="${esc(`mz:${wb.wer}`)}">
+        <summary>${esc(`Werte von ${wb.wer}`)}</summary>
+        ${wb.ueberblick.map((z) => `<p class="zeile">${esc(z)}</p>`).join('')}
+        ${!neu.length ? `<p class="leise">In den letzten ${TAGE} Tagen nichts.</p>` : ''}
+        ${neu.map(tagHtml).join('')}
+        ${alt.length ? `<details class="aeltere" data-key="${esc(`mzalt:${wb.wer}`)}"><summary>${esc(`Ältere Tage (${alt.length})`)}</summary>${alt.map(tagHtml).join('')}</details>` : ''}
+      </details>`;
+  }).join('');
+}
+
 function karte(app, heute) {
   const symbol = app.pfad ? `<img class="symbol-bild" alt="" src="${esc(`${app.pfad}icon-192.png`)}">` : '';
   const kopf = `<header>
@@ -189,16 +219,19 @@ function karte(app, heute) {
     : '';
   const leer = !app.leute.length && !app.weitere.length ? `<p class="leise">${esc(app.leer || 'Noch nichts gemeldet.')}</p>` : '';
   const zeilen = app.zeilen.map((z) => `<p class="zeile">${esc(z)}</p>`).join('');
-  const tagebuch = tagebuchHtml(app, heute);
+  const tagebuch = tagebuchHtml(app, heute) + werteHtml(app, heute);
   const tbFehler = app.id === 'bodycheck' && aktuell && aktuell.bodycheckFehler
     ? `<p class="blind">${esc(`Das Tagebuch ließ sich gerade nicht holen${aktuell.bodycheckGeholt ? ` – hier steht der Stand von ${wannGeholt(aktuell.bodycheckGeholt)}` : ''}.`)}</p>`
+    : '';
+  const mzFehler = app.id === 'mahlzeit' && aktuell && aktuell.mahlzeitFehler
+    ? `<p class="blind">${esc(`Die Werte ließen sich gerade nicht holen${aktuell.mahlzeitGeholt ? ` – hier steht der Stand von ${wannGeholt(aktuell.mahlzeitGeholt)}` : ''}.`)}</p>`
     : '';
   const blind = app.blind ? `<p class="blind">${esc(app.blind)}</p>` : '';
   const oeffnen = app.pfad ? ` · <a href="${esc(app.pfad)}">Öffnen</a>` : '';
   return `<article class="app stufe-${esc(app.stufe)}" data-app="${esc(app.id)}">
       ${kopf}
       ${app.nurZuletzt ? '' : streifen(app)}
-      ${leute}${leer}${weitere}${zeilen}${tagebuch}${tbFehler}${blind}
+      ${leute}${leer}${weitere}${zeilen}${tagebuch}${tbFehler}${mzFehler}${blind}
       <p class="quelle">Gemessen über ${esc(app.quelle)}${oeffnen}</p>
     </article>`;
 }
@@ -232,7 +265,7 @@ function zeichnen() {
     return;
   }
   const heute = tagAus(new Date().toISOString());
-  const apps = auswerten(stand.daten, heute, stand.bodycheck || []);
+  const apps = auswerten(stand.daten, heute, { bodycheck: stand.bodycheck || [], mahlzeit: stand.mahlzeit || [] });
   const { satz, still } = zusammenfassung(apps, heute);
   let standText = `Stand: ${wannGeholt(stand.geholt)}`;
   let standArt = '';
@@ -252,7 +285,7 @@ function zeichnen() {
       </div>
     </section>
     <section id="apps">${apps.map((a) => karte(a, heute)).join('')}</section>
-    <p class="leise klein fuss">Je App: wer sie an welchem der letzten ${TAGE} Tage benutzt hat. Grün bis 2 Tage, gelb bis 7, rot länger. „Tobi“ kommt vom Bildschirmzeit-Widget. Einträge stehen hier nur aus Body Check – und nur, was dort ausdrücklich geteilt wird.</p>`;
+    <p class="leise klein fuss">Je App: wer sie an welchem der letzten ${TAGE} Tage benutzt hat. Grün bis 2 Tage, gelb bis 7, rot länger. „Tobi“ kommt vom Bildschirmzeit-Widget. Werte und Einträge stehen hier nur, wo jemand zugestimmt hat: Uwes Werte aus Mahlzeit, das in Body Check geteilte Tagebuch.</p>`;
   haupt.querySelectorAll('details[data-key]').forEach((d) => { if (offen.has(d.dataset.key)) d.open = true; });
   $('#neu').addEventListener('click', () => holen());
   $('#abmelden').addEventListener('click', () => {

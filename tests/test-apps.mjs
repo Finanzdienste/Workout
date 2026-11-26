@@ -123,6 +123,25 @@ function tagebuch(heute) {
     standardMittel: [{ id: 'm1', mittel: 'L-Thyroxin', dosis: '50 µg', tageszeit: 'morgens' }],
   };
 }
+/** Was mahlzeit_lesen für Uwe schickt (erfunden). */
+function uweWerte(heute) {
+  const v = (n) => vor(n, heute);
+  return [
+    { wer: 'Uwe', werte: [
+      { tag: v(5), art: 'gewicht', wert: 125.4, uhr: null, wann: null, quelle: null },
+      { tag: v(0), art: 'gewicht', wert: 124.6, uhr: null, wann: null, quelle: null },
+      { tag: v(4), art: 'zucker', wert: 140, uhr: '18:30', wann: 'nach', quelle: null },
+      { tag: v(4), art: 'zucker', wert: 95, uhr: '07:40', wann: 'nuechtern', quelle: null },
+      { tag: v(9), art: 'hba1c', wert: 7.1, uhr: null, wann: null, quelle: null },
+      { tag: v(0), art: 'schlaf', wert: 430, uhr: null, wann: null, quelle: null },
+      { tag: v(20), art: 'gewicht', wert: 126, uhr: null, wann: null, quelle: null },
+    ], uhr: [
+      { tag: v(1), art: 'schritte', wert: 4210 },
+      { tag: v(0), art: 'schlaf', wert: 999 },
+    ] },
+    { wer: 'Gerät test', werte: [], uhr: [{ tag: v(2), art: 'schritte', wert: 1 }] },
+  ];
+}
 const geteilt = (heute) => [{ name: 'Amy', geraet: 'Gerät 1a2b', aktualisiert: `${heute}T13:05:00Z`, fassung: '32', stand: tagebuch(heute) }];
 
 const apps = M.auswerten(zahlen(H), H);
@@ -178,7 +197,7 @@ check(leer.length === M.APPS.length && leer.every((a) => a.stufe === 'nie' || a.
 
 // --- Ohne Browser: das geteilte Tagebuch aus Body Check
 const T = await import(path.join(ORDNER, 'js', 'tagebuch.js'));
-const mitBc = M.auswerten(zahlen(H), H, geteilt(H));
+const mitBc = M.auswerten(zahlen(H), H, { bodycheck: geteilt(H) });
 const bc = mitBc.find((a) => a.id === 'bodycheck');
 const amy = bc.leute.find((p) => p.name === 'Amy');
 check(!bc.misstNichts && bc.stufe === 'frisch' && bc.wann === 'heute', 'Body Check mit geteiltem Tagebuch: heute, grün');
@@ -198,9 +217,27 @@ const gestern = tb.tage.find((t) => t.tag === vor(1));
 check(gestern.eintraege.map((e) => `${e.zeit} ${e.art}: ${e.text}`).join(' | ') === '19:00 Stuhlgang: Typ 6: breiig · dringend | abends Aktivität: Laufen · anstrengend', `Stuhlgang und Aktivität mit Zeitknopf (${gestern.eintraege.map((e) => e.text).join(' | ')})`);
 check(tb.mittel.join() === 'L-Thyroxin 50 µg morgens', 'die regelmäßigen Mittel');
 check(T.tagebuchTage(null).length === 0 && T.tagebuchTage({ eintraege: [{ am: 'kaputt' }, null], tage: { x: {} } }).length === 0, 'ein kaputter Stand bricht nichts');
-const zwei = M.auswerten({ heute: H }, H, [...geteilt(H), { ...geteilt(H)[0], geraet: 'Gerät 9z8y', aktualisiert: `${vor(3)}T10:00:00Z`, stand: { eintraege: [] } }]);
+const zwei = M.auswerten({ heute: H }, H, { bodycheck: [...geteilt(H), { ...geteilt(H)[0], geraet: 'Gerät 9z8y', aktualisiert: `${vor(3)}T10:00:00Z`, stand: { eintraege: [] } }] });
 check(zwei.find((a) => a.id === 'bodycheck').tagebuecher.length === 2, 'zwei geteilte Geräte: zwei Tagebücher');
-check(M.auswerten({ heute: H }, H, [{ name: 'Amy', stand: null }]).find((a) => a.id === 'bodycheck').misstNichts, 'eine Zeile ohne Stand gilt als nicht geteilt');
+check(M.auswerten({ heute: H }, H, { bodycheck: [{ name: 'Amy', stand: null }] }).find((a) => a.id === 'bodycheck').misstNichts, 'eine Zeile ohne Stand gilt als nicht geteilt');
+
+// --- Ohne Browser: Uwes Werte aus Mahlzeit (Meine Apps a4)
+const W = await import(path.join(ORDNER, 'js', 'werte.js'));
+const mitMz = M.auswerten(zahlen(H), H, { mahlzeit: uweWerte(H) });
+const mz = mitMz.find((a) => a.id === 'mahlzeit');
+check(mz.werteBuecher.length === 1 && mz.werteBuecher[0].wer === 'Uwe', 'Mahlzeit: ein Verlauf für Uwe; ein Gerät nur mit Uhr-Zeilen (Test) nicht');
+const wb = mz.werteBuecher[0];
+check(wb.ueberblick.join(' | ') === `Gewicht am ${M.datumKurz(H)}: 124,6 kg (seit ${M.datumKurz(vor(20))}: −1,4 kg) | Blutzucker am ${M.datumKurz(vor(4))}: 140 mg/dl um 18:30, nach dem Essen · 2 Messungen | HbA1c am ${M.datumKurz(vor(9))}: 7,1 % | Schlaf am ${M.datumKurz(H)}: 7 Std. 10 Min. | Schritte am ${M.datumKurz(vor(1))}: 4.210 ⌚`,
+  `Überblick: letzter Wert je Art, beim Gewicht der Unterschied (${wb.ueberblick.join(' | ')})`);
+check(wb.tage.map((t) => t.tag).join() === [H, vor(1), vor(4), vor(5), vor(9), vor(20)].join(), 'die Tage, neuester zuerst');
+const t0 = wb.tage[0];
+check(t0.werte.join(' | ') === 'Gewicht 124,6 kg | Schlaf 7 Std. 10 Min.' && t0.zahlen === '4 Einträge · 1 × Sport', `heute: Werte und Zahlen des Lebenszeichens (${t0.werte.join(' | ')} / ${t0.zahlen})`);
+const t4 = wb.tage.find((t) => t.tag === vor(4));
+check(t4.werte.join(' | ') === 'Blutzucker 95 mg/dl um 07:40, nüchtern | Blutzucker 140 mg/dl um 18:30, nach dem Essen', 'zwei Blutzucker an einem Tag, nach Uhrzeit');
+const t1 = wb.tage.find((t) => t.tag === vor(1));
+check(t1.werte.join(' | ') === 'Schritte 4.210 ⌚' && t1.zahlen === '3 Einträge · 3 × Hafer', `die Uhr nur, wo die App für den Tag nichts hat (${t1.werte.join(' | ')})`);
+check(W.werteTage(null).length === 0 && W.werteUeberblick({ werte: [{ art: 'gewicht', tag: 'x', wert: 'y' }] }).length === 0, 'kaputte Werte brechen nichts');
+check(M.auswerten({ heute: H }, H).find((a) => a.id === 'mahlzeit').werteBuecher.length === 0, 'ohne mahlzeit_lesen kein Verlauf');
 
 // --- Im Browser
 const PORT = 8146;
@@ -214,6 +251,7 @@ const fehler = [];
 const aufrufe = [];
 let modus = 'gut';
 let modusBc = 'geteilt';
+let modusMz = 'gut';
 let verzoegern = 0;
 const zaehle = (f) => aufrufe.filter((a) => a.url.endsWith(`/rpc/${f}`)).length;
 
@@ -227,6 +265,11 @@ async function kontext() {
     const { pass } = JSON.parse(req.postData() || '{}');
     if (pass !== 'geheim') {
       await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: '42501', message: 'nope' }) });
+      return;
+    }
+    if (req.url().endsWith('/rpc/mahlzeit_lesen')) {
+      if (modusMz === 'kaputt') { await route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' }); return; }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(uweWerte(heute)) });
       return;
     }
     if (req.url().endsWith('/rpc/bodycheck_lesen')) {
@@ -266,6 +309,16 @@ const anfrage = aufrufe.filter((a) => a.url.endsWith('/rest/v1/rpc/apps_uebersic
 const anfrageBc = aufrufe.filter((a) => a.url.endsWith('/rest/v1/rpc/bodycheck_lesen')).pop();
 check(anfrage && anfrage.kopf.apikey && !anfrage.kopf.authorization, 'ein Aufruf an apps_uebersicht, nur mit apikey');
 check(anfrageBc && JSON.parse(anfrageBc.body).pass === 'geheim' && !anfrageBc.kopf.authorization, 'und einer an bodycheck_lesen, mit demselben Passwort');
+const anfrageMz = aufrufe.filter((a) => a.url.endsWith('/rest/v1/rpc/mahlzeit_lesen')).pop();
+check(anfrageMz && JSON.parse(anfrageMz.body).pass === 'geheim' && !anfrageMz.kopf.authorization, 'und einer an mahlzeit_lesen, mit demselben Passwort');
+const mzKarte = page.locator('article[data-app="mahlzeit"]');
+check(await mzKarte.locator('details.tagebuch > summary').textContent() === 'Werte von Uwe' && !(await mzKarte.locator('details.tagebuch').evaluate((d) => d.open)), 'Mahlzeit: „Werte von Uwe“, zugeklappt');
+await mzKarte.locator('details.tagebuch > summary').click();
+const mzText = await mzKarte.locator('details.tagebuch').innerText();
+check(mzText.includes(`Gewicht am ${M.datumKurz(heute)}: 124,6 kg`) && mzText.includes('Blutzucker 95 mg/dl um 07:40, nüchtern') && mzText.includes('4 Einträge · 1 × Sport') && mzText.includes('Schritte 4.210 ⌚'),
+  'aufgeklappt: Überblick, Werte je Tag, Zahlen des Lebenszeichens, die Uhr');
+check(await mzKarte.locator('details.aeltere summary').textContent() === 'Ältere Tage (1)', 'Mahlzeit: ältere Tage zugeklappt darunter');
+check(!/(zu hoch|zu niedrig|gut|schlecht)/i.test(mzText), 'die Werte werden nicht bewertet');
 check(await page.locator('.satz').textContent() === 'In den letzten 7 Tagen benutzt: 7 von 9 Apps.', 'oben der Satz, wie viele benutzt werden');
 const workout = page.locator('article[data-app="workout"]');
 check(await workout.locator('.pille').textContent() === 'heute' && await workout.evaluate((e) => e.classList.contains('stufe-frisch')), 'Workout: Pille „heute“, grün');
@@ -320,6 +373,7 @@ const ohne = await page.locator('#stand').textContent();
 check(ohne.startsWith('Ohne Netz – Stand von heute ') && ohne.includes('sobald Netz da ist'), `ohne Netz: die Seite geht auf, mit dem letzten Stand (${ohne})`);
 check(await page.locator('article.app').count() === 9, 'ohne Netz: alle Karten da');
 check(await page.locator('article[data-app="bodycheck"] details.tagebuch').count() === 1, 'ohne Netz: das Tagebuch auch');
+check(await page.locator('article[data-app="mahlzeit"] details.tagebuch').count() === 1, 'ohne Netz: Uwes Werte auch');
 const vorOnline = zaehle('apps_uebersicht');
 server = await starte(PORT, 0);
 modus = 'gut';
@@ -329,10 +383,14 @@ check(zaehle('apps_uebersicht') === vorOnline + 1, 'mit `online` holt die Seite 
 
 // Das Tagebuch lässt sich nicht holen: der Rest frisch, das Tagebuch bleibt
 modusBc = 'kaputt';
+modusMz = 'kaputt';
 await page.click('#neu');
 await page.waitForFunction(() => !document.querySelector('#stand').textContent.includes('lädt'));
 const kaputt = await page.locator('article[data-app="bodycheck"]').innerText();
 check(kaputt.includes('Tagebuch von Amy') && kaputt.includes('Das Tagebuch ließ sich gerade nicht holen – hier steht der Stand von heute'), 'Tagebuch nicht abrufbar: der letzte Stand bleibt, mit Hinweis');
+const mzKaputt = await page.locator('article[data-app="mahlzeit"]').innerText();
+check(mzKaputt.includes('Werte von Uwe') && mzKaputt.includes('Die Werte ließen sich gerade nicht holen – hier steht der Stand von heute'), 'Uwes Werte nicht abrufbar: der letzte Stand bleibt, mit Hinweis');
+modusMz = 'gut';
 // Amy beendet das Teilen: beim nächsten Laden ist es auch hier weg
 modusBc = 'leer';
 await page.click('#neu');

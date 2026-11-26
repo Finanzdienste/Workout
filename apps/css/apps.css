@@ -178,3 +178,7 @@ details > summary::before { content: '▸'; display: inline-block; width: 1.1em;
 details[open] > summary::before { transform: rotate(90deg); }
 .aeltere { margin-top: 6px; }
 .aeltere > summary { cursor: pointer; color: var(--leise); min-height: 36px; display: flex; align-items: center; }
+
+/* Uwes Werte aus Mahlzeit (Meine Apps a4) */
+.werte-liste { list-style: none; padding: 0; margin: 4px 0 0; }
+.werte-liste li { padding: 2px 0; font-size: .94rem; overflow-wrap: anywhere; }

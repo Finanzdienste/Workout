@@ -11,6 +11,7 @@
  */
 
 import { tagebuchTage, standardMittel } from './tagebuch.js';
+import { werteTage, werteUeberblick } from './werte.js';
 
 /** So viele Tage zeigt der Streifen je App. */
 export const TAGE = 14;
@@ -42,7 +43,7 @@ export const APPS = [
   },
   {
     id: 'mahlzeit', name: 'Mahlzeit', pfad: '../mahlzeit/', farbe: '#2e7d4f',
-    quelle: 'Lebenszeichen der App (nur Zahlen)',
+    quelle: 'Lebenszeichen der App und Uwes Werte (mit seinem Einverständnis)',
   },
   {
     id: 'schilddruese', name: 'Schilddrüse', pfad: '../schilddruese/', farbe: '#8a5cc2',
@@ -153,7 +154,7 @@ const mehrzahl = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
  *     zeilen: [Text], ...App-Angaben }
  * Sortiert: zuletzt benutzt zuerst, nie benutzt danach, „misst nichts“ ans Ende.
  */
-export function auswerten(daten, heute = tagAus(daten && daten.heute) || tagAus(new Date().toISOString()), bodycheck = []) {
+export function auswerten(daten, heute = tagAus(daten && daten.heute) || tagAus(new Date().toISOString()), { bodycheck = [], mahlzeit = [] } = {}) {
   const d = daten || {};
   const fenster = letzteTage(heute);
   const imFenster = new Set(fenster);
@@ -232,6 +233,16 @@ export function auswerten(daten, heute = tagAus(daten && daten.heute) || tagAus(
   });
   essen.forEach((n, p) => { if (n) p.notiz.push(`${mehrzahl(n, 'Eintrag', 'Einträge')} in ${TAGE} Tagen`); });
   startbildschirm.forEach((p) => p.notiz.push('vom Startbildschirm'));
+  // Uwes Werte (mahlzeit_lesen, Meine Apps a4): je Gerät mit Werten ein
+  // aufklappbarer Verlauf, dazu je Tag die Zahlen des Lebenszeichens. Ein
+  // Gerät, das nur Uhr-Zeilen hat und nicht Uwe ist, war ein Test.
+  apps.get('mahlzeit').werteBuecher = liste(mahlzeit)
+    .filter((e) => e && e.wer && (liste(e.werte).length || (e.wer === 'Uwe' && liste(e.uhr).length)))
+    .map((e) => ({
+      wer: text(e.wer),
+      ueberblick: werteUeberblick(e),
+      tage: werteTage(e, liste(d.mahlzeit).filter((z) => z && z.wer === e.wer)),
+    }));
   const ki = liste(d.mahlzeit_ki).filter((z) => imFenster.has(tagAus(z.tag))).reduce((s, z) => s + zahl(z.n), 0);
   if (ki) apps.get('mahlzeit').zeilen.push(`KI: ${mehrzahl(ki, 'Anfrage', 'Anfragen')} in ${TAGE} Tagen`);
 

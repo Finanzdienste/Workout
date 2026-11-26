@@ -182,6 +182,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   (`bodycheck_lesen(pass)`, gebaut im Repo Bauchbuch, Fassung 31/32) –
   zugeklappt, nach Tagen (`apps/js/tagebuch.js`); Namen der Kennungen aus
   `node tools/bodycheck-woerter.mjs <Bauchbuch>`. Am 25.11. noch 0 Zeilen.
+  Meine Apps a4 (26.11.): „Werte von Uwe“ in der Karte Mahlzeit – Gewicht,
+  Blutzucker, HbA1c, Schlaf, Schritte nach Tagen, nicht bewertet
+  (`mahlzeit_lesen(pass)`, `apps/js/werte.js`). Sein Essen schickt Mahlzeit
+  nicht (v13: „Variante 2“).
 - Davor v273: *Was da ist* sagt zuerst, ob jedes Training alle
   Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
   „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die
