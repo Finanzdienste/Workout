@@ -8,7 +8,7 @@
 -- Wie mahlzeit_werte_melden: Die App schickt die Einträge der letzten 60 Tage,
 -- die Funktion ersetzt sie je Gerät (so kommen auch Löschungen an; eine leere
 -- Liste löscht alles ab p_von – so wirkt „Essen an Tobi: aus“). Lesen kann nur
--- Tobi, über mahlzeit_lesen(pass) (tools/apps-uebersicht.sql).
+-- Tobi, über mahlzeit_lesen(pass) (Repo Finanzdienste/Apps, tools/apps-uebersicht.sql).
 --
 -- Einspielen: Supabase → SQL Editor → am Stück. Wiederholbar.
 

@@ -31,9 +31,10 @@ nichts.
 > Worker, eigene Tests (`tests/test-mz-*.mjs`); siehe
 > [Mahlzeit im Unterordner](#mahlzeit-im-unterordner-v264).
 >
-> **Und:** [`apps/`](#meine-apps-v274) (v274) – *Meine Apps*, Tobis Übersicht
-> über alle seine Apps: wer welche wann benutzt hat. Eigener Ordner, eigener
-> Worker, Test `tests/test-apps.mjs`.
+> **Und:** *Meine Apps* (v274), Tobis Übersicht über alle seine Apps – seit a6
+> im eigenen Repo [Finanzdienste/Apps](https://github.com/Finanzdienste/Apps),
+> `apps/` leitet nur noch weiter (siehe
+> [Meine Apps](#meine-apps-v274--umgezogen-nach-finanzdiensteapps-a6)).
 >
 > **Umgezogen:** Die Freizeit-App (was in Hamburg los ist, Konzerte,
 > Merkliste) hat ein eigenes Repository,
@@ -10196,203 +10197,42 @@ nichts: es meldet weiter als `'workout'`. Geprüft in
 `tests/test-bildschirmzeit.mjs`, Abschnitt I (die Liste in der Kopie und in der
 Einzeldatei). Gegen v264 rot.
 
-## Meine Apps (v274)
+## Meine Apps (v274) – umgezogen nach Finanzdienste/Apps (a6)
 
 > Tobi, 25.11.2026: *„Können wir mir nicht mal ne masterübersicht aus allen
-> meinen Apps bauen damit ich seh ob die genutzt werden?“*
+> meinen Apps bauen damit ich seh ob die genutzt werden?“* – und am 26.11.:
+> *„Ich will die Master Übersicht als App auf mein Handy downloaden aber nicht
+> aufm startbildschirm haben“*
 
-**Vorher:** Jede App meldete etwas, aber jede an einer anderen Stelle – die
-Workout-Übersicht unter *Mehr*, die Schilddrüse in `schilddruese/uebersicht.html`,
-Mahlzeit nur auf Nachfrage per SQL, Freizeit nur dem Gastgeber in der App, das
-Widget nur auf dem Startbildschirm. Ob eine App überhaupt benutzt wird, sah man
-nirgends auf einen Blick.
+*Meine Apps* zeigt je App, wer sie an welchem der letzten 14 Tage benutzt hat
+(dazu Uwes Werte und Essen, das geteilte Tagebuch aus Body Check). Von v274
+bis a5 lag sie hier unter `apps/`.
 
-**Jetzt:** <https://finanzdienste.github.io/Workout/apps/> – eine Seite für
-den Startbildschirm, je App eine Karte: eine Ampel (grün bis 2 Tage, gelb bis 7,
-rot länger, grau noch nie), 14 Kästchen für die letzten 14 Tage und darunter
-wer: „Uwe · heute · an 7 von 14 Tagen · 29 Einträge“. Oben ein Satz: „In den
-letzten 7 Tagen benutzt: 6 von 8 Apps. Still: Frag mal (seit 12.11.),
-Schilddrüse (noch nie).“ Zuletzt benutzte Apps stehen oben. Das Passwort ist
-dasselbe wie für die Workout-Übersicht; die Seite merkt es sich auf dem Gerät
-(*Abmelden* nimmt es und den Stand wieder weg).
+**Seit a6 liegt sie im Repo
+[Finanzdienste/Apps](https://github.com/Finanzdienste/Apps)**, unter
+<https://finanzdienste.github.io/Apps/>. Dort stehen die App, der Test, das
+SQL (`tools/apps-uebersicht.sql`) und die ganze Geschichte mit Tobis Zitaten
+im README.
 
-| App | Woher die Seite es weiß |
-| --- | --- |
-| Workout | Bildschirmzeit-Widget (Tobi, mit Minuten) und Rückkanal (`nutzung`, je Name, mit letztem Training) |
-| Boxenstopp | Widget und KI-Anfragen (`fragmal_kosten`, app `boxenstopp`). **Blind** für Amy und Marielle: Boxenstopp meldet nichts, das steht auf der Karte. |
-| Bewerbungszentrale | Widget |
-| Freizeit | Widget, „zuletzt in der App“ und Haken der Eingeladenen (`freizeit_person`, `freizeit_bock`) – die Eingeladenen wissen das („Tobi sieht deine Haken und wann du zuletzt in der App warst.“) |
-| Mahlzeit | Lebenszeichen (`mahlzeit_nutzung`): Uwe heißt Uwe, andere Geräte „Gerät 1a2b“; ein Gerät, das nur einen Tag kurz offen war, steht unter „Weitere“. Seit a4 dazu Uwes Werte (`mahlzeit_lesen`, siehe unten) |
-| Schilddrüse | Lebenszeichen (`sd_geraete`) – am 25.11. hatte sich noch kein Gerät gemeldet |
-| Frag mal | Anmeldung und Weiterlaufen der Sitzung (`auth.sessions`), Antworten aus `fragmal_kosten` (app `fragmal`); die Konten heißen „Konto 1/2“ nach Reihenfolge |
-| Bildschirmzeit-Widget | wann es zuletzt Zahlen geholt hat (`bildschirmzeit_geraet`); ohne Streifen, weil es keinen Verlauf gibt |
-| Body Check | bis a2 nichts (die App versprach, dass nichts das Handy verlässt). Seit a3 das Tagebuch, das jemand ausdrücklich teilt (`bodycheck_lesen`, siehe unten); ohne das „nicht geteilt“, und es zählt nicht mit. |
+**Warum:** Android rechnet alles unter `/Workout/` der installierten
+Workout-App zu. Chrome hätte die Übersicht deshalb nicht als eigene App
+installiert, wie bei Freizeit.
 
-**Der Server** ([`tools/apps-uebersicht.sql`](tools/apps-uebersicht.sql),
-am 25.11. eingespielt): `apps_uebersicht(pass)` prüft das Passwort über
-`admin_liste()` und gibt alles der letzten 60 Tage in einem Aufruf zurück –
-Zahlen und Tage, keine Werte, keine Einträge, keine Kennungen (Geräte heißen
-„Gerät 1a2b“, Freizeit-Personen eine Prüfsumme). Drei Quellen kennen nur den
-letzten Tag (`nutzung`, `sd_geraete`, Freizeit); für sie schreibt ein Trigger
-ab jetzt jeden Tag nach `apps_tag`, rückwirkend stand dort, was die Tabellen
-hergaben. Der Trigger fängt jeden eigenen Fehler ab: Die Übersicht darf nie die
-Meldung einer App kaputt machen. Er hängt auch an den Tabellen der Freizeit-App
-(Kommentar am Trigger nennt dieses Repo).
+**Was hier bleibt:**
+- `apps/index.html` leitet nach `/Apps/` weiter, samt allem hinter dem `#`.
+  Vorher meldet sie den alten Worker dieses Ordners ab und räumt seine
+  Vorräte (`apps-…`) weg.
+- `apps/sw.js` ist nur noch ein Worker, der dasselbe tut, falls ein Handy den
+  alten noch hat, und offene Fenster an die neue Adresse schickt.
+- `sw.js` lässt `/apps` weiter in Ruhe.
+- Passwort und Stand liegen im `localStorage` von finanzdienste.github.io und
+  gehen mit.
 
-**Offline zuerst:** Der letzte Stand liegt im `localStorage` und steht beim
-Öffnen sofort da; ohne Netz „Ohne Netz – Stand von heute 14:05. Lädt von selbst,
-sobald Netz da ist.“ Nachgeholt wird beim Ereignis `online`, beim Zurückkommen
-in die App (älter als 2 Minuten) und mit *Neu laden*. Zum ersten Öffnen ohne Netz:
-„Zum ersten Öffnen braucht die Übersicht Netz.“ Die Seite schickt nichts, also
-gibt es nichts vorzumerken. `apps/sw.js` hat einen eigenen Vorrat (`apps-a1`,
-Symbole der anderen Apps in `apps-bilder`), und `sw.js` lässt `/apps` in Ruhe.
-
-**Gefunden dabei:** Die Worker von Frag mal (`Amy/sw.js`) und Body Check
-(`Bauchbuch/sw.js`) löschen beim Aktivieren *alle* Vorräte außer dem eigenen –
-auf finanzdienste.github.io also auch die von Workout, Mahlzeit, Schilddrüse,
-Boxenstopp und den anderen Apps. `apps/sw.js` füllt seinen Vorrat deshalb nach
-einem Seitenaufruf mit Netz neu, falls er fehlt. Behoben ist es erst, wenn die
-beiden nur noch ihre eigenen Vorräte wegräumen (offen, 25.11.).
-
-### Uwes Essen (Meine Apps a5)
-
-> Tobi, 26.11.2026: *„Ja ich will das essen auch sehen. In meiner Master
-> übersicht“*
-
-**Vorher (a4):** Hier stand „Was Uwe isst, steht hier nicht: Mahlzeit schickt
-es nicht.“ In der App stand Uwe gegenüber „Was du isst, geht nicht mit“.
-
-**Jetzt:**
-- **Uwe wird gefragt:** Seit Mahlzeit v14 fragt die App ihn einmal „Darf
-  Tobi auch sehen, was du isst?“. Erst nach „Ja, darf er“ schickt sie die
-  Einträge der letzten 60 Tage (`mahlzeit/README.md` v14).
-- **Hier, unter „Werte von Uwe“:** je Tag „1.250 kcal gegessen“ und die
-  Einträge nach Tageszeit, etwa „morgens Haferbrei (75 g × 2) · 550 kcal 🌾“.
-  Oben steht dazu „Essen am 26.11.: 1.250 kcal, 2 Einträge“.
-- **Solange nichts geteilt ist,** steht dort: „Sein Essen ist noch nicht
-  geteilt: Mahlzeit fragt Uwe einmal, ob du es sehen darfst. Erst nach „Ja,
-  darf er“ steht es hier.“
-- **Bewertet wird nichts:** keine Farbe, kein Ziel.
-
-Die Daten kommen aus `mahlzeit_lesen(pass)`, die jetzt zusätzlich `essen` aus
-`mahlzeit_essen` liefert (eingespielt am 26.11.). Gelesen wird in
-`apps/js/werte.js` (`essenText()`).
-
-Geprüft in `tests/test-apps.mjs`:
-- Essen nach Tageszeit, Portion, Menge, Kalorien, Hafer
-- ein Tag nur mit Essen
-- ein Name als Text statt HTML
-- ob geteilt ist
-
-Gegen a4 rot.
-
-### Uwes Werte aus Mahlzeit (Meine Apps a4)
-
-> Tobi, 26.11.2026: *„Dachte wir haben bei Uwe jetzt eingestellt dass wir
-> seine Sachen tiefgehend sehen können“*
-
-**Vorher:** Seine Werte kamen seit Mahlzeit v13 bei Supabase an, aber die
-Übersicht zeigte nur, *ob* Uwe die App benutzt. Nachsehen ging nur per SQL.
-Uwe ist einverstanden: *„Uwe meinte ich kann all seine gesundheitsdaten haben“*
-(21.11., `mahlzeit/README.md` v10/v13).
-
-**Jetzt:** Die Karte Mahlzeit hat „▸ Werte von Uwe“, zugeklappt wie das
-Tagebuch bei Body Check.
-- **Oben** steht der letzte Wert je Art: „Gewicht am 26.11.: 126,2 kg (seit
-  21.11.: +0,8 kg)“, Blutzucker mit Uhrzeit und „nüchtern/vor/nach dem
-  Essen“, HbA1c, Schlaf, Schritte.
-- **Darunter die Tage**, neuester zuerst, je Tag die Werte und die Zahlen des
-  Lebenszeichens („9 Einträge · 1 × Sport · 3 × Hafer“).
-- **Ältere Tage** (über 14 Tage, bis 60) stehen zugeklappt darunter.
-- **Von der Uhr** (⌚, `mahlzeit_uhr`) zählt ein Wert nur, wenn die App für den
-  Tag nicht schon einen derselben Art hat.
-- **Wie in Mahlzeit selbst** wird nichts bewertet: keine Farbe, kein „zu hoch“.
-  Beim Gewicht steht nur der Unterschied als Zahl.
-
-**Der Server:** `mahlzeit_lesen(pass)` in
-[`tools/apps-uebersicht.sql`](tools/apps-uebersicht.sql), eingespielt am
-26.11., mit demselben Passwort über `admin_liste()`. Die Funktion gibt je Gerät
-die Werte der letzten 60 Tage aus `mahlzeit_werte` und `mahlzeit_uhr` zurück.
-Uwe steht zuerst, `testclaude01` fehlt. Ein Gerät, das nur Uhr-Zeilen hat und
-nicht Uwe ist, war ein Test und erscheint nicht.
-
-**Was Uwe isst, stand hier bis a4 nicht:** Mahlzeit schickte es nicht. In v13
-wählte Tobi „Variante 2“, also nur die Werte. Seit a5 siehe „Uwes Essen“.
-
-**Offline und Fehler** wie beim Tagebuch:
-- Die Werte liegen mit im Stand auf dem Gerät.
-- Lassen sie sich nicht holen, bleibt der letzte Stand, mit „Die Werte ließen
-  sich gerade nicht holen – hier steht der Stand von …“.
-- Gelesen wird in `apps/js/werte.js`.
-
-Geprüft in `tests/test-apps.mjs`:
-- **In Node:** Überblick, Tage, zwei Blutzucker an einem Tag, Uhr nur als
-  Lücke, das Testgerät, kaputte Werte.
-- **Im Browser:** zugeklappt, aufgeklappt, nichts bewertet, ohne Netz, ein
-  Server, der hakt.
-
-Gegen a3 rot.
-
-### Body Check: das geteilte Tagebuch (Meine Apps a3)
-
-> Tobi, 25.11.2026: *„Body Check schickt jetzt Amys Tagebuch nach Supabase,
-> sobald sie in der App zugestimmt hat. Lies es mit der Funktion
-> bodycheck_lesen(pass). […] Zeig das in der Master-Übersicht bei Body Check
-> an, statt „zählt bewusst nichts“: wann zuletzt aktualisiert, und Amys
-> Einträge übersichtlich nach Tagen.“*
-
-**Vorher:** Die Karte sagte „misst nichts“. Body Check versprach bis Fassung
-30, dass nichts das Handy verlässt.
-
-**Woher es kommt:** Seit Body Check Fassung 31/32 fragt die App
-„Dein Tagebuch mit … teilen?“ und sagt dazu, dass dann *das ganze Tagebuch*
-geht („alle Einträge, Mittel, Werte und Notizen“). Vor „Ja, teilen“ geht nichts
-weg. „Teilen beenden“ unter *Mehr* bittet den Server, den Stand zu löschen
-(`bodycheck_beenden`). Geschrieben wird nur mit einem Kopplungsschlüssel
-(`bodycheck_kopplung`). Gelesen wird über `bodycheck_lesen(pass)` mit dem
-Passwort der Übersichten: je Gerät `name`, `geraet` („Gerät 1a2b“),
-`aktualisiert`, `fassung` und `stand`. Gebaut hat das eine andere Sitzung im
-Repo Bauchbuch, nicht dieses Repo. Am 25.11. war noch nichts geteilt (0
-Zeilen).
-
-**Jetzt:** *Meine Apps* holt beim Laden zusätzlich `bodycheck_lesen`.
-- **Ist etwas geteilt:** Body Check zählt wie jede App. Benutzt ist ein Tag
-  mit Einträgen oder Tageswerten, dazu der Tag der letzten Aktualisierung.
-  Unter dem Namen steht zum Beispiel „Amy · heute · an 3 von 14 Tagen ·
-  7 Einträge in 14 Tagen · aktualisiert heute um 14:05“.
-- **Das Tagebuch selbst** ist zugeklappt („▸ Tagebuch von Amy“), damit es nicht
-  gleich offen dasteht, wenn jemand mit aufs Handy schaut. Aufgeklappt stehen
-  die Tage der letzten 14 Tage, neuester zuerst („Mi 25.11.“): die Tageswerte
-  („Stimmung: gut · Schlaf: ok · Wasser: 5 Gläser“), die Tagesnotiz und die
-  Einträge nach Uhrzeit („08:10 Essen Haferflocken · Milchprodukte · Kaffee
-  (Getränk)“). Ältere Tage stehen zugeklappt darunter, die regelmäßigen Mittel
-  oben. Was aufgeklappt war, bleibt es auch nach dem Nachladen.
-- **Ist nichts geteilt:** „nicht geteilt“, dazu ein Satz, dass Body Check erst
-  nach „Ja, teilen“ schickt. In „6 von 8 Apps“ zählt es dann nicht mit.
-- **Teilen beendet:** Der Server gibt nichts mehr zurück, und beim nächsten
-  Laden ist das Tagebuch auch aus dem Speicher dieses Geräts weg.
-- **Lässt sich nur das Tagebuch nicht holen** (Fehler beim Server): Der Rest
-  ist frisch, das Tagebuch bleibt auf seinem letzten Stand, mit „Das Tagebuch
-  ließ sich gerade nicht holen – hier steht der Stand von …“.
-- **Ohne Netz:** Das Tagebuch liegt mit im Stand auf dem Gerät und steht wie
-  alles andere da.
-
-**Die Namen** zu den Kennungen (Beschwerden, Zutaten, Stuhlformen,
-Tagesfragen …) kommen aus Body Check selbst: `node tools/bodycheck-woerter.mjs
-<Klon von Bauchbuch>` schreibt `apps/js/bodycheck-woerter.js`. Eigene Auslöser
-und Aktivitäten bringt der Stand mit. Eine Kennung, die erst später dazukommt,
-steht bis zum nächsten Lauf so da, wie sie ist. Gelesen wird der Stand in
-`apps/js/tagebuch.js`, alles als Text, nie als HTML.
-
-Geprüft in `tests/test-apps.mjs`:
-- **In Node:** Tage, Einträge, Tageswerte, Mittel, eigene Auslöser,
-  unbekannte Kennungen, ein Tag in der Zukunft, ein kaputter Stand, zwei
-  Geräte.
-- **Im Browser:** zugeklappt, dann aufgeklappt, Notiz als Text, aufgeklappt
-  nach dem Nachladen, ohne Netz, ein Server, der hakt, „Teilen beenden“ (auch
-  aus dem Speicher weg), dasselbe Passwort für beide Aufrufe.
-
-Gegen a2 rot.
+Geprüft in `tests/test-apps-umzug.mjs`:
+- die Weiterleitung mit `#`
+- die alten Vorräte weg, fremde bleiben
+- der alte Worker meldet sich selbst ab
+- offline unter `/apps/` keine Workout-App
 
 ### Passwort vergessen (Meine Apps a2)
 
@@ -10425,19 +10265,6 @@ end $$;
 Rechte und Aufrufer bleiben dabei, wie sie sind. Das Passwort selbst gehört in
 kein Repo, keine Notiz und keine Datei. Unter dem Passwortfeld von *Meine Apps*
 steht deshalb: „Vergessen? Sag Claude Bescheid – es setzt ein neues.“
-
-Eine neue Fassung der Seite: `VERSION` in `apps/sw.js` und `FASSUNG` in
-`apps/js/app.js` zusammen hochzählen; die Symbole kommen aus
-`node tools/apps-icons.mjs`.
-
-Geprüft in `tests/test-apps.mjs` (Supabase gespielt, Server wirklich aus):
-das Rechnen in Node (wer, wann, an wie vielen Tagen, Minuten nur aus den 14
-Tagen, Tobi aus Widget und Rückkanal ist eine Person, Tag in Berlin, Ampel,
-Reihenfolge, leere Antwort); im Browser falsches und richtiges Passwort, je App
-eine Karte, Namen als Text statt HTML, kein Wischen zur Seite, neu geöffnet
-sofort der letzte Stand, ohne Netz mit Stand und Hinweis, `online` holt nach,
-Abmelden, erstes Öffnen ohne Netz, und dass der Workout-Worker unter `/apps/`
-nicht die Workout-App ausliefert. Gegen v273 rot.
 
 ## Mahlzeit im Unterordner (v264)
 

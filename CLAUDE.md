@@ -71,13 +71,13 @@ offline funktionieren.“ Das gilt für jede Änderung und jede neue Funktion:
   Worker (`VERSION` dort und `FASSUNG` in `js/app.js` zusammen hochzählen),
   eigene Tests (`tests/test-mz-*.mjs`), Regeln in `mahlzeit/README.md`. Werte
   werden bewusst nicht bewertet (geht an einen Dritten).
-- **`apps/`** (seit v274): *Meine Apps* – Tobis Übersicht, wer welche seiner
-  Apps wann benutzt hat (https://finanzdienste.github.io/Workout/apps/).
-  Eigener Service Worker (`VERSION` dort und `FASSUNG` in `apps/js/app.js`
-  zusammen hochzählen), Test `tests/test-apps.mjs`, Server
-  `tools/apps-uebersicht.sql` (`apps_uebersicht(pass)`, Passwort wie die
-  Workout-Übersicht). Eine neue App oder Quelle kommt in `APPS` in
-  `apps/js/modell.js` und in die SQL-Funktion.
+- **`apps/`**: nur noch eine Weiterleitung; *Meine Apps* (Tobis Übersicht,
+  wer welche seiner Apps wann benutzt) liegt seit a6 in `Finanzdienste/Apps`
+  (https://finanzdienste.github.io/Apps/) – mit Test, SQL
+  (`tools/apps-uebersicht.sql`) und eigenem README/CLAUDE.md. Unter
+  `/Workout/` ließ Android sie nicht als eigene App installieren.
+  `apps/sw.js` meldet nur noch den alten Worker ab
+  (`tests/test-apps-umzug.mjs`).
 - **`freizeit/`**: nur noch eine Weiterleitung; die Freizeit-App liegt in
   `Finanzdienste/Freizeit`.
 - **`README.md` ist das Gedächtnis der Workout-App**: jede Entscheidung mit
@@ -189,6 +189,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   sehen, was du isst?“ (`stand.essenTeilen`), erst nach „Ja“ →
   `mahlzeit_essen_melden` → `mahlzeit_essen` (`mahlzeit/supabase/essen.sql`);
   „nein“ löscht bei Tobi. Test `tests/test-mz-essen.mjs`.
+  Meine Apps a6 (26.11.): umgezogen ins Repo `Finanzdienste/Apps`
+  (https://finanzdienste.github.io/Apps/), damit Tobi sie als eigene App
+  installieren kann – Tobi: „als App auf mein Handy downloaden aber nicht
+  aufm startbildschirm haben“. Weitere Arbeit an der Übersicht dort.
 - Davor v273: *Was da ist* sagt zuerst, ob jedes Training alle
   Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
   „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die

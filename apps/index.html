@@ -2,25 +2,33 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="referrer" content="no-referrer">
-<meta name="theme-color" content="#34495e">
-<title>Meine Apps</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="css/apps.css">
-<!-- Meine Apps (Workout v274): je App, wer sie wann benutzt hat – aus dem,
-     was die Apps ohnehin melden (README „Meine Apps“). Nicht in einer App
-     verlinkt; Tobi legt sie sich auf den Startbildschirm. -->
+<title>Meine Apps – umgezogen</title>
+<!-- Meine Apps lag hier bis a5 (25./26.11.2026) und ist in ein eigenes
+     Repository umgezogen: Finanzdienste/Apps, https://finanzdienste.github.io/Apps/.
+     Android rechnet alles unter /Workout/ der installierten Workout-App zu und
+     hätte die Übersicht deshalb nicht als eigene App installiert – wie bei
+     Freizeit (freizeit/index.html). Diese Seite meldet den alten Service Worker
+     dieses Ordners ab, räumt seine Vorräte (apps-…) weg und leitet weiter,
+     samt allem hinter dem #. Passwort und Stand liegen im localStorage des
+     Ursprungs und gehen mit. -->
+<meta http-equiv="refresh" content="3; url=https://finanzdienste.github.io/Apps/">
+<link rel="canonical" href="https://finanzdienste.github.io/Apps/">
+<script>
+  (async () => {
+    try {
+      const hier = new URL('./', location.href).href;
+      const alle = (await navigator.serviceWorker?.getRegistrations?.()) || [];
+      await Promise.all(alle.filter((r) => r.scope === hier).map((r) => r.unregister()));
+      const vorraete = (await self.caches?.keys?.()) || [];
+      await Promise.all(vorraete.filter((k) => k.startsWith('apps-')).map((k) => caches.delete(k)));
+    } catch { /* dann eben ohne Aufräumen */ }
+    location.replace(`https://finanzdienste.github.io/Apps/${location.hash}`);
+  })();
+</script>
 </head>
 <body>
-<main>
-  <h1>Meine Apps</h1>
-  <p class="leise unter-titel">Wird’s genutzt?</p>
-  <div id="inhalt"><p class="leise">Lädt …</p></div>
-</main>
-<script type="module" src="js/app.js"></script>
+<p>Meine Apps ist umgezogen: <a href="https://finanzdienste.github.io/Apps/">finanzdienste.github.io/Apps</a></p>
 </body>
 </html>
