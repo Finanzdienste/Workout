@@ -20,7 +20,7 @@ import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 import * as UHR from './uhr.js';
 
-export const FASSUNG = 'v13';
+export const FASSUNG = 'v14';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -141,8 +141,24 @@ function kartenOben(stand, tag, h) {
   if (!stand.hinweise.willkommen && tag === h) {
     html += `<section class="karte hinweis" id="willkommen">
       <p><strong>Hallo!</strong> Keine Fragen, kein Konto. Tipp auf „Essen eintragen“ und such, was du gegessen hast – die App sagt dir die Kalorien. Alles bleibt auf deinem Handy.</p>
-      <p class="klein">Tobi erfährt, ob du die App nutzt, und sieht deine Werte (Gewicht, Blutzucker, Schlaf …) – nicht, was du isst. Abschaltbar unter „Mehr“.</p>
+      <p class="klein">Tobi erfährt, ob du die App nutzt, und sieht deine Werte (Gewicht, Blutzucker, Schlaf …)${stand.essenTeilen === true ? ' und, weil du es erlaubt hast, was du isst' : ' – nicht, was du isst'}. Abschaltbar unter „Mehr“.</p>
       <button type="button" class="knopf leise" data-tun="hinweis-weg" data-hinweis="willkommen">Alles klar</button>
+    </section>`;
+  }
+  // v14: Tobi möchte auch das Essen sehen. Bis v13 stand hier „nicht, was du
+  // isst“ – also wird Uwe einmal gefragt, statt still mehr zu schicken. Nur
+  // auf „Heute“, nur wenn schon etwas eingetragen ist, nicht gleich neben dem
+  // Hallo; nach einer Antwort nie wieder (umstellen unter „Mehr“).
+  if (tag === h && stand.meldung !== false && stand.essenTeilen === undefined
+      && stand.hinweise.willkommen && Object.keys(stand.tage || {}).length) {
+    html += `<section class="karte hinweis" id="essen-frage">
+      <h3>🍽 Darf Tobi auch sehen, was du isst?</h3>
+      <p>Bisher sieht Tobi nur deine Werte und wie oft du etwas einträgst. Wenn du zustimmst, gehen auch deine Einträge an ihn: was, wie viel, die Kalorien, die letzten 60 Tage.</p>
+      <p class="klein">Bis du „Ja“ tippst, geht davon nichts weg. Unter „Mehr“ kannst du es jederzeit wieder abstellen – dann ist es bei Tobi auch wieder weg.</p>
+      <div class="reihe">
+        <button type="button" class="knopf" data-tun="essen-teilen" data-an="1">Ja, darf er</button>
+        <button type="button" class="knopf leise" data-tun="essen-teilen" data-an="">Lieber nicht</button>
+      </div>
     </section>`;
   }
   if (tag === h && installierenZeigen(stand, h)) {
@@ -627,11 +643,16 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-lebenszeichen">
     <h3>📶 Lebenszeichen an Tobi</h3>
-    <p>Damit Tobi weiß, ob dir die App etwas bringt, meldet sie höchstens alle drei Stunden, wie viele Einträge, Hafer-Mahlzeiten und Sporteinheiten du hast. Dazu gehen deine <strong>Werte</strong> an Tobi – Gewicht, Blutzucker, HbA1c, Schlaf und Schritte mit Datum, die letzten 60 Tage. Was du isst, geht nicht mit.</p>
+    <p>Damit Tobi weiß, ob dir die App etwas bringt, meldet sie höchstens alle drei Stunden, wie viele Einträge, Hafer-Mahlzeiten und Sporteinheiten du hast. Dazu gehen deine <strong>Werte</strong> an Tobi – Gewicht, Blutzucker, HbA1c, Schlaf und Schritte mit Datum, die letzten 60 Tage. ${stand.essenTeilen === true && stand.meldung !== false ? 'Und, weil du es erlaubt hast, <strong>was du isst</strong> – was, wie viel, die Kalorien, die letzten 60 Tage.' : 'Was du isst, geht nicht mit.'}</p>
     <div class="chips" role="group" aria-label="Lebenszeichen">
       <button type="button" class="chip" data-tun="meldung" data-an="1" aria-pressed="${stand.meldung !== false}">an</button>
       <button type="button" class="chip" data-tun="meldung" data-an="" aria-pressed="${stand.meldung === false}">aus</button>
     </div>
+    ${stand.meldung !== false ? `<p class="klein">Was du isst, an Tobi:</p>
+    <div class="chips" role="group" aria-label="Essen an Tobi">
+      <button type="button" class="chip" data-tun="essen-teilen" data-an="1" aria-pressed="${stand.essenTeilen === true}">ja</button>
+      <button type="button" class="chip" data-tun="essen-teilen" data-an="" aria-pressed="${stand.essenTeilen !== true}">nein</button>
+    </div>` : ''}
   </section>
   <section class="karte" id="karte-sicherung">
     <h3>💾 Sicherung</h3>
@@ -648,7 +669,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
-    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi mit deinen Werten (abschaltbar, siehe oben) ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.kiAn() ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
+    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi mit deinen Werten${stand.essenTeilen === true && stand.meldung !== false ? ' und deinem Essen' : ''} (abschaltbar, siehe oben) ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.kiAn() ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
     <p>Die Kalorien sind Richtwerte für übliche Portionen – ein Döner vom Imbiss nebenan kann 100 kcal mehr oder weniger haben. Für den Überblick reicht das; genauer wird es mit der Packung in der Hand („Selbst eintragen“).</p>
     <p>Die App ersetzt keine ärztliche Beratung. Was die Hafertage angeht, steht die Quelle unter „Hafer“.</p>
     <p class="klein leise">Fassung ${FASSUNG}</p>
@@ -2024,7 +2045,17 @@ document.addEventListener('click', (ev) => {
     case 'meldung':
       aendern((s) => { s.meldung = !!el.dataset.an; });
       zeige();
+      LZ.essenMelden(lesen(), { tag: heute() });
       break;
+    case 'essen-teilen': {
+      const an = !!el.dataset.an;
+      aendern((s) => { s.essenTeilen = an; });
+      zeige();
+      meldung(an ? 'Danke – Tobi sieht ab jetzt auch, was du isst.' : 'Alles klar – was du isst, bleibt bei dir.');
+      // Gleich schicken bzw. löschen; ohne Netz kommt es beim nächsten Mal.
+      LZ.essenMelden(lesen(), { tag: heute() });
+      break;
+    }
     case 'hafer-oft':
       aendern((s) => { s.hafer.proMonat = Number(el.dataset.n); });
       zeige();
@@ -2199,6 +2230,7 @@ window.addEventListener('storage', (ev) => {
 const lebenszeichen = () => {
   LZ.melden(lesen(), { tag: heute(), fassung: FASSUNG, alsApp: standalone() });
   LZ.werteMelden(lesen(), { tag: heute() });
+  LZ.essenMelden(lesen(), { tag: heute() });
 };
 setTimeout(lebenszeichen, 4000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') lebenszeichen(); });

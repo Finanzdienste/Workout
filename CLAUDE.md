@@ -184,8 +184,11 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `node tools/bodycheck-woerter.mjs <Bauchbuch>`. Am 25.11. noch 0 Zeilen.
   Meine Apps a4 (26.11.): „Werte von Uwe“ in der Karte Mahlzeit – Gewicht,
   Blutzucker, HbA1c, Schlaf, Schritte nach Tagen, nicht bewertet
-  (`mahlzeit_lesen(pass)`, `apps/js/werte.js`). Sein Essen schickt Mahlzeit
-  nicht (v13: „Variante 2“).
+  (`mahlzeit_lesen(pass)`, `apps/js/werte.js`). Meine Apps a5 / Mahlzeit
+  v14 (26.11.): auch Uwes Essen – Mahlzeit fragt ihn einmal „Darf Tobi auch
+  sehen, was du isst?“ (`stand.essenTeilen`), erst nach „Ja“ →
+  `mahlzeit_essen_melden` → `mahlzeit_essen` (`mahlzeit/supabase/essen.sql`);
+  „nein“ löscht bei Tobi. Test `tests/test-mz-essen.mjs`.
 - Davor v273: *Was da ist* sagt zuerst, ob jedes Training alle
   Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
   „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die

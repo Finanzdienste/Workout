@@ -138,6 +138,10 @@ function uweWerte(heute) {
     ], uhr: [
       { tag: v(1), art: 'schritte', wert: 4210 },
       { tag: v(0), art: 'schlaf', wert: 999 },
+    ], essen: [
+      { tag: v(0), zeit: 'mittags', name: 'Döner', portion: '1 Stück', menge: 1, kcal: 700, kh: 60, ei: 30, hafer: false },
+      { tag: v(0), zeit: 'morgens', name: 'Haferbrei', portion: '75 g', menge: 2, kcal: 550, kh: 90, ei: 18, hafer: true },
+      { tag: v(2), zeit: null, name: '<img src=x onerror="window.__boese3=1">Apfel', portion: null, menge: 1, kcal: 80, kh: 19, ei: 0, hafer: false },
     ] },
     { wer: 'Gerät test', werte: [], uhr: [{ tag: v(2), art: 'schritte', wert: 1 }] },
   ];
@@ -227,11 +231,14 @@ const mitMz = M.auswerten(zahlen(H), H, { mahlzeit: uweWerte(H) });
 const mz = mitMz.find((a) => a.id === 'mahlzeit');
 check(mz.werteBuecher.length === 1 && mz.werteBuecher[0].wer === 'Uwe', 'Mahlzeit: ein Verlauf für Uwe; ein Gerät nur mit Uhr-Zeilen (Test) nicht');
 const wb = mz.werteBuecher[0];
-check(wb.ueberblick.join(' | ') === `Gewicht am ${M.datumKurz(H)}: 124,6 kg (seit ${M.datumKurz(vor(20))}: −1,4 kg) | Blutzucker am ${M.datumKurz(vor(4))}: 140 mg/dl um 18:30, nach dem Essen · 2 Messungen | HbA1c am ${M.datumKurz(vor(9))}: 7,1 % | Schlaf am ${M.datumKurz(H)}: 7 Std. 10 Min. | Schritte am ${M.datumKurz(vor(1))}: 4.210 ⌚`,
+check(wb.ueberblick.join(' | ') === `Gewicht am ${M.datumKurz(H)}: 124,6 kg (seit ${M.datumKurz(vor(20))}: −1,4 kg) | Blutzucker am ${M.datumKurz(vor(4))}: 140 mg/dl um 18:30, nach dem Essen · 2 Messungen | HbA1c am ${M.datumKurz(vor(9))}: 7,1 % | Schlaf am ${M.datumKurz(H)}: 7 Std. 10 Min. | Schritte am ${M.datumKurz(vor(1))}: 4.210 ⌚ | Essen am ${M.datumKurz(H)}: 1.250 kcal, 2 Einträge`,
   `Überblick: letzter Wert je Art, beim Gewicht der Unterschied (${wb.ueberblick.join(' | ')})`);
-check(wb.tage.map((t) => t.tag).join() === [H, vor(1), vor(4), vor(5), vor(9), vor(20)].join(), 'die Tage, neuester zuerst');
+check(wb.tage.map((t) => t.tag).join() === [H, vor(1), vor(2), vor(4), vor(5), vor(9), vor(20)].join(), 'die Tage, neuester zuerst (auch ein Tag nur mit Essen)');
 const t0 = wb.tage[0];
-check(t0.werte.join(' | ') === 'Gewicht 124,6 kg | Schlaf 7 Std. 10 Min.' && t0.zahlen === '4 Einträge · 1 × Sport', `heute: Werte und Zahlen des Lebenszeichens (${t0.werte.join(' | ')} / ${t0.zahlen})`);
+check(t0.werte.join(' | ') === 'Gewicht 124,6 kg | Schlaf 7 Std. 10 Min.' && t0.zahlen === '1 × Sport', `heute: Werte und Zahlen des Lebenszeichens, ohne die Zahl der Einträge, wenn das Essen dasteht (${t0.werte.join(' | ')} / ${t0.zahlen})`);
+check(t0.essen.map((e) => `${e.zeit}: ${e.text}`).join(' | ') === 'morgens: Haferbrei (75 g × 2) · 550 kcal 🌾 | mittags: Döner (1 Stück) · 700 kcal' && t0.kcal === 1250,
+  `heute: das Essen nach Tageszeit, mit Portion, Menge, Kalorien, Hafer (${t0.essen.map((e) => e.text).join(' | ')})`);
+check(wb.essenGeteilt && !M.auswerten(zahlen(H), H, { mahlzeit: uweWerte(H).map((e) => ({ ...e, essen: [] })) }).find((a) => a.id === 'mahlzeit').werteBuecher[0].essenGeteilt, 'weiß, ob das Essen geteilt ist');
 const t4 = wb.tage.find((t) => t.tag === vor(4));
 check(t4.werte.join(' | ') === 'Blutzucker 95 mg/dl um 07:40, nüchtern | Blutzucker 140 mg/dl um 18:30, nach dem Essen', 'zwei Blutzucker an einem Tag, nach Uhrzeit');
 const t1 = wb.tage.find((t) => t.tag === vor(1));
@@ -315,8 +322,10 @@ const mzKarte = page.locator('article[data-app="mahlzeit"]');
 check(await mzKarte.locator('details.tagebuch > summary').textContent() === 'Werte von Uwe' && !(await mzKarte.locator('details.tagebuch').evaluate((d) => d.open)), 'Mahlzeit: „Werte von Uwe“, zugeklappt');
 await mzKarte.locator('details.tagebuch > summary').click();
 const mzText = await mzKarte.locator('details.tagebuch').innerText();
-check(mzText.includes(`Gewicht am ${M.datumKurz(heute)}: 124,6 kg`) && mzText.includes('Blutzucker 95 mg/dl um 07:40, nüchtern') && mzText.includes('4 Einträge · 1 × Sport') && mzText.includes('Schritte 4.210 ⌚'),
+check(mzText.includes(`Gewicht am ${M.datumKurz(heute)}: 124,6 kg`) && mzText.includes('Blutzucker 95 mg/dl um 07:40, nüchtern') && mzText.includes('1.250 kcal gegessen · 1 × Sport') && mzText.includes('Schritte 4.210 ⌚'),
   'aufgeklappt: Überblick, Werte je Tag, Zahlen des Lebenszeichens, die Uhr');
+check(mzText.includes('Haferbrei (75 g × 2) · 550 kcal 🌾') && mzText.includes('Döner (1 Stück) · 700 kcal') && !mzText.includes('noch nicht geteilt'), 'aufgeklappt: Uwes Essen je Tag');
+check(await page.evaluate(() => !window.__boese3) && mzText.includes('<img src=x'), 'Namen von Essen stehen als Text da, nicht als HTML');
 check(await mzKarte.locator('details.aeltere summary').textContent() === 'Ältere Tage (1)', 'Mahlzeit: ältere Tage zugeklappt darunter');
 check(!/(zu hoch|zu niedrig|gut|schlecht)/i.test(mzText), 'die Werte werden nicht bewertet');
 check(await page.locator('.satz').textContent() === 'In den letzten 7 Tagen benutzt: 7 von 9 Apps.', 'oben der Satz, wie viele benutzt werden');

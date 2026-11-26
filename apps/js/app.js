@@ -18,7 +18,7 @@
  */
 import { auswerten, zusammenfassung, dauer, datumKurz, tagAus, uhrAus, letzteTage, TAGE } from './modell.js';
 
-export const FASSUNG = 'a4';
+export const FASSUNG = 'a5';
 
 const SERVER = {
   url: 'https://vjyohppohmvhhxgwouti.supabase.co',
@@ -181,8 +181,9 @@ function werteHtml(app, heute) {
   const ab = letzteTage(heute)[0];
   const tagHtml = (t) => `<section class="tag">
       <h3>${esc(t.kopf)}</h3>
-      ${t.zahlen ? `<p class="tageswerte">${esc(t.zahlen)}</p>` : ''}
+      ${t.essen.length || t.zahlen ? `<p class="tageswerte">${esc([t.essen.length ? `${Math.round(t.kcal).toLocaleString('de-DE')} kcal gegessen` : '', t.zahlen].filter(Boolean).join(' · '))}</p>` : ''}
       ${t.werte.length ? `<ul class="werte-liste">${t.werte.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+      ${t.essen.length ? `<ul class="eintraege essen">${t.essen.map((e) => `<li><span class="zeit">${esc(e.zeit)}</span><span>${esc(e.text)}</span></li>`).join('')}</ul>` : ''}
     </section>`;
   return app.werteBuecher.map((wb) => {
     const neu = wb.tage.filter((t) => t.tag >= ab);
@@ -190,6 +191,7 @@ function werteHtml(app, heute) {
     return `<details class="tagebuch" data-key="${esc(`mz:${wb.wer}`)}">
         <summary>${esc(`Werte von ${wb.wer}`)}</summary>
         ${wb.ueberblick.map((z) => `<p class="zeile">${esc(z)}</p>`).join('')}
+        ${wb.essenGeteilt ? '' : `<p class="leise klein">${esc(`Sein Essen ist noch nicht geteilt: Mahlzeit fragt ${wb.wer} einmal, ob du es sehen darfst. Erst nach „Ja, darf er“ steht es hier.`)}</p>`}
         ${!neu.length ? `<p class="leise">In den letzten ${TAGE} Tagen nichts.</p>` : ''}
         ${neu.map(tagHtml).join('')}
         ${alt.length ? `<details class="aeltere" data-key="${esc(`mzalt:${wb.wer}`)}"><summary>${esc(`Ältere Tage (${alt.length})`)}</summary>${alt.map(tagHtml).join('')}</details>` : ''}

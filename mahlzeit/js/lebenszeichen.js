@@ -20,6 +20,15 @@
  * ist mahlzeit_werte über die Funktion mahlzeit_werte_melden, die die 60 Tage
  * je Gerät ersetzt – so kommen auch Löschungen an. Geschickt wird nur, wenn
  * sich etwas geändert hat; derselbe Schalter stellt beides ab.
+ *
+ * Seit v14 auf Wunsch auch das Essen (essenMelden) – Tobi, 26.11.2026: „Ja
+ * ich will das essen auch sehen. In meiner Master übersicht“. Weil bis v13
+ * in der App stand „Was du isst, geht nicht mit“, fragt die App Uwe einmal
+ * („Darf Tobi auch sehen, was du isst?“); erst nach „Ja“ (stand.essenTeilen
+ * === true) geht etwas weg. Ziel ist mahlzeit_essen über mahlzeit_essen_melden
+ * (mahlzeit/supabase/essen.sql), wieder 60 Tage je Gerät ersetzt. Steht es
+ * auf „aus“ (oder das Lebenszeichen ganz), schickt die App einmal eine leere
+ * Liste: Dann ist bei Tobi auch nichts mehr davon.
  */
 
 export const ADRESSE = 'https://vjyohppohmvhhxgwouti.supabase.co/rest/v1/mahlzeit_nutzung';
@@ -109,6 +118,72 @@ export async function werteMelden(stand, { tag, holen = (...a) => fetch(...a) } 
       keepalive: true,
     });
     if (res.ok) localStorage.setItem(WERTE_ZULETZT, fingerabdruck);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// --- Das Essen (v14), nur nach Uwes „Ja“ ----------------------------------------
+
+export const ESSEN_ADRESSE = 'https://vjyohppohmvhhxgwouti.supabase.co/rest/v1/rpc/mahlzeit_essen_melden';
+const ESSEN_ZULETZT = 'mahlzeit.essengemeldet.v1';
+const ESSEN_WEG = 'weg';
+/** So weit zurück löscht „aus“ beim Server (die Funktion nimmt höchstens 400 Tage). */
+const ESSEN_LOESCHEN_TAGE = 399;
+
+/** Die Einträge ab einem Tag, so wie sie gehen: was, wie viel, Kalorien – für den ganzen Eintrag. */
+export function essenFuerTobi(stand, von) {
+  const aus = [];
+  Object.keys(stand.tage || {}).filter((t) => t >= von).sort().forEach((tag) => {
+    (stand.tage[tag] || []).forEach((e, i) => {
+      if (!e || typeof e.n !== 'string') return;
+      const m = Number.isFinite(e.m) && e.m > 0 ? e.m : 1;
+      aus.push({
+        id: String(e.id || `${tag}-${i}`), tag, name: e.n.slice(0, 120),
+        ...(e.z ? { zeit: e.z } : {}), ...(e.p ? { portion: String(e.p).slice(0, 60) } : {}), menge: m,
+        kcal: Math.round((e.kcal || 0) * m), kh: Math.round((e.kh || 0) * m), ei: Math.round((e.ei || 0) * m),
+        hafer: Number.isInteger(e.h),
+      });
+    });
+  });
+  return aus.slice(-3000);
+}
+
+/**
+ * Schickt das Essen, wenn Uwe zugestimmt hat und sich etwas geändert hat. Ist
+ * es aus und war vorher etwas geschickt, einmal die leere Liste: löschen.
+ * Wirft nie; ohne Netz bleibt alles, wie es war, und beim nächsten Mal geht es.
+ */
+export async function essenMelden(stand, { tag, holen = (...a) => fetch(...a) } = {}) {
+  try {
+    const an = stand.meldung !== false && stand.essenTeilen === true;
+    const zuletzt = localStorage.getItem(ESSEN_ZULETZT);
+    let von;
+    let essen;
+    let fingerabdruck;
+    if (an) {
+      von = plusTage(tag, -WERTE_TAGE);
+      essen = essenFuerTobi(stand, von);
+      fingerabdruck = `${von}|${JSON.stringify(essen)}`;
+      if (zuletzt === fingerabdruck) return false;
+    } else {
+      if (zuletzt === null || zuletzt === ESSEN_WEG) return false;
+      von = plusTage(tag, -ESSEN_LOESCHEN_TAGE);
+      essen = [];
+      fingerabdruck = ESSEN_WEG;
+    }
+    const body = JSON.stringify({ p_geraet: geraet(), p_von: von, p_essen: essen });
+    const res = await holen(ESSEN_ADRESSE, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: OEFFENTLICH },
+      body,
+      // Chrome nimmt mit keepalive höchstens 64 KiB an – 60 Tage Essen können
+      // mehr sein. Dann eben ohne: Kommt es beim Weglegen nicht an, geht es
+      // beim nächsten Öffnen.
+      keepalive: body.length < 60000,
+    });
+    if (res.ok) localStorage.setItem(ESSEN_ZULETZT, fingerabdruck);
     return res.ok;
   } catch {
     return false;

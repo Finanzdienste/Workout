@@ -43,7 +43,7 @@ export const APPS = [
   },
   {
     id: 'mahlzeit', name: 'Mahlzeit', pfad: '../mahlzeit/', farbe: '#2e7d4f',
-    quelle: 'Lebenszeichen der App und Uwes Werte (mit seinem Einverständnis)',
+    quelle: 'Lebenszeichen der App, Uwes Werte und – nach seinem „Ja“ – sein Essen',
   },
   {
     id: 'schilddruese', name: 'Schilddrüse', pfad: '../schilddruese/', farbe: '#8a5cc2',
@@ -237,9 +237,10 @@ export function auswerten(daten, heute = tagAus(daten && daten.heute) || tagAus(
   // aufklappbarer Verlauf, dazu je Tag die Zahlen des Lebenszeichens. Ein
   // Gerät, das nur Uhr-Zeilen hat und nicht Uwe ist, war ein Test.
   apps.get('mahlzeit').werteBuecher = liste(mahlzeit)
-    .filter((e) => e && e.wer && (liste(e.werte).length || (e.wer === 'Uwe' && liste(e.uhr).length)))
+    .filter((e) => e && e.wer && (liste(e.werte).length || liste(e.essen).length || (e.wer === 'Uwe' && liste(e.uhr).length)))
     .map((e) => ({
       wer: text(e.wer),
+      essenGeteilt: liste(e.essen).length > 0,
       ueberblick: werteUeberblick(e),
       tage: werteTage(e, liste(d.mahlzeit).filter((z) => z && z.wer === e.wer)),
     }));

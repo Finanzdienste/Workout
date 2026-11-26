@@ -10254,6 +10254,38 @@ Boxenstopp und den anderen Apps. `apps/sw.js` füllt seinen Vorrat deshalb nach
 einem Seitenaufruf mit Netz neu, falls er fehlt. Behoben ist es erst, wenn die
 beiden nur noch ihre eigenen Vorräte wegräumen (offen, 25.11.).
 
+### Uwes Essen (Meine Apps a5)
+
+> Tobi, 26.11.2026: *„Ja ich will das essen auch sehen. In meiner Master
+> übersicht“*
+
+**Vorher (a4):** Hier stand „Was Uwe isst, steht hier nicht: Mahlzeit schickt
+es nicht.“ In der App stand Uwe gegenüber „Was du isst, geht nicht mit“.
+
+**Jetzt:**
+- **Uwe wird gefragt:** Seit Mahlzeit v14 fragt die App ihn einmal „Darf
+  Tobi auch sehen, was du isst?“. Erst nach „Ja, darf er“ schickt sie die
+  Einträge der letzten 60 Tage (`mahlzeit/README.md` v14).
+- **Hier, unter „Werte von Uwe“:** je Tag „1.250 kcal gegessen“ und die
+  Einträge nach Tageszeit, etwa „morgens Haferbrei (75 g × 2) · 550 kcal 🌾“.
+  Oben steht dazu „Essen am 26.11.: 1.250 kcal, 2 Einträge“.
+- **Solange nichts geteilt ist,** steht dort: „Sein Essen ist noch nicht
+  geteilt: Mahlzeit fragt Uwe einmal, ob du es sehen darfst. Erst nach „Ja,
+  darf er“ steht es hier.“
+- **Bewertet wird nichts:** keine Farbe, kein Ziel.
+
+Die Daten kommen aus `mahlzeit_lesen(pass)`, die jetzt zusätzlich `essen` aus
+`mahlzeit_essen` liefert (eingespielt am 26.11.). Gelesen wird in
+`apps/js/werte.js` (`essenText()`).
+
+Geprüft in `tests/test-apps.mjs`:
+- Essen nach Tageszeit, Portion, Menge, Kalorien, Hafer
+- ein Tag nur mit Essen
+- ein Name als Text statt HTML
+- ob geteilt ist
+
+Gegen a4 rot.
+
 ### Uwes Werte aus Mahlzeit (Meine Apps a4)
 
 > Tobi, 26.11.2026: *„Dachte wir haben bei Uwe jetzt eingestellt dass wir
@@ -10284,9 +10316,8 @@ die Werte der letzten 60 Tage aus `mahlzeit_werte` und `mahlzeit_uhr` zurück.
 Uwe steht zuerst, `testclaude01` fehlt. Ein Gerät, das nur Uhr-Zeilen hat und
 nicht Uwe ist, war ein Test und erscheint nicht.
 
-**Was Uwe isst, steht hier nicht:** Mahlzeit schickt es nicht. In v13 wählte
-Tobi „Variante 2“, also nur die Werte. Soll das Essen mit, braucht es eine
-neue Fassung von Mahlzeit, kein Zutun der Übersicht.
+**Was Uwe isst, stand hier bis a4 nicht:** Mahlzeit schickte es nicht. In v13
+wählte Tobi „Variante 2“, also nur die Werte. Seit a5 siehe „Uwes Essen“.
 
 **Offline und Fehler** wie beim Tagebuch:
 - Die Werte liegen mit im Stand auf dem Gerät.

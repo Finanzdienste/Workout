@@ -21,7 +21,7 @@
  * Fassung steht als FASSUNG in js/app.js (tests/test-apps.mjs vergleicht beide).
  */
 
-const VERSION = 'a4';
+const VERSION = 'a5';
 const CACHE = `apps-${VERSION}`;
 const BILDER = 'apps-bilder';
 

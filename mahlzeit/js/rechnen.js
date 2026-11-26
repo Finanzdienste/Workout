@@ -588,6 +588,8 @@ export function ordnen(roh) {
   if (typeof roh.sicherung === 'string') s.sicherung = roh.sicherung;
   s.sport = sportOrdnen(roh.sport);
   if (roh.meldung === false) s.meldung = false;
+  // v14: ob Tobi auch das Essen sieht – fehlt es, ist noch nicht gefragt.
+  if (typeof roh.essenTeilen === 'boolean') s.essenTeilen = roh.essenTeilen;
   if (/^[a-z0-9]{16,40}$/.test(roh.uhr?.k || '')) s.uhr = { k: roh.uhr.k };
   return s;
 }

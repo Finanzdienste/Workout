@@ -258,6 +258,52 @@ Steht offen im Hallo und unter *Mehr → Lebenszeichen an Tobi*, dort
 abschaltbar (`stand.meldung`). Ohne Netz kein Fehler; es wird beim nächsten
 Öffnen noch einmal versucht. Geprüft in `tests/test-mz-lebenszeichen.mjs`.
 
+## Was Uwe isst, geht an Tobi – nach seinem Ja (v14, 26.11.2026)
+
+Tobi: „Ja ich will das essen auch sehen. In meiner Master übersicht“. Bis
+v13 ging das Essen nicht mit („Mach Variante 2“), und in der App stand das
+auch so: „Was du isst, geht nicht mit.“ Deshalb schickt die App das Essen
+nicht einfach mit, sondern **fragt Uwe einmal**.
+
+**Jetzt gilt:**
+- **Die Frage:** auf „Heute“, oben: „🍽 Darf Tobi auch sehen, was du isst?“,
+  dazu was dann geht (was, wie viel, die Kalorien, die letzten 60 Tage) und
+  dass es unter „Mehr“ wieder abzustellen ist. Knöpfe „Ja, darf er“ und
+  „Lieber nicht“.
+- **Wann die Frage kommt:** einmal, nur wenn schon etwas eingetragen ist und
+  nicht gleich neben dem „Hallo“. Nach einer Antwort nie wieder.
+  Gespeichert in `stand.essenTeilen` (true/false; fehlt = noch nicht
+  gefragt).
+- **Was geht:** nach „Ja“ die Einträge der letzten 60 Tage, mit Tag,
+  Tageszeit, Name, Portion, Menge, Kalorien, Kohlenhydraten und Eiweiß für den
+  ganzen Eintrag (kcal × Menge) und ob es Hafer war (`essenFuerTobi()` in
+  `js/lebenszeichen.js`).
+- **Wohin:** an die Datenbankfunktion `mahlzeit_essen_melden`
+  (`supabase/essen.sql`), die die 60 Tage je Gerät in `mahlzeit_essen`
+  ersetzt. Die Tabelle hat RLS ohne Regeln; lesen kann nur Tobi, über
+  `mahlzeit_lesen(pass)` (Meine Apps).
+- **Wann:** sofort nach „Ja“, sonst wie die Werte beim Öffnen, beim Weglegen
+  und bei `online`, und nur, wenn sich etwas geändert hat. Über 60 KiB geht
+  es ohne `keepalive`, das Chrome sonst ablehnt.
+- **Abstellen:** unter *Mehr → Lebenszeichen an Tobi* „Was du isst, an Tobi:
+  ja / nein“. „nein“ (oder das Lebenszeichen ganz aus) schickt einmal eine
+  leere Liste, dann ist bei Tobi auch nichts mehr davon.
+- **Ohne Netz:** nichts als geschickt gemerkt; es kommt von selbst nach.
+- **Texte in der App:** Die Karte unter *Mehr*, das „Hallo“ und „Über die
+  App“ sagen, ob das Essen mitgeht.
+
+Geprüft in `tests/test-mz-essen.mjs`:
+- vor der Antwort nichts
+- nach „Ja“ die 60 Tage mit Kalorien für den ganzen Eintrag
+- Unverändertes nicht doppelt
+- „nein“ löscht bei Tobi
+- „Lieber nicht“ schickt nie etwas, und die Frage kommt nicht wieder
+- ohne Netz nichts verloren
+- Lebenszeichen aus heißt kein Essen (und einmal löschen, wenn vorher
+  geschickt)
+- ohne Einträge und neben dem „Hallo“ keine Frage
+- die Texte
+
 ## Uwes Werte gehen an Tobi (v13, 25.11.2026)
 
 Tobi fragte: „Kannst du sehen welche werte er einträgt?“ Bis dahin nicht, das

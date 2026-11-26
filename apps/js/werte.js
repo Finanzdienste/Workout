@@ -6,7 +6,9 @@
  * ich kann all seine gesundheitsdaten haben“, 21.11.; mahlzeit/README.md
  * v10/v13). Die App schickt Gewicht, Blutzucker, HbA1c, Schlaf und Schritte
  * der letzten 60 Tage (mahlzeit_lesen), dazu je Tag die Zahlen des
- * Lebenszeichens (Einträge, Hafer, Sport). Was er isst, schickt sie nicht.
+ * Lebenszeichens (Einträge, Hafer, Sport). Seit Mahlzeit v14 (Meine Apps a5)
+ * auch, was er isst – Tobi: „Ja ich will das essen auch sehen“ –, aber erst,
+ * wenn Uwe in der App „Ja, darf er“ getippt hat.
  *
  * Wie in Mahlzeit selbst: Werte werden gezeigt, nicht bewertet – keine Farbe,
  * kein „zu hoch“. Nur der Unterschied beim Gewicht steht da, als Zahl.
@@ -18,6 +20,8 @@ import { tagKopf } from './tagebuch.js';
 const ZUCKER_WANN = { nuechtern: 'nüchtern', vor: 'vor dem Essen', nach: 'nach dem Essen', sonst: 'sonst' };
 const NAME = { gewicht: 'Gewicht', zucker: 'Blutzucker', hba1c: 'HbA1c', schlaf: 'Schlaf', schritte: 'Schritte' };
 const REIHE = ['gewicht', 'zucker', 'hba1c', 'schlaf', 'schritte'];
+const TAGESZEIT = { morgens: 'morgens', mittags: 'mittags', nachmittags: 'nachmittags', abends: 'abends' };
+const ZEIT_REIHE = ['morgens', 'mittags', 'nachmittags', 'abends'];
 
 const liste = (x) => (Array.isArray(x) ? x : []);
 const istTag = (t) => typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t);
@@ -70,6 +74,29 @@ function alleWerte(eintrag) {
   return werte;
 }
 
+/** Ein Eintrag als Zeile: „Haferbrei (75 g × 2) · 550 kcal 🌾“. */
+export function essenText(e) {
+  const menge = Number(e.menge) > 0 && Number(e.menge) !== 1 ? ` × ${kommazahl(Number(e.menge))}` : '';
+  const portion = e.portion ? ` (${e.portion}${menge})` : menge;
+  const kcal = zahl(e.kcal) !== null ? ` · ${Math.round(zahl(e.kcal)).toLocaleString('de-DE')} kcal` : '';
+  return `${String(e.name || '').trim()}${portion}${kcal}${e.hafer ? ' 🌾' : ''}`;
+}
+
+/** Das Essen eines Geräts je Tag, nach Tageszeit. */
+function essenJeTag(eintrag) {
+  const tage = new Map();
+  liste(eintrag && eintrag.essen).forEach((e, i) => {
+    if (!e || !istTag(e.tag) || !String(e.name || '').trim()) return;
+    if (!tage.has(e.tag)) tage.set(e.tag, []);
+    tage.get(e.tag).push({ ...e, i });
+  });
+  tage.forEach((xs) => xs.sort((a, b) => {
+    const za = ZEIT_REIHE.indexOf(a.zeit); const zb = ZEIT_REIHE.indexOf(b.zeit);
+    return (za < 0 ? 9 : za) - (zb < 0 ? 9 : zb) || a.i - b.i;
+  }));
+  return tage;
+}
+
 /**
  * Die Tage eines Geräts, neuester zuerst:
  *   [{ tag, kopf, werte: [„Gewicht 124,6 kg“, …], zahlen: „9 Einträge · Sport“ }]
@@ -84,10 +111,13 @@ export function werteTage(eintrag, nutzung = []) {
     return tage.get(iso);
   };
   alleWerte(eintrag).forEach((w) => tagVon(w.tag).roh.push(w));
+  const essen = essenJeTag(eintrag);
+  essen.forEach((_, iso) => tagVon(iso));
   liste(nutzung).forEach((n) => {
     if (!n || !istTag(n.tag)) return;
     const teile = [];
-    if (Number(n.essen) > 0) teile.push(`${n.essen} ${Number(n.essen) === 1 ? 'Eintrag' : 'Einträge'}`);
+    // Steht das Essen selbst da, sagt die Liste schon, wie viele Einträge es sind.
+    if (Number(n.essen) > 0 && !essen.has(n.tag)) teile.push(`${n.essen} ${Number(n.essen) === 1 ? 'Eintrag' : 'Einträge'}`);
     if (Number(n.hafer) > 0) teile.push(`${n.hafer} × Hafer`);
     if (Number(n.sport) > 0) teile.push(`${n.sport} × Sport`);
     if (teile.length) tagVon(n.tag).zahlen = teile.join(' · ');
@@ -97,6 +127,8 @@ export function werteTage(eintrag, nutzung = []) {
       tag: t.tag,
       kopf: t.kopf,
       zahlen: t.zahlen,
+      essen: (essen.get(t.tag) || []).map((e) => ({ zeit: TAGESZEIT[e.zeit] || '', text: essenText(e) })),
+      kcal: (essen.get(t.tag) || []).reduce((s, e) => s + (zahl(e.kcal) || 0), 0),
       werte: t.roh
         .sort((a, b) => REIHE.indexOf(a.art) - REIHE.indexOf(b.art) || String(a.uhr || '').localeCompare(String(b.uhr || '')))
         .map((w) => `${NAME[w.art]} ${wertText(w)}`),
@@ -126,5 +158,13 @@ export function werteUeberblick(eintrag) {
     if (art === 'zucker' && reihe.length > 1) z += ` · ${reihe.length} Messungen`;
     zeilen.push(z);
   });
+  const essen = essenJeTag(eintrag);
+  const letzterTag = [...essen.keys()].sort().pop();
+  if (letzterTag) {
+    const xs = essen.get(letzterTag);
+    const kcal = xs.reduce((s, e) => s + (zahl(e.kcal) || 0), 0);
+    const [, m, d] = letzterTag.split('-');
+    zeilen.push(`Essen am ${Number(d)}.${Number(m)}.: ${Math.round(kcal).toLocaleString('de-DE')} kcal, ${xs.length} ${xs.length === 1 ? 'Eintrag' : 'Einträge'}`);
+  }
   return zeilen;
 }
