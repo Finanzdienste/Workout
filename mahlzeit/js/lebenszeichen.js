@@ -38,6 +38,21 @@ const GERAET = 'mahlzeit.geraet.v1';
 const ZULETZT = 'mahlzeit.lebenszeichen.v1';
 export const ABSTAND = 3 * 3600 * 1000;
 
+/*
+ * Nur echte Handys melden (v15). Tobi, 26.11.2026, beim Blick in „Meine Apps“:
+ * „Was sind das eigentlich für weitere Geräte?“ – vier davon waren Testläufe
+ * von Claude-Sitzungen (Browser unter Fernsteuerung oder ein Testserver auf
+ * dem eigenen Rechner). Darum: kein Lebenszeichen, keine Werte, kein Essen,
+ * wenn der Browser ferngesteuert ist (navigator.webdriver) oder die App nicht
+ * von GitHub Pages kommt. Die Tests schalten es mit __mz_lz_test bewusst ein.
+ */
+export function echtesGeraet() {
+  try {
+    if (localStorage.getItem('__mz_lz_test') === '1') return true;
+  } catch { /* egal */ }
+  return typeof navigator !== 'undefined' && !navigator.webdriver && typeof location !== 'undefined' && /(^|\.)github\.io$/.test(location.hostname);
+}
+
 /** Die Zahlen eines Tages – nur Anzahlen. */
 export function zahlen(stand, tag) {
   const liste = stand.tage?.[tag] || [];
@@ -65,6 +80,7 @@ function geraet() {
 /** Schickt das Lebenszeichen, wenn es dran ist. Wirft nie; ohne Netz eben nicht. */
 export async function melden(stand, { tag, fassung, alsApp, jetzt = Date.now(), holen = (...a) => fetch(...a) } = {}) {
   try {
+    if (!echtesGeraet()) return false;
     if (stand.meldung === false) return false;
     const zuletzt = Number(localStorage.getItem(ZULETZT));
     if (!faellig(zuletzt, jetzt)) return false;
@@ -106,6 +122,7 @@ function plusTage(tag, n) {
 /** Schickt die Werte, wenn sie sich seit dem letzten Mal geändert haben. Wirft nie. */
 export async function werteMelden(stand, { tag, holen = (...a) => fetch(...a) } = {}) {
   try {
+    if (!echtesGeraet()) return false;
     if (stand.meldung === false) return false;
     const von = plusTage(tag, -WERTE_TAGE);
     const werte = werteFuerTobi(stand, von);
@@ -157,6 +174,7 @@ export function essenFuerTobi(stand, von) {
  */
 export async function essenMelden(stand, { tag, holen = (...a) => fetch(...a) } = {}) {
   try {
+    if (!echtesGeraet()) return false;
     const an = stand.meldung !== false && stand.essenTeilen === true;
     const zuletzt = localStorage.getItem(ESSEN_ZULETZT);
     let von;

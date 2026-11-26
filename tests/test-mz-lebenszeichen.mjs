@@ -101,4 +101,15 @@ await o.page.route(/rpc\/mahlzeit_werte_melden/, (r) => { werteAus.push(1); r.fu
 await o.page.waitForTimeout(4600);
 check(werteAus.length === 0, 'Lebenszeichen aus: auch keine Werte');
 await o.browser.close();
+// --- v15: Testbrowser melden nicht (Tobi: „Was sind das eigentlich für weitere Geräte?“)
+const test = [];
+o = await oeffne({ tag: TAG, stand: MIT_WERTEN, wieEcht: true });
+await o.page.route(/rest\/v1\/(mahlzeit_nutzung|rpc\/mahlzeit_(werte|essen)_melden)/, (r) => { test.push(r.request().url()); r.fulfill({ status: 201, body: '' }); });
+await o.page.waitForTimeout(4600);
+await o.page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+await o.page.waitForTimeout(400);
+check(test.length === 0, `ferngesteuerter Browser auf einem Testserver: kein Lebenszeichen, keine Werte, kein Essen (${test.length})`);
+check(await o.page.evaluate(async () => { const m = await import('./js/lebenszeichen.js'); return m.echtesGeraet(); }) === false, 'echtesGeraet(): nein');
+await o.browser.close();
+
 ende();

@@ -278,7 +278,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `ms`; die Abfrage steht in `mahlzeit/README.md` (v12). Mahlzeit v13: Uwes Werte
   (Gewicht, Blutzucker, HbA1c, Schlaf, Schritte, 60 Tage) gehen an Tobi, in
   `mahlzeit_werte` über die Datenbankfunktion `mahlzeit_werte_melden`. Uwes
-  Gerät ist `0jhz8uo152qh`; die Abfrage steht in `mahlzeit/README.md` (v13).
+  Gerät ist `0jhz8uo152qh`; die Abfrage steht in `mahlzeit/README.md` (v13). Mahlzeit v15:
+  Testbrowser melden nichts mehr (`echtesGeraet()`, nur GitHub Pages ohne
+  `navigator.webdriver`). Die Geräte o0ty, n4zs, rlo3 und l5yl in
+  `mahlzeit_nutzung` waren Testläufe; 37q1 und 9ifv sind vermutlich Tobi.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

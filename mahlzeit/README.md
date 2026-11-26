@@ -12,6 +12,32 @@ Wie die [Schilddrüsen-App](../schilddruese/README.md) liegt sie neben der
 Workout-App im selben Repository: kein Bauschritt, keine Abhängigkeiten,
 eigener Ordner, eigener Service Worker, eigene Tests (`tests/test-mz-*.mjs`).
 
+
+## Nur echte Handys melden (v15, 26.11.2026)
+
+Tobi zeigte „Meine Apps“ (Karte Mahlzeit: „Weitere: Gerät l5yl, Gerät n4zs,
+Gerät o0ty und 2 mehr“) und fragte: „Was sind das eigentlich für weitere
+Geräte?“
+
+**Was in `mahlzeit_nutzung` stand:**
+- `0jhz8uo152qh`: Uwe, die App vom Startbildschirm, seit dem 18.11.
+- `37q1n1ufu6g3` (19. und 26.11., v8) und `9ifv3khqexmk` (18.11., v6): im
+  Browser ohne einen einzigen Eintrag – vermutlich Tobi beim Ansehen.
+- `o0ty…`, `n4zs…`, `rlo3…` (25.11., v13) und `l5yl…` (26.11., v14): je
+  einmal, im Browser, mit genau einem Tag voller Einträge, kurz nach dem
+  Ausliefern einer neuen Fassung – Testläufe von Claude-Sitzungen. Sie
+  haben die App mit Testdaten geöffnet, und deren Lebenszeichen ist bis zu
+  Tobi durchgekommen.
+- `testclaude01`: mein Test vom 18.11.
+
+**Jetzt gilt:** `echtesGeraet()` in `js/lebenszeichen.js`. Das Lebenszeichen,
+die Werte und das Essen gehen nur noch raus, wenn der Browser nicht
+ferngesteuert ist (`navigator.webdriver`) und die App von GitHub Pages
+kommt. Die Tests schalten das Melden über `__mz_lz_test` bewusst ein, das
+setzt `oeffne()` in `tests/mz-hilfe.mjs`. Mit `oeffne({ wieEcht: true })` ist
+es wie im Testbrowser draußen: Dann geht nichts raus. Geprüft in
+`tests/test-mz-lebenszeichen.mjs`.
+
 ## Warum es sie gibt (v1, 17.11.2026)
 
 > Tobi: „Mein Arbeitskollege hat Probleme mit Blutzucker, Gewicht usw. Er

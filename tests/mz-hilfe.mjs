@@ -57,13 +57,16 @@ function vorbereiten({ tag, zeit, stand, schluessel, weitere }) {
  */
 export async function oeffne({
   tag = '2026-11-17', zeit = '08:15', stand = null, weitere = null,
-  viewport = { width: 390, height: 844 }, url = MZ_URL, kontext = {}, skripte = [], ki = false,
+  viewport = { width: 390, height: 844 }, url = MZ_URL, kontext = {}, skripte = [], ki = false, wieEcht = false,
 } = {}) {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport, locale: 'de-DE', acceptDownloads: true, serviceWorkers: 'block', ...kontext });
   await ctx.addInitScript(vorbereiten, { tag, zeit, stand, schluessel: SCHLUESSEL, weitere });
   await ctx.addInitScript(uhrStellen);
   for (const skript of skripte) await ctx.addInitScript(skript);
+  // Die App meldet nur von echten Handys (v15, js/lebenszeichen.js echtesGeraet) –
+  // die Tests schalten das Melden ein, außer sie prüfen gerade das (wieEcht: true).
+  if (!wieEcht) await ctx.addInitScript(() => { try { localStorage.setItem('__mz_lz_test', '1'); } catch { /* about:blank */ } });
   // Nie ins echte Netz: Die KI kostet Geld, Open Food Facts ist nicht unser
   // Prüfstand. Tests, die es brauchen, legen page.route darüber.
   await ctx.route(/supabase\.co|openfoodfacts\.org/, (r) => r.abort());
