@@ -13,20 +13,23 @@ Modell oder Aufwand als dem laufenden, schlag mir das in einem Satz vor – mit
 Grund und dem Befehl, den ich als Nachricht schicke (`/model fable|opus|sonnet`,
 `/effort low|medium|high|xhigh|max`). Was gerade läuft, zeigt `get_session`
 (`model`, `effort_level`); am 11.11.2026 war es Opus 5.5 mit Aufwand max.
-- **Immer am Ende**: In jeder Antwort, mit der du eine Aufgabe abschließt
-  (nicht bei Zwischenständen), ein Satz: was lief und ob es passte – mit dem
-  genauen Befehl, wenn etwas anderes besser passt. Etwa „Opus 5.5 mit
-  `/effort max`, passt – nichts umstellen“. Tobi, 16.11.: „Sowas sollst du
-  immer konkret mit angeben“ und „So eine nachricht gibst du mir irgendwie nur
-  in diesen chat, nicht in den anderen“ – bis dahin stand hier „Bei normalen
-  Rückmeldungen erwähnst du beides nicht“. Gleich in Boxenstopp, Freizeit und
-  Bildschirmzeit.
+- **Nur melden, wenn etwas zu ändern ist** (Tobi, 26.11.2026: „Dass Opus okay
+  ist brauch ich nicht zu wissen, ich brauch nur zu wissen wenn was geändert
+  werden muss“): Kein Schlusssatz mehr wie „passt – nichts umstellen“. Sollte
+  etwas umgestellt werden (Modell, Aufwand, neuer Chat), am Ende ein Satz mit
+  Grund und dem genauen Befehl.
+- **Neuer Chat** (Tobi, 26.11.2026: „in allen Chats bescheid geben wenn ein
+  neuer Chat nötig ist“): von selbst in einem Satz sagen, sobald einer nötig
+  ist – wenn der Verlauf schon zusammengefasst wurde oder `get_session` mehr
+  als etwa die Hälfte von `context_usage.max_tokens` belegt zeigt, wenn du
+  frühere Entscheidungen nicht mehr sicher weißt, oder wenn ein ganz neues
+  Thema anfängt. Vorher alles Offene in die Dateien schreiben und einen kurzen
+  Starttext zum Einfügen mitgeben.
 - **Mehr** – vorschlagen und auf meine Antwort warten: `/model fable`, dazu
   `/effort high`, wenn die Ursache nach dem ersten Durchgang unklar ist, ein
   Fehler nach einer Korrektur wiederkommt oder viel ineinandergreift (Service
-  Worker, Pausen-Uhr, Kalender-Sync, Sicherung, Planberechnung). Fable kann
-  Nutzungsguthaben kosten (im Modellmenü „Requires usage credits“) – das gehört
-  in den Vorschlag. Ist der Aufwand gerade gesenkt, zuerst zurück auf
+  Worker, Pausen-Uhr, Kalender-Sync, Sicherung, Planberechnung). Fable kostet kein Nutzungsguthaben (Tobi, 26.11.2026; Guthaben kostet nur
+  die Claude-API). Ist der Aufwand gerade gesenkt, zuerst zurück auf
   `/effort max`.
 - **Weniger** – nicht warten, erledigen und am Ende in einem Satz sagen, dass
   für Aufgaben dieser Art `/effort high` (oder `medium`) reicht: Texte und
