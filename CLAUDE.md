@@ -20,10 +20,12 @@ Grund und dem Befehl, den ich als Nachricht schicke (`/model fable|opus|sonnet`,
   Grund und dem genauen Befehl.
 - **Neuer Chat** (Tobi, 26.11.2026: „in allen Chats bescheid geben wenn ein
   neuer Chat nötig ist“): von selbst in einem Satz sagen, sobald einer nötig
-  ist – wenn der Verlauf schon zusammengefasst wurde oder `get_session` mehr
-  als etwa die Hälfte von `context_usage.max_tokens` belegt zeigt, wenn du
-  frühere Entscheidungen nicht mehr sicher weißt, oder wenn ein ganz neues
-  Thema anfängt. Vorher alles Offene in die Dateien schreiben und einen kurzen
+  ist – wenn `get_session` mehr als etwa 80 % von `context_usage.max_tokens`
+  belegt zeigt, wenn du merkst, dass du mit veraltetem oder widersprüchlichem
+  Stand arbeitest, oder bei einem anderen Projekt. Ein neues Thema im selben
+  Projekt und ein schon zusammengefasster Verlauf allein sind kein Grund
+  (Tobi, 26.11.2026: „dass hier Infos zusammengefasst wurden ist schlechter
+  als bei nem neuen chat komplett von 0 zu beginnen?“ – nein). Vorher alles Offene in die Dateien schreiben und einen kurzen
   Starttext zum Einfügen mitgeben.
 - **Mehr** – vorschlagen und auf meine Antwort warten: `/model fable`, dazu
   `/effort high`, wenn die Ursache nach dem ersten Durchgang unklar ist, ein
