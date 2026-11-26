@@ -193,6 +193,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   (https://finanzdienste.github.io/Apps/), damit Tobi sie als eigene App
   installieren kann – Tobi: „als App auf mein Handy downloaden aber nicht
   aufm startbildschirm haben“. Weitere Arbeit an der Übersicht dort.
+  Meine Apps a7 (26.11.): Boxenstopp ist nicht mehr blind für Amy und
+  Marielle – Boxenstopp v100 schickt von Tobis Handy aus dem Dashboard die
+  Zahl der Änderungen je Person und Tag (`boxenstopp_aktiv`, README im Repo
+  Apps „Boxenstopp: Amy und Marielle“).
 - Davor v273: *Was da ist* sagt zuerst, ob jedes Training alle
   Muskelgruppen seiner Hantel-Fassung trifft (`vorratDeckung()`), statt
   „Eins zu eins getauscht“ – Tobi: „Hauptsache jedes Training hat die
