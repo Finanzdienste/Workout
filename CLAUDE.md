@@ -302,11 +302,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `tests/test-mz-kennung.mjs` wacht darüber. Jedes Handy mit alter Kennung
   wechselt beim nächsten Öffnen von selbst auf eine neue
   (`mahlzeit_geraet_wechseln`, `mahlzeit/supabase/geraet.sql`); wer Uwe ist,
-  sagt `select geraet from mahlzeit_name where name = 'Uwe'`. Offen: In
-  `Finanzdienste/Apps` steht die alte Kennung noch in
-  `tools/apps-uebersicht.sql` (`apps_wer`, `mahlzeit_lesen`) – die Datenbank
-  ist schon umgestellt, die Datei dort nicht wieder einspielen, bevor sie
-  auf `mahlzeit_name` umgeschrieben ist. Uwes Handy hat am 27.11. um
+  sagt `select geraet from mahlzeit_name where name = 'Uwe'`. Auch
+  `tools/apps-uebersicht.sql` in `Finanzdienste/Apps` fragt seit dem 27.11.
+  `mahlzeit_name` (`apps_wer`, `mahlzeit_lesen`). Uwes Handy hat am 27.11. um
   18:55 gewechselt (`mahlzeit_wechsel.fertig`), Werte und Name sind
   mitgezogen; die Datenbank steht so wie in `geraet.sql`.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
