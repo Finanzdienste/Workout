@@ -265,7 +265,7 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `mahlzeit_nutzung` – fragt Tobi, ob Uwe die App nutzt: die Abfrage steht in
   `mahlzeit/README.md` „Lebenszeichen an Tobi“. Mahlzeit v7: Eiweiß mitgezählt,
   Bereich „Rezepte & Meal Prep“ (Uwes Overnight Oats und Gerichte), Studio-Tag
-  mit Maschinen. Uwe: 60, 125 kg, 176 cm, Bürojob, Studio 1×/Woche. Mahlzeit v8:
+  mit Maschinen. Uwe: Bürojob, Studio 1×/Woche. Mahlzeit v8:
   KI ausgeblendet (`KI_AN = false` in `mahlzeit/js/ki.js`), solange Tobi
   kein Anthropic-Guthaben hat – Uwe testet die App seit dem 19.11. Mahlzeit v9:
   Schlaf und Schritte unter *Werte* zum Abtippen von der Uhr – Uwe hat ein
@@ -283,8 +283,8 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   so wenig wie möglich tun). `mahlzeit_ki` hat jetzt `grund`, `versuche` und
   `ms`; die Abfrage steht in `mahlzeit/README.md` (v12). Mahlzeit v13: Uwes Werte
   (Gewicht, Blutzucker, HbA1c, Schlaf, Schritte, 60 Tage) gehen an Tobi, in
-  `mahlzeit_werte` über die Datenbankfunktion `mahlzeit_werte_melden`. Uwes
-  Gerät ist `0jhz8uo152qh`; die Abfrage steht in `mahlzeit/README.md` (v13). Mahlzeit v15:
+  `mahlzeit_werte` über die Datenbankfunktion `mahlzeit_werte_melden`. Welches
+  Gerät Uwe ist, steht in der Tabelle `mahlzeit_name`; die Abfrage steht in `mahlzeit/README.md` (v13). Mahlzeit v15:
   Testbrowser melden nichts mehr (`echtesGeraet()`, nur GitHub Pages ohne
   `navigator.webdriver`). Die Geräte o0ty, n4zs, rlo3 und l5yl in
   `mahlzeit_nutzung` waren Testläufe; 37q1 und 9ifv sind vermutlich Tobi. Mahlzeit v16:
@@ -294,7 +294,22 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Tipp). Mahlzeit v18: Erinnerung am Abend per Web-Push (`js/erinnerung.js`,
   Edge Function `mahlzeit-erinnerung` mit `webpush.js` als Kopie aus Freizeit,
   `mahlzeit/supabase/erinnerung.sql`, pg_cron alle 15 Minuten). Auf einem
-  echten Handy am 27.11. noch nicht gesehen – „Probe schicken“ unter *Mehr*.
+  echten Handy am 27.11. noch nicht gesehen – „Probe schicken“ unter *Mehr*. Mahlzeit v19
+  (27.11.): Das Repo ist öffentlich – Uwes Alter, Gewicht, Größe und die
+  Kennung seines Handys standen hier und sind heraus (in der alten
+  Git-Historie noch lesbar). **Keine Kennung eines echten Handys und keine
+  Angaben zu Uwes Körper ins Repo, in Notizen oder in den Chat** –
+  `tests/test-mz-kennung.mjs` wacht darüber. Jedes Handy mit alter Kennung
+  wechselt beim nächsten Öffnen von selbst auf eine neue
+  (`mahlzeit_geraet_wechseln`, `mahlzeit/supabase/geraet.sql`); wer Uwe ist,
+  sagt `select geraet from mahlzeit_name where name = 'Uwe'`. Offen: In
+  `Finanzdienste/Apps` steht die alte Kennung noch in
+  `tools/apps-uebersicht.sql` (`apps_wer`, `mahlzeit_lesen`) – die Datenbank
+  ist schon umgestellt, die Datei dort nicht wieder einspielen, bevor sie
+  auf `mahlzeit_name` umgeschrieben ist. Offen auch: die Migration
+  `mahlzeit_geraet_wechsel_beweis` (Tabelle `mahlzeit_wechsel_beweis`, so
+  wie in `geraet.sql`) wartete am 27.11. auf Tobis Bestätigung in Supabase –
+  bis dahin prüft die Funktion den Beweis gegen `mahlzeit_werte` selbst.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

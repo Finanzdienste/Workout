@@ -77,6 +77,8 @@ export async function oeffne({
     ? r.fulfill({ status: 200, contentType: 'application/json', body: '{"ki":false,"suche":false}', headers: { 'access-control-allow-origin': '*' } })
     : r.fallback()));
   await ctx.route(/rest\/v1\/mahlzeit_nutzung/, (r) => r.fulfill({ status: 201, body: '', headers: { 'access-control-allow-origin': '*' } }));
+  // Der Kennungswechsel (v19) – nur Handys mit alter Kennung fragen; still „ja“.
+  await ctx.route(/rest\/v1\/rpc\/mahlzeit_geraet_wechseln/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}', headers: { 'access-control-allow-origin': '*' } }));
   // Die Werte an Tobi (v13) ebenso still annehmen.
   await ctx.route(/rest\/v1\/rpc\/mahlzeit_werte_melden/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '0', headers: { 'access-control-allow-origin': '*' } }));
   // Das Essen an Tobi (v14), nur nach „Ja“ – ebenso still annehmen.

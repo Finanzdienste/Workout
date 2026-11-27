@@ -24,7 +24,7 @@ const STAND = {
     '2026-11-25': [{ id: 'c', n: 'Apfel', kcal: 80, m: 1, z: 'nachmittags' }],
     '2026-08-01': [{ id: 'alt', n: 'Alte Pizza', kcal: 900, m: 1 }],
   },
-  werte: [{ id: 'w', art: 'gewicht', tag: TAG, wert: 126.2 }],
+  werte: [{ id: 'w', art: 'gewicht', tag: TAG, wert: 98.4 }],
   eigene: [],
 };
 

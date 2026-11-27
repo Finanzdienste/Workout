@@ -16,6 +16,74 @@ eigener Ordner, eigener Service Worker, eigene Tests (`tests/test-mz-*.mjs`).
 
 
 
+## Nichts Persönliches im öffentlichen Repo, neue Kennung (v19, 27.11.2026)
+
+Dieses Repository ist öffentlich. In den Notizen standen Uwes Alter, Gewicht
+und Größe (aus dem Plan von v7) und seit v13 die Kennung seines Handys. Die
+Kennung ist der einzige Ausweis eines Handys beim Server: Wer sie kennt,
+kann über `mahlzeit_werte_melden` überschreiben, was bei Tobi ankommt. Auf
+die Frage „Soll ich die Angaben aus den Notizen nehmen und Uwes App eine neue
+Kennung geben?“ sagte Tobi: „Jo“.
+
+**Was vorher war:** `README.md` und `CLAUDE.md` nannten die Kennung im
+Klartext (Liste der Geräte von v15, SQL-Abfrage von v13) und die
+Körperangaben; `tests/test-mz-protokoll.mjs` und `tests/test-mz-essen.mjs`
+rechneten mit Uwes echten Werten aus einem Screenshot.
+
+**Was jetzt gilt:**
+- **In Notizen, Code und Tests steht keine Kennung eines echten Handys und
+  nichts über Uwes Körper.** Wer Uwe ist, sagt nur die Datenbank:
+  `select geraet from mahlzeit_name where name = 'Uwe'`. Die Tests rechnen
+  mit erfundenen Werten. In der alten Git-Historie bleibt das Entfernte
+  lesbar – ganz weg bekäme man es nur mit umgeschriebener Historie; darum
+  die neue Kennung.
+- **Jedes Handy mit alter Kennung wechselt von selbst** (`geraetBereit()` in
+  `js/lebenszeichen.js`): Beim nächsten Öffnen würfelt es eine neue Kennung
+  (16 Zeichen, `mahlzeit.geraet.v2`) und meldet dem Server den Wechsel –
+  mit den Kennungen seiner eigenen Werte als Beweis, die kennt außer dem
+  Handy nur die Datenbank. Die Datenbankfunktion `mahlzeit_geraet_wechseln`
+  zieht dann Werte, Essen, Lebenszeichen und den Namen um; danach ist die
+  alte Kennung auf dem Handy gelöscht und beim Server leer. Uwe merkt davon
+  nichts und muss nichts tun.
+- **Als Beweis zählt nur, was vor der Umstellung da war**
+  (`mahlzeit_wechsel_beweis`): Was jemand mit der alten Kennung nachträglich
+  hinlegt, zählt nicht. Mindestens drei Treffer (oder alle, wenn es weniger
+  sind), nach 20 Fehlversuchen ist die alte Kennung gesperrt.
+- **Nach dem Wechsel gehen die Werte einmal ganz** unter der neuen Kennung
+  hinaus – dann steht bei Tobi sicher, was auf dem Handy steht. Kennt der
+  Server die alte Kennung nicht (ein Handy ohne Werte), fängt es unter der
+  neuen einfach von vorn an.
+- **Ohne Netz** geht nichts hinaus und nichts verloren: Die alte Kennung
+  bleibt, bis der Server geantwortet hat; der nächste Versuch kommt beim
+  Öffnen, beim Weglegen und beim Ereignis `online`. Die App selbst läuft
+  dabei weiter wie immer.
+- **Neue Handys** haben gleich eine Kennung der neuen Art und fragen den
+  Server gar nicht. Ist „Lebenszeichen an Tobi“ abgeschaltet, passiert auch
+  der Wechsel nicht – erst, wenn es wieder an ist.
+- **„Meine Apps“** erkennt Uwe über `mahlzeit_name` statt über eine feste
+  Kennung (`apps_wer`, `mahlzeit_lesen`).
+
+SQL: `supabase/geraet.sql` (ohne die Zeile mit Uwes Kennung).
+
+**Für Tobi nachsehen** (Supabase, SQL):
+
+```sql
+-- Ist Uwes Handy schon gewechselt?
+select fertig, fehlversuche from public.mahlzeit_wechsel;
+```
+
+**Geprüft** in `tests/test-mz-kennung.mjs`:
+- neues Handy: kein Wechsel, 16 Zeichen Zufall
+- alte Kennung: genau ein Wechsel vor allem anderen, mit alter und neuer
+  Kennung und den Kennungen der Werte, ohne Werte und Essen; danach alles
+  unter der neuen, die alte ist vom Handy gelöscht
+- ohne Netz und bei einem Fehler des Servers: nichts geht hinaus, die alte
+  Kennung bleibt; mit `online` kommt der Wechsel von selbst
+- umgezogen oder nicht: die Werte gehen einmal ganz unter der neuen Kennung
+- abgeschaltet und im Testbrowser (v15): gar keine Frage
+- **Wache:** In `mahlzeit/`, `CLAUDE.md`, `README.md` und den Tests steht
+  keine feste Kennung (`geraet = '…'`) und kein Gewicht mit Größe.
+
 ## Erinnerung am Abend (v18, 27.11.2026)
 
 Tobi fragte: „Und wie können wir die app noch weiter optimieren?“ Der zweite
@@ -168,8 +236,9 @@ Gerät o0ty und 2 mehr“) und fragte: „Was sind das eigentlich für weitere
 Geräte?“
 
 **Was in `mahlzeit_nutzung` stand:**
-- `0jhz8uo152qh`: Uwe, die App vom Startbildschirm, seit dem 18.11.
-- `37q1n1ufu6g3` (19. und 26.11., v8) und `9ifv3khqexmk` (18.11., v6): im
+- Uwes Handy: die App vom Startbildschirm, seit dem 18.11. (welche Kennung
+  das ist, steht seit v19 nur noch in der Datenbank, `mahlzeit_name`).
+- `37q1…` (19. und 26.11., v8) und `9ifv…` (18.11., v6): im
   Browser ohne einen einzigen Eintrag – vermutlich Tobi beim Ansehen.
 - `o0ty…`, `n4zs…`, `rlo3…` (25.11., v13) und `l5yl…` (26.11., v14): je
   einmal, im Browser, mit genau einem Tag voller Einträge, kurz nach dem
@@ -506,9 +575,10 @@ meinte ich kann all seine gesundheitsdaten haben“, 21.11.).
 **Für Tobi nachsehen** (Supabase, SQL):
 
 ```sql
--- Uwes Werte (Gerät aus mahlzeit_nutzung, als App vom Startbildschirm)
+-- Uwes Werte (welches Gerät Uwe ist, steht seit v19 in mahlzeit_name)
 select tag, art, wert, uhr, wann, quelle from public.mahlzeit_werte
-where geraet = '0jhz8uo152qh' order by tag desc, art;
+where geraet = (select geraet from public.mahlzeit_name where name = 'Uwe')
+order by tag desc, art;
 -- Gewicht im Verlauf
 select tag, wert as kg from public.mahlzeit_werte where art = 'gewicht' order by tag;
 ```
@@ -796,9 +866,8 @@ Die Tests der KI-Oberfläche laufen weiter mit `oeffne({ ki: true })` aus
 ## Uwes Plan: Eiweiß, Rezepte, Studio (v7, 19.11.2026)
 
 Tobi hat den Verlauf eines anderen KI-Chats geschickt, in dem Uwe sein
-Frühstück (Overnight Oats) hat ausrechnen lassen und einen Plan bekam: 60
-Jahre, 125 kg, 176 cm, Bürojob, einmal die Woche Fitnessstudio an den
-Maschinen, einmal zu Hause mit Hanteln, dazwischen Heimtrainer; Eiweiß
+Frühstück (Overnight Oats) hat ausrechnen lassen und einen Plan bekam:
+Bürojob, einmal die Woche Fitnessstudio an den Maschinen, einmal zu Hause mit Hanteln, dazwischen Heimtrainer; Eiweiß
 150–165 g am Tag; vier Meal-Prep-Gerichte. Auf die Frage, was davon in die
 App soll: „Alles“.
 

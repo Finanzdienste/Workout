@@ -21,7 +21,7 @@ import * as LZ from './lebenszeichen.js';
 import * as UHR from './uhr.js';
 import * as E from './erinnerung.js';
 
-export const FASSUNG = 'v18';
+export const FASSUNG = 'v19';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -2409,11 +2409,14 @@ window.addEventListener('storage', (ev) => {
 });
 
 // Lebenszeichen: beim Öffnen (kurz danach) und beim Weglegen, höchstens alle drei Stunden.
-const lebenszeichen = () => {
+const lebenszeichen = async () => {
+  E.statusMelden(lesen(), { tag: heute() });
+  // v19: erst die Kennung klären (Wechsel auf eine neue) – solange der Server
+  // dazu nicht geantwortet hat, geht nichts hinaus.
+  if (!(await LZ.geraetBereit(lesen()))) return;
   LZ.melden(lesen(), { tag: heute(), fassung: FASSUNG, alsApp: standalone() });
   LZ.werteMelden(lesen(), { tag: heute() });
   LZ.essenMelden(lesen(), { tag: heute() });
-  E.statusMelden(lesen(), { tag: heute() });
 };
 setTimeout(lebenszeichen, 4000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') lebenszeichen(); });

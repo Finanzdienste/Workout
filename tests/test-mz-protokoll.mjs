@@ -23,9 +23,9 @@ const STAND = {
     '2026-11-01': [{ id: 'e', n: 'Pizza', p: '1 Stück', m: 1, kcal: 800, kh: 90, ei: 30, z: 'abends' }],
   },
   werte: [
-    { id: 'w1', art: 'gewicht', tag: '2026-11-27', wert: 126.2 },
-    { id: 'w2', art: 'zucker', tag: '2026-11-27', wert: 150, wann: 'nuechtern', uhr: '07:30' },
-    { id: 'w3', art: 'schlaf', tag: '2026-11-27', wert: 270 },
+    { id: 'w1', art: 'gewicht', tag: '2026-11-27', wert: 98.4 },
+    { id: 'w2', art: 'zucker', tag: '2026-11-27', wert: 112, wann: 'nuechtern', uhr: '07:30' },
+    { id: 'w3', art: 'schlaf', tag: '2026-11-27', wert: 435 },
   ],
   hafer: { tage: ['2026-11-25'] },
 };
@@ -37,7 +37,7 @@ const heute = tage[1];
 check(heute.zeiten.map((z) => z.n).join() === 'Morgens,Mittags' && heute.zeiten[0].eintraege.length === 2, 'nach Tageszeit geordnet');
 check(heute.zeiten[1].eintraege[0].text === '2 × Brötchen, 1 Stück (55 g)' && heute.zeiten[1].eintraege[0].kcal === 280, 'Menge mal Portion: 2 × Brötchen, 280 kcal');
 check(heute.summe.kcal === 685 && heute.summe.kh === 106 && heute.summe.ei === 29, 'Summe des Tages: 685 kcal, 106 g KH, 29 g Eiweiß');
-check(heute.werte.join(' · ') === 'Gewicht 126,2 kg · Blutzucker 150 mg/dl (nüchtern, 07:30)', 'Werte des Tages: Gewicht und Blutzucker, nicht der Schlaf');
+check(heute.werte.join(' · ') === 'Gewicht 98,4 kg · Blutzucker 112 mg/dl (nüchtern, 07:30)', 'Werte des Tages: Gewicht und Blutzucker, nicht der Schlaf');
 const text = R.protokollText(STAND, '2026-11-21', TAG);
 check(text.startsWith('Ernährungsprotokoll Sa, 21.11. bis Fr, 27.11.') && text.includes('Mittwoch, 25. November (Hafertag)') && text.includes('- Overnight Oats, 1 Glas: 385 kcal') && text.includes('Summe: 685 kcal · 106 g Kohlenhydrate · 29 g Eiweiß') && !text.includes('Pizza'), 'als Text: Kopf, Tage, Einträge, Summe, ohne den 1.11.');
 check(R.protokollText({ tage: {} }, '2026-11-21', TAG).includes('nichts eingetragen'), 'leer: ein Satz');

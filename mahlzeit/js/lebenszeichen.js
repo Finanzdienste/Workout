@@ -34,7 +34,8 @@
 export const ADRESSE = 'https://vjyohppohmvhhxgwouti.supabase.co/rest/v1/mahlzeit_nutzung';
 // Der öffentliche Schlüssel des Projekts (darf in die Seite; er erlaubt nur, was die Regeln der Tabelle zulassen).
 const OEFFENTLICH = 'sb_publishable_wTUNShIKMFjCOmZzQuuN-A_vFHPkKUI';
-const GERAET = 'mahlzeit.geraet.v1';
+const GERAET_ALT = 'mahlzeit.geraet.v1';
+const GERAET = 'mahlzeit.geraet.v2';
 const ZULETZT = 'mahlzeit.lebenszeichen.v1';
 export const ABSTAND = 3 * 3600 * 1000;
 
@@ -70,11 +71,57 @@ export const faellig = (zuletzt, jetzt) => !Number.isFinite(zuletzt) || jetzt - 
 
 function geraet() {
   let id = localStorage.getItem(GERAET);
-  if (!/^[a-z0-9]{8,24}$/.test(id || '')) {
-    id = Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join('') + Date.now().toString(36).slice(-4);
+  if (!/^[a-z0-9]{12,24}$/.test(id || '')) {
+    const zeichen = 'abcdefghijkmnpqrstuvwxyz23456789';
+    id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => zeichen[b % zeichen.length]).join('');
     localStorage.setItem(GERAET, id);
   }
   return id;
+}
+
+/*
+ * Der Wechsel auf eine neue Kennung (v19). Die Kennung ist der einzige
+ * Ausweis des Handys beim Server, und die von Uwes Handy stand seit v13 in
+ * den Notizen eines öffentlichen Repos – wer sie kannte, hätte überschreiben
+ * können, was bei Tobi ankommt. Tobi, 27.11.2026, auf die Frage, ob die
+ * Angaben aus den Notizen sollen und Uwes App eine neue Kennung bekommt: „Jo“.
+ *
+ * Ein Handy mit alter Kennung (mahlzeit.geraet.v1) würfelt eine neue und
+ * meldet dem Server den Wechsel – mit den Kennungen seiner Werte als Beweis,
+ * die kennt sonst nur die Datenbank (mahlzeit_geraet_wechseln; es zählen nur
+ * Werte, die dort schon vor dem 27.11. lagen). Dann zieht dort alles um, auch
+ * der Name in Tobis Übersicht. Bis der Server geantwortet
+ * hat, geht nichts hinaus (ohne Netz also später); danach ist die alte
+ * Kennung auf dem Handy gelöscht. Neue Handys haben gleich die neue Art.
+ */
+export const WECHSEL_ADRESSE = 'https://vjyohppohmvhhxgwouti.supabase.co/rest/v1/rpc/mahlzeit_geraet_wechseln';
+
+/** Ist die Kennung geklärt? false heißt: jetzt nichts schicken, später noch einmal. Wirft nie. */
+export async function geraetBereit(stand, { holen = (...a) => fetch(...a) } = {}) {
+  try {
+    if (!echtesGeraet()) return true;
+    // Abgeschaltet geht ohnehin nichts hinaus – der Wechsel wartet, bis es wieder an ist.
+    if (stand.meldung === false) return true;
+    const alt = localStorage.getItem(GERAET_ALT);
+    if (!alt) return true;
+    if (!/^[a-z0-9]{8,24}$/.test(alt)) { localStorage.removeItem(GERAET_ALT); return true; }
+    const neu = geraet();
+    const res = await holen(WECHSEL_ADRESSE, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: OEFFENTLICH },
+      body: JSON.stringify({ p_alt: alt, p_neu: neu, p_beweis: (stand.werte || []).slice(-600).map((w) => String(w.id)) }),
+    });
+    if (!res.ok) return false;
+    // Ob umgezogen oder nicht (der Server kannte die alte Kennung nicht): Werte
+    // und Essen gehen gleich einmal ganz unter der neuen Kennung hinaus – dann
+    // steht bei Tobi sicher, was auf dem Handy steht.
+    localStorage.removeItem(WERTE_ZULETZT);
+    localStorage.removeItem(ESSEN_ZULETZT);
+    localStorage.removeItem(GERAET_ALT);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Schickt das Lebenszeichen, wenn es dran ist. Wirft nie; ohne Netz eben nicht. */
