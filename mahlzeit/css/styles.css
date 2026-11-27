@@ -349,3 +349,7 @@ button, .knopf { font: inherit; color: inherit; }
   #ebene .nur-drucken { display: block; }
   .protokoll-tag { break-inside: avoid; }
 }
+
+/* Wie gestern (v17) */
+.wie-vorher { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0; }
+.wie-vorher .knopf small { color: var(--leise); font-weight: 400; margin-left: .25rem; }

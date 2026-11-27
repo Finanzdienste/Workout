@@ -659,3 +659,36 @@ export function protokollText(stand, von, bis) {
   ].join('\n'));
   return [kopf, ...teile, 'Die kcal sind Richtwerte aus der App „Mahlzeit“.'].join('\n\n');
 }
+
+// --- Wie gestern (v17) ---------------------------------------------------------
+
+/*
+ * Tobi, 27.11.2026 („Alle drei“ – auf den Vorschlag: Uwe trägt jeden Tag ein,
+ * aber weniger, 13 → 4 Einträge am Tag): eine Tageszeit vom letzten Tag mit
+ * einem Tipp wiederholen. Gesucht wird bis zu sieben Tage zurück der letzte
+ * Tag mit Einträgen; angeboten werden die Tageszeiten, die dort etwas haben
+ * und am Tag selbst noch nichts.
+ */
+export function wieVorher(stand, tag) {
+  for (let n = 1; n <= 7; n++) {
+    const quelle = plusTage(tag, -n);
+    const liste = stand.tage?.[quelle] || [];
+    if (!liste.length) continue;
+    const heute = stand.tage?.[tag] || [];
+    const zeiten = TAGESZEITEN.map((z) => {
+      const eintraege = liste.filter((e) => (e.z || 'mittags') === z.id);
+      return { z: z.id, n: z.n, eintraege, kcal: summe(eintraege).kcal };
+    }).filter((x) => x.eintraege.length && !heute.some((e) => (e.z || 'mittags') === x.z));
+    return zeiten.length ? { quelle, zeiten } : null;
+  }
+  return null;
+}
+
+/** Die Einträge einer Tageszeit als neue Einträge für einen Tag (neue Kennungen, ohne Hafer-Platz). */
+export function wiederholen(eintraege, neueId) {
+  return eintraege.map((e) => {
+    const { h, ...rest } = e;
+    void h;
+    return { ...rest, id: neueId() };
+  });
+}

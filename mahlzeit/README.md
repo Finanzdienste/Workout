@@ -14,6 +14,30 @@ eigener Ordner, eigener Service Worker, eigene Tests (`tests/test-mz-*.mjs`).
 
 
 
+
+## „Wie gestern“ mit einem Tipp (v17, 27.11.2026)
+
+Tobi fragte: „Und wie können wir die app noch weiter optimieren?“ Uwe trug
+jeden Tag ein, aber immer weniger: 13 → 7 → 9 → 5 → 5 → 4 Einträge. Sein
+Frühstück ist meist dasselbe. Unter den drei Vorschlägen war dieser der
+erste. Tobi: „Alle drei“.
+
+**Jetzt:** Auf „Heute“ steht über den Einträgen je Tageszeit ein Knopf
+„↻ Morgens wie gestern · 405 kcal“. Angeboten werden die Tageszeiten, die am
+letzten Tag mit Einträgen etwas hatten und am angezeigten Tag noch nichts.
+Gesucht wird bis zu sieben Tage zurück; liegt ein Tag dazwischen, heißt es
+„wie am Mittwoch“. Ein Tipp trägt alles dieser Tageszeit ein, mit neuen
+Kennungen und ohne Hafer-Platz. Die Meldung hat „Rückgängig“. Der Code
+dafür steht in `wieVorher` und `wiederholen` in `js/rechnen.js`.
+
+**Die anderen beiden Vorschläge:**
+- „Seine eigenen Sachen fest in die Liste“: Uwe hat das Teilen seines Essens
+  nicht erlaubt (`mahlzeit_essen` leer). Seine 13 eigenen Sachen stehen
+  ohnehin in seiner Suche und unter „Oft bei dir“. Kein Bau.
+- Die Abend-Erinnerung als Mitteilung (Web-Push) ist offen.
+
+Geprüft in `tests/test-mz-wie-gestern.mjs`.
+
 ## Ernährungsprotokoll zum Teilen und Drucken (v16, 27.11.2026)
 
 Uwe an Tobi: „Gibt es eine Möglichkeit das ich die eingetragenen Lebensmittel

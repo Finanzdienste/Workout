@@ -20,7 +20,7 @@ import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 import * as UHR from './uhr.js';
 
-export const FASSUNG = 'v16';
+export const FASSUNG = 'v17';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -118,6 +118,7 @@ function seiteHeute(stand) {
   // Oben, was jetzt zählt (Willkommen, der heutige Hafertag), dann die
   // Einträge, darunter, was warten kann.
   html += kartenOben(stand, tag, h);
+  html += wieVorherHtml(stand, tag, h);
   html += eintragsListe(liste);
   html += kartenUnten(stand, tag, h);
   html += wochenKarte(stand, h);
@@ -338,6 +339,32 @@ function haferVorschau(stand, h) {
     if (R.abstand(h, runde) <= 7) return karte(`Zeit für die nächsten Hafertage – ${stand.hafer.amStueck} Tage am Stück, ab ${esc(R.datumKurz(runde))}.`, 'Hafertage planen', true);
   }
   return '';
+}
+
+/* „Wie gestern“ (v17): die Tageszeiten vom letzten Tag mit Einträgen, mit einem Tipp. */
+function wieVorherHtml(stand, tag, h) {
+  const v = R.wieVorher(stand, tag);
+  if (!v) return '';
+  const wann = R.abstand(v.quelle, tag) === 1 ? 'wie gestern' : `wie am ${R.wochentag(v.quelle)}`;
+  return `<section class="wie-vorher" id="wie-vorher" aria-label="Wiederholen">
+    ${v.zeiten.map((z) => `<button type="button" class="knopf leise" data-tun="wie-vorher" data-z="${z.z}" data-quelle="${v.quelle}">↻ ${esc(z.n)} ${esc(wann)} <small>${R.zahl(z.kcal)} kcal</small></button>`).join('')}
+  </section>`;
+}
+
+function wieVorherEintragen(z, quelle) {
+  const tag = zustand.tag || heute();
+  const stand = lesen();
+  const alt = (stand.tage[quelle] || []).filter((e) => (e.z || 'mittags') === z);
+  if (!alt.length) return;
+  const neu = R.wiederholen(alt, () => neueId('e'));
+  aendern((s) => { s.tage[tag] = [...(s.tage[tag] || []), ...neu]; });
+  zeige();
+  const name = R.TAGESZEITEN.find((t) => t.id === z)?.n || '';
+  const ids = new Set(neu.map((e) => e.id));
+  meldung(`${name}: ${neu.length === 1 ? neu[0].n : `${neu.length} Sachen`} eingetragen (${R.zahl(R.summe(neu).kcal)} kcal).`, () => {
+    aendern((s) => { s.tage[tag] = (s.tage[tag] || []).filter((e) => !ids.has(e.id)); });
+    zeige();
+  });
 }
 
 function eintragsListe(liste) {
@@ -1934,6 +1961,7 @@ document.addEventListener('click', (ev) => {
     case 'ebene-zu': schliesseEbene(); break;
     case 'uhr-einrichten': uhrEinrichten(); break;
     case 'protokoll': oeffneEbene({ art: 'protokoll', zeitraum: '7' }); break;
+    case 'wie-vorher': wieVorherEintragen(el.dataset.z, el.dataset.quelle); break;
     case 'protokoll-zeitraum': ebene.zeitraum = el.dataset.z; zeigeEbene(); break;
     case 'protokoll-teilen': protokollTeilen(); break;
     case 'protokoll-drucken': window.print(); break;

@@ -289,7 +289,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `navigator.webdriver`). Die Geräte o0ty, n4zs, rlo3 und l5yl in
   `mahlzeit_nutzung` waren Testläufe; 37q1 und 9ifv sind vermutlich Tobi. Mahlzeit v16:
   „📋 Ernährungsprotokoll“ (Heute und Mehr): 7/14/30 Tage, Teilen als Text,
-  Drucken/PDF – Uwes Wunsch für die Ernährungsberatung (27.11.).
+  Drucken/PDF – Uwes Wunsch für die Ernährungsberatung (27.11.). Mahlzeit v17:
+  „↻ Morgens wie gestern“ auf Heute (eine Tageszeit vom letzten Tag mit einem
+  Tipp). Offen: Abend-Erinnerung per Web-Push (Tobi: „Alle drei“).
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,
