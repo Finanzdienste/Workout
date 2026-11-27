@@ -306,10 +306,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   `Finanzdienste/Apps` steht die alte Kennung noch in
   `tools/apps-uebersicht.sql` (`apps_wer`, `mahlzeit_lesen`) – die Datenbank
   ist schon umgestellt, die Datei dort nicht wieder einspielen, bevor sie
-  auf `mahlzeit_name` umgeschrieben ist. Offen auch: die Migration
-  `mahlzeit_geraet_wechsel_beweis` (Tabelle `mahlzeit_wechsel_beweis`, so
-  wie in `geraet.sql`) wartete am 27.11. auf Tobis Bestätigung in Supabase –
-  bis dahin prüft die Funktion den Beweis gegen `mahlzeit_werte` selbst.
+  auf `mahlzeit_name` umgeschrieben ist. Uwes Handy hat am 27.11. um
+  18:55 gewechselt (`mahlzeit_wechsel.fertig`), Werte und Name sind
+  mitgezogen; die Datenbank steht so wie in `geraet.sql`.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,
