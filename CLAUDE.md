@@ -287,7 +287,9 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   Gerät ist `0jhz8uo152qh`; die Abfrage steht in `mahlzeit/README.md` (v13). Mahlzeit v15:
   Testbrowser melden nichts mehr (`echtesGeraet()`, nur GitHub Pages ohne
   `navigator.webdriver`). Die Geräte o0ty, n4zs, rlo3 und l5yl in
-  `mahlzeit_nutzung` waren Testläufe; 37q1 und 9ifv sind vermutlich Tobi.
+  `mahlzeit_nutzung` waren Testläufe; 37q1 und 9ifv sind vermutlich Tobi. Mahlzeit v16:
+  „📋 Ernährungsprotokoll“ (Heute und Mehr): 7/14/30 Tage, Teilen als Text,
+  Drucken/PDF – Uwes Wunsch für die Ernährungsberatung (27.11.).
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

@@ -332,3 +332,20 @@ button, .knopf { font: inherit; color: inherit; }
 .anleitung code { font-family: ui-monospace, Menlo, monospace; font-size: .92em; background: var(--grund); border: 1px solid var(--linie); border-radius: 6px; padding: 0 .3em; white-space: nowrap; }
 .anleitung .var { display: inline-block; background: #2f6fd6; color: #fff; border-radius: 6px; padding: 0 .35em; font-size: .9em; font-weight: 600; }
 .adresse { font-family: ui-monospace, Menlo, monospace; font-size: .82rem; word-break: break-all; background: var(--karte); border: 1.5px solid var(--linie); border-radius: 10px; padding: .6rem .7rem; user-select: all; }
+
+/* Ernährungsprotokoll (v16) */
+.protokoll .protokoll-tag { border-top: 1px solid var(--linie); padding-top: .6rem; margin-top: .8rem; }
+.protokoll h3 { margin: .2rem 0 .3rem; }
+.protokoll h4 { margin: .5rem 0 .2rem; font-size: .95rem; color: var(--leise); }
+.protokoll ul { list-style: none; padding: 0; margin: 0; }
+.protokoll li { display: flex; justify-content: space-between; gap: .8rem; padding: .15rem 0; }
+.protokoll li .wert { white-space: nowrap; }
+.protokoll-summe { margin: .4rem 0 .2rem; }
+.nur-drucken { display: none; }
+@media print {
+  body > *:not(#ebene) { display: none !important; }
+  #ebene { position: static !important; inset: auto !important; overflow: visible !important; background: #fff !important; color: #000 !important; }
+  #ebene .ebene-kopf, #ebene .nicht-drucken { display: none !important; }
+  #ebene .nur-drucken { display: block; }
+  .protokoll-tag { break-inside: avoid; }
+}

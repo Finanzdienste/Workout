@@ -614,3 +614,48 @@ export function sicherungText(stand, heute) {
 
 /** Wie viele Tage mit Einträgen es gibt – für den Hinweis auf die Sicherung. */
 export const tageMitEintraegen = (stand) => Object.keys(stand.tage || {}).length;
+
+// --- Ernährungsprotokoll (v16) -------------------------------------------------
+
+/*
+ * Uwe, 27.11.2026 (über Tobi): „Gibt es eine Möglichkeit das ich die
+ * eingetragenen Lebensmittel pro Tag irgendwie auslesen kann? Dann bräuchte
+ * ich sie nicht doppelt für meine Ernährungsprotokoll für die
+ * Ernährungsberatung aufzuschreiben.“ Darum: alles Eingetragene Tag für Tag,
+ * nach Tageszeit, mit Menge, kcal, Kohlenhydraten und Eiweiß, dazu die Werte
+ * des Tages (Gewicht, Blutzucker) – als Text zum Teilen und als Seite zum
+ * Drucken oder als PDF. Nur Tage mit Einträgen.
+ */
+export function protokollTage(stand, von, bis) {
+  const tage = Object.keys(stand.tage || {}).filter((t) => t >= von && t <= bis && (stand.tage[t] || []).length).sort();
+  return tage.map((tag) => {
+    const liste = stand.tage[tag];
+    const zeiten = TAGESZEITEN.map((z) => ({
+      n: z.n,
+      eintraege: liste.filter((e) => (e.z || 'mittags') === z.id).map((e) => ({
+        text: `${e.m !== 1 ? `${menge(e.m)} × ` : ''}${e.n}${e.p ? `, ${e.p}` : ''}`,
+        kcal: kcalVon(e), kh: khVon(e), ei: eiVon(e),
+      })),
+    })).filter((z) => z.eintraege.length);
+    const werte = (stand.werte || []).filter((w) => w.tag === tag && ['gewicht', 'zucker'].includes(w.art))
+      .sort((a, b) => (a.uhr || '').localeCompare(b.uhr || ''))
+      .map((w) => (w.art === 'gewicht'
+        ? `Gewicht ${String(w.wert).replace('.', ',')} kg`
+        : `Blutzucker ${zahl(w.wert)} mg/dl${[ZUCKER_WANN.find((z) => z.id === w.wann)?.n, w.uhr].filter(Boolean).length ? ` (${[ZUCKER_WANN.find((z) => z.id === w.wann)?.n, w.uhr].filter(Boolean).join(', ')})` : ''}`));
+    return { tag, zeiten, summe: summe(liste), hafer: istHafertag(stand, tag), werte };
+  });
+}
+
+/** Das Protokoll als Text – für WhatsApp, Mail oder zum Einfügen. */
+export function protokollText(stand, von, bis) {
+  const tage = protokollTage(stand, von, bis);
+  const kopf = `Ernährungsprotokoll ${datumKurz(von)} bis ${datumKurz(bis)}`;
+  if (!tage.length) return `${kopf}\n\nIn dieser Zeit ist nichts eingetragen.`;
+  const teile = tage.map((t) => [
+    `${datumLang(t.tag)}${t.hafer ? ' (Hafertag)' : ''}`,
+    ...t.zeiten.flatMap((z) => [`${z.n}:`, ...z.eintraege.map((e) => `- ${e.text}: ${zahl(e.kcal)} kcal`)]),
+    `Summe: ${zahl(t.summe.kcal)} kcal · ${zahl(t.summe.kh)} g Kohlenhydrate · ${zahl(t.summe.ei)} g Eiweiß`,
+    ...(t.werte.length ? [`Werte: ${t.werte.join(' · ')}`] : []),
+  ].join('\n'));
+  return [kopf, ...teile, 'Die kcal sind Richtwerte aus der App „Mahlzeit“.'].join('\n\n');
+}

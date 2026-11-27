@@ -13,6 +13,40 @@ Workout-App im selben Repository: kein Bauschritt, keine Abhängigkeiten,
 eigener Ordner, eigener Service Worker, eigene Tests (`tests/test-mz-*.mjs`).
 
 
+
+## Ernährungsprotokoll zum Teilen und Drucken (v16, 27.11.2026)
+
+Uwe an Tobi: „Gibt es eine Möglichkeit das ich die eingetragenen Lebensmittel
+pro Tag irgendwie auslesen kann? Dann bräuchte ich sie nicht doppelt für
+meine Ernährungsprotokoll für die Ernährungsberatung aufzuschreiben.“
+
+**Vorher:** Was eingetragen war, sah man nur Tag für Tag auf „Heute“.
+
+**Jetzt:** „📋 Ernährungsprotokoll“ ist der Knopf unten auf „Heute“, sobald
+etwas eingetragen ist. Dieselbe Funktion steht als Karte unter *Mehr*. Sie
+öffnet eine Ebene:
+- **Zeitraum** zum Wählen: letzte 7 Tage (vorgewählt), 14 oder 30 Tage.
+- **Nur Tage mit Einträgen**, der älteste zuerst. Je Tag stehen die
+  Einträge nach Tageszeit da, als Menge × Name mit Portion und kcal. Darunter
+  die Summe aus kcal, Kohlenhydraten und Eiweiß und die Werte des Tages
+  (Gewicht, Blutzucker mit „wann“ und Uhrzeit). Ein Hafertag ist
+  gekennzeichnet.
+- **„📤 Teilen“** gibt das Protokoll als Text weiter, per WhatsApp oder Mail
+  (`navigator.share`). Wo das nicht geht, kopiert die App den Text.
+- **„🖨️ Drucken / PDF“** öffnet das Druckfenster. Gedruckt wird nur das
+  Protokoll mit Überschrift (`@media print`). Auf dem iPhone wird es im
+  Druckfenster über das Teilen-Symbol zum PDF.
+
+Alles geht ohne Netz. Die Berechnung steckt in `protokollTage` und
+`protokollText` in `js/rechnen.js`.
+
+Geprüft in `tests/test-mz-protokoll.mjs`:
+- Tage, Tageszeiten, Mengen, Summen und Werte
+- der Text
+- die Ebene mit Zeitraum, Teilen und Drucken
+- die Druckansicht ohne Knöpfe
+- ganz ohne Netz
+
 ## Nur echte Handys melden (v15, 26.11.2026)
 
 Tobi zeigte „Meine Apps“ (Karte Mahlzeit: „Weitere: Gerät l5yl, Gerät n4zs,

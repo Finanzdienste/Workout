@@ -20,7 +20,7 @@ import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 import * as UHR from './uhr.js';
 
-export const FASSUNG = 'v15';
+export const FASSUNG = 'v16';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -121,6 +121,7 @@ function seiteHeute(stand) {
   html += eintragsListe(liste);
   html += kartenUnten(stand, tag, h);
   html += wochenKarte(stand, h);
+  if (Object.keys(stand.tage).length) html += '<button type="button" class="knopf leise breit" data-tun="protokoll" id="protokoll-knopf">📋 Ernährungsprotokoll (zum Teilen oder Drucken)</button>';
   return html;
 }
 
@@ -654,6 +655,11 @@ function seiteMehr(stand) {
       <button type="button" class="chip" data-tun="essen-teilen" data-an="" aria-pressed="${stand.essenTeilen !== true}">nein</button>
     </div>` : ''}
   </section>
+  <section class="karte" id="karte-protokoll">
+    <h3>📋 Ernährungsprotokoll</h3>
+    <p>Für die Ernährungsberatung: alles, was du eingetragen hast, Tag für Tag – zum Teilen, Drucken oder als PDF. Nichts doppelt aufschreiben.</p>
+    <button type="button" class="knopf" data-tun="protokoll">Protokoll ansehen</button>
+  </section>
   <section class="karte" id="karte-sicherung">
     <h3>💾 Sicherung</h3>
     <p>Alles liegt nur auf diesem Handy. Mit einer Sicherung kommst du auf einem neuen Handy wieder dran.</p>
@@ -739,6 +745,8 @@ function zeigeEbene() {
     if (S.kannLive() && !ebene.nichtGefunden) kameraAn();
   } else if (ebene.art === 'rezept') {
     el.innerHTML = rezeptHtml();
+  } else if (ebene.art === 'protokoll') {
+    el.innerHTML = protokollHtml(stand);
   } else if (ebene.art === 'uhr') {
     el.innerHTML = uhrHtml(stand);
   } else if (ebene.art === 'training') {
@@ -1745,6 +1753,65 @@ function wertWeg(id) {
   if (alt) meldung('Gelöscht.', () => { aendern((s) => { s.werte.push(alt); }); zeige(); });
 }
 
+// --- Ernährungsprotokoll (v16) -----------------------------------------------
+
+/*
+ * Uwe: „Gibt es eine Möglichkeit das ich die eingetragenen Lebensmittel pro
+ * Tag irgendwie auslesen kann? … für die Ernährungsberatung“. Die Ebene zeigt
+ * das Protokoll, „Teilen“ gibt es als Text weiter (WhatsApp, Mail), „Drucken /
+ * PDF“ druckt nur das Protokoll (styles.css, @media print). Geht ohne Netz.
+ */
+const PROTOKOLL_ZEITRAUM = [{ z: '7', n: 'Letzte 7 Tage', tage: 7 }, { z: '14', n: '14 Tage', tage: 14 }, { z: '30', n: '30 Tage', tage: 30 }];
+
+function protokollSpanne() {
+  const h = heute();
+  const tage = PROTOKOLL_ZEITRAUM.find((x) => x.z === ebene.zeitraum)?.tage || 7;
+  return { von: R.plusTage(h, -(tage - 1)), bis: h };
+}
+
+function protokollHtml(stand) {
+  const { von, bis } = protokollSpanne();
+  const tage = R.protokollTage(stand, von, bis);
+  return `
+    <div class="ebene-kopf">
+      <button type="button" class="rund" data-tun="ebene-zu" aria-label="Schließen">✕</button>
+      <h2>Ernährungsprotokoll</h2>
+    </div>
+    <div class="ebene-inhalt protokoll">
+      <div class="chips nicht-drucken" role="group" aria-label="Zeitraum">${PROTOKOLL_ZEITRAUM.map((x) => `<button type="button" class="chip" data-tun="protokoll-zeitraum" data-z="${x.z}" aria-pressed="${ebene.zeitraum === x.z}">${x.n}</button>`).join('')}</div>
+      <div class="reihe nicht-drucken">
+        <button type="button" class="knopf haupt" data-tun="protokoll-teilen" id="protokoll-teilen" ${tage.length ? '' : 'disabled'}>📤 Teilen</button>
+        <button type="button" class="knopf" data-tun="protokoll-drucken" id="protokoll-drucken" ${tage.length ? '' : 'disabled'}>🖨️ Drucken / PDF</button>
+      </div>
+      <p class="klein leise nicht-drucken">„Teilen“ schickt es als Text, etwa per WhatsApp oder Mail. „Drucken / PDF“: auf dem iPhone im Druckfenster auf das Teilen-Symbol – dann ist es ein PDF.</p>
+      <div class="druck" id="protokoll">
+        <h2 class="nur-drucken">Ernährungsprotokoll</h2>
+        <p class="leise" id="protokoll-spanne">${esc(R.datumLang(von))} bis ${esc(R.datumLang(bis))}</p>
+        ${tage.length ? tage.map((t) => `<section class="protokoll-tag">
+          <h3>${esc(R.datumLang(t.tag))}${t.hafer ? ' · 🌾 Hafertag' : ''}</h3>
+          ${t.zeiten.map((z) => `<h4>${esc(z.n)}</h4><ul>${z.eintraege.map((e) => `<li><span>${esc(e.text)}</span><span class="wert">${R.zahl(e.kcal)} kcal</span></li>`).join('')}</ul>`).join('')}
+          <p class="protokoll-summe"><strong>${R.zahl(t.summe.kcal)} kcal</strong> · ${R.zahl(t.summe.kh)} g Kohlenhydrate · ${R.zahl(t.summe.ei)} g Eiweiß</p>
+          ${t.werte.length ? `<p class="klein">${esc(t.werte.join(' · '))}</p>` : ''}
+        </section>`).join('') : '<p id="protokoll-leer">In dieser Zeit ist nichts eingetragen.</p>'}
+        <p class="klein leise">Die kcal sind Richtwerte aus der App „Mahlzeit“.</p>
+      </div>
+    </div>`;
+}
+
+async function protokollTeilen() {
+  const { von, bis } = protokollSpanne();
+  const text = R.protokollText(lesen(), von, bis);
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Ernährungsprotokoll', text }); return; } catch (e) { if (e?.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    meldung('Kopiert – jetzt in WhatsApp oder in eine Mail einfügen.');
+  } catch {
+    meldung('Teilen geht hier nicht – „Drucken / PDF“ nehmen.');
+  }
+}
+
 // --- Uhr (v10) ---------------------------------------------------------------
 
 /*
@@ -1866,6 +1933,10 @@ document.addEventListener('click', (ev) => {
     case 'essen': oeffneEssen(); break;
     case 'ebene-zu': schliesseEbene(); break;
     case 'uhr-einrichten': uhrEinrichten(); break;
+    case 'protokoll': oeffneEbene({ art: 'protokoll', zeitraum: '7' }); break;
+    case 'protokoll-zeitraum': ebene.zeitraum = el.dataset.z; zeigeEbene(); break;
+    case 'protokoll-teilen': protokollTeilen(); break;
+    case 'protokoll-drucken': window.print(); break;
     case 'uhr-kopieren': {
       const k = lesen().uhr?.k;
       if (!k) break;
