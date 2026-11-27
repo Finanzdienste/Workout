@@ -291,7 +291,10 @@ Neue Module: Reihenfolge in `MODULES` von `tools/build-single.py`
   „📋 Ernährungsprotokoll“ (Heute und Mehr): 7/14/30 Tage, Teilen als Text,
   Drucken/PDF – Uwes Wunsch für die Ernährungsberatung (27.11.). Mahlzeit v17:
   „↻ Morgens wie gestern“ auf Heute (eine Tageszeit vom letzten Tag mit einem
-  Tipp). Offen: Abend-Erinnerung per Web-Push (Tobi: „Alle drei“).
+  Tipp). Mahlzeit v18: Erinnerung am Abend per Web-Push (`js/erinnerung.js`,
+  Edge Function `mahlzeit-erinnerung` mit `webpush.js` als Kopie aus Freizeit,
+  `mahlzeit/supabase/erinnerung.sql`, pg_cron alle 15 Minuten). Auf einem
+  echten Handy am 27.11. noch nicht gesehen – „Probe schicken“ unter *Mehr*.
 - Davor v263: Bildschirmzeit für Tobis Widget (README „Bildschirmzeit für
   das Widget“). `js/bildschirmzeit.js` ist eine byte-gleiche Kopie aus
   Finanzdienste/Bildschirmzeit (`web/bildschirmzeit.js`) – nur dort ändern,

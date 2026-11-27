@@ -15,6 +15,96 @@ eigener Ordner, eigener Service Worker, eigene Tests (`tests/test-mz-*.mjs`).
 
 
 
+
+## Erinnerung am Abend (v18, 27.11.2026)
+
+Tobi fragte: „Und wie können wir die app noch weiter optimieren?“ Der zweite
+von drei Vorschlägen war „eine sanfte Erinnerung am Abend“, weil Uwe jeden
+Tag einträgt, aber von Tag zu Tag weniger. Tobi: „Alle drei“.
+
+**Vorher:** Die App meldete sich nie von selbst.
+
+**Jetzt:** Ist zur gewählten Uhrzeit (19, 20 oder 21 Uhr, vorgewählt 20)
+noch nichts fürs Abendessen eingetragen, kommt eine Mitteilung. Ist schon
+eingetragen, bleibt es still.
+
+- **Zwei Texte, ohne Urteil:**
+  - „Abendessen schon gehabt? Kurz eintragen, dann ist der Tag komplett.“
+  - „Heute ist noch nichts eingetragen. Magst du es kurz nachtragen?“ (wenn
+    der Tag leer ist oder die App heute nicht offen war)
+- **Höchstens eine am Tag,** bis zwei Stunden nach der Uhrzeit, danach nicht
+  mehr.
+- **Sie hört von selbst auf,** wenn die App sich sieben Tage nicht gemeldet
+  hat. Niemand wird ewig angetippt.
+
+**In der App:**
+- Auf „Heute“ fragt eine Karte einmal „🔔 Soll ich dich abends erinnern?“
+  mit „Ja, erinnern“ und „Nein danke“. Sie kommt erst nach zwei Tagen mit
+  Einträgen und nur, wenn das Handy Mitteilungen kann.
+- Unter *Mehr → Erinnerung am Abend* stehen aus / 19 / 20 / 21 Uhr und
+  „Probe schicken“.
+- Geht es nicht, steht dort warum: iPhone im Browser statt vom
+  Home-Bildschirm, oder Mitteilungen blockiert.
+
+**Wie es läuft:**
+1. `js/erinnerung.js` holt beim Push-Dienst des Browsers ein Abo. Auf dem
+   iPhone geht das nur in der App vom Home-Bildschirm, ab iOS 16.4.
+2. Die App legt das Abo mit Uhrzeit, Zeitzone und zwei Zahlen (Einträge
+   heute, davon abends) in `mahlzeit_erinnerung` ab, über
+   `mahlzeit_erinnerung_melden` (`supabase/erinnerung.sql`). Was gegessen
+   wurde, geht dafür nicht mit.
+3. Die Zahlen meldet sie nach, wenn sie sich ändern: beim Öffnen, beim
+   Weglegen und bei `online`. Ohne Netz gilt nichts als gemeldet.
+4. pg_cron ruft alle 15 Minuten `mahlzeit_erinnerung_anstossen()`. Die weckt
+   die Edge Function `mahlzeit-erinnerung` nur, wenn jemand dran sein könnte.
+5. Die Funktion entscheidet (`faellig` in `lauf.js`) und verschickt
+   verschlüsselt. `webpush.js` ist eine unveränderte Kopie aus
+   Finanzdienste/Freizeit. Der Ausweis (VAPID) ist derselbe und liegt in der
+   Datenbank (`freizeit_push_schluessel`).
+6. `sw.js` zeigt die Mitteilung. Ein Tipp darauf holt die App nach vorn.
+
+**Schutz:**
+- Die Kennung ist zufällig (24 Zeichen) und liegt nur auf dem Handy, in
+  `mahlzeit.erinnerung.v1`. Sie steht nicht im Stand und zieht nicht mit der
+  Sicherung um. Es ist nicht die Gerätekennung des Lebenszeichens.
+- Verschickt wird nur an echte Push-Dienste (Google, Apple, Mozilla,
+  Microsoft).
+- Höchstens fünf Proben am Tag.
+- Ein Abo, das der Push-Dienst nicht mehr kennt (404, 410), wird gelöscht.
+  Die App legt beim nächsten Öffnen ein neues ab.
+- Testbrowser melden nichts (`echtesGeraet()`).
+
+**Live geprüft am 27.11.** mit einem erfundenen Abo:
+- Anmelden und Abmelden gehen, ein kaputtes Abo wird abgelehnt.
+- Mit dem öffentlichen Schlüssel ist die Tabelle nicht lesbar.
+- Die Probe kam bis zu Googles Push-Dienst. Der antwortete 410, weil es das
+  Abo nicht gibt, und die Zeile war danach weg.
+- Dabei gefunden: Postgres erlaubt in einem Muster höchstens 255
+  Wiederholungen, `{10,1000}` ließ jeden Aufruf scheitern. Behoben.
+- **Nicht geprüft:** dass die Mitteilung auf einem echten Handy erscheint.
+  Das zeigt „Probe schicken“.
+
+**Für Tobi nachsehen** (Supabase, SQL):
+
+```sql
+-- Wer hat die Erinnerung an, wann zuletzt erinnert, wann war die App zuletzt da?
+select left(kennung, 4) as handy, uhr, tag, gesamt, abends, gesendet, at
+from public.mahlzeit_erinnerung order by at desc;
+```
+
+Was die Funktion getan hat, steht in Supabase unter *Edge Functions →
+mahlzeit-erinnerung → Logs* (eine Zeile je Durchlauf, in dem jemand dran
+war).
+
+Geprüft in `tests/test-mz-erinnerung.mjs`:
+- wer wann dran ist
+- was beim Push-Dienst ankommt (entschlüsselt nachgelesen)
+- tote Abos und die Probe mit Grenze
+- der Service Worker
+- in der App: Frage, Einschalten, Nachmelden auch nach einer Zeit ohne
+  Netz, Uhrzeit, Probe, Aus, Erlaubnis verweigert, Server weg, iPhone im
+  Browser, Testbrowser
+
 ## „Wie gestern“ mit einem Tipp (v17, 27.11.2026)
 
 Tobi fragte: „Und wie können wir die app noch weiter optimieren?“ Uwe trug
@@ -34,7 +124,7 @@ dafür steht in `wieVorher` und `wiederholen` in `js/rechnen.js`.
 - „Seine eigenen Sachen fest in die Liste“: Uwe hat das Teilen seines Essens
   nicht erlaubt (`mahlzeit_essen` leer). Seine 13 eigenen Sachen stehen
   ohnehin in seiner Suche und unter „Oft bei dir“. Kein Bau.
-- Die Abend-Erinnerung als Mitteilung (Web-Push) ist offen.
+- Die Abend-Erinnerung als Mitteilung kam mit v18 (Abschnitt oben).
 
 Geprüft in `tests/test-mz-wie-gestern.mjs`.
 

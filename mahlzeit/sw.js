@@ -21,7 +21,7 @@
  * vergleicht beide).
  */
 
-const VERSION = 'v17';
+const VERSION = 'v18';
 const CACHE = `mahlzeit-${VERSION}`;
 
 const SHELL = [
@@ -37,6 +37,7 @@ const SHELL = [
   './js/sport.js',
   './js/figuren.js',
   './js/lebenszeichen.js',
+  './js/erinnerung.js',
   './js/uhr.js',
   './icon.svg',
   './icon-192.png',
@@ -90,4 +91,37 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   event.respondWith(imVorrat(request).then((hit) => hit || frisch(request)));
+});
+
+/*
+ * Die Erinnerung am Abend (v18, js/erinnerung.js): Die Edge Function
+ * mahlzeit-erinnerung schickt { titel, text, tag, url } – verschlüsselt, der
+ * Browser packt es aus. Der tag lässt eine neuere Erinnerung die ältere
+ * ersetzen. Kommt ein Anstoß ohne Inhalt, steht trotzdem ein Satz da (iOS
+ * verlangt zu jedem Anstoß eine sichtbare Mitteilung). Ein Tipp darauf holt
+ * die offene App nach vorn oder öffnet sie.
+ */
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch { d = { text: event.data ? event.data.text() : '' }; }
+  if (!d || typeof d !== 'object') d = {};
+  const titel = typeof d.titel === 'string' && d.titel ? d.titel : 'Mahlzeit';
+  event.waitUntil(self.registration.showNotification(titel, {
+    body: typeof d.text === 'string' && d.text ? d.text : 'Schon alles eingetragen?',
+    tag: typeof d.tag === 'string' && d.tag ? d.tag : 'mahlzeit-abend',
+    renotify: true,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    data: { url: typeof d.url === 'string' && d.url.startsWith('./') ? d.url : './' },
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const basis = new URL('./', self.location.href).href;
+  const ziel = new URL((event.notification.data && event.notification.data.url) || './', self.location.href).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((fenster) => {
+    const offen = fenster.find((f) => f.url.startsWith(basis));
+    return offen ? offen.focus() : self.clients.openWindow(ziel);
+  }));
 });

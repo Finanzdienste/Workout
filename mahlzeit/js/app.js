@@ -19,8 +19,9 @@ import * as SP from './sport.js';
 import { figur } from './figuren.js';
 import * as LZ from './lebenszeichen.js';
 import * as UHR from './uhr.js';
+import * as E from './erinnerung.js';
 
-export const FASSUNG = 'v17';
+export const FASSUNG = 'v18';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -161,6 +162,16 @@ function kartenOben(stand, tag, h) {
         <button type="button" class="knopf" data-tun="essen-teilen" data-an="1">Ja, darf er</button>
         <button type="button" class="knopf leise" data-tun="essen-teilen" data-an="">Lieber nicht</button>
       </div>
+    </section>`;
+  }
+  // v18: einmal anbieten, wenn die App schon ein paar Tage benutzt wird und
+  // das Handy Mitteilungen kann (iPhone: nur vom Home-Bildschirm).
+  if (tag === h && stand.hinweise.willkommen && !stand.hinweise.erinnerung && !E.zustand().an
+      && Object.keys(stand.tage || {}).length >= 2 && !E.hindernis().grund) {
+    html += `<section class="karte hinweis" id="erinnerung-frage">
+      <p>🔔 <strong>Soll ich dich abends erinnern?</strong> Nur wenn um 20 Uhr noch nichts fürs Abendessen eingetragen ist – sonst bleibt es still.</p>
+      <div class="reihe"><button type="button" class="knopf" data-tun="erinnerung-an" data-uhr="${E.STANDARD_UHR}">Ja, erinnern</button>
+      <button type="button" class="knopf leise" data-tun="hinweis-weg" data-hinweis="erinnerung">Nein danke</button></div>
     </section>`;
   }
   if (tag === h && installierenZeigen(stand, h)) {
@@ -669,6 +680,10 @@ function seiteMehr(stand) {
     <h3>⌚ Uhr: Schlaf und Schritte</h3>
     ${uhrStatusHtml(stand)}
   </section>
+  <section class="karte" id="karte-erinnerung">
+    <h3>🔔 Erinnerung am Abend</h3>
+    ${erinnerungHtml()}
+  </section>
   <section class="karte" id="karte-lebenszeichen">
     <h3>📶 Lebenszeichen an Tobi</h3>
     <p>Damit Tobi weiß, ob dir die App etwas bringt, meldet sie höchstens alle drei Stunden, wie viele Einträge, Hafer-Mahlzeiten und Sporteinheiten du hast. Dazu gehen deine <strong>Werte</strong> an Tobi – Gewicht, Blutzucker, HbA1c, Schlaf und Schritte mit Datum, die letzten 60 Tage. ${stand.essenTeilen === true && stand.meldung !== false ? 'Und, weil du es erlaubt hast, <strong>was du isst</strong> – was, wie viel, die Kalorien, die letzten 60 Tage.' : 'Was du isst, geht nicht mit.'}</p>
@@ -702,7 +717,7 @@ function seiteMehr(stand) {
   </section>
   <section class="karte" id="karte-ueber">
     <h3>ℹ️ Über die App</h3>
-    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi mit deinen Werten${stand.essenTeilen === true && stand.meldung !== false ? ' und deinem Essen' : ''} (abschaltbar, siehe oben) ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.kiAn() ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
+    <p>Mahlzeit fragt nichts: kein Konto, keine Werbung. Deine Einträge bleiben auf deinem Handy. Hinaus geht nur das Lebenszeichen an Tobi mit deinen Werten${stand.essenTeilen === true && stand.meldung !== false ? ' und deinem Essen' : ''} (abschaltbar, siehe oben)${E.zustand().an ? ', für die Erinnerung am Abend die Uhrzeit und wie viele Einträge heute da sind' : ''} ${stand.uhr ? 'Schlaf und Schritte von der Uhr (die liegen dann auch bei Tobi) ' : ''}und, wenn du einen Strichcode nachschlägst, ${K.kiAn() ? 'oder die KI fragst, genau das (siehe „KI und Strichcode“)' : 'die Nummer – an Open Food Facts, eine freie Datenbank für Lebensmittel'}.</p>
     <p>Die Kalorien sind Richtwerte für übliche Portionen – ein Döner vom Imbiss nebenan kann 100 kcal mehr oder weniger haben. Für den Überblick reicht das; genauer wird es mit der Packung in der Hand („Selbst eintragen“).</p>
     <p>Die App ersetzt keine ärztliche Beratung. Was die Hafertage angeht, steht die Quelle unter „Hafer“.</p>
     <p class="klein leise">Fassung ${FASSUNG}</p>
@@ -1839,6 +1854,71 @@ async function protokollTeilen() {
   }
 }
 
+// --- Erinnerung am Abend (v18) -----------------------------------------------
+
+/*
+ * Tobi: „Alle drei“ – eine sanfte Erinnerung, wenn abends noch nichts fürs
+ * Abendessen eingetragen ist (js/erinnerung.js, sw.js, die Edge Function
+ * mahlzeit-erinnerung). Hier nur die Karte unter „Mehr“ und die Knöpfe.
+ */
+let erinnerungText = '';
+let erinnerungLaeuft = false;
+
+function erinnerungHtml() {
+  const z = E.zustand();
+  const h = E.hindernis({ ios: geraet() === 'ios' });
+  const kann = !h.grund;
+  return `<p>Ist abends noch nichts fürs Abendessen eingetragen, meldet sich Mahlzeit mit einer Mitteilung. Hast du schon eingetragen, bleibt es still.</p>
+    <div class="chips" role="group" aria-label="Erinnerung am Abend">
+      <button type="button" class="chip" data-tun="erinnerung-aus" aria-pressed="${!z.an}">aus</button>
+      ${E.UHRZEITEN.map((u) => `<button type="button" class="chip" data-tun="erinnerung-an" data-uhr="${u}" aria-pressed="${z.an && z.uhr === u}" ${kann && !erinnerungLaeuft ? '' : 'disabled'}>${Number(u.slice(0, 2))} Uhr</button>`).join('')}
+    </div>
+    ${kann ? '' : `<p class="klein" id="erinnerung-hindernis">${esc(h.text)}</p>`}
+    ${z.an ? '<button type="button" class="knopf leise" data-tun="erinnerung-probe" id="erinnerung-probe">Probe schicken</button>' : ''}
+    <p class="klein" id="erinnerung-status" role="status">${esc(erinnerungText)}</p>
+    <p class="klein leise">Dafür gehen die Uhrzeit und zwei Zahlen an Tobis Server: wie viele Einträge heute, wie viele davon abends. Nicht, was du isst.</p>`;
+}
+
+async function erinnerungAn(uhr) {
+  if (erinnerungLaeuft) return;
+  if (E.zustand().an) {
+    E.uhrSetzen(uhr);
+    erinnerungText = `Erinnerung um ${Number(uhr.slice(0, 2))} Uhr.`;
+    zeige();
+    E.statusMelden(lesen(), { tag: heute() });
+    return;
+  }
+  erinnerungLaeuft = true;
+  erinnerungText = 'Einen Moment …';
+  zeige();
+  try {
+    await E.einschalten(uhr, lesen(), heute(), { ios: geraet() === 'ios' });
+    aendern((s) => { s.hinweise.erinnerung = heute(); });
+    erinnerungText = `Eingeschaltet – um ${Number(uhr.slice(0, 2))} Uhr, wenn noch nichts fürs Abendessen eingetragen ist.`;
+    meldung(`Erinnerung an: ${Number(uhr.slice(0, 2))} Uhr 🔔`);
+  } catch (e) {
+    erinnerungText = e.message;
+    meldung(e.message);
+  }
+  erinnerungLaeuft = false;
+  if (!ebene) zeige();
+}
+
+async function erinnerungAus() {
+  if (!E.zustand().an) return;
+  erinnerungText = 'Ausgeschaltet.';
+  const fertig = E.ausschalten();
+  zeige();
+  await fertig;
+}
+
+async function erinnerungProbe() {
+  erinnerungText = 'Schicke die Probe …';
+  zeige();
+  erinnerungText = await E.probe();
+  if (!ebene) zeige();
+}
+
 // --- Uhr (v10) ---------------------------------------------------------------
 
 /*
@@ -1960,6 +2040,9 @@ document.addEventListener('click', (ev) => {
     case 'essen': oeffneEssen(); break;
     case 'ebene-zu': schliesseEbene(); break;
     case 'uhr-einrichten': uhrEinrichten(); break;
+    case 'erinnerung-an': erinnerungAn(el.dataset.uhr); break;
+    case 'erinnerung-aus': erinnerungAus(); break;
+    case 'erinnerung-probe': erinnerungProbe(); break;
     case 'protokoll': oeffneEbene({ art: 'protokoll', zeitraum: '7' }); break;
     case 'wie-vorher': wieVorherEintragen(el.dataset.z, el.dataset.quelle); break;
     case 'protokoll-zeitraum': ebene.zeitraum = el.dataset.z; zeigeEbene(); break;
@@ -2330,6 +2413,7 @@ const lebenszeichen = () => {
   LZ.melden(lesen(), { tag: heute(), fassung: FASSUNG, alsApp: standalone() });
   LZ.werteMelden(lesen(), { tag: heute() });
   LZ.essenMelden(lesen(), { tag: heute() });
+  E.statusMelden(lesen(), { tag: heute() });
 };
 setTimeout(lebenszeichen, 4000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') lebenszeichen(); });
